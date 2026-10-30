@@ -69,8 +69,8 @@ li b{color:var(--accent)}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js"></script>
 <script>
 /* ---- 1. Paste your Supabase values here (the publishable/anon key is safe to expose) ---- */
-const SUPABASE_URL = https://xgqdetdqzsqglkdyzlfe.supabase.co;
-const SUPABASE_KEY = sb_publishable_e2SarhgIDMzYaixzoR_2yA_VKjb7Uvv;
+const SUPABASE_URL = 'https://xgqdetdqzsqglkdyzlfe.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_e2SarhgIDMzYaixzoR_2yA_VKjb7Uvv';
 
 const GAME_SECONDS = 30;
 const $ = id => document.getElementById(id);
