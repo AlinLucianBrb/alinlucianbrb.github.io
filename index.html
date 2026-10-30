@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gatekeeper: tower defense prototype</title>
+<style>
+:root{--bg:#18211c;--panel:#233229;--line:#385043;--text:#ecf1e8;--muted:#9db3a3;--accent:#f2b84b;--bad:#e5645a;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;align-items:center;gap:10px;padding:12px}
+.col{width:100%;max-width:680px}
+h1{margin:0;font-size:1.4rem}
+#hud{display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;color:var(--muted)}
+#hud b{color:var(--text)}
+.stage{position:relative;border:2px solid var(--line);border-radius:6px;overflow:hidden;touch-action:manipulation}
+canvas{display:block;width:100%;height:auto}
+.bar{display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;background:var(--panel);color:var(--text);border:2px solid var(--line);border-radius:4px;padding:8px 12px;cursor:pointer}
+button.on{border-color:var(--accent)}
+button.relic{border-color:#b58cf0;color:#dcc6ff}
+button.go{background:var(--accent);border-color:var(--accent);color:#1d1600;font-weight:700}
+button:disabled{opacity:.5;cursor:default}
+button:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.overlay{position:absolute;inset:0;background:rgba(16,24,19,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:14px;text-align:center}
+.overlay[hidden]{display:none}
+.overlay h2{margin:0}
+.choices{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.choices button{width:150px;text-align:left}
+.choices small{display:block;color:var(--muted)}
+.xp{display:inline-block;width:90px;height:8px;background:var(--panel);border:1px solid var(--line);border-radius:4px;vertical-align:middle;overflow:hidden}
+.xp i{display:block;height:100%;width:0;background:#b58cf0}
+#profile{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;color:var(--muted)}
+#profile b{color:var(--text)}
+.welcome input{font:inherit;background:#101813;color:var(--text);border:2px solid var(--line);border-radius:4px;padding:9px 12px;width:min(240px,100%);text-align:center}
+.welcome input:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.board h2{margin:6px 0;font-size:1.1rem}
+.board ol{margin:0;padding-left:1.6em}
+.board li{display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid var(--line)}
+.board li b{color:var(--accent)}
+#relics{color:var(--muted);font-size:.9rem;min-height:1.3em}
+</style>
+</head>
+<body>
+<div class="col"><h1>Gatekeeper</h1></div>
+<div class="col" id="profile">
+  <span><b id="pName"></b></span><span>Level <b id="pLv"></b></span>
+  <span><span class="xp"><i id="xpFill"></i></span> <span id="pXp"></span></span>
+  <span>Bank <b id="pGold"></b></span>
+</div>
+<div class="col" id="hud">
+  <span>Gold <b id="gold"></b></span><span>Lives <b id="lives"></b></span>
+  <span>Wave <b id="wave"></b></span><span>Best <b id="best"></b></span>
+</div>
+<div class="col stage">
+  <canvas id="c" width="640" height="400" aria-label="Game board"></canvas>
+  <div class="overlay welcome" id="welcome" hidden>
+    <h2>Welcome, gatekeeper</h2>
+    <p>Pick a name. Your level and rewards are saved in this browser.</p>
+    <input id="nameIn" maxlength="16" placeholder="Your name" autocomplete="nickname" aria-label="Your name">
+    <button class="go" id="nameBtn">Start playing</button>
+    <div id="nameMsg"></div>
+  </div>
+  <div class="overlay" id="pick" hidden>
+    <h2>Choose a relic</h2>
+    <div class="choices" id="choices"></div>
+  </div>
+  <div class="overlay" id="over" hidden>
+    <h2>The gate has fallen</h2>
+    <p id="overText"></p>
+    <p id="subMsg"></p>
+    <button class="go" id="newRun">New run</button>
+  </div>
+</div>
+<div class="col bar">
+  <button id="t0" class="on">Gun · 50</button>
+  <button id="t1">Frost · 70</button>
+  <button id="relic" class="relic">Relic · 80</button>
+  <button id="go" class="go">Start wave</button>
+  <button id="auto">Auto-start: off</button>
+  <button id="spd">Speed: 1x</button>
+</div>
+<div class="col" id="relics"></div>
+<div class="col board">
+  <h2>Top 10 · most waves</h2>
+  <ol id="board"><li><span>Loading…</span></li></ol>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js"></script>
+<script>
+/* Paste your Supabase values (same project as before works). The publishable key is safe to expose. */
+const SUPABASE_URL = 'https://xgqdetdqzsqglkdyzlfe.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_e2SarhgIDMzYaixzoR_2yA_VKjb7Uvv';
+const sb = !SUPABASE_URL.startsWith('YOUR_') && window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
+const COLS = 16, ROWS = 10, T = 40;
+const $ = id => document.getElementById(id);
+const cv = $('c'), ctx = cv.getContext('2d');
+const rnd = n => Math.floor(Math.random() * n);
+
+const TOWERS = [
+  { name: 'Gun',   cost: 50, range: 110, dmg: 10, rate: 0.5, color: '#f2b84b' },
+  { name: 'Frost', cost: 70, range: 90,  dmg: 3,  rate: 0.8, color: '#72c8f0', slow: 1.5 }
+];
+
+const RELICS = [
+  { name: 'Sharpened rounds', desc: '+25% damage',            fn: s => s.mods.dmg *= 1.25 },
+  { name: 'Long barrels',     desc: '+15% range',             fn: s => s.mods.range *= 1.15 },
+  { name: 'Quick hands',      desc: '+20% fire rate',         fn: s => s.mods.rate *= 1.2 },
+  { name: 'Prospector',       desc: '+2 gold per kill',       fn: s => s.mods.bounty += 2 },
+  { name: 'Reinforced gate',  desc: '+5 lives',               fn: s => s.lives += 5 },
+  { name: 'Bulk order',       desc: 'Towers cost 15% less',   fn: s => s.mods.discount *= 0.85 },
+  { name: 'Deep freeze',      desc: 'Frost slows 1s longer',  fn: s => s.mods.slowBonus += 1 },
+  { name: 'Tax collector',    desc: '+50% gold for clearing a wave', fn: s => s.mods.waveBonus += 0.5 }
+];
+
+let st, sel = 0, hover = null, last = 0, best = 0, auto = false;
+try { best = +localStorage.getItem('gk_best') || 0; } catch (e) {}
+
+function genPath() {
+  let x = 0, y = 1 + rnd(ROWS - 2); const p = [[x, y]];
+  while (x < COLS - 1) {
+    const nx = Math.min(COLS - 1, x + 2 + rnd(3));
+    while (x < nx) { x++; p.push([x, y]); }
+    if (x >= COLS - 1) break;
+    let ny; do { ny = rnd(ROWS); } while (Math.abs(ny - y) < 2);
+    while (y !== ny) { y += Math.sign(ny - y); p.push([x, y]); }
+  }
+  return p;
+}
+
+function newRun() {
+  const path = genPath();
+  st = { gold: 100, lives: 20, wave: 0, phase: 'build', path, pathSet: new Set(path.map(c => c.join(','))),
+    towers: [], enemies: [], beams: [], spawnLeft: 0, spawnT: 0, speed: 1, relics: [], relicsBought: 0, picking: false, autoT: 3, kills: 0,
+    mods: { dmg: 1, range: 1, rate: 1, bounty: 0, discount: 1, slowBonus: 0, waveBonus: 1 } };
+  $('pick').hidden = true; $('over').hidden = true;
+  ui();
+}
+
+const cost = i => Math.round(TOWERS[i].cost * st.mods.discount);
+const relicCost = () => 80 + 40 * st.relicsBought;
+
+function ui() {
+  $('gold').textContent = st.gold; $('lives').textContent = st.lives;
+  $('wave').textContent = st.wave; $('best').textContent = best;
+  $('go').disabled = st.phase !== 'build' || st.picking;
+  $('go').textContent = st.phase === 'build' && auto ? 'Start now (' + Math.max(0, Math.ceil(st.autoT)) + 's)' : 'Start wave';
+  $('relic').textContent = 'Relic · ' + relicCost();
+  $('auto').textContent = 'Auto-start: ' + (auto ? 'on' : 'off');
+  $('auto').classList.toggle('on', auto);
+  $('t0').textContent = 'Gun · ' + cost(0); $('t1').textContent = 'Frost · ' + cost(1);
+  $('t0').classList.toggle('on', sel === 0); $('t1').classList.toggle('on', sel === 1);
+  $('spd').textContent = 'Speed: ' + st.speed + 'x';
+  const counts = {}; st.relics.forEach(r => counts[r] = (counts[r] || 0) + 1);
+  $('relics').textContent = st.relics.length
+    ? 'Relics: ' + Object.entries(counts).map(([k, v]) => v > 1 ? k + ' ×' + v : k).join(', ')
+    : 'Relics: none yet. Buy one with gold.';
+}
+
+function startWave() {
+  if (st.phase !== 'build') return;
+  st.wave++; st.spawnLeft = 5 + st.wave * 2; st.spawnT = 0; st.phase = 'wave'; ui();
+}
+
+function posAt(d) {
+  const p = st.path, i = Math.min(p.length - 1.001, d / T), a = p[Math.floor(i)], b = p[Math.floor(i) + 1], f = i % 1;
+  return [(a[0] + 0.5 + (b[0] - a[0]) * f) * T, (a[1] + 0.5 + (b[1] - a[1]) * f) * T];
+}
+
+function waveCleared() {
+  st.gold += Math.round((15 + st.wave * 3) * st.mods.waveBonus);
+  if (st.wave > best) { best = st.wave; try { localStorage.setItem('gk_best', best); } catch (e) {} }
+  st.phase = 'build'; st.autoT = 3; ui();
+}
+
+function buyRelic() {
+  if (st.picking || st.phase === 'over') return;
+  const c = relicCost();
+  if (st.gold < c) return;
+  st.gold -= c; st.relicsBought++;
+  openPick();
+}
+
+function openPick() {
+  st.picking = true;
+  const pool = RELICS.slice(), opts = [];
+  while (opts.length < 3) opts.push(pool.splice(rnd(pool.length), 1)[0]);
+  const box = $('choices'); box.innerHTML = '';
+  opts.forEach(r => {
+    const b = document.createElement('button');
+    b.innerHTML = '<b></b><small></small>';
+    b.firstChild.textContent = r.name; b.lastChild.textContent = r.desc;
+    b.onclick = () => { r.fn(st); st.relics.push(r.name); st.picking = false; $('pick').hidden = true; ui(); };
+    box.append(b);
+  });
+  $('pick').hidden = false; ui();
+}
+
+/* ---- Browser profile (stored in localStorage; not a real account) ---- */
+const PKEY = 'gk_profile';
+let profile = null;
+const xpNeed = lv => 50 + lv * 50;
+function loadProfile() {
+  try { const p = JSON.parse(localStorage.getItem(PKEY)); if (p && p.v === 1 && typeof p.name === 'string') return p; } catch (e) {}
+  return null;
+}
+function saveProfile() { try { localStorage.setItem(PKEY, JSON.stringify(profile)); } catch (e) {} }
+function createProfile(name) {
+  profile = { v: 1, name, level: 1, xp: 0, gold: 0, runs: 0, bestWave: best, created: Date.now() };
+  saveProfile(); profileUI();
+}
+function profileUI() {
+  if (!profile) return;
+  const need = xpNeed(profile.level);
+  $('pName').textContent = profile.name; $('pLv').textContent = profile.level;
+  $('pXp').textContent = 'XP ' + profile.xp + '/' + need; $('pGold').textContent = profile.gold;
+  $('xpFill').style.width = Math.min(100, profile.xp / need * 100) + '%';
+}
+function submitName() {
+  const name = $('nameIn').value.trim();
+  if (!name) { $('nameMsg').textContent = 'Enter a name to continue.'; return; }
+  createProfile(name);
+  $('welcome').hidden = true; st.picking = false; ui();
+}
+
+/* ---- Leaderboard (Supabase) ---- */
+async function loadBoard() {
+  const list = $('board');
+  if (!sb) { list.innerHTML = '<li><span>Leaderboard not connected yet</span></li>'; return; }
+  const { data, error } = await sb.from('td_scores').select('name,waves').order('waves', { ascending: false }).limit(10);
+  if (error) { list.innerHTML = '<li><span>Could not load scores</span></li>'; return; }
+  list.innerHTML = '';
+  if (!data.length) { list.innerHTML = '<li><span>No runs yet. Be the first.</span></li>'; return; }
+  data.forEach(r => {
+    const li = document.createElement('li'), n = document.createElement('span'), w = document.createElement('b');
+    n.textContent = r.name; w.textContent = r.waves; li.append(n, w); list.append(li);
+  });
+}
+async function submitScore(waves) {
+  if (!sb) return;
+  const { error } = await sb.from('td_scores').insert({ name: profile.name, waves });
+  $('subMsg').textContent = error ? 'Could not add your score to the leaderboard.' : 'Score added to the leaderboard.';
+  if (!error) loadBoard();
+}
+
+function gameOver() {
+  st.phase = 'over';
+  if (st.wave > best) { best = st.wave; try { localStorage.setItem('gk_best', best); } catch (e) {} }
+  const xp = st.wave * 10 + st.kills, gold = st.wave * 5, before = profile.level;
+  profile.xp += xp; profile.gold += gold; profile.runs++; profile.bestWave = Math.max(profile.bestWave || 0, st.wave);
+  while (profile.xp >= xpNeed(profile.level)) { profile.xp -= xpNeed(profile.level); profile.level++; }
+  saveProfile(); profileUI();
+  $('overText').textContent = 'You reached wave ' + st.wave + '. +' + xp + ' XP, +' + gold + ' bank gold.' +
+    (profile.level > before ? ' Level up! You are now level ' + profile.level + '.' : '');
+  $('subMsg').textContent = sb ? 'Adding your score to the leaderboard…' : 'Leaderboard not connected yet.';
+  $('over').hidden = false; ui();
+  submitScore(st.wave);
+}
+
+function update(dt) {
+  dt *= st.speed;
+  if (st.phase === 'build' && auto && (st.autoT -= dt) <= 0) startWave();
+  if (st.phase === 'wave' && st.spawnLeft > 0 && (st.spawnT -= dt) <= 0) {
+    const hp = Math.round(20 * Math.pow(1.2, st.wave - 1));
+    st.enemies.push({ d: 0, hp, max: hp, spd: Math.min(90, 50 + st.wave * 2), slowT: 0 });
+    st.spawnLeft--; st.spawnT = Math.max(0.35, 0.85 - st.wave * 0.02);
+  }
+  for (const e of st.enemies) {
+    e.slowT = Math.max(0, e.slowT - dt);
+    e.d += e.spd * (e.slowT > 0 ? 0.5 : 1) * dt;
+    if (e.d / T >= st.path.length - 1.001) { e.hp = 0; e.escaped = true; st.lives--; }
+  }
+  for (const t of st.towers) {
+    t.cd -= dt;
+    if (t.cd > 0) continue;
+    const def = TOWERS[t.type], range = def.range * st.mods.range;
+    let target = null, tp;
+    for (const e of st.enemies) {
+      if (e.hp <= 0) continue;
+      const p = posAt(e.d);
+      if (Math.hypot(p[0] - t.x, p[1] - t.y) <= range && (!target || e.d > target.d)) { target = e; tp = p; }
+    }
+    if (!target) continue;
+    target.hp -= def.dmg * st.mods.dmg;
+    if (def.slow) target.slowT = def.slow + st.mods.slowBonus;
+    t.cd = def.rate / st.mods.rate;
+    st.beams.push({ x1: t.x, y1: t.y, x2: tp[0], y2: tp[1], t: 0.08, c: def.color });
+  }
+  st.enemies = st.enemies.filter(e => {
+    if (e.hp <= 0 && !e.escaped) { st.gold += 5 + st.mods.bounty; st.kills++; }
+    return e.hp > 0;
+  });
+  st.beams = st.beams.filter(b => (b.t -= dt) > 0);
+  if (st.lives <= 0) { st.lives = 0; return gameOver(); }
+  if (st.phase === 'wave' && st.spawnLeft === 0 && !st.enemies.length) waveCleared();
+  ui();
+}
+
+function draw() {
+  ctx.fillStyle = '#2d4636'; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.strokeStyle = 'rgba(255,255,255,.05)';
+  for (let x = 0; x <= COLS; x++) { ctx.beginPath(); ctx.moveTo(x * T, 0); ctx.lineTo(x * T, cv.height); ctx.stroke(); }
+  for (let y = 0; y <= ROWS; y++) { ctx.beginPath(); ctx.moveTo(0, y * T); ctx.lineTo(cv.width, y * T); ctx.stroke(); }
+  ctx.fillStyle = '#9a8a62';
+  st.path.forEach(([x, y]) => ctx.fillRect(x * T, y * T, T, T));
+  const end = st.path[st.path.length - 1];
+  ctx.fillStyle = '#e5645a'; ctx.fillRect(end[0] * T + T - 6, end[1] * T, 6, T);
+  if (hover && !st.pathSet.has(hover.join(',')) && !st.towers.some(t => t.cx === hover[0] && t.cy === hover[1])) {
+    ctx.beginPath(); ctx.arc((hover[0] + .5) * T, (hover[1] + .5) * T, TOWERS[sel].range * st.mods.range, 0, 7);
+    ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fill();
+  }
+  st.towers.forEach(t => {
+    ctx.beginPath(); ctx.arc(t.x, t.y, 13, 0, 7); ctx.fillStyle = TOWERS[t.type].color; ctx.fill();
+    ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2; ctx.stroke();
+  });
+  st.beams.forEach(b => { ctx.strokeStyle = b.c; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(b.x1, b.y1); ctx.lineTo(b.x2, b.y2); ctx.stroke(); });
+  st.enemies.forEach(e => {
+    const [x, y] = posAt(e.d);
+    ctx.beginPath(); ctx.arc(x, y, 10, 0, 7); ctx.fillStyle = e.slowT > 0 ? '#8fb4e8' : '#d1564d'; ctx.fill();
+    ctx.fillStyle = '#000'; ctx.fillRect(x - 11, y - 17, 22, 4);
+    ctx.fillStyle = '#6fdc7a'; ctx.fillRect(x - 11, y - 17, 22 * Math.max(0, e.hp / e.max), 4);
+  });
+}
+
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (st.phase !== 'over' && !st.picking) update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+function cellFrom(e) {
+  const r = cv.getBoundingClientRect();
+  return [Math.floor((e.clientX - r.left) / r.width * COLS), Math.floor((e.clientY - r.top) / r.height * ROWS)];
+}
+cv.addEventListener('pointermove', e => { hover = cellFrom(e); });
+cv.addEventListener('pointerleave', () => { hover = null; });
+cv.addEventListener('pointerdown', e => {
+  hover = cellFrom(e);
+  if (st.phase === 'over' || st.picking) return;
+  const [cx, cy] = hover;
+  if (st.pathSet.has(cx + ',' + cy) || st.towers.some(t => t.cx === cx && t.cy === cy)) return;
+  const c = cost(sel);
+  if (st.gold < c) return;
+  st.gold -= c;
+  st.towers.push({ type: sel, cx, cy, x: (cx + .5) * T, y: (cy + .5) * T, cd: 0 });
+  ui();
+});
+
+$('t0').onclick = () => { sel = 0; ui(); };
+$('t1').onclick = () => { sel = 1; ui(); };
+$('go').onclick = startWave;
+$('relic').onclick = buyRelic;
+$('auto').onclick = () => { auto = !auto; st.autoT = 3; ui(); };
+$('spd').onclick = () => { st.speed = st.speed === 1 ? 2 : 1; ui(); };
+$('newRun').onclick = newRun;
+$('nameBtn').onclick = submitName;
+$('nameIn').addEventListener('keydown', e => { if (e.key === 'Enter') submitName(); });
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === '1') { sel = 0; ui(); } else if (e.key === '2') { sel = 1; ui(); }
+  else if (e.key.toLowerCase() === 'r') buyRelic();
+  else if (e.key === ' ' && st.phase === 'build' && !st.picking) { e.preventDefault(); startWave(); }
+});
+
+profile = loadProfile();
+if (profile) best = Math.max(best, profile.bestWave || 0);
+newRun();
+profileUI();
+if (!profile) { st.picking = true; $('welcome').hidden = false; $('nameIn').focus(); }
+loadBoard();
+requestAnimationFrame(t => { last = t; loop(t); });
+</script>
+</body>
+</html>
