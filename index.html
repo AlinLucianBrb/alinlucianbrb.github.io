@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test TBD</title>
+<style>
+:root{--bg:#18211c;--panel:#233229;--line:#385043;--text:#ecf1e8;--muted:#9db3a3;--accent:#f2b84b;--bad:#e5645a;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;align-items:center;gap:10px;padding:12px}
+.col{width:100%;max-width:680px}
+h1{margin:0;font-size:1.4rem}
+#hud{display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;color:var(--muted)}
+#hud b{color:var(--text)}
+.stage{position:relative;border:2px solid var(--line);border-radius:6px;overflow:hidden;touch-action:manipulation}
+canvas{display:block;width:100%;height:auto}
+.bar{display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;background:var(--panel);color:var(--text);border:2px solid var(--line);border-radius:4px;padding:8px 12px;cursor:pointer}
+button.on{border-color:var(--accent)}
+button.relic{border-color:#b58cf0;color:#dcc6ff}
+button.go{background:var(--accent);border-color:var(--accent);color:#1d1600;font-weight:700}
+button:disabled{opacity:.5;cursor:default}
+button:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.overlay{position:absolute;inset:0;background:rgba(16,24,19,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:14px;text-align:center}
+.overlay[hidden]{display:none}
+.overlay h2{margin:0}
+.choices{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.choices button{width:165px;text-align:left}
+.choices .rar{font-weight:700}
+.choices small{display:block;color:var(--muted)}
+.xp{display:inline-block;width:90px;height:8px;background:var(--panel);border:1px solid var(--line);border-radius:4px;vertical-align:middle;overflow:hidden}
+.xp i{display:block;height:100%;width:0;background:#b58cf0}
+#profile{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;color:var(--muted)}
+#profile b{color:var(--text)}
+.welcome input{font:inherit;background:#101813;color:var(--text);border:2px solid var(--line);border-radius:4px;padding:9px 12px;width:min(240px,100%);text-align:center}
+.welcome input:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.board h2{margin:6px 0;font-size:1.1rem}
+.board ol{margin:0;padding-left:1.6em}
+.board li{display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid var(--line)}
+.board li b{color:var(--accent)}
+#relics{color:var(--muted);font-size:.9rem;min-height:1.3em}
+
+[hidden]{display:none!important}
+.screen{width:100%;max-width:680px;display:flex;flex-direction:column;align-items:center;gap:12px}
+.screen h1{margin:0}
+.topbar{display:flex;justify-content:space-between;align-items:flex-start;width:100%;color:var(--muted)}
+.topbar b{color:var(--text)}
+.menuBtns{display:flex;flex-direction:column;gap:10px;width:min(260px,100%);margin-top:8px}
+.menuBtns button{padding:12px 14px}
+.field{display:flex;flex-direction:column;gap:10px;width:min(300px,100%)}
+.field input{font:inherit;background:#101813;color:var(--text);border:2px solid var(--line);border-radius:4px;padding:10px 12px}
+.field input:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.linkbtn{background:none;border:none;color:var(--muted);text-decoration:underline;padding:4px}
+.msg{min-height:1.3em;color:#ffb4a8;text-align:center;max-width:34ch}
+.list{width:min(420px,100%);background:var(--panel);border:2px solid var(--line);border-radius:6px;padding:12px 14px}
+.list ol{margin:0;padding-left:1.6em}
+.list li{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid var(--line)}
+.list li b{color:var(--accent)}
+</style>
+</head>
+<body>
+
+<section id="screen-login" class="screen" hidden>
+  <h1>Test TBD</h1>
+  <form id="loginForm" class="field">
+    <input id="liUser" placeholder="Username" autocomplete="username" aria-label="Username" required>
+    <input id="liPass" type="password" placeholder="Password" autocomplete="current-password" aria-label="Password" required>
+    <button class="go" type="submit">Log in</button>
+    <button class="linkbtn" type="button" id="toSignup">Create a new account</button>
+  </form>
+  <form id="signupForm" class="field" hidden>
+    <input id="suUser" placeholder="Username" maxlength="16" autocomplete="username" aria-label="Username" required>
+    <input id="suEmail" type="email" placeholder="Email" autocomplete="email" aria-label="Email" required>
+    <input id="suPass" type="password" placeholder="Password (8+ characters)" autocomplete="new-password" aria-label="Password" required>
+    <button class="go" type="submit">Create account</button>
+    <button class="linkbtn" type="button" id="toLogin">I already have an account</button>
+  </form>
+  <div class="msg" id="loginMsg" role="alert"></div>
+</section>
+
+<section id="screen-menu" class="screen" hidden>
+  <div class="topbar">
+    <div><b id="mName"></b><div>Level <b id="mLv"></b></div><div><span class="xp"><i id="mXpFill"></i></span> <span id="mXp"></span></div></div>
+    <div>Gold <b id="mGold"></b></div>
+  </div>
+  <h1>Test TBD</h1>
+  <div class="menuBtns">
+    <button class="go" data-nav="play">Play</button>
+    <button data-nav="leaderboard">Leaderboard</button>
+    <button data-nav="settings">Settings</button>
+    <button id="logoutBtn">Log out</button>
+  </div>
+</section>
+
+<section id="screen-leaderboard" class="screen" hidden>
+  <h1>Leaderboard</h1>
+  <div class="list"><ol id="lbList"></ol></div>
+  <button id="lbBack">Back</button>
+</section>
+
+<section id="screen-settings" class="screen" hidden>
+  <h1>Settings</h1>
+  <p style="color:var(--muted)">Nothing here yet.</p>
+  <button id="setBack">Back</button>
+</section>
+
+<section id="screen-play" class="screen" hidden>
+<div class="col" id="hud">
+  <span>Gold <b id="gold"></b></span><span>Lives <b id="lives"></b></span>
+  <span>Wave <b id="wave"></b></span><span>Best <b id="best"></b></span>
+</div>
+<div class="col stage">
+  <canvas id="c" width="640" height="400" aria-label="Game board"></canvas>
+  <div class="overlay" id="pick" hidden>
+    <h2>Choose a relic</h2>
+    <div class="choices" id="choices"></div>
+  </div>
+  <div class="overlay" id="over" hidden>
+    <h2>The gate has fallen</h2>
+    <p id="overText"></p>
+    <p id="subMsg"></p>
+    <button class="go" id="newRun">New run</button>
+    <button id="overMenu">Back to menu</button>
+  </div>
+</div>
+<div class="col bar">
+  <span id="tbtns" style="display:contents"></span>
+  <button id="relic" class="relic">Relic · 80</button>
+  <button id="go" class="go">Start wave</button>
+  <button id="auto">Auto-start: off</button>
+  <button id="spd">Speed: 1x</button>
+  <button id="menuBtn">Menu</button>
+</div>
+<div class="col" id="tinfo" style="color:var(--muted);font-size:.9rem"></div>
+<div class="col" id="relics"></div>
+
+</section>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
