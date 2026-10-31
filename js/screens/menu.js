@@ -1,6 +1,7 @@
 import { bus } from '../core/bus.js';
 import { state } from '../core/state.js';
 import { xpNeed } from '../core/rules.js';
+import { pointsFor } from '../game/talents.js';
 import { signOut } from '../services/api.js';
 
 const $ = id => document.getElementById(id);
@@ -11,6 +12,8 @@ function render() {
   $('mName').textContent = p.username; $('mLv').textContent = p.level;
   $('mXp').textContent = 'XP ' + p.xp + '/' + need; $('mXpFill').style.width = Math.min(100, p.xp / need * 100) + '%';
   $('mGold').textContent = p.gold.toLocaleString();
+  const free = pointsFor(p.level) - (p.talents || []).length;
+  $('talentsBtn').textContent = free > 0 ? 'Talents (' + free + ')' : 'Talents';
 }
 
 export default {

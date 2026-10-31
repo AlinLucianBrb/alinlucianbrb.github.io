@@ -22,11 +22,21 @@ export async function signIn(username, password) {
 export const signOut = () => sb.auth.signOut();
 export async function currentSession() { const { data } = await sb.auth.getSession(); return data.session; }
 export async function getProfile(userId) {
-  const { data, error } = await sb.from('profiles').select('username,level,xp,gold,best_wave').eq('id', userId).maybeSingle();
+  let { data, error } = await sb.from('profiles').select('username,level,xp,gold,best_wave,talents').eq('id', userId).maybeSingle();
+  if (error) { /* database not updated with the talents column yet: fall back so login still works */
+    ({ data, error } = await sb.from('profiles').select('username,level,xp,gold,best_wave').eq('id', userId).maybeSingle());
+  }
+  if (data && !data.talents) data.talents = [];
+  return { profile: data, error: error && error.message };
+}
+export async function saveTalents(nodes) {
+  const { data, error } = await sb.rpc('save_talents', { p_nodes: nodes });
+  if (data && !data.talents) data.talents = [];
   return { profile: data, error: error && error.message };
 }
 export async function finishRun(waves, kills) {
   const { data, error } = await sb.rpc('finish_run', { p_waves: waves, p_kills: kills });
+  if (data && !data.talents) data.talents = [];
   return { profile: data, error: error && error.message };
 }
 export async function getLeaderboard() {

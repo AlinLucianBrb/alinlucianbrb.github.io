@@ -1,4 +1,4 @@
-/* Tower behaviors, one per tower "kind". Each has update(g, tower, dt) and reads only the tower's cached stats (tower.s).
+/* Hero behaviors, one per hero "kind". Each has update(g, hero, dt) and reads only the hero's cached stats (hero.s).
    Behaviors never touch the DOM or the economy: they deal damage through g.hit() and draw through g.beam(). */
 export const BEHAVIORS = {};
 export const registerBehavior = (kind, impl) => { BEHAVIORS[kind] = impl; };
@@ -14,6 +14,25 @@ export function pickTarget(g, t, range) {
 }
 const ready = (t, dt) => (t.cd -= dt) <= 0;
 const rearm = t => { t.cd = t.s.cooldown / t.s.speed; };
+
+registerBehavior('swing', {
+  update(g, t, dt) {
+    if (!ready(t, dt)) return;
+    const tg = pickTarget(g, t, t.s.range);
+    if (!tg) return;
+    const ang = Math.atan2(tg.y - t.y, tg.x - t.x), half = Math.min(Math.PI, t.s.arc * Math.PI / 360), r2 = t.s.range * t.s.range;
+    for (const e of g.enemies) {
+      if (e.dead) continue;
+      const dx = e.x - t.x, dy = e.y - t.y;
+      if (dx * dx + dy * dy > r2) continue;
+      let da = Math.abs(Math.atan2(dy, dx) - ang);
+      if (da > Math.PI) da = 2 * Math.PI - da;
+      if (da <= half) g.hit(t, e, t.s.damage);
+    }
+    rearm(t);
+    g.slash(t.x, t.y, ang, half, t.s.range, 0.2, t.def.color);
+  }
+});
 
 registerBehavior('shot', {
   update(g, t, dt) {

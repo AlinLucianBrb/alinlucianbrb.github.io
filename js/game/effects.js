@@ -1,5 +1,5 @@
 /* Status effects on enemies. Add an entry to create a new one (slow, damage over time, ...).
-   Towers apply effects through their "applies" field in data.js. */
+   Heros apply effects through their "applies" field in data.js. */
 export const EFFECTS = {
   chill: { name: 'Chill', speedMult: 0.5, tint: '#8fb4e8' }
   /* example for later: burn: { name: 'Burn', tint: '#ff8a4c', onTick(g, e, dt) { g.hit(null, e, 3 * dt); } } */

@@ -1,3 +1,5 @@
+import { STAT_LABELS } from './data.js';
+
 /* Stat resolution, Path of Exile style:  (base + flat) x (1 + sum of "inc") x every "more". */
 export const matches = (scope, tags) => scope.includes('all') || scope.some(s => tags.includes(s));
 const applies = (m, stat, tags) => m.stat === stat && (tags ? Array.isArray(m.scope) && matches(m.scope, tags) : m.scope === 'global');
@@ -10,22 +12,28 @@ export function resolve(base, stat, mods, tags) {
   }
   return (base + flat) * (1 + inc) * more;
 }
-/* All final stats of a tower. Cached on the tower and recomputed only when modifiers change. */
-export function towerStats(def, mods) {
+/* All final stats of a hero. Cached on the hero and recomputed only when modifiers change. */
+export function heroStats(def, mods) {
   const s = {};
   for (const k in def.stats) s[k] = resolve(def.stats[k], k, mods, def.tags);
   return s;
 }
-/* The modifiers currently affecting one stat of a tower (for the inspector). */
+/* The modifiers currently affecting one stat of a hero (for the inspector). */
 export const explain = (def, stat, mods) => mods.filter(m => applies(m, stat, def.tags));
-/* Would this modifier change anything on this tower type? Needs a matching tag AND the tower must have that stat. */
+/* Would this modifier change anything on this hero type? Needs a matching tag AND the hero must have that stat. */
 export const touches = (def, m) => m.scope !== 'global' && m.stat in def.stats && matches(m.scope, def.tags);
 
-/* Which tower types on the map would a relic offer affect? (for the relic picker) */
-export function affected(relic, m, towers) {
+/* Which hero types on the map would a relic offer affect? (for the relic picker) */
+export function affected(relic, m, heroes) {
   const tm = (relic.mods ? relic.mods(m) : []).filter(x => x.scope !== 'global');
   if (!tm.length) return { global: true, label: relic.label || 'Global effect' };
   const types = new Map();
-  for (const t of towers) if (tm.some(x => touches(t.def, x))) types.set(t.type, (types.get(t.type) || 0) + 1);
+  for (const t of heroes) if (tm.some(x => touches(t.def, x))) types.set(t.type, (types.get(t.type) || 0) + 1);
   return { global: false, types };
+}
+
+/* Human-readable text for one modifier, e.g. "+4% damage". */
+export function fmtMod(m) {
+  const f = x => +x.toFixed(2), label = (STAT_LABELS[m.stat] || m.stat).toLowerCase();
+  return m.type === 'inc' ? '+' + f(m.value * 100) + '% ' + label : m.type === 'flat' ? '+' + f(m.value) + ' ' + label : '×' + f(1 + m.value) + ' ' + label;
 }

@@ -30,6 +30,18 @@ export function tickBeams(g, dt) {
   list.length = j;
 }
 
+const spool = [];
+export function addSlash(g, x, y, ang, half, r, ttl, color) {
+  const s = spool.pop() || {};
+  s.x = x; s.y = y; s.a = ang; s.h = half; s.r = r; s.t = s.ttl = ttl; s.c = color;
+  g.slashes.push(s);
+}
+export function tickSlashes(g, dt) {
+  const list = g.slashes; let j = 0;
+  for (let i = 0; i < list.length; i++) { const s = list[i]; if ((s.t -= dt) > 0) list[j++] = s; else spool.push(s); }
+  list.length = j;
+}
+
 function poly(ctx, x, y, r, n, rot) {
   ctx.beginPath();
   for (let i = 0; i < n; i++) {
@@ -42,11 +54,11 @@ function poly(ctx, x, y, r, n, rot) {
 export function draw(ctx, g, view) {
   ctx.drawImage(g.bg, 0, 0);
   const h = view.hover;
-  if (h && !g.pathSet.has(h[0] + ',' + h[1]) && !g.towers.some(t => t.cx === h[0] && t.cy === h[1])) {
+  if (h && !g.pathSet.has(h[0] + ',' + h[1]) && !g.heroes.some(t => t.cx === h[0] && t.cy === h[1])) {
     ctx.beginPath(); ctx.arc((h[0] + 0.5) * T, (h[1] + 0.5) * T, g.previewRange(view.sel), 0, 7);
     ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fill();
   }
-  for (const t of g.towers) {
+  for (const t of g.heroes) {
     const d = t.def, [n, rot] = d.shape;
     if (t === g.selected) {
       ctx.beginPath(); ctx.arc(t.x, t.y, t.s.range, 0, 7);
@@ -54,6 +66,14 @@ export function draw(ctx, g, view) {
     }
     if (n) poly(ctx, t.x, t.y, 15, n, rot); else { ctx.beginPath(); ctx.arc(t.x, t.y, 13, 0, 7); }
     ctx.fillStyle = d.color; ctx.fill(); ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2; ctx.stroke();
+  }
+  for (const s of g.slashes) {
+    ctx.globalAlpha = Math.max(0, s.t / s.ttl);
+    ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.arc(s.x, s.y, s.r, s.a - s.h, s.a + s.h); ctx.closePath();
+    ctx.fillStyle = s.c; ctx.globalAlpha *= 0.35; ctx.fill();
+    ctx.globalAlpha = Math.max(0, s.t / s.ttl); ctx.strokeStyle = s.c; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.r * 0.9, s.a - s.h, s.a + s.h); ctx.stroke();
+    ctx.globalAlpha = 1;
   }
   for (const b of g.beams) { ctx.strokeStyle = b.c; ctx.lineWidth = b.w; ctx.beginPath(); ctx.moveTo(b.x1, b.y1); ctx.lineTo(b.x2, b.y2); ctx.stroke(); }
   for (const p of g.projs) PROJECTILES[p.type].draw(ctx, p);

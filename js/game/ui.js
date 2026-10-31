@@ -1,5 +1,5 @@
 /* All DOM work for the game screen. Values are only written when they change, to avoid needless page updates. */
-import { TOWERS, RARITIES, STAT_LABELS } from './data.js';
+import { HEROES, RARITIES, STAT_LABELS } from './data.js';
 import { explain, affected } from './stats.js';
 
 const $ = id => document.getElementById(id);
@@ -8,19 +8,21 @@ const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls)
 const f = x => +x.toFixed(2);
 const num = x => Math.round(x).toLocaleString();
 const btns = [], rows = [];
+let meterEmpty;
+const cap = s => s[0].toUpperCase() + s.slice(1);
 let onClose = () => {};
 
 export function initUI({ onSelectType, onCloseInspector }) {
   onClose = onCloseInspector;
-  TOWERS.forEach((d, i) => {
+  HEROES.forEach((d, i) => {
     const b = el('button'); b.id = 't' + i; b.title = d.desc; b.onclick = () => onSelectType(i);
     $('tbtns').append(b); btns.push(b);
   });
   const m = $('meter'); m.textContent = '';
-  TOWERS.forEach(d => {
-    const row = el('div', 'mrow'), name = el('span', '', d.name), bar = el('span', 'mbar'), fill = el('i'), val = el('span', '', '0');
-    name.style.color = d.color; fill.style.background = d.color;
-    bar.append(fill); row.append(name, bar, val); m.append(row); rows.push({ fill, val });
+  meterEmpty = el('p', 'muted', 'No damage dealt yet.'); m.append(meterEmpty);
+  HEROES.forEach(() => {
+    const root = el('div', 'mrow'), name = el('span'), bar = el('span', 'mbar'), fill = el('i'), val = el('span', '', '0');
+    root.hidden = true; bar.append(fill); root.append(name, bar, val); m.append(root); rows.push({ root, name, fill, val, type: -1 });
   });
 }
 
@@ -31,8 +33,8 @@ export function renderHUD(g, sel, auto) {
   setText($('relic'), 'Relic · ' + g.relicCost());
   setText($('auto'), 'Auto-start: ' + (auto ? 'on' : 'off')); $('auto').classList.toggle('on', auto);
   setText($('spd'), 'Speed: ' + g.speed + 'x');
-  TOWERS.forEach((d, i) => { setText(btns[i], d.name + ' · ' + g.cost(i)); btns[i].classList.toggle('on', sel === i); });
-  setText($('tinfo'), TOWERS[sel].desc);
+  HEROES.forEach((d, i) => { setText(btns[i], d.name + ' · ' + g.cost(i)); btns[i].classList.toggle('on', sel === i); });
+  setText($('tinfo'), HEROES[sel].desc);
   const box = $('relics');
   if (box._g !== g || box._n !== g.relics.length) {
     box._g = g; box._n = g.relics.length; box.textContent = '';
@@ -52,26 +54,33 @@ export function renderHUD(g, sel, auto) {
 }
 
 export function renderMeter(g) {
-  const sum = g.meter.sum();
-  rows.forEach((r, i) => {
-    const v = g.meter.totals[i];
-    r.fill.style.width = (sum ? v / sum * 100 : 0) + '%';
-    setText(r.val, num(v) + (sum ? ' · ' + Math.round(v / sum * 100) + '%' : ''));
+  /* Only heroes that have dealt damage appear, sorted by damage. */
+  const totals = g.meter.totals, sum = g.meter.sum(), order = [];
+  for (let i = 0; i < totals.length; i++) if (totals[i] > 0) order.push(i);
+  order.sort((a, b) => totals[b] - totals[a]);
+  meterEmpty.hidden = order.length > 0;
+  rows.forEach((r, idx) => {
+    const type = order[idx];
+    if (type === undefined) { if (!r.root.hidden) r.root.hidden = true; return; }
+    if (r.root.hidden) r.root.hidden = false;
+    if (r.type !== type) { r.type = type; r.name.textContent = HEROES[type].name; r.name.style.color = HEROES[type].color; r.fill.style.background = HEROES[type].color; }
+    r.fill.style.width = (totals[type] / sum * 100) + '%';
+    setText(r.val, num(totals[type]) + ' · ' + Math.round(totals[type] / sum * 100) + '%');
   });
 }
 
 function describe(m) {
   const v = m.type === 'inc' ? '+' + f(m.value * 100) + '%' : m.type === 'flat' ? '+' + f(m.value) : '×' + f(1 + m.value);
-  return v + ' · ' + m.source + ' (' + RARITIES[m.ri].name + ')';
+  return v + ' · ' + m.source + ' (' + (m.ri >= 0 ? RARITIES[m.ri].name : 'Talent') + ')';
 }
 export function renderInspector(g) {
   const box = $('inspect'), t = g.selected;
   if (!t) {
-    if (box._k !== 'none') { box._k = 'none'; box.textContent = ''; box.append(el('p', 'muted', 'Click a tower on the map to see its stats and buffs.')); }
+    if (box._k !== 'none') { box._k = 'none'; box.textContent = ''; box.append(el('p', 'muted', 'Click a hero on the map to see its stats and buffs.')); }
     return;
   }
   box._k = 't'; box.textContent = '';
-  const d = t.def, head = el('div', 'srow'), title = el('b', '', d.name), close = el('button', 'linkbtn', 'Close');
+  const d = t.def, head = el('div', 'srow'), title = el('b', '', d.name + ' · ' + cap(d.archetype)), close = el('button', 'linkbtn', 'Close');
   title.style.color = d.color; close.onclick = onClose; head.append(title, close); box.append(head);
   for (const key in d.stats) {
     if (key === 'cooldown') continue;
@@ -81,17 +90,17 @@ export function renderInspector(g) {
     const base = isRate ? d.stats.speed / d.stats.cooldown : d.stats[key];
     const row = el('div', 'srow'); row.append(el('span', '', label), el('span', '', f(value) + (f(value) !== f(base) ? '  (base ' + f(base) + ')' : '')));
     box.append(row);
-    for (const m of explain(d, key, g.mods)) { const line = el('div', 'buff', describe(m)); line.style.color = RARITIES[m.ri].color; box.append(line); }
+    for (const m of explain(d, key, g.mods)) { const line = el('div', 'buff', describe(m)); line.style.color = m.ri >= 0 ? RARITIES[m.ri].color : '#f2b84b'; box.append(line); }
   }
   box.append(el('p', 'muted', 'Damage dealt: ' + num(t.dealt) + ' · Kills: ' + t.kills));
 }
 
 function indicator(g, r, m) {
-  const a = affected(r, m, g.towers), d = el('small', 'aff');
+  const a = affected(r, m, g.heroes), d = el('small', 'aff');
   if (a.global) { d.textContent = 'Affects: ' + a.label; return d; }
-  if (!a.types.size) { d.textContent = 'No matching towers on the map yet'; d.classList.add('warn'); return d; }
+  if (!a.types.size) { d.textContent = 'No matching heroes on the map yet'; d.classList.add('warn'); return d; }
   d.append('Affects: ');
-  for (const [type, n] of a.types) { const chip = el('span', 'chip'); chip.style.background = TOWERS[type].color; d.append(chip, TOWERS[type].name + ' ×' + n + ' '); }
+  for (const [type, n] of a.types) { const chip = el('span', 'chip'); chip.style.background = HEROES[type].color; d.append(chip, HEROES[type].name + ' ×' + n + ' '); }
   return d;
 }
 export function showPick(g, offers, onPick) {

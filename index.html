@@ -56,6 +56,18 @@ button:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .list ol{margin:0;padding-left:1.6em}
 .list li{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid var(--line)}
 .list li b{color:var(--accent)}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.tabs button.on{background:#2b4a38}
+.treebox{width:min(680px,100%);background:#101813;border:2px solid var(--line);border-radius:6px}
+.treebox svg{display:block;width:100%;height:auto}
+.tlink{stroke:#385043;stroke-width:5}
+.tlink.on{stroke:#f2b84b}
+.tnode circle{fill:#1d2f55;stroke:#4a6a58;stroke-width:3;cursor:pointer}
+.tnode.on circle{stroke:#fff}
+.tnode.avail circle{stroke:#f2b84b;stroke-width:4}
+.tnode.notable circle{stroke-width:5}
+.tnode:focus-visible circle{stroke:#fff;stroke-width:6}
+.tinfo{width:min(680px,100%);min-height:4.2em}
 .panels{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 @media(max-width:640px){.panels{grid-template-columns:1fr}}
 .panel{background:var(--panel);border:2px solid var(--line);border-radius:6px;padding:10px 12px;min-width:0}
@@ -99,6 +111,7 @@ button:focus-visible{outline:3px solid #fff;outline-offset:2px}
   <h1>Test TBD</h1>
   <div class="menuBtns">
     <button class="go" data-nav="play">Play</button>
+    <button data-nav="talents" id="talentsBtn">Talents</button>
     <button data-nav="leaderboard">Leaderboard</button>
     <button data-nav="settings">Settings</button>
     <button id="logoutBtn">Log out</button>
@@ -109,6 +122,18 @@ button:focus-visible{outline:3px solid #fff;outline-offset:2px}
   <h1>Leaderboard</h1>
   <div class="list"><ol id="lbList"></ol></div>
   <button id="lbBack">Back</button>
+</section>
+
+<section id="screen-talents" class="screen" hidden>
+  <div class="topbar">
+    <button id="tlBack">Back</button>
+    <div>Points available: <b id="tlPoints">0</b> <span class="muted" id="tlSave"></span></div>
+    <button id="tlReset">Respec</button>
+  </div>
+  <h1>Talents</h1>
+  <div class="tabs" id="tlTabs"></div>
+  <div class="treebox"><svg id="tlSvg" viewBox="-340 -340 680 680" role="group" aria-label="Talent tree"></svg></div>
+  <div class="panel tinfo" id="tlInfo"></div>
 </section>
 
 <section id="screen-settings" class="screen" hidden>
@@ -148,7 +173,7 @@ button:focus-visible{outline:3px solid #fff;outline-offset:2px}
 <div class="col" id="relics"></div>
 <div class="col panels">
   <div class="panel"><h3>Damage meter</h3><div id="meter"></div></div>
-  <div class="panel"><h3>Tower</h3><div id="inspect"></div></div>
+  <div class="panel"><h3>Hero</h3><div id="inspect"></div></div>
 </div>
 
 </section>

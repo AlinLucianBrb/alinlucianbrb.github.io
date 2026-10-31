@@ -15,6 +15,6 @@ async function onRunEnd({ waves, kills }) {
 }
 
 export default {
-  mount() { startGame({ best: state.profile.best_wave, onRunEnd, onExit: () => bus.emit('nav', { to: 'menu' }) }); },
+  mount() { startGame({ best: state.profile.best_wave, talents: state.profile.talents || [], onRunEnd, onExit: () => bus.emit('nav', { to: 'menu' }) }); },
   unmount() { stopGame(); }
 };
