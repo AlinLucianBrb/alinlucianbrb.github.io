@@ -56,6 +56,19 @@ button:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .list ol{margin:0;padding-left:1.6em}
 .list li{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid var(--line)}
 .list li b{color:var(--accent)}
+.panels{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:640px){.panels{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:2px solid var(--line);border-radius:6px;padding:10px 12px;min-width:0}
+.panel h3{margin:0 0 6px;font-size:1rem}
+.muted{color:var(--muted);margin:6px 0 0;font-size:.9rem}
+.mrow{display:grid;grid-template-columns:84px 1fr auto;gap:8px;align-items:center;padding:2px 0;font-size:.9rem}
+.mbar{height:8px;background:#101813;border-radius:4px;overflow:hidden}
+.mbar i{display:block;height:100%;width:0}
+.srow{display:flex;justify-content:space-between;gap:8px;font-size:.9rem;margin-top:3px}
+.buff{font-size:.8rem;padding-left:10px}
+.chip{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 4px 0 6px}
+.aff{margin-top:4px}
+.warn{color:#ffb4a8}
 </style>
 </head>
 <body>
@@ -133,6 +146,10 @@ button:focus-visible{outline:3px solid #fff;outline-offset:2px}
 </div>
 <div class="col" id="tinfo" style="color:var(--muted);font-size:.9rem"></div>
 <div class="col" id="relics"></div>
+<div class="col panels">
+  <div class="panel"><h3>Damage meter</h3><div id="meter"></div></div>
+  <div class="panel"><h3>Tower</h3><div id="inspect"></div></div>
+</div>
 
 </section>
 

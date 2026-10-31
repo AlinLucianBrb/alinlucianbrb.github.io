@@ -1,0 +1,65 @@
+import { COLS, ROWS, T } from './data.js';
+import { PROJECTILES } from './projectiles.js';
+import { tintOf } from './effects.js';
+
+/* The grid, path and gate never change during a run, so they are drawn once into an offscreen canvas. */
+export function buildBackground(g) {
+  const c = document.createElement('canvas'); c.width = COLS * T; c.height = ROWS * T;
+  const x = c.getContext('2d');
+  x.fillStyle = '#2d4636'; x.fillRect(0, 0, c.width, c.height);
+  x.strokeStyle = 'rgba(255,255,255,.05)';
+  for (let i = 0; i <= COLS; i++) { x.beginPath(); x.moveTo(i * T, 0); x.lineTo(i * T, c.height); x.stroke(); }
+  for (let i = 0; i <= ROWS; i++) { x.beginPath(); x.moveTo(0, i * T); x.lineTo(c.width, i * T); x.stroke(); }
+  x.fillStyle = '#9a8a62';
+  g.path.forEach(([cx, cy]) => x.fillRect(cx * T, cy * T, T, T));
+  const end = g.path[g.path.length - 1];
+  x.fillStyle = '#e5645a'; x.fillRect(end[0] * T + T - 6, end[1] * T, 6, T);
+  return c;
+}
+
+/* Short-lived beam visuals, pooled so busy fights don't create garbage. */
+const pool = [];
+export function addBeam(g, x1, y1, x2, y2, ttl, color, w = 3) {
+  const b = pool.pop() || {};
+  b.x1 = x1; b.y1 = y1; b.x2 = x2; b.y2 = y2; b.t = ttl; b.c = color; b.w = w;
+  g.beams.push(b);
+}
+export function tickBeams(g, dt) {
+  const list = g.beams; let j = 0;
+  for (let i = 0; i < list.length; i++) { const b = list[i]; if ((b.t -= dt) > 0) list[j++] = b; else pool.push(b); }
+  list.length = j;
+}
+
+function poly(ctx, x, y, r, n, rot) {
+  ctx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const a = rot + i * 2 * Math.PI / n, px = x + r * Math.cos(a), py = y + r * Math.sin(a);
+    if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+  }
+  ctx.closePath();
+}
+
+export function draw(ctx, g, view) {
+  ctx.drawImage(g.bg, 0, 0);
+  const h = view.hover;
+  if (h && !g.pathSet.has(h[0] + ',' + h[1]) && !g.towers.some(t => t.cx === h[0] && t.cy === h[1])) {
+    ctx.beginPath(); ctx.arc((h[0] + 0.5) * T, (h[1] + 0.5) * T, g.previewRange(view.sel), 0, 7);
+    ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fill();
+  }
+  for (const t of g.towers) {
+    const d = t.def, [n, rot] = d.shape;
+    if (t === g.selected) {
+      ctx.beginPath(); ctx.arc(t.x, t.y, t.s.range, 0, 7);
+      ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+    }
+    if (n) poly(ctx, t.x, t.y, 15, n, rot); else { ctx.beginPath(); ctx.arc(t.x, t.y, 13, 0, 7); }
+    ctx.fillStyle = d.color; ctx.fill(); ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2; ctx.stroke();
+  }
+  for (const b of g.beams) { ctx.strokeStyle = b.c; ctx.lineWidth = b.w; ctx.beginPath(); ctx.moveTo(b.x1, b.y1); ctx.lineTo(b.x2, b.y2); ctx.stroke(); }
+  for (const p of g.projs) PROJECTILES[p.type].draw(ctx, p);
+  for (const e of g.enemies) {
+    ctx.beginPath(); ctx.arc(e.x, e.y, e.def.radius, 0, 7); ctx.fillStyle = tintOf(e) || e.def.color; ctx.fill();
+    ctx.fillStyle = '#000'; ctx.fillRect(e.x - 11, e.y - 17, 22, 4);
+    ctx.fillStyle = '#6fdc7a'; ctx.fillRect(e.x - 11, e.y - 17, 22 * Math.max(0, e.hp / e.max), 4);
+  }
+}
