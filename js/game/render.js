@@ -3,13 +3,13 @@ import { PROJECTILES } from './projectiles.js';
 import { tintOf } from './effects.js';
 
 /* The grid, path and gate never change during a run, so they are drawn once into an offscreen canvas. */
-export function buildBackground(g) {
-  const c = document.createElement('canvas'); c.width = COLS * T; c.height = ROWS * T;
-  const x = c.getContext('2d');
-  x.fillStyle = '#2d4636'; x.fillRect(0, 0, c.width, c.height);
+export function buildBackground(g, scale = 1) {
+  const c = document.createElement('canvas'); c.width = Math.round(COLS * T * scale); c.height = Math.round(ROWS * T * scale);
+  const x = c.getContext('2d'); x.scale(scale, scale);
+  x.fillStyle = '#2d4636'; x.fillRect(0, 0, COLS * T, ROWS * T);
   x.strokeStyle = 'rgba(255,255,255,.05)';
-  for (let i = 0; i <= COLS; i++) { x.beginPath(); x.moveTo(i * T, 0); x.lineTo(i * T, c.height); x.stroke(); }
-  for (let i = 0; i <= ROWS; i++) { x.beginPath(); x.moveTo(0, i * T); x.lineTo(c.width, i * T); x.stroke(); }
+  for (let i = 0; i <= COLS; i++) { x.beginPath(); x.moveTo(i * T, 0); x.lineTo(i * T, ROWS * T); x.stroke(); }
+  for (let i = 0; i <= ROWS; i++) { x.beginPath(); x.moveTo(0, i * T); x.lineTo(COLS * T, i * T); x.stroke(); }
   x.fillStyle = '#9a8a62';
   g.path.forEach(([cx, cy]) => x.fillRect(cx * T, cy * T, T, T));
   const end = g.path[g.path.length - 1];
@@ -52,20 +52,25 @@ function poly(ctx, x, y, r, n, rot) {
 }
 
 export function draw(ctx, g, view) {
-  ctx.drawImage(g.bg, 0, 0);
+  ctx.setTransform(view.scale, 0, 0, view.scale, 0, 0);
+  ctx.drawImage(g.bg, 0, 0, COLS * T, ROWS * T);
   const h = view.hover;
   if (h && !g.pathSet.has(h[0] + ',' + h[1]) && !g.heroes.some(t => t.cx === h[0] && t.cy === h[1])) {
-    ctx.beginPath(); ctx.arc((h[0] + 0.5) * T, (h[1] + 0.5) * T, g.previewRange(view.sel), 0, 7);
+    const mv = g.moving, range = mv ? mv.s.range : g.previewRange(view.sel);
+    ctx.beginPath(); ctx.arc((h[0] + 0.5) * T, (h[1] + 0.5) * T, range, 0, 7);
     ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fill();
+    if (mv) { ctx.globalAlpha = 0.5; ctx.fillStyle = mv.def.color; ctx.beginPath(); ctx.arc((h[0] + 0.5) * T, (h[1] + 0.5) * T, 13, 0, 7); ctx.fill(); ctx.globalAlpha = 1; }
   }
   for (const t of g.heroes) {
     const d = t.def, [n, rot] = d.shape;
+    if (t === g.moving) { ctx.globalAlpha = 0.4; }
     if (t === g.selected) {
       ctx.beginPath(); ctx.arc(t.x, t.y, t.s.range, 0, 7);
       ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
     }
     if (n) poly(ctx, t.x, t.y, 15, n, rot); else { ctx.beginPath(); ctx.arc(t.x, t.y, 13, 0, 7); }
     ctx.fillStyle = d.color; ctx.fill(); ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.globalAlpha = 1;
   }
   for (const s of g.slashes) {
     ctx.globalAlpha = Math.max(0, s.t / s.ttl);
@@ -79,7 +84,8 @@ export function draw(ctx, g, view) {
   for (const p of g.projs) PROJECTILES[p.type].draw(ctx, p);
   for (const e of g.enemies) {
     ctx.beginPath(); ctx.arc(e.x, e.y, e.def.radius, 0, 7); ctx.fillStyle = tintOf(e) || e.def.color; ctx.fill();
-    ctx.fillStyle = '#000'; ctx.fillRect(e.x - 11, e.y - 17, 22, 4);
-    ctx.fillStyle = '#6fdc7a'; ctx.fillRect(e.x - 11, e.y - 17, 22 * Math.max(0, e.hp / e.max), 4);
+    const bw = e.def.radius * 2.2, by = e.y - e.def.radius - 7;
+    ctx.fillStyle = '#000'; ctx.fillRect(e.x - bw / 2, by, bw, 4);
+    ctx.fillStyle = '#6fdc7a'; ctx.fillRect(e.x - bw / 2, by, bw * Math.max(0, e.hp / e.max), 4);
   }
 }

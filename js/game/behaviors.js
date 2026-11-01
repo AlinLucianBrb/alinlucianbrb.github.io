@@ -12,6 +12,21 @@ export function pickTarget(g, t, range) {
   }
   return best;
 }
+/* Up to n targets in range, furthest along the path first. Fills and returns the shared scratch array. */
+const scratch = [];
+export function pickTargets(g, t, range, n) {
+  scratch.length = 0;
+  const r2 = range * range;
+  for (const e of g.enemies) {
+    if (e.dead) continue;
+    const dx = e.x - t.x, dy = e.y - t.y;
+    if (dx * dx + dy * dy > r2) continue;
+    let i = scratch.length;
+    while (i > 0 && scratch[i - 1].d < e.d) i--;
+    if (i < n) { scratch.splice(i, 0, e); if (scratch.length > n) scratch.pop(); }
+  }
+  return scratch;
+}
 const ready = (t, dt) => (t.cd -= dt) <= 0;
 const rearm = t => { t.cd = t.s.cooldown / t.s.speed; };
 
@@ -37,6 +52,13 @@ registerBehavior('swing', {
 registerBehavior('shot', {
   update(g, t, dt) {
     if (!ready(t, dt)) return;
+    const n = Math.round(t.s.targets || 1);
+    if (n > 1) {
+      const list = pickTargets(g, t, t.s.range, n);
+      if (!list.length) return;
+      for (const tg of list) { g.hit(t, tg, t.s.damage); g.beam(t.x, t.y, tg.x, tg.y, 0.08, t.def.color); }
+      rearm(t); return;
+    }
     const tg = pickTarget(g, t, t.s.range);
     if (!tg) return;
     g.hit(t, tg, t.s.damage); rearm(t);

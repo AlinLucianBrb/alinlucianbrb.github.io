@@ -5,6 +5,9 @@ export const isConfigured = !SUPABASE_URL.startsWith('YOUR_');
 const sb = isConfigured ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 const alias = username => username.toLowerCase() + '@' + AUTH_DOMAIN;
 
+/* Defaults for columns an older database might not have yet. */
+const fill = p => { p.talents = p.talents || []; p.levels_cleared = p.levels_cleared || 0; p.frontier_wave = p.frontier_wave || 0; };
+
 export async function signUp({ username, email, password }) {
   const { data: chk, error: e1 } = await sb.rpc('signup_check', { p_username: username, p_email: email });
   if (e1) return { error: 'Could not check availability. Did you run supabase-setup.sql?' };
@@ -22,21 +25,21 @@ export async function signIn(username, password) {
 export const signOut = () => sb.auth.signOut();
 export async function currentSession() { const { data } = await sb.auth.getSession(); return data.session; }
 export async function getProfile(userId) {
-  let { data, error } = await sb.from('profiles').select('username,level,xp,gold,best_wave,talents').eq('id', userId).maybeSingle();
-  if (error) { /* database not updated with the talents column yet: fall back so login still works */
+  let { data, error } = await sb.from('profiles').select('username,level,xp,gold,best_wave,talents,levels_cleared,frontier_wave').eq('id', userId).maybeSingle();
+  if (error) { /* database not updated yet: fall back so login still works */
     ({ data, error } = await sb.from('profiles').select('username,level,xp,gold,best_wave').eq('id', userId).maybeSingle());
   }
-  if (data && !data.talents) data.talents = [];
+  if (data) fill(data);
   return { profile: data, error: error && error.message };
 }
 export async function saveTalents(nodes) {
   const { data, error } = await sb.rpc('save_talents', { p_nodes: nodes });
-  if (data && !data.talents) data.talents = [];
+  if (data) fill(data);
   return { profile: data, error: error && error.message };
 }
-export async function finishRun(waves, kills) {
-  const { data, error } = await sb.rpc('finish_run', { p_waves: waves, p_kills: kills });
-  if (data && !data.talents) data.talents = [];
+export async function finishRun(waves, kills, stage, won) {
+  const { data, error } = await sb.rpc('finish_run', { p_waves: waves, p_kills: kills, p_stage: stage, p_won: won });
+  if (data) fill(data);
   return { profile: data, error: error && error.message };
 }
 export async function getLeaderboard() {

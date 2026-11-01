@@ -8,9 +8,10 @@ import leaderboard from './screens/leaderboard.js';
 import settings from './screens/settings.js';
 import play from './screens/play.js';
 import talents from './screens/talents.js';
+import levels from './screens/levels.js';
 
 register('login', login); register('menu', menu); register('leaderboard', leaderboard);
-register('settings', settings); register('play', play); register('talents', talents);
+register('settings', settings); register('play', play); register('talents', talents); register('levels', levels);
 bus.on('nav', ({ to, params }) => show(to, params));
 
 (async () => {

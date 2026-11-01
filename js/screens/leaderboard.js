@@ -15,7 +15,8 @@ export default {
     if (!rows.length) { list.innerHTML = '<li><span>No runs yet. Be the first.</span></li>'; return; }
     rows.forEach(r => {
       const li = document.createElement('li'), a = document.createElement('span'), b = document.createElement('b');
-      a.textContent = r.username + ' · Lv ' + r.level; b.textContent = 'Wave ' + r.best_wave;
+      a.textContent = r.username + ' · Lv ' + r.level;
+      b.textContent = r.levels_cleared >= 5 ? 'All levels cleared' : 'Level ' + (r.levels_cleared + 1) + ' · wave ' + r.frontier_wave;
       li.append(a, b); list.append(li);
     });
   }

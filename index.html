@@ -7,59 +7,49 @@
 <style>
 :root{--bg:#18211c;--panel:#233229;--line:#385043;--text:#ecf1e8;--muted:#9db3a3;--accent:#f2b84b;--bad:#e5645a;color-scheme:dark}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;align-items:center;gap:10px;padding:12px}
-.col{width:100%;max-width:680px}
-h1{margin:0;font-size:1.4rem}
-#hud{display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;color:var(--muted)}
-#hud b{color:var(--text)}
-.stage{position:relative;border:2px solid var(--line);border-radius:6px;overflow:hidden;touch-action:manipulation}
-canvas{display:block;width:100%;height:auto}
-.bar{display:flex;gap:8px;flex-wrap:wrap}
-button{font:inherit;background:var(--panel);color:var(--text);border:2px solid var(--line);border-radius:4px;padding:8px 12px;cursor:pointer}
-button.on{border-color:var(--accent)}
-button.relic{border-color:#b58cf0;color:#dcc6ff}
-button.go{background:var(--accent);border-color:var(--accent);color:#1d1600;font-weight:700}
-button:disabled{opacity:.5;cursor:default}
-button:focus-visible{outline:3px solid #fff;outline-offset:2px}
-.overlay{position:absolute;inset:0;background:rgba(16,24,19,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:14px;text-align:center}
-.overlay[hidden]{display:none}
-.overlay h2{margin:0}
-.choices{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
-.choices button{width:165px;text-align:left}
-.choices .rar{font-weight:700}
-.choices small{display:block;color:var(--muted)}
-.xp{display:inline-block;width:90px;height:8px;background:var(--panel);border:1px solid var(--line);border-radius:4px;vertical-align:middle;overflow:hidden}
-.xp i{display:block;height:100%;width:0;background:#b58cf0}
-#profile{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;color:var(--muted)}
-#profile b{color:var(--text)}
-.welcome input{font:inherit;background:#101813;color:var(--text);border:2px solid var(--line);border-radius:4px;padding:9px 12px;width:min(240px,100%);text-align:center}
-.welcome input:focus-visible{outline:3px solid #fff;outline-offset:2px}
-.board h2{margin:6px 0;font-size:1.1rem}
-.board ol{margin:0;padding-left:1.6em}
-.board li{display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid var(--line)}
-.board li b{color:var(--accent)}
-#relics{color:var(--muted);font-size:.9rem;min-height:1.3em}
-
+html,body{height:100%;margin:0;overflow:hidden}
+body{background:var(--bg);color:var(--text);font:clamp(13px,1.7vh,16px)/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
 [hidden]{display:none!important}
-.screen{width:100%;max-width:680px;display:flex;flex-direction:column;align-items:center;gap:12px}
-.screen h1{margin:0}
-.topbar{display:flex;justify-content:space-between;align-items:flex-start;width:100%;color:var(--muted)}
+h1{margin:0;font-size:1.7em}
+h2{margin:0}
+h3{margin:0 0 6px;font-size:1em}
+b{font-weight:700}
+button{font:inherit;background:var(--panel);color:var(--text);border:2px solid var(--line);border-radius:4px;padding:.45em .8em;cursor:pointer}
+button.on{border-color:var(--accent)}
+button.go{background:var(--accent);border-color:var(--accent);color:#1d1600;font-weight:700}
+button.relic{border-color:#b58cf0;color:#dcc6ff}
+button:disabled{opacity:.5;cursor:default}
+button:focus-visible,input:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.linkbtn{background:none;border:none;color:var(--muted);text-decoration:underline;padding:.2em .4em}
+.muted{color:var(--muted);margin:6px 0 0;font-size:.9em}
+.warn{color:#ffb4a8}
+
+/* Every screen fills the window and never scrolls. */
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:12px;overflow:hidden}
+.topbar{display:flex;justify-content:space-between;align-items:flex-start;width:min(900px,100%);color:var(--muted)}
 .topbar b{color:var(--text)}
 .menuBtns{display:flex;flex-direction:column;gap:10px;width:min(260px,100%);margin-top:8px}
-.menuBtns button{padding:12px 14px}
+.menuBtns button{padding:.7em .9em}
 .field{display:flex;flex-direction:column;gap:10px;width:min(300px,100%)}
-.field input{font:inherit;background:#101813;color:var(--text);border:2px solid var(--line);border-radius:4px;padding:10px 12px}
-.field input:focus-visible{outline:3px solid #fff;outline-offset:2px}
-.linkbtn{background:none;border:none;color:var(--muted);text-decoration:underline;padding:4px}
+.field input{font:inherit;background:#101813;color:var(--text);border:2px solid var(--line);border-radius:4px;padding:.6em .8em}
 .msg{min-height:1.3em;color:#ffb4a8;text-align:center;max-width:34ch}
-.list{width:min(420px,100%);background:var(--panel);border:2px solid var(--line);border-radius:6px;padding:12px 14px}
+.xp{display:inline-block;width:90px;height:8px;background:var(--panel);border:1px solid var(--line);border-radius:4px;vertical-align:middle;overflow:hidden}
+.xp i{display:block;height:100%;width:0;background:#b58cf0}
+.list{width:min(420px,100%);max-height:62vh;overflow:auto;background:var(--panel);border:2px solid var(--line);border-radius:6px;padding:12px 14px}
 .list ol{margin:0;padding-left:1.6em}
 .list li{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid var(--line)}
 .list li b{color:var(--accent)}
+.levels{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;width:min(760px,100%)}
+.lvl{display:flex;flex-direction:column;gap:4px;padding:.9em;text-align:left}
+.lvl.done{border-color:#5fd46f}
+.lvl small{color:var(--muted)}
+
+/* Talent tree: the SVG scales to whatever space is left. */
+#screen-talents{justify-content:flex-start}
 .tabs{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
 .tabs button.on{background:#2b4a38}
-.treebox{width:min(680px,100%);background:#101813;border:2px solid var(--line);border-radius:6px}
-.treebox svg{display:block;width:100%;height:auto}
+.treebox{flex:1;min-height:0;width:min(1000px,100%);background:#101813;border:2px solid var(--line);border-radius:6px}
+.treebox svg{display:block;width:100%;height:100%}
 .tlink{stroke:#385043;stroke-width:5}
 .tlink.on{stroke:#f2b84b}
 .tnode circle{fill:#1d2f55;stroke:#4a6a58;stroke-width:3;cursor:pointer}
@@ -67,20 +57,42 @@ button:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .tnode.avail circle{stroke:#f2b84b;stroke-width:4}
 .tnode.notable circle{stroke-width:5}
 .tnode:focus-visible circle{stroke:#fff;stroke-width:6}
-.tinfo{width:min(680px,100%);min-height:4.2em}
-.panels{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-@media(max-width:640px){.panels{grid-template-columns:1fr}}
-.panel{background:var(--panel);border:2px solid var(--line);border-radius:6px;padding:10px 12px;min-width:0}
-.panel h3{margin:0 0 6px;font-size:1rem}
-.muted{color:var(--muted);margin:6px 0 0;font-size:.9rem}
-.mrow{display:grid;grid-template-columns:84px 1fr auto;gap:8px;align-items:center;padding:2px 0;font-size:.9rem}
+
+/* Game screen: HUD on top, arena (board + side panels) in the middle, controls at the bottom. */
+.play{justify-content:flex-start;align-items:stretch;gap:8px;padding:8px}
+#hud{display:flex;gap:18px;flex-wrap:wrap;color:var(--muted)}
+#hud b{color:var(--text)}
+.arena{flex:1;min-height:0;display:flex;gap:8px}
+.stagewrap{flex:1;min-width:0;min-height:0;container-type:size;display:flex;align-items:center;justify-content:center}
+.stage{position:relative;width:min(100cqw,160cqh);aspect-ratio:16/10;border:2px solid var(--line);border-radius:6px;overflow:hidden;background:#0f1a31;touch-action:manipulation}
+canvas{position:absolute;inset:0;display:block;width:100%;height:100%;cursor:crosshair}
+.side{width:clamp(220px,26vw,330px);display:flex;flex-direction:column;gap:8px;min-height:0}
+.panel{background:var(--panel);border:2px solid var(--line);border-radius:6px;padding:8px 10px;min-width:0;min-height:0;overflow:auto}
+.panel.grow{flex:1}
+.bar{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.herobtn{white-space:nowrap}
+.overlay{position:absolute;inset:0;background:rgba(16,24,19,.93);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:10px;text-align:center;overflow:auto}
+.choices{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.card{display:flex;flex-direction:column;gap:2px;width:clamp(130px,28%,185px)}
+.choose{text-align:left;height:100%}
+.choose small,.aff{display:block;color:var(--muted)}
+.choose .rar{font-weight:700}
+.pickbar{display:flex;gap:12px;align-items:center}
+.mrow{display:grid;grid-template-columns:96px 1fr auto;gap:8px;align-items:center;padding:2px 0;font-size:.9em}
 .mbar{height:8px;background:#101813;border-radius:4px;overflow:hidden}
 .mbar i{display:block;height:100%;width:0}
-.srow{display:flex;justify-content:space-between;gap:8px;font-size:.9rem;margin-top:3px}
-.buff{font-size:.8rem;padding-left:10px}
+.srow{display:flex;justify-content:space-between;gap:8px;font-size:.9em;margin-top:3px}
+.buff{font-size:.8em;padding-left:10px}
+.acts{display:flex;gap:6px;margin-top:8px}
 .chip{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 4px 0 6px}
-.aff{margin-top:4px}
-.warn{color:#ffb4a8}
+.relicchip{display:inline-block;border:1px solid;border-radius:4px;padding:1px 6px;margin:0 4px 4px 0;font-size:.85em;font-weight:600;cursor:default}
+.tip{position:fixed;z-index:50;max-width:260px;background:#0f1612;border:2px solid var(--line);border-radius:6px;padding:8px 10px;pointer-events:none;font-size:.9em;box-shadow:0 4px 14px rgba(0,0,0,.5)}
+.tip b{display:block;margin-bottom:2px}
+@media (max-aspect-ratio:1/1){
+  .arena{flex-direction:column}
+  .side{width:auto;flex-direction:row;height:34%}
+  .side .panel{flex:1}
+}
 </style>
 </head>
 <body>
@@ -110,12 +122,18 @@ button:focus-visible{outline:3px solid #fff;outline-offset:2px}
   </div>
   <h1>Test TBD</h1>
   <div class="menuBtns">
-    <button class="go" data-nav="play">Play</button>
+    <button class="go" data-nav="levels">Play</button>
     <button data-nav="talents" id="talentsBtn">Talents</button>
     <button data-nav="leaderboard">Leaderboard</button>
     <button data-nav="settings">Settings</button>
     <button id="logoutBtn">Log out</button>
   </div>
+</section>
+
+<section id="screen-levels" class="screen" hidden>
+  <h1>Choose a level</h1>
+  <div class="levels" id="lvList"></div>
+  <button id="lvBack">Back</button>
 </section>
 
 <section id="screen-leaderboard" class="screen" hidden>
@@ -124,58 +142,59 @@ button:focus-visible{outline:3px solid #fff;outline-offset:2px}
   <button id="lbBack">Back</button>
 </section>
 
+<section id="screen-settings" class="screen" hidden>
+  <h1>Settings</h1>
+  <p class="muted">Nothing here yet.</p>
+  <button id="setBack">Back</button>
+</section>
+
 <section id="screen-talents" class="screen" hidden>
   <div class="topbar">
     <button id="tlBack">Back</button>
     <div>Points available: <b id="tlPoints">0</b> <span class="muted" id="tlSave"></span></div>
     <button id="tlReset">Respec</button>
   </div>
-  <h1>Talents</h1>
   <div class="tabs" id="tlTabs"></div>
   <div class="treebox"><svg id="tlSvg" viewBox="-340 -340 680 680" role="group" aria-label="Talent tree"></svg></div>
-  <div class="panel tinfo" id="tlInfo"></div>
 </section>
 
-<section id="screen-settings" class="screen" hidden>
-  <h1>Settings</h1>
-  <p style="color:var(--muted)">Nothing here yet.</p>
-  <button id="setBack">Back</button>
-</section>
-
-<section id="screen-play" class="screen" hidden>
-<div class="col" id="hud">
-  <span>Gold <b id="gold"></b></span><span>Lives <b id="lives"></b></span>
-  <span>Wave <b id="wave"></b></span><span>Best <b id="best"></b></span>
-</div>
-<div class="col stage">
-  <canvas id="c" width="640" height="400" aria-label="Game board"></canvas>
-  <div class="overlay" id="pick" hidden>
-    <h2>Choose a relic</h2>
-    <div class="choices" id="choices"></div>
+<section id="screen-play" class="screen play" hidden>
+  <div id="hud">
+    <span>Level <b id="stage"></b></span><span>Wave <b id="wave"></b></span><span>Gold <b id="gold"></b></span><span>Lives <b id="lives"></b></span>
   </div>
-  <div class="overlay" id="over" hidden>
-    <h2>The gate has fallen</h2>
-    <p id="overText"></p>
-    <p id="subMsg"></p>
-    <button class="go" id="newRun">New run</button>
-    <button id="overMenu">Back to menu</button>
+  <div class="arena">
+    <div class="stagewrap">
+      <div class="stage" id="stagebox">
+        <canvas id="c" width="640" height="400" aria-label="Game board"></canvas>
+        <div class="overlay" id="pick" hidden>
+          <h2>Choose a relic</h2>
+          <div class="choices" id="choices"></div>
+          <div class="pickbar"><button id="reroll">Reroll all</button><span class="muted" id="pickGold"></span></div>
+        </div>
+        <div class="overlay" id="over" hidden>
+          <h2 id="overTitle">The gate has fallen</h2>
+          <p id="overText"></p>
+          <p class="muted" id="subMsg"></p>
+          <button class="go" id="overNext" hidden>Next level</button>
+          <button id="newRun">Retry level</button>
+          <button id="overMenu">Back to menu</button>
+        </div>
+      </div>
+    </div>
+    <aside class="side">
+      <div class="panel"><h3>Damage meter</h3><div id="meter"></div></div>
+      <div class="panel grow"><h3>Hero</h3><div id="inspect"></div></div>
+      <div class="panel"><h3>Relics</h3><div id="relics"></div></div>
+    </aside>
   </div>
-</div>
-<div class="col bar">
-  <span id="tbtns" style="display:contents"></span>
-  <button id="relic" class="relic">Relic · 80</button>
-  <button id="go" class="go">Start wave</button>
-  <button id="auto">Auto-start: off</button>
-  <button id="spd">Speed: 1x</button>
-  <button id="menuBtn">Menu</button>
-</div>
-<div class="col" id="tinfo" style="color:var(--muted);font-size:.9rem"></div>
-<div class="col" id="relics"></div>
-<div class="col panels">
-  <div class="panel"><h3>Damage meter</h3><div id="meter"></div></div>
-  <div class="panel"><h3>Hero</h3><div id="inspect"></div></div>
-</div>
-
+  <div class="bar">
+    <span id="tbtns" style="display:contents"></span>
+    <button id="relic" class="relic">Relic</button>
+    <button id="go" class="go">Start wave</button>
+    <button id="auto">Auto-start: off</button>
+    <button id="spd">Speed: 1x</button>
+    <button id="menuBtn">Menu</button>
+  </div>
 </section>
 
 <script type="module" src="js/main.js"></script>

@@ -15,7 +15,7 @@ export const HEROES = [
     stats: { damage: 12, range: 130, cooldown: 0.7, speed: 1 },
     desc: 'Thief (range): throws a boomerang that hits everything on the way out and back.' },
   { id: 'frostmage', name: 'Frost Mage', archetype: 'spell', kind: 'shot', cost: 70, color: '#72c8f0', shape: [4, -Math.PI / 2], tags: ['spell', 'cold'],
-    stats: { damage: 3, range: 90, cooldown: 0.8, speed: 1, chillTime: 1.5 }, applies: { chill: 'chillTime' },
+    stats: { damage: 3, range: 90, cooldown: 0.8, speed: 1, chillTime: 1.5, targets: 1 }, applies: { chill: 'chillTime' },
     desc: 'Frost Mage (spell): weak bolts that chill enemies, slowing them by half.' },
   { id: 'firemage', name: 'Fire Mage', archetype: 'spell', kind: 'beam', cost: 120, color: '#ff7a45', shape: [3, -Math.PI / 2], tags: ['spell', 'fire', 'beam'], dps: true,
     stats: { damage: 10, range: 100, rampRate: 1 },
@@ -26,9 +26,18 @@ export const HEROES = [
 ];
 HEROES.forEach(h => h.tags.push(h.id));
 
+/* The five levels. Each has a wave count (15, then 5 more each), an enemy health multiplier and a per-wave growth rate. */
+export const STAGES = [
+  { n: 1, waves: 15, hpMult: 1,   growth: 1.14 },
+  { n: 2, waves: 20, hpMult: 1.2, growth: 1.15 },
+  { n: 3, waves: 25, hpMult: 1.5, growth: 1.16 },
+  { n: 4, waves: 30, hpMult: 2,   growth: 1.17 },
+  { n: 5, waves: 35, hpMult: 2.5, growth: 1.18 }
+];
+
 export const STAT_LABELS = {
   damage: 'Damage', range: 'Range', speed: 'Attacks per second', chillTime: 'Chill duration (s)', jumps: 'Chain jumps',
-  rampRate: 'Beam ramp speed', arc: 'Swing arc (°)',
+  rampRate: 'Beam ramp speed', arc: 'Swing arc (°)', targets: 'Targets per attack',
   bounty: 'Gold per kill', startGold: 'Starting gold', startLives: 'Starting lives', waveGold: 'Wave clear gold', heroCost: 'Hero cost', interest: 'Interest'
 };
 
@@ -57,7 +66,7 @@ export const RELICS = [
   { name: 'Prospector',        desc: m => '+' + f(2 * m) + ' gold per kill',         label: 'Economy', mods: m => [glob('bounty', 'flat', 2 * m)] },
   { name: 'Reinforced gate',   desc: m => '+' + Math.round(5 * m) + ' lives',        label: 'Your gate', onPick: (g, m) => { g.lives += Math.round(5 * m); } },
   { name: 'Bulk order',        desc: m => 'Heroes cost ' + f(15 * m) + '% less',     label: 'Economy', mods: m => [glob('heroCost', 'more', -0.15 * m)] },
-  { name: 'Deep freeze',       desc: m => 'Chill lasts ' + f(m) + 's longer',         mods: m => [hero('chillTime', 'flat', m, ['cold'])] },
+  { name: 'Deep freeze',       desc: m => 'Frost attacks hit +' + Math.floor(m) + ' more target' + (Math.floor(m) > 1 ? 's' : ''), mods: m => [hero('targets', 'flat', Math.floor(m), ['cold'])] },
   { name: 'Tax collector',     desc: m => '+' + f(50 * m) + '% gold for clearing a wave', label: 'Economy', mods: m => [glob('waveGold', 'inc', 0.5 * m)] },
   { name: 'Compound interest', desc: m => 'Wave clear pays ' + f(5 * m) + '% of your gold (max 60)', label: 'Economy', mods: m => [glob('interest', 'flat', 0.05 * m)] },
   { name: 'Fine arrows',       desc: m => '+' + f(30 * m) + '% damage to projectile heroes', mods: m => [hero('damage', 'inc', 0.3 * m, ['projectile'])] },
