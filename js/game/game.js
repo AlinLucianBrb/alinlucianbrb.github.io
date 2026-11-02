@@ -72,6 +72,7 @@ function newRun() {
   recalc();
   ui.hidePick(); ui.hideOver();
   ui.renderMeter(g); ui.renderInspector(g);
+  if (hooks.onRunStart) hooks.onRunStart();
 }
 
 function startWave() {
