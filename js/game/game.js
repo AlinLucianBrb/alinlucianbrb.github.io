@@ -1,6 +1,6 @@
 /* The browser shell around the engine: it turns input into commands, runs the loop, moves the camera, draws and updates the HUD.
    All game rules live in js/engine; nothing in here decides what happens in a game. */
-import { HEROES, COLS, ROWS, T, STAGES } from '../content/data.js';
+import { HEROES, COLS, ROWS, T, STAGES, heroIndex } from '../content/data.js';
 import { createWorld, step, STEP } from '../engine/world.js';
 import { apply } from '../engine/commands.js';
 import { exportLog } from '../engine/replay.js';
@@ -26,10 +26,12 @@ const newSeed = () => (globalThis.crypto && crypto.getRandomValues) ? crypto.get
 /* Every run starts fresh: Auto-start off, not paused, camera fitted to the free part of the screen. */
 function newRun() {
   const seed = newSeed();
-  w = createWorld({ seed, stage: stageN, talents: hooks.talents || [] });
+  w = createWorld({ seed, stage: stageN, talents: hooks.talents || [], lineup: hooks.lineup, items: hooks.items || {} });
   const world = w;
   w.ev.on('end', ({ won }) => finish(world, won));
   v.selected = v.moving = null; v.vfx.beams.length = 0; v.vfx.slashes.length = 0; v.needFit = true;
+  v.sel = heroIndex(w.lineup[0]);
+  ui.setLineup(w);
   setPaused(false);
   ui.hidePick(); ui.hideOver(); ui.renderMeter(w); ui.renderInspector(w, v);
   if (hooks.onRunStart) hooks.onRunStart({ seed, stage: stageN });
@@ -82,6 +84,7 @@ function frame(now) {
 }
 function render(dt) {
   if (v.selected && !w.heroes.includes(v.selected)) { v.selected = v.moving = null; ui.renderInspector(w, v); }
+  v.placing = canPlace(v.sel);
   tickBeams(v.vfx, dt); tickSlashes(v.vfx, dt);
   draw(ctx, w, v);
   ui.renderHUD(w, v);
@@ -211,18 +214,37 @@ function clickCell(cx, cy) {
     ui.renderInspector(w, v); return;
   }
   if (existing) { v.selected = existing; ui.renderInspector(w, v); return; }
-  if (!inside) { closeInspector(); return; }
-  if (act({ type: 'place', hero: v.sel, cx, cy }).ok) { v.selected = null; ui.renderInspector(w, v); }
+  if (!inside || !canPlace(v.sel)) { closeInspector(); return; }
+  if (act({ type: 'place', hero: HEROES[v.sel].id, cx, cy }).ok) {
+    v.selected = null;
+    const next = w.lineup.map(heroIndex).find(canPlace);   /* move on to the next hero still waiting to be placed */
+    if (next !== undefined) v.sel = next;
+    ui.renderInspector(w, v);
+  }
 }
+/* A hero can be placed if it is in the lineup and not on the map yet (one of each, free). */
+const unitOf = i => w.heroes.find(h => h.type === i);
+const canPlace = i => i >= 0 && w.lineup.includes(HEROES[i].id) && !unitOf(i);
 
-const selectType = i => { v.sel = i; v.moving = null; if (v.selected) { v.selected = null; ui.renderInspector(w, v); } };
+/* Clicking a hero card: choose it for placing, or, once it is on the map, select it there. */
+const selectType = i => {
+  if (i < 0 || !w.lineup.includes(HEROES[i].id)) return;
+  v.moving = null;
+  const unit = unitOf(i);
+  if (unit) { v.selected = unit; v.sel = i; } else { v.sel = i; v.selected = null; }
+  ui.renderInspector(w, v);
+};
 const closeInspector = () => { v.selected = v.moving = null; ui.renderInspector(w, v); };
-const sellSelected = () => { if (v.selected && act({ type: 'sell', id: v.selected.id }).ok) { v.selected = v.moving = null; ui.renderInspector(w, v); } };
+const evolveSelected = () => { if (v.selected) act({ type: 'evolve', id: v.selected.id }); };
 const toggleMove = () => { if (v.selected && w.phase !== 'over') { v.moving = v.moving === v.selected ? null : v.selected; ui.renderInspector(w, v); } };
 ui.initUI({
-  onSelectType: selectType, onCloseInspector: closeInspector, onSell: sellSelected, onMove: toggleMove,
+  onSelectType: selectType, onCloseInspector: closeInspector, onEvolve: evolveSelected, onMove: toggleMove,
   onChoose: i => act({ type: 'choose', index: i }), onReroll: () => act({ type: 'reroll' }), onBanish: i => act({ type: 'banish', index: i }),
-  heroInfo: i => { const c = w ? w.cost(i) : HEROES[i].cost; return { stats: heroStats(HEROES[i], w ? w.mods : []), cost: c, poor: !!w && w.gold < c }; },
+  heroInfo: i => {
+    const def = HEROES[i], unit = w && unitOf(i), tier = unit ? unit.tier : 0, evo = def.evolutions[tier];
+    const evoCost = evo && w ? Math.round(evo.cost * w.gs.evolveCost) : evo ? evo.cost : null;
+    return { stats: unit ? unit.s : heroStats(def, w ? w.mods : []), unit, evo, evoCost, gold: w ? w.gold : 0 };
+  },
   onLayoutChange: () => { if (!v.cam.touched) v.needFit = true; }
 });
 $('go').onclick = () => act({ type: 'wave' });
@@ -242,10 +264,10 @@ const PAN_KEYS = { arrowleft: [1, 0], a: [1, 0], arrowright: [-1, 0], d: [-1, 0]
 addEventListener('keydown', e => {
   if (!active || e.target.tagName === 'INPUT') return;
   const k = e.key.toLowerCase();
-  if (+e.key >= 1 && +e.key <= HEROES.length) selectType(+e.key - 1);
+  if (+e.key >= 1 && +e.key <= w.lineup.length) selectType(heroIndex(w.lineup[+e.key - 1]));
   else if (k === 'r') act({ type: 'buyRelic' });
   else if (k === 'm') toggleMove();
-  else if (k === 'x') sellSelected();
+  else if (k === 'e') evolveSelected();
   else if (k === 'p') { if (w.phase !== 'over') setPaused(!v.paused); }
   else if (k === 'escape') { if (v.paused) setPaused(false); else closeInspector(); }
   else if (k === 'f') fitToScreen();

@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { STAGES } from '../js/content/data.js';
 import { runRewards, xpNeed } from '../js/core/rules.js';
 import { waveCount, spawnDelay } from '../js/engine/enemies.js';
-import { talentSeedSql } from '../tools/talent-sql.mjs';
+import { buildSetup, buildUpdate } from '../tools/build-sql.mjs';
 
 const sqlFiles = ['supabase-setup.sql', 'supabase-update.sql'].map(f => [f, readFileSync(new URL('../' + f, import.meta.url), 'utf8')]);
 
@@ -35,7 +35,18 @@ test('the minimum-time check matches the real spawn timings', () => {
   for (const [f, sql] of sqlFiles) assert.match(sql, /0\.4 \* \(4 \+ 2 \* w\) \* greatest\(0\.35, 0\.85 - 0\.02 \* w\)/, f + ': same formula as waveCount and spawnDelay');
 });
 
-test('the talent trees in the SQL files are up to date (run: npm run talent-sql)', () => {
-  const seed = talentSeedSql().trim();
-  for (const [f, sql] of sqlFiles) assert.ok(sql.includes(seed), f + ' has an old copy of the talent trees');
+test('the SQL files are up to date with sql/ and js/content (run: npm run sql)', () => {
+  assert.equal(sqlFiles[0][1], buildSetup(), 'supabase-setup.sql is out of date');
+  assert.equal(sqlFiles[1][1], buildUpdate(), 'supabase-update.sql is out of date');
+});
+
+test('the database knows every playable hero and item, and the lineup default matches', async () => {
+  const { HEROES, LINEUP_SIZE } = await import('../js/content/data.js'), { ITEMS } = await import('../js/content/items.js');
+  for (const [f, sql] of sqlFiles) {
+    for (const h of HEROES) assert.ok(sql.includes("('" + h.id + "')"), f + ' is missing hero ' + h.id);
+    for (const id in ITEMS) assert.ok(sql.includes("('" + id + "', '" + ITEMS[id].slot + "', true)"), f + ' is missing item ' + id);
+    assert.ok(sql.includes("'{" + HEROES.slice(0, LINEUP_SIZE).map(h => h.id).join(',') + "}'"), f + ': default lineup');
+    assert.match(sql, /if n < 1 or n > 3 then raise exception 'bring 1 to 3 heroes'/, f + ': lineup size matches LINEUP_SIZE');
+  }
+  assert.equal(LINEUP_SIZE, 3);
 });

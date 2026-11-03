@@ -44,6 +44,19 @@ button:focus-visible,input:focus-visible{outline:3px solid #fff;outline-offset:2
 .lvl.done{border-color:#5fd46f}
 .lvl small{color:var(--muted)}
 
+/* Heroes screen */
+#screen-heroes{justify-content:flex-start;overflow:auto}
+.hgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;width:min(900px,100%)}
+.hcard{--hc:var(--line);display:flex;flex-direction:column;gap:6px;background:var(--panel);border:2px solid var(--line);border-top:6px solid var(--hc);border-radius:8px;padding:12px}
+.hcard.picked{border-color:var(--accent);border-top-color:var(--hc)}
+.hhead{display:flex;justify-content:space-between;align-items:baseline}
+.hhead b{font-size:1.2em}
+.hdesc{margin:0}
+.hstats{margin:0}
+.hslot{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px;border:1px dashed var(--line);border-radius:6px;margin-top:auto}
+.hslot small{width:100%}
+.itemname{font-weight:700}
+.hinv{width:min(900px,100%);display:flex;flex-direction:column;gap:6px}
 /* Talent tree: the SVG scales to whatever space is left. */
 #screen-talents{justify-content:flex-start}
 .tabs{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
@@ -94,11 +107,15 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
 .herocard{--hc:var(--line);position:relative;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;min-width:94px;padding:.3em 1.5em .35em .6em;border-top:4px solid var(--hc);text-align:left}
 .herocard .nm{font-weight:600;white-space:nowrap}
 .herocard .cost{color:var(--accent);font-size:.9em;font-variant-numeric:tabular-nums}
-.herocard .cost::before{content:'● ';font-size:.7em}
 .herocard .key{position:absolute;top:3px;right:6px;font-size:.7em;color:var(--muted)}
 .herocard.on{border-color:var(--accent);border-top-color:var(--hc);background:#2b4a38}
 .herocard.poor,#relic.poor{opacity:.6}
 .herocard.poor .cost{color:#e5645a}
+.herocard.placed .cost{color:var(--muted)}
+.ebar{display:block;height:4px;width:100%;background:#101813;border-radius:2px;overflow:hidden;margin-top:3px}
+.ebar i{display:block;height:100%;width:0;background:#5aa9ff}
+.ebar.full i{background:#ffd84a}
+.ebar.wide{width:55%;height:7px;align-self:center}
 .actions{display:flex;flex-direction:column;gap:6px;justify-content:center;padding-left:10px;border-left:1px solid var(--line)}
 #go.big{font-size:1.05em;padding:.5em 1.1em;white-space:nowrap}
 #pauseBanner{top:42%;left:50%;transform:translate(-50%,-50%);font-size:2em;font-weight:700;letter-spacing:.12em;padding:.25em 1em;pointer-events:none}
@@ -163,6 +180,7 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
   <h1>Test TBD</h1>
   <div class="menuBtns">
     <button class="go" data-nav="levels">Play</button>
+    <button data-nav="heroes">Heroes</button>
     <button data-nav="talents" id="talentsBtn">Talents</button>
     <button data-nav="leaderboard">Leaderboard</button>
     <button data-nav="settings">Settings</button>
@@ -174,6 +192,14 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
   <h1>Choose a level</h1>
   <div class="levels" id="lvList"></div>
   <button id="lvBack">Back</button>
+</section>
+
+<section id="screen-heroes" class="screen" hidden>
+  <div class="topbar"><button id="hrBack">Back</button><div>Lineup <b id="hrCount"></b> <span class="muted" id="hrMsg"></span></div><span></span></div>
+  <h1>Heroes</h1>
+  <p class="muted">Choose up to three heroes to bring into each match, and equip one item on each. Heroes are free to place, one of each.</p>
+  <div class="hgrid" id="hrGrid"></div>
+  <div class="hinv"><small class="muted">Your items</small><div id="hrInv"></div></div>
 </section>
 
 <section id="screen-leaderboard" class="screen" hidden>

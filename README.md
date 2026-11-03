@@ -9,18 +9,20 @@ js/main.js                 boot: registers screens, picks the first one
 js/config.js               your Supabase URL and key (and optional CAPTCHA site key)
 js/core/                   bus.js (events), screens.js, tooltip.js, state.js, rules.js
 js/services/api.js         the only file that talks to Supabase
-js/screens/                login, menu, levels, talents, leaderboard, settings, play (one file each)
+js/screens/                login, menu, levels, heroes, talents, leaderboard, settings, play (one file each)
 
 js/content/                WHAT the game contains (plain data, no logic)
-  data.js                  heroes, relics, rarities, levels
+  data.js                  heroes (and archived ones for later), energy defaults, relics, rarities, levels
+  items.js                 items that drop after matches (one slot per hero)
   talents.js               talent trees and allocation rules
   format.js                display text for modifiers
 js/engine/                 HOW the game works (no page, no clock, no Math.random)
   world.js                 the simulation: createWorld(), step()
-  commands.js              every player action: place, sell, move, wave, auto, buyRelic, reroll, banish, choose
+  commands.js              every player action: place, move, evolve, wave, auto, buyRelic, reroll, banish, choose
   rng.js                   seeded random numbers
   replay.js                command logs: exportLog(), replay(), verify()
   hash.js                  fingerprint of a world (tests)
+  ultimates.js             what a hero does when its energy bar is full
   stats.js, behaviors.js, enemies.js, projectiles.js, effects.js, meter.js
 js/game/                   the browser shell around the engine
   game.js                  input -> commands, the loop, background play
@@ -30,16 +32,17 @@ js/game/                   the browser shell around the engine
 tests/                     run with: npm test
 tools/bot.mjs              a bot that plays through the same commands as a player
 tools/balance-report.mjs   run with: npm run balance
-tools/generate-talent-sql.mjs  run with: npm run talent-sql
+tools/build-sql.mjs        builds the two SQL files from sql/ and js/content: npm run sql
+sql/                       the database, in parts (tables, functions, permissions); edit these, not the built files
 .github/workflows/test.yml runs the tests on GitHub on every push
-supabase-setup.sql         database setup (fresh install)
-supabase-update.sql        updates an existing database (safe to run again)
+supabase-setup.sql         database setup for a new project (built by npm run sql)
+supabase-update.sql        updates an existing project (built by npm run sql; safe to run again)
 supabase-cleanup-old-prototypes.sql  optional: deletes tables from the earlier prototypes
 ```
 
 ## How the engine works
 - **Engine vs. shell.** `js/engine` holds every game rule and never touches the page, the clock or `Math.random`. `js/game` turns clicks into commands, runs the loop and draws. The same engine runs in the browser, in the tests and in the bot, and could run on a server.
-- **Commands.** The only way to change a game is `apply(world, { type, ... })`. A command is checked, applied and recorded with the tick it happened on; a refused command changes nothing. To add a player action, add an entry to `COMMANDS` in `commands.js`.
+- **Commands.** The only way to change a game is `apply(world, { type, ... })`: place, move, evolve, wave, auto, buyRelic, reroll, banish, choose. A command is checked, applied and recorded with the tick it happened on; a refused command changes nothing. To add a player action, add an entry to `COMMANDS` in `commands.js`.
 - **Seeded randomness.** Each run gets a seed. Separate random streams for the map and for relics mean, for example, that rerolling relics never changes the map.
 - **Command logs.** A seed plus the list of commands replays a run exactly: `replay(log)` gives the same final state, and `verify(log)` checks the result a log claims. The Play screen receives the log when a run ends (`onRunEnd`), ready for a future step where the server re-plays runs to stop cheating.
 - **Engine version.** `ENGINE_VERSION` in `world.js` must go up whenever a rule change would make old logs play out differently; `replay` refuses logs from another version. (Now 2: Compound interest changed.)
@@ -57,9 +60,9 @@ The map fills the window and the HUD floats on top: level, wave and lives top le
 
 | Action | Mouse / touch | Keys |
 |---|---|---|
-| Choose a hero | click its card | 1-6 |
+| Choose a hero to place, or select a placed one | click its card | 1-3 |
 | Place it / select a hero | click a tile | |
-| Move / sell the selected hero | buttons in the hero panel | M / X |
+| Move / evolve the selected hero | buttons in the hero panel | M / E |
 | Move the map | drag (any mouse button), or drag with one finger | arrows or WASD |
 | Zoom | mouse wheel, pinch, or the + / − buttons | + / − |
 | Fit the map to the screen | Fit button | F |
@@ -74,21 +77,27 @@ The map fills the window and the HUD floats on top: level, wave and lives top le
 - The game runs on a fixed time step, so it plays the same at any frame rate. When the tab is hidden or the window is minimized, a timer keeps it running, and it catches up on any time the browser paused (up to 30 minutes).
 - Heroes cannot be controlled while the tab is hidden, so turn on Auto-start before switching away. A paused game stays paused in the background.
 
-## Heroes and talents
-- Heroes have an **archetype** (melee, range or spell) and **tags**; relics and talents are modifiers aimed at tags. Every hero's tags include its archetype and its own id, so a modifier can target "all spell heroes" or just one hero.
-- You get **1 talent point per level above 1**. The Talents button in the main menu opens the trees: one General tree for every hero, plus one tree per hero. Allocate nodes that connect to the origin or to an allocated node. Remove a node only if the rest stay connected. Respec is free for now.
-- Talent effects are modifiers, so they stack with relics and show up in the hero inspector as "Talent". Hover a node to see what it does.
-- In a run, click a hero to see its stats and buffs, and to **Move** or **Sell** it (sells for 70% of what you paid). Relic choices can be **rerolled or banished** for 25% of the relic's price, rising 5% with each use.
+## Heroes, energy, evolution and items
+- **Three classes:** Warrior (melee swing), Ranger (fast arrows) and Mage (bolts that hit two enemies). The Thief, Frost Mage (with its slow), Fire Mage and Lightning Mage are kept in `HERO_ARCHIVE`, with their behaviors and relics, for the advanced variants later.
+- **Lineup:** on the Heroes screen, players choose up to 3 different heroes to bring. In a match each one is placed once, for free; gold goes to evolutions and relics.
+- **Energy and ultimates:** every hero has an energy bar (blue under the hero; gold and glowing when full). It fills by `energyPerAttack` per attack and `energyPerSecond` during waves; the defaults are in `ENERGY` in `data.js` (20 per attack, 0 per second), and both are ordinary stats that talents, relics and items can change. When the bar is full, the next attack is the ultimate: for now, double damage.
+- **Evolution:** select a hero and press Evolve (or E) to spend gold on its next evolution. For now each hero has one: +50% damage, range and attack speed for 150 gold. Evolutions are a list per hero, so more steps or branches are just more entries.
+- **Items:** a win always drops an item and a loss has a chance (up to 50%, more for surviving longer). The server rolls the drop, so it cannot be faked. Each hero has one item slot; equip items on the Heroes screen. For now there is one item, the Power Charm (+5 damage).
+- **Talents:** you get 1 talent point per level above 1. One General tree for every hero, plus one tree per hero. Allocate nodes that connect to the origin or to an allocated node; remove one only if the rest stay connected. Respec is free. The old Archer and Frost Mage points carried over to the Ranger and Mage trees; points in the trees of archived heroes were refunded.
+- Talents, items, evolutions and relics are all modifiers, so they stack, and the hero panel shows where each bonus comes from.
 
 ## Extending the game
 Everything in combat flows through `hit()` in `js/engine/world.js`, which emits `damage` and `kill` events. Pieces react to events instead of calling each other.
 - **New relic:** add an entry to `RELICS` in `data.js`: a list of modifiers like `{ stat: 'damage', type: 'inc', value: 0.3, scope: ['cold'] }`. `inc` values add together, `more` values multiply, `flat` values add to the base. Scope is a list of hero tags, `['all']`, or `'global'` for economy stats.
-- **New hero using an existing behavior:** add an entry to `HEROES` with its tags and base stats, and a tree with `addTree` in `talents.js`.
+- **New hero using an existing behavior:** add an entry to `HEROES` with its tags, base stats, ultimate and evolutions, and a tree with `addTree` in `talents.js`. Then run `npm run sql`.
+- **New item:** add it to `ITEMS` in `js/content/items.js`, then run `npm run sql` and run the update SQL. It starts dropping right away.
+- **New ultimate:** `registerUltimate('id', { name, desc, damageMult, onFire(world, hero) })` in `js/engine/ultimates.js`, then set `ultimate: 'id'` on a hero.
+- **New evolution step:** add another entry to a hero's `evolutions` list.
 - **New hero behavior:** add `registerBehavior('kind', { update(g, hero, dt) {} })` in `js/engine/behaviors.js`.
 - **New status effect:** add it to `EFFECTS` in `js/engine/effects.js`, then list it in a hero's `applies` field.
 - **New projectile:** add it to `PROJECTILES` in `js/engine/projectiles.js` (and its look to `PROJ_DRAW` in `js/game/render.js`) and spawn it from a behavior.
 - **New enemy:** add it to `ENEMIES` in `js/engine/enemies.js` and return it from `waveEnemyType`.
-- **New talent:** add a node to a branch in `talents.js`, then run `npm run talent-sql` and paste the output in the Supabase SQL Editor (a test fails until the SQL files are updated).
+- **New talent:** add a node to a branch in `talents.js`, then run `npm run sql` and run `supabase-update.sql` in Supabase (a test fails until the SQL files are rebuilt).
 
 ## Setup
 1. **Database:** in Supabase, open SQL Editor, paste `supabase-setup.sql` and run it. (Already set up earlier? Run `supabase-update.sql` instead; it is safe to run more than once.)
@@ -106,8 +115,9 @@ What the server enforces (all in `supabase-setup.sql` / `supabase-update.sql`):
 - **Run records:** a result is accepted only for a run the server saw start (`start_run`), once, within 24 hours. Starting a new run cancels the unfinished one, so runs cannot be started in parallel.
 - **Minimum time:** a run must take at least as long as the enemies need to spawn at 2x speed (80% of it for tolerance), and at least 15 seconds. Clearing level 1 takes at least about 78 seconds, level 5 about 4 minutes.
 - **Rate limit:** at most 30 saved runs per hour per player.
-- **Talents:** the server has a copy of every talent tree and rejects unknown nodes and nodes that do not connect to their tree's start. After changing `js/content/talents.js`, run `npm run talent-sql` and paste the output in the SQL Editor.
+- **Talents:** the server has a copy of every talent tree and rejects unknown nodes and nodes that do not connect to their tree's start. After changing `js/content/talents.js`, run `npm run sql`, then run `supabase-update.sql` in the SQL Editor.
 - **Usernames:** 3-16 letters, numbers or underscores. Reserved names (admin, moderator...), a starter list of offensive words and look-alikes of existing names (0/o, 1/l/i) are rejected, even if someone skips the sign-up form. Add rows to `blocked_names` to block more.
+- **Items and lineups:** only the server creates items (in `finish_run`); players can read their own items but not change them. `save_loadout` only accepts known heroes, at most 3 different ones, and items the player owns, each worn once. Each run records the lineup and equipment it started with.
 - **Permissions:** players can only call the functions the game needs, and cannot read or write the private tables directly.
 
 What it cannot stop: someone who writes a script that plays slowly and sends believable numbers. They would still gain XP at roughly real-time speed, up to the hourly limit. Stopping that means re-playing each run on the server, which is a bigger project.

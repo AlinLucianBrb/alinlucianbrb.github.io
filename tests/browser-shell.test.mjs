@@ -38,25 +38,31 @@ test('the screen comes alive: hero cards, gold and HUD values, no drawing errors
   startGame(hooks); dom.frames(3);
   assert.deepEqual(drawErrors, []);
   const card = dom.heroButton(0);
-  assert.equal(card.children[1]._text, 'Warrior'); assert.equal(card.children[2]._v, '60');
-  assert.equal(dom.heroButton(5).children[1]._text, 'Lightning Mage');
+  assert.equal(card.children[1]._text, 'Warrior'); assert.equal(card.children[2]._v, 'Free · place it'); assert.equal(card.children[0]._v, '1');
+  assert.equal(dom.heroButton(2).children[1]._text, 'Mage');
+  assert.equal(dom.heroButton(3), undefined, 'only the three playable heroes have cards');
   assert.equal(byId.gold._v, '100'); assert.equal(byId.wave._v, '0 / 15'); assert.equal(byId.stage._v, '1'); assert.equal(byId.lives._v, '20');
   assert.equal(byId.heroPanel.hidden, true, 'the hero panel only appears when a hero is selected');
   assert.equal(byId.relics.hidden, true, 'the relic strip is hidden until you own a relic');
 });
 
-test('placing, selecting, moving and selling heroes by clicking', () => {
-  const t = freeTiles(3);
+test('placing is free and once per hero; cards then select the hero; move and evolve from the hero panel', () => {
+  const t = freeTiles(4);
   dom.heroButton(1).onclick(); click(...t[0]); dom.frames(1);
-  assert.equal(gold(), 50, 'archer placed');
-  assert.equal(dom.heroButton(0).classList.contains ? true : true, true);
-  click(...t[0]); dom.frames(1);
-  assert.equal(byId.heroPanel.hidden, false, 'selecting shows the hero panel');
+  assert.equal(gold(), 100, 'placing is free'); assert.equal(world().heroes.length, 1);
+  assert.equal(dom.heroButton(1).children[2]._v, 'On the field');
+  click(...t[2]); dom.frames(1);
+  assert.equal(world().heroes.length, 2, 'the next click places the next hero waiting in the lineup');
+  assert.notEqual(world().heroes[1].def.id, 'ranger', 'never the same hero twice');
+  dom.heroButton(1).onclick(); dom.frames(1);
+  assert.equal(byId.heroPanel.hidden, false, 'the card of a placed hero selects it on the map');
   dom.button('Move').onclick(); click(...t[1]); dom.frames(1);
   assert.deepEqual([world().heroes[0].cx, world().heroes[0].cy], t[1]);
-  click(...t[1]); dom.frames(1);
-  dom.button('Sell').onclick(); dom.frames(1);
-  assert.equal(gold(), 85, 'sold for 70%'); assert.equal(byId.heroPanel.hidden, true);
+  click(...t[1]); dom.frames(20);
+  const evo = dom.button('Evolve');
+  assert.ok(evo, 'Evolve button in the hero panel'); assert.equal(evo.disabled, true, 'not enough gold yet (150)');
+  assert.equal(dom.button('Sell'), undefined, 'no selling');
+  assert.equal(dom.made.some(e => e.tag === 'div' && /^When full: Empowered strike/.test(e._text)), true, 'the panel explains the ultimate');
 });
 
 test('the land outside the map cannot hold heroes, and shows a not-allowed cursor there', () => {
@@ -115,7 +121,7 @@ test('Retry always starts with Auto-start off, after a loss and after a win', ()
   try {
     for (const winning of [true, false]) {
       byId.newRun.onclick(); dom.frames(2);
-      if (winning) { const t = freeTiles(2); dom.heroButton(1).onclick(); click(...t[0]); dom.heroButton(1).onclick(); click(...t[1]); }
+      if (winning) { const t = freeTiles(2); dom.heroButton(1).onclick(); click(...t[0]); dom.heroButton(2).onclick(); click(...t[1]); }
       else world().lives = 1;   /* test only: make the loss quick (this run is not replayed) */
       byId.auto.onclick(); assert.equal(world().auto, true);
       ends.length = 0; runUntil(() => ends.length > 0, 60000);
@@ -127,13 +133,25 @@ test('Retry always starts with Auto-start off, after a loss and after a win', ()
   } finally { Object.assign(stage, saved); }
 });
 
+test('the match uses the lineup and items from the Play screen', () => {
+  stopGame();
+  startGame({ ...hooks, lineup: ['mage', 'warrior'], items: { warrior: 'power_charm' } }); dom.frames(2);
+  assert.deepEqual(world().lineup, ['mage', 'warrior']);
+  assert.equal(dom.heroButton(1).hidden, true, 'the Ranger stayed home');
+  assert.equal(dom.heroButton(2).children[0]._v, '1', 'keys follow the lineup order'); assert.equal(dom.heroButton(0).children[0]._v, '2');
+  const [t] = freeTiles(1);
+  dom.heroButton(0).onclick(); click(...t); dom.frames(1);
+  assert.equal(world().heroes[0].s.damage, 28 + 5, 'the Power Charm is equipped');
+  stopGame(); startGame(hooks); dom.frames(2);
+});
+
 test('the run log handed to the Play screen replays to the same result', async () => {
   const stage = STAGES[0], saved = { waves: stage.waves, hpMult: stage.hpMult };
   stage.waves = 3; stage.hpMult = 0.3;
   try {
     ends.length = 0; byId.newRun.onclick(); dom.frames(2);
     const t = freeTiles(2);
-    dom.heroButton(1).onclick(); click(...t[0]); dom.heroButton(1).onclick(); click(...t[1]);
+    dom.heroButton(1).onclick(); click(...t[0]); dom.heroButton(2).onclick(); click(...t[1]);
     byId.auto.onclick();
     runUntil(() => ends.length > 0);
     await new Promise(r => setTimeout(r, 0));
@@ -148,7 +166,7 @@ test('the run log handed to the Play screen replays to the same result', async (
 test('catches up after the browser pauses, and keeps running in a hidden tab', async () => {
   byId.newRun.onclick(); dom.frames(2);
   const t = freeTiles(3);
-  dom.heroButton(1).onclick(); click(...t[0]); dom.heroButton(1).onclick(); click(...t[2]);
+  dom.heroButton(1).onclick(); click(...t[0]); dom.heroButton(2).onclick(); click(...t[2]);
   byId.auto.onclick();
   const w0 = wave();
   dom.frame(60000);

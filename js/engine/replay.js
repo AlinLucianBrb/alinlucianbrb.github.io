@@ -1,4 +1,4 @@
-/* Command logs. A log is { seed, stage, talents, commands: [{ type, ..., t }], ticks }: everything needed to play a run again.
+/* Command logs. A log is { seed, stage, talents, lineup, items, commands: [{ type, ..., t }], ticks }: everything needed to play a run again.
    exportLog() builds one from a live world; replay() plays one back and returns the finished world. */
 import { createWorld, step, summary, ENGINE_VERSION } from './world.js';
 import { apply } from './commands.js';
@@ -7,7 +7,7 @@ export const exportLog = w => ({ ...w.log, commands: w.log.commands.map(c => ({ 
 
 export function replay(log, { maxTicks = 10000000 } = {}) {
   if (log.ver !== ENGINE_VERSION) throw new Error('Log was recorded with engine version ' + log.ver + ' but this is version ' + ENGINE_VERSION);
-  const w = createWorld({ seed: log.seed, stage: log.stage, talents: log.talents, record: false });
+  const w = createWorld({ seed: log.seed, stage: log.stage, talents: log.talents, lineup: log.lineup, items: log.items, record: false });
   const cmds = log.commands; let i = 0;
   for (;;) {
     while (i < cmds.length && cmds[i].t <= w.tick) {

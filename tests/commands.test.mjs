@@ -1,41 +1,74 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createWorld, step } from '../js/engine/world.js';
+import { createWorld, step, recalc } from '../js/engine/world.js';
 import { apply } from '../js/engine/commands.js';
-import { HEROES, RELICS } from '../js/content/data.js';
+import { RELICS } from '../js/content/data.js';
 import { richWorld, tilesNearPath, place, heroIndex } from './helpers.mjs';
 
-test('placing a hero costs gold, needs a free tile, and is recorded', () => {
-  const w = createWorld({ seed: 1 }), [t1] = tilesNearPath(w, 1);
-  const r = apply(w, { type: 'place', hero: heroIndex('archer'), cx: t1[0], cy: t1[1] });
-  assert.ok(r.ok); assert.equal(w.gold, 100 - HEROES[heroIndex('archer')].cost);
-  assert.equal(apply(w, { type: 'place', hero: heroIndex('archer'), cx: t1[0], cy: t1[1] }).reason, 'blocked');
-  assert.equal(apply(w, { type: 'place', hero: heroIndex('archer'), cx: w.path[3][0], cy: w.path[3][1] }).reason, 'blocked', 'not on the path');
-  assert.equal(apply(w, { type: 'place', hero: heroIndex('archer'), cx: 16, cy: 0 }).reason, 'blocked', 'not off the map');
-  assert.equal(apply(w, { type: 'place', hero: heroIndex('firemage'), cx: 0, cy: 0 }).ok === false, true);
-  assert.equal(apply(w, { type: 'place', hero: 99, cx: 0, cy: 0 }).reason, 'unknown hero');
+test('heroes are free to place, once each, only from the lineup, on a free tile; placing is recorded', () => {
+  const w = createWorld({ seed: 1, lineup: ['warrior', 'ranger'] }), t = tilesNearPath(w, 3);
+  const r = apply(w, { type: 'place', hero: 'ranger', cx: t[0][0], cy: t[0][1] });
+  assert.ok(r.ok); assert.equal(w.gold, 100, 'free');
+  assert.equal(apply(w, { type: 'place', hero: 'ranger', cx: t[1][0], cy: t[1][1] }).reason, 'already placed');
+  assert.equal(apply(w, { type: 'place', hero: 'mage', cx: t[1][0], cy: t[1][1] }).reason, 'not in lineup');
+  assert.equal(apply(w, { type: 'place', hero: 'warrior', cx: t[0][0], cy: t[0][1] }).reason, 'blocked');
+  assert.equal(apply(w, { type: 'place', hero: 'warrior', cx: w.path[3][0], cy: w.path[3][1] }).reason, 'blocked', 'not on the path');
+  assert.equal(apply(w, { type: 'place', hero: 'warrior', cx: 16, cy: 0 }).reason, 'blocked', 'not off the map');
+  assert.equal(apply(w, { type: 'place', hero: 'thief', cx: 0, cy: 0 }).reason, 'unknown hero', 'archived heroes cannot be placed');
   assert.equal(w.log.commands.length, 1, 'failed commands are not recorded');
-  assert.deepEqual(w.log.commands[0], { type: 'place', hero: heroIndex('archer'), cx: t1[0], cy: t1[1], t: 0 });
+  assert.deepEqual(w.log.commands[0], { type: 'place', hero: 'ranger', cx: t[0][0], cy: t[0][1], t: 0 });
 });
 
-test('selling refunds 70% and removes the hero and its boomerang', () => {
-  const w = richWorld(), t = tilesNearPath(w, 2);
-  const h = place(w, 'thief', ...t[0]);
-  w.projs.push({ type: 'boomerang', owner: h });
-  const before = w.gold;
-  assert.ok(apply(w, { type: 'sell', id: h.id }).ok);
-  assert.equal(w.gold, before + Math.round(h.paid * 0.7));
-  assert.equal(w.heroes.length, 0); assert.equal(w.projs.length, 0);
-  assert.equal(apply(w, { type: 'sell', id: h.id }).reason, 'no such hero');
+test('the lineup is cleaned: unknown, duplicate and extra heroes are dropped, an empty one brings everyone', () => {
+  assert.deepEqual(createWorld({ seed: 1, lineup: ['mage', 'thief', 'mage', 'nope'] }).lineup, ['mage']);
+  assert.deepEqual(createWorld({ seed: 1, lineup: [] }).lineup, ['warrior', 'ranger', 'mage']);
+  assert.deepEqual(createWorld({ seed: 1 }).lineup, ['warrior', 'ranger', 'mage']);
+});
+
+test('items apply to the hero wearing them, only if that hero is in the lineup', () => {
+  const w = createWorld({ seed: 1, items: { warrior: 'power_charm', mage: 'nope' } }), t = tilesNearPath(w, 2);
+  const war = place(w, 'warrior', ...t[0]), ran = place(w, 'ranger', ...t[1]);
+  assert.equal(war.s.damage, 28 + 5); assert.equal(ran.s.damage, 16);
+  assert.deepEqual(w.items, { warrior: 'power_charm', mage: 'nope' }, 'unknown items are kept in the log but do nothing');
+  assert.deepEqual(createWorld({ seed: 1, lineup: ['ranger'], items: { warrior: 'power_charm' } }).items, {}, 'items on heroes left at home are ignored');
+});
+
+test('evolving costs gold, gives +50% damage, range and attack speed, and only once for now', () => {
+  const w = richWorld(), [t] = tilesNearPath(w, 1), h = place(w, 'ranger', ...t);
+  const before = { ...h.s }, g = w.gold;
+  assert.equal(w.evolveCost(h), 150);
+  assert.ok(apply(w, { type: 'evolve', id: h.id }).ok);
+  assert.equal(g - w.gold, 150); assert.equal(h.tier, 1);
+  assert.equal(h.s.damage, before.damage * 1.5); assert.equal(h.s.range, before.range * 1.5); assert.equal(h.s.speed, before.speed * 1.5);
+  assert.equal(apply(w, { type: 'evolve', id: h.id }).reason, 'fully evolved');
+  assert.equal(w.evolveCost(h), null);
+  const w2 = createWorld({ seed: 1 }), h2 = place(w2, 'ranger', ...tilesNearPath(w2, 1)[0]);
+  assert.equal(apply(w2, { type: 'evolve', id: h2.id }).reason, 'gold');
+  assert.equal(apply(w2, { type: 'evolve', id: 99 }).reason, 'no such hero');
+});
+
+test('evolution stacks with relics and Bulk order makes it cheaper', () => {
+  const w = richWorld(), h = place(w, 'warrior', ...tilesNearPath(w, 1)[0]);
+  w.mods.push(...RELICS.find(r => r.name === 'Bulk order').mods(2).map(m => ({ ...m, source: 'Bulk order', ri: 2 })));
+  w.mods.push(...RELICS.find(r => r.name === 'Sharpened rounds').mods(1).map(m => ({ ...m, source: 'x', ri: 0 })));
+  recalc(w);
+  assert.equal(w.evolveCost(h), Math.round(150 * 0.7));
+  apply(w, { type: 'evolve', id: h.id });
+  assert.equal(h.s.damage, 28 * 1.25 * 1.5);
 });
 
 test('moving needs a free tile and briefly delays the next attack', () => {
   const w = richWorld(), t = tilesNearPath(w, 3);
-  const a = place(w, 'archer', ...t[0]); place(w, 'archer', ...t[1]);
+  const a = place(w, 'ranger', ...t[0]); place(w, 'warrior', ...t[1]);
   assert.equal(apply(w, { type: 'move', id: a.id, cx: t[1][0], cy: t[1][1] }).reason, 'blocked');
   assert.ok(apply(w, { type: 'move', id: a.id, cx: t[2][0], cy: t[2][1] }).ok);
   assert.deepEqual([a.cx, a.cy], t[2]); assert.equal(a.cd, 1);
   assert.ok(apply(w, { type: 'move', id: a.id, cx: t[2][0], cy: t[2][1] }).ok, 'moving onto its own tile is allowed');
+});
+
+test('there is no selling: heroes are free', () => {
+  const w = richWorld(), h = place(w, 'ranger', ...tilesNearPath(w, 1)[0]);
+  assert.equal(apply(w, { type: 'sell', id: h.id }).reason, 'unknown command');
 });
 
 test('wave and auto-start', () => {
@@ -56,7 +89,7 @@ test('relic shop: price is 60% and rises; three different offers; choosing appli
   assert.equal(w.relicCost(), 72); assert.equal(w.picking, true);
   assert.equal(new Set(w.pick.offers.map(o => o.relic.name)).size, 3);
   assert.equal(step(w), false, 'the game waits while a relic is being chosen');
-  for (const c of ['place', 'sell', 'move', 'buyRelic']) assert.equal(apply(w, { type: c, hero: 0, id: 1, cx: 0, cy: 0 }).reason, 'busy');
+  for (const c of ['place', 'move', 'evolve', 'buyRelic']) assert.equal(apply(w, { type: c, hero: 'ranger', id: 1, cx: 0, cy: 0 }).reason, 'busy');
   const name = w.pick.offers[1].relic.name;
   assert.ok(apply(w, { type: 'choose', index: 1 }).ok);
   assert.equal(w.picking, false); assert.equal(w.relics[0].name, name);

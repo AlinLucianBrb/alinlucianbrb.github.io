@@ -2,7 +2,8 @@
 import { createWorld } from '../js/engine/world.js';
 import { apply } from '../js/engine/commands.js';
 import { ENEMIES } from '../js/engine/enemies.js';
-import { HEROES } from '../js/content/data.js';
+import { HEROES, HERO_ARCHIVE, T } from '../js/content/data.js';
+import { heroStats } from '../js/engine/stats.js';
 
 export const heroIndex = id => HEROES.findIndex(h => h.id === id);
 
@@ -20,9 +21,18 @@ export function tilesNearPath(w, count = 10) {
 }
 
 export function place(w, heroId, cx, cy) {
-  const r = apply(w, { type: 'place', hero: heroIndex(heroId), cx, cy });
+  const r = apply(w, { type: 'place', hero: heroId, cx, cy });
   if (!r.ok) throw new Error('place failed: ' + r.reason);
   return w.heroes.find(h => h.id === r.id);
+}
+
+/* Puts an archived (not playable) hero on the map directly, to test behaviors that are kept for later. */
+export function archivedUnit(w, heroId, cx, cy) {
+  const def = HERO_ARCHIVE.find(h => h.id === heroId);
+  const h = { id: w.nextHeroId++, type: -1, def, cx, cy, x: (cx + 0.5) * T, y: (cy + 0.5) * T, cd: 0, ramp: 0, lock: null, proj: null,
+    dealt: 0, kills: 0, energy: 0, ults: 0, tier: 0, mods: [], s: heroStats(def, w.mods) };
+  w.heroes.push(h);
+  return h;
 }
 
 /* An enemy standing still at (x, y), with progress d along the path. */

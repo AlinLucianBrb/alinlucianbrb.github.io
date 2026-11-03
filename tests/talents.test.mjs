@@ -40,10 +40,10 @@ test('talent points: one per level above 1', () => { assert.equal(pointsFor(1), 
 test('talents become modifiers that only hit the intended heroes', () => {
   const mods = talentMods(['warrior_1_0', 'general_0_0', 'general_3_0', 'nope', 'general_root']);
   assert.deepEqual(mods.map(m => m.stat).sort(), ['arc', 'damage', 'startGold']);
-  const warrior = HEROES.find(h => h.id === 'warrior'), archer = HEROES.find(h => h.id === 'archer');
+  const warrior = HEROES.find(h => h.id === 'warrior'), ranger = HEROES.find(h => h.id === 'ranger');
   assert.equal(heroStats(warrior, mods).arc, 130);
-  assert.equal(heroStats(archer, mods).arc, undefined);
-  assert.ok(Math.abs(heroStats(archer, mods).damage - 10.4) < 1e-9, 'general damage reaches the archer');
+  assert.equal(heroStats(ranger, mods).arc, undefined);
+  assert.ok(Math.abs(heroStats(ranger, mods).damage - 16 * 1.04) < 1e-9, 'general damage reaches the ranger');
 });
 
 /* The server (save_talents in the SQL) accepts a set if every node exists and connects to a root through allocated nodes.
@@ -76,4 +76,13 @@ test('the server rule accepts exactly the sets a player can build', () => {
   }
   assert.ok(valid > 100, 'the sample should include plenty of valid sets');
   assert.ok(!serverOk(['general_root']) && !serverOk(['nope_1']) && !serverOk(['general_0_0', 'general_0_0']));
+});
+
+test('the Ranger and Mage trees keep the old Archer and Frost Mage layouts, so renamed allocations stay connected', () => {
+  for (const [from, to] of [['archer', 'ranger'], ['frostmage', 'mage']]) {
+    assert.ok(NODES.has(to + '_0_0') && NODES.has(to + '_2_3'));
+    const old = [from + '_0_0', from + '_0_1', from + '_1_0', from + '_1_1'];   /* what an old player may have allocated */
+    const renamed = old.map(id => id.replace(from + '_', to + '_')), alloc = new Set();
+    for (const id of renamed) { assert.ok(canAllocate(alloc, NODES.get(id)), id); alloc.add(id); }
+  }
 });

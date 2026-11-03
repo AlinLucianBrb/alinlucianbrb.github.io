@@ -117,7 +117,7 @@ export function draw(ctx, g, v) {
     ctx.beginPath(); ctx.moveTo(h[0] * T + 12, h[1] * T + 12); ctx.lineTo(h[0] * T + T - 12, h[1] * T + T - 12);
     ctx.moveTo(h[0] * T + T - 12, h[1] * T + 12); ctx.lineTo(h[0] * T + 12, h[1] * T + T - 12); ctx.stroke();
   }
-  if (inside && !g.pathSet.has(h[0] + ',' + h[1]) && !g.heroes.some(t => t.cx === h[0] && t.cy === h[1])) {
+  if (inside && (v.moving || v.placing) && !g.pathSet.has(h[0] + ',' + h[1]) && !g.heroes.some(t => t.cx === h[0] && t.cy === h[1])) {
     const mv = v.moving, range = mv ? mv.s.range : g.previewRange(v.sel);
     ctx.beginPath(); ctx.arc((h[0] + 0.5) * T, (h[1] + 0.5) * T, range, 0, 7);
     ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fill();
@@ -130,8 +130,19 @@ export function draw(ctx, g, v) {
       ctx.beginPath(); ctx.arc(t.x, t.y, t.s.range, 0, 7);
       ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
     }
+    const full = t.energy >= t.s.energyMax;
+    if (full) {                            /* ultimate ready: a soft gold glow */
+      ctx.beginPath(); ctx.arc(t.x, t.y, 21, 0, 7); ctx.fillStyle = 'rgba(255,216,74,.28)'; ctx.fill();
+    }
     if (n) poly(ctx, t.x, t.y, 15, n, rot); else { ctx.beginPath(); ctx.arc(t.x, t.y, 13, 0, 7); }
     ctx.fillStyle = d.color; ctx.fill(); ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2; ctx.stroke();
+    if (t.tier) {                          /* evolved: a gold ring */
+      ctx.beginPath(); ctx.arc(t.x, t.y, 18, 0, 7); ctx.strokeStyle = '#f2b84b'; ctx.lineWidth = 2.5; ctx.stroke();
+    }
+    /* Energy bar under the hero: blue while filling, gold when the ultimate is ready. */
+    const f = Math.max(0, Math.min(1, t.energy / t.s.energyMax));
+    ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(t.x - 15, t.y + 19, 30, 5);
+    ctx.fillStyle = full ? '#ffd84a' : '#5aa9ff'; ctx.fillRect(t.x - 14, t.y + 20, 28 * f, 3);
     ctx.globalAlpha = 1;
   }
   for (const s of v.vfx.slashes) {

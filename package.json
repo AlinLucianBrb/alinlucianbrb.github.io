@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test",
+    "test": "node --test --experimental-test-module-mocks",
     "balance": "node tools/balance-report.mjs",
-    "talent-sql": "node tools/generate-talent-sql.mjs"
+    "sql": "node tools/build-sql.mjs"
   }
 }

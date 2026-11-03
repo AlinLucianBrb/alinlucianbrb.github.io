@@ -1,9 +1,8 @@
-/* Everything a player can do is a command: { type, ...fields }. apply() checks it, changes the world and, if it worked, records it
+/* Everything a player can do is a command: { type, ...fields }. Commands: place, move, evolve, wave, auto, buyRelic, reroll, banish, choose. apply() checks it, changes the world and, if it worked, records it
    in world.log with the tick it happened on. A failed command changes nothing and is not recorded.
    To add an action, add an entry to COMMANDS. */
 import { HEROES, RARITIES, RELICS, rollRarity, COLS, ROWS, T } from '../content/data.js';
-import { heroStats } from './stats.js';
-import { recalc, startWave } from './world.js';
+import { recalc, startWave, statsFor } from './world.js';
 
 const OK = { ok: true };
 const fail = reason => ({ ok: false, reason });
@@ -18,28 +17,33 @@ function drawRelics(w, n, taken) {
 }
 
 export const COMMANDS = {
+  /* Heroes are free to place, one of each, and only those in the match lineup. */
   place(w, c) {
     const b = blocked(w); if (b) return b;
-    const def = HEROES[c.hero];
+    const type = HEROES.findIndex(h => h.id === c.hero), def = HEROES[type];
     if (!def) return fail('unknown hero');
+    if (!w.lineup.includes(def.id)) return fail('not in lineup');
+    if (w.heroes.some(h => h.def === def)) return fail('already placed');
     if (!isFree(w, c.cx, c.cy)) return fail('blocked');
-    const cost = w.cost(c.hero);
-    if (w.gold < cost) return fail('gold');
-    w.gold -= cost;
-    const h = { id: w.nextHeroId++, type: c.hero, def, cx: c.cx, cy: c.cy, x: (c.cx + 0.5) * T, y: (c.cy + 0.5) * T,
-      cd: 0, ramp: 0, lock: null, proj: null, dealt: 0, kills: 0, paid: cost, s: heroStats(def, w.mods) };
+    const h = { id: w.nextHeroId++, type, def, cx: c.cx, cy: c.cy, x: (c.cx + 0.5) * T, y: (c.cy + 0.5) * T,
+      cd: 0, ramp: 0, lock: null, proj: null, dealt: 0, kills: 0, energy: 0, ults: 0, tier: 0, mods: [], s: null };
+    statsFor(w, h);
     w.heroes.push(h);
     return { ok: true, id: h.id };
   },
-  sell(w, c) {
+  /* Spends gold to take a hero to its next evolution. */
+  evolve(w, c) {
     const b = blocked(w); if (b) return b;
     const h = w.heroes.find(x => x.id === c.id);
     if (!h) return fail('no such hero');
-    w.gold += Math.round(h.paid * 0.7);
-    w.heroes.splice(w.heroes.indexOf(h), 1);
-    let j = 0;
-    for (let i = 0; i < w.projs.length; i++) if (w.projs[i].owner !== h) w.projs[j++] = w.projs[i];
-    w.projs.length = j;
+    const evo = h.def.evolutions[h.tier], cost = w.evolveCost(h);
+    if (!evo) return fail('fully evolved');
+    if (w.gold < cost) return fail('gold');
+    w.gold -= cost;
+    h.mods.push(...evo.mods.map(m => ({ ...m, source: evo.name, ri: -3 })));
+    h.tier++;
+    statsFor(w, h);
+    w.ev.emit('evolve', { hero: h, evolution: evo });
     return OK;
   },
   move(w, c) {

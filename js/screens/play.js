@@ -1,5 +1,6 @@
 import { startGame, stopGame } from '../game/game.js';
-import { startRun, finishRun } from '../services/api.js';
+import { startRun, finishRun, getItems } from '../services/api.js';
+import { ITEMS } from '../content/items.js';
 import { runRewards } from '../core/rules.js';
 import { bus } from '../core/bus.js';
 import { state } from '../core/state.js';
@@ -9,9 +10,19 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 const hint = e => /function|does not exist|schema cache|could not find|column/i.test(e || '') ? ' (did you run the latest SQL update?)' : '';
 
 export default {
-  mount(el, params) {
+  async mount(el, params) {
     const stage = (params && params.stage) || 1;
     if (stage > (state.profile.levels_cleared || 0) + 1) return bus.emit('nav', { to: 'levels' });
+    /* Equipped items: { heroId: itemId } in the profile, turned into { heroId: itemType } for the game. */
+    if (!state.items && Object.keys(state.profile.equipment || {}).length) {
+      const { items, error } = await getItems().catch(() => ({ error: 'offline' }));
+      state.items = error ? null : items;
+    }
+    const equipped = {};
+    for (const [heroId, itemId] of Object.entries(state.profile.equipment || {})) {
+      const it = (state.items || []).find(i => i.id === itemId);
+      if (it) equipped[heroId] = it.item_type;
+    }
     let runId = null, starting = Promise.resolve({});
 
     /* Every run is registered with the server when it starts; the server only accepts a result for a run it saw begin. */
@@ -27,15 +38,17 @@ export default {
       if (!runId) return 'Could not save your run: ' + (s.error || 'it was not started') + hint(s.error);
       const id = runId; runId = null;
       const before = state.profile;
-      const { profile, error } = await finishRun(id, waves, kills, won);
+      const { profile, drop, error } = await finishRun(id, waves, kills, won);
       if (error || !profile) return 'Could not save your run: ' + (error || 'unknown error') + hint(error);
       state.profile = profile;
+      if (drop) state.items = null;   /* reload the inventory next time it is needed */
       const r = runRewards(waves, kills);
       return (won ? 'Level ' + stage + ' cleared! ' : '') + '+' + r.xp + ' XP, +' + r.gold + ' gold.' +
+        (drop ? ' You found an item: ' + (ITEMS[drop] ? ITEMS[drop].name : drop) + '! Equip it on the Heroes screen.' : '') +
         (profile.level > before.level ? ' Level up! You are now level ' + profile.level + '.' : '');
     }
     startGame({
-      stage, talents: state.profile.talents || [], onRunEnd,
+      stage, talents: state.profile.talents || [], lineup: state.profile.lineup, items: equipped, onRunEnd,
       onRunStart: () => { runId = null; starting = register(); },
       onExit: () => bus.emit('nav', { to: 'menu' }),
       onNext: () => bus.emit('nav', { to: 'play', params: { stage: stage + 1 } })

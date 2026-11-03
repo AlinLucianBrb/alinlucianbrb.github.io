@@ -18,7 +18,7 @@ export function installFakeDom() {
   });
   function el(tag) {
     const e = {
-      tag, style: {}, attrs: {}, children: [], hs: {}, hidden: false, disabled: false, value: '', className: '', _text: '', _cls: new Set(),
+      tag, style: { setProperty(k, v) { this[k] = v; } }, attrs: {}, children: [], hs: {}, hidden: false, disabled: false, value: '', className: '', _text: '', _cls: new Set(),
       classList: { toggle: (c, on) => { const want = on === undefined ? !e._cls.has(c) : !!on; if (want) e._cls.add(c); else e._cls.delete(c); return want; }, add: c => e._cls.add(c), remove: c => e._cls.delete(c), contains: c => e._cls.has(c) },
       append(...a) { for (const x of a) if (typeof x === 'object') e.children.push(x); },
       addEventListener(ev, fn) { (e.hs[ev] ||= []).push(fn); },

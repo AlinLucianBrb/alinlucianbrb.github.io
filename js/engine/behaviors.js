@@ -1,5 +1,7 @@
 /* Hero behaviors, one per hero "kind". Each has update(g, hero, dt) and reads only the hero's cached stats (hero.s).
-   Behaviors never touch the DOM or the economy: they deal damage through g.hit() and draw through g.fx?.beam(). */
+   Behaviors never touch the DOM or the economy: they deal damage through g.hit() and draw through g.fx?.beam().
+   Every attack follows the same pattern: strike(g, t) right before it (the ultimate when the energy bar is full, see
+   ultimates.js), then charge(g, t, mult) once it has hit something. */
 export const BEHAVIORS = {};
 export const registerBehavior = (kind, impl) => { BEHAVIORS[kind] = impl; };
 
@@ -29,6 +31,12 @@ export function pickTargets(g, t, range, n) {
 }
 const ready = (t, dt) => (t.cd -= dt) <= 0;
 const rearm = t => { t.cd = t.s.cooldown / t.s.speed; };
+/* Damage multiplier for this attack: 1, or the ultimate's when the bar is full. Worlds without energy (old tests) give 1. */
+const strike = (g, t) => (g.attackMult ? g.attackMult(t) : 1);
+/* Fills the energy bar after an attack that hit, unless that attack was the ultimate. */
+const charge = (g, t, mult) => { if (mult === 1 && g.gainEnergy) g.gainEnergy(t); };
+/* Ultimates look different: brighter and thicker. */
+const look = (t, mult) => (mult > 1 ? '#fff6c8' : t.def.color);
 
 registerBehavior('swing', {
   update(g, t, dt) {
@@ -36,16 +44,17 @@ registerBehavior('swing', {
     const tg = pickTarget(g, t, t.s.range);
     if (!tg) return;
     const ang = Math.atan2(tg.y - t.y, tg.x - t.x), half = Math.min(Math.PI, t.s.arc * Math.PI / 360), r2 = t.s.range * t.s.range;
+    const mult = strike(g, t);
     for (const e of g.enemies) {
       if (e.dead) continue;
       const dx = e.x - t.x, dy = e.y - t.y;
       if (dx * dx + dy * dy > r2) continue;
       let da = Math.abs(Math.atan2(dy, dx) - ang);
       if (da > Math.PI) da = 2 * Math.PI - da;
-      if (da <= half) g.hit(t, e, t.s.damage);
+      if (da <= half) g.hit(t, e, t.s.damage * mult);
     }
-    rearm(t);
-    g.fx?.slash(t.x, t.y, ang, half, t.s.range, 0.2, t.def.color);
+    rearm(t); charge(g, t, mult);
+    g.fx?.slash(t.x, t.y, ang, half, t.s.range, mult > 1 ? 0.35 : 0.2, look(t, mult));
   }
 });
 
@@ -56,13 +65,15 @@ registerBehavior('shot', {
     if (n > 1) {
       const list = pickTargets(g, t, t.s.range, n);
       if (!list.length) return;
-      for (const tg of list) { g.hit(t, tg, t.s.damage); g.fx?.beam(t.x, t.y, tg.x, tg.y, 0.08, t.def.color); }
-      rearm(t); return;
+      const mult = strike(g, t);
+      for (const tg of list) { g.hit(t, tg, t.s.damage * mult); g.fx?.beam(t.x, t.y, tg.x, tg.y, mult > 1 ? 0.16 : 0.08, look(t, mult), mult > 1 ? 6 : 3); }
+      rearm(t); charge(g, t, mult); return;
     }
     const tg = pickTarget(g, t, t.s.range);
     if (!tg) return;
-    g.hit(t, tg, t.s.damage); rearm(t);
-    g.fx?.beam(t.x, t.y, tg.x, tg.y, 0.08, t.def.color);
+    const mult = strike(g, t);
+    g.hit(t, tg, t.s.damage * mult); rearm(t); charge(g, t, mult);
+    g.fx?.beam(t.x, t.y, tg.x, tg.y, mult > 1 ? 0.16 : 0.08, look(t, mult), mult > 1 ? 6 : 3);
   }
 });
 
@@ -74,7 +85,11 @@ registerBehavior('beam', {
     if (!tg) return;
     t.ramp += dt * t.s.rampRate;
     const k = Math.min(3, t.ramp);
-    g.hit(t, tg, t.s.damage * (1 + k) * dt);
+    /* A beam has no separate attacks: it gains energy over time while burning, and the ultimate doubles one second of it. */
+    if (!t.ultT && g.attackMult && t.energy >= t.s.energyMax) { strike(g, t); t.ultT = 1; }
+    const mult = t.ultT > 0 ? 2 : 1;
+    if (t.ultT > 0) t.ultT = Math.max(0, t.ultT - dt); else if (g.gainEnergy) g.gainEnergy(t, t.s.energyPerAttack * dt);
+    g.hit(t, tg, t.s.damage * (1 + k) * dt * mult);
     g.fx?.beam(t.x, t.y, tg.x, tg.y, 0.12, t.def.color, 2 + k * 1.5);
   }
 });
@@ -84,9 +99,9 @@ registerBehavior('boom', {
     if (t.proj || !ready(t, dt)) return;
     const tg = pickTarget(g, t, t.s.range);
     if (!tg) return;
-    const a = Math.atan2(tg.y - t.y, tg.x - t.x);
-    t.proj = { type: 'boomerang', owner: t, x: t.x, y: t.y, dx: Math.cos(a), dy: Math.sin(a), dist: 0, max: t.s.range, out: true, hit: new Set(), damage: t.s.damage, rot: 0 };
-    g.projs.push(t.proj);
+    const a = Math.atan2(tg.y - t.y, tg.x - t.x), mult = strike(g, t);
+    t.proj = { type: 'boomerang', owner: t, x: t.x, y: t.y, dx: Math.cos(a), dy: Math.sin(a), dist: 0, max: t.s.range, out: true, hit: new Set(), damage: t.s.damage * mult, rot: 0 };
+    g.projs.push(t.proj); charge(g, t, mult);
   }
 });
 
@@ -95,11 +110,11 @@ registerBehavior('chain', {
     if (!ready(t, dt)) return;
     let cur = pickTarget(g, t, t.s.range);
     if (!cur) return;
-    const seen = new Set(), jr2 = (t.s.range * 0.8) ** 2, jumps = Math.round(t.s.jumps);
-    let px = t.x, py = t.y, d = t.s.damage;
+    const seen = new Set(), jr2 = (t.s.range * 0.8) ** 2, jumps = Math.round(t.s.jumps), mult = strike(g, t);
+    let px = t.x, py = t.y, d = t.s.damage * mult;
     for (let j = 0; j <= jumps && cur; j++) {
       seen.add(cur); g.hit(t, cur, d); d *= 0.85;
-      g.fx?.beam(px, py, cur.x, cur.y, 0.12, t.def.color);
+      g.fx?.beam(px, py, cur.x, cur.y, 0.12, look(t, mult));
       px = cur.x; py = cur.y;
       let next = null, nd = jr2;
       for (const e of g.enemies) {
@@ -109,6 +124,6 @@ registerBehavior('chain', {
       }
       cur = next;
     }
-    rearm(t);
+    rearm(t); charge(g, t, mult);
   }
 });

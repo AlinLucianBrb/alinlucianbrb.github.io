@@ -1,7 +1,8 @@
 /* The simulation. A world holds all game state and advances in fixed steps; players change it only through commands (commands.js).
    Nothing in js/engine touches the page, the clock or Math.random, so a world can run in a browser, in Node (tests, the balance bot)
    or on a server, and the same seed plus the same commands always gives the same result. */
-import { HEROES, STAGES, COLS, ROWS } from '../content/data.js';
+import { HEROES, STAGES, COLS, ROWS, LINEUP_SIZE } from '../content/data.js';
+import { itemMods } from '../content/items.js';
 import { createBus } from '../core/bus.js';
 import { talentMods } from '../content/talents.js';
 import { resolve, heroStats } from './stats.js';
@@ -11,9 +12,10 @@ import { spawnEnemy, updateEnemies, sweep, waveCount, spawnDelay, waveEnemyType 
 import { updateProjectiles } from './projectiles.js';
 import { createMeter } from './meter.js';
 import { createRng } from './rng.js';
+import { attackMult, gainEnergy } from './ultimates.js';
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
-export const ENGINE_VERSION = 2;     /* bump when a rule change would make old command logs play out differently */
+export const ENGINE_VERSION = 3;     /* bump when a rule change would make old command logs play out differently */
 
 function genPath(rng) {
   let x = 0, y = 1 + rng.int(ROWS - 2); const p = [[x, y]];
@@ -27,22 +29,35 @@ function genPath(rng) {
   return p;
 }
 
-export function createWorld({ seed = 1, stage = 1, talents = [], record = true } = {}) {
+/* Checks a lineup: up to LINEUP_SIZE different, playable heroes. Returns a clean copy, or the full roster if it is empty. */
+export function cleanLineup(lineup) {
+  const out = [];
+  for (const id of lineup || []) if (HEROES.some(h => h.id === id) && !out.includes(id) && out.length < LINEUP_SIZE) out.push(id);
+  return out.length ? out : HEROES.slice(0, LINEUP_SIZE).map(h => h.id);
+}
+
+/* lineup: the hero ids brought into the match. items: { heroId: itemType } equipped before the match. */
+export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, items = {}, record = true } = {}) {
   const def = STAGES[stage - 1];
   if (!def) throw new Error('Unknown stage ' + stage);
   const root = createRng(seed), rng = { path: root.fork('path'), relic: root.fork('relic') };
-  const path = genPath(rng.path), mods = talentMods(talents);
+  const team = cleanLineup(lineup), equipped = {};
+  for (const id of team) if (items && items[id]) equipped[id] = items[id];
+  const path = genPath(rng.path), mods = [...talentMods(talents), ...itemMods(equipped)];
   const w = {
     seed: seed >>> 0, stageN: stage, stage: def, maxWave: def.waves, rng, path, pathSet: new Set(path.map(c => c.join(','))),
     tick: 0, phase: 'build', won: false, auto: false, autoT: 3, picking: false, pick: null,
     gold: 100 + resolve(0, 'startGold', mods), lives: 20 + resolve(0, 'startLives', mods),
     wave: 0, spawnLeft: 0, spawnT: 0, kills: 0, nextHeroId: 1,
     heroes: [], enemies: [], projs: [], mods, relics: [], relicsBought: 0, banned: new Set(),
-    ev: createBus(), fx: null, gs: null, talents: [...talents],
-    log: record ? { v: 1, ver: ENGINE_VERSION, seed: seed >>> 0, stage, talents: [...talents], commands: [], ticks: 0 } : null
+    ev: createBus(), fx: null, gs: null, talents: [...talents], lineup: team, items: equipped,
+    log: record ? { v: 1, ver: ENGINE_VERSION, seed: seed >>> 0, stage, talents: [...talents], lineup: [...team], items: { ...equipped }, commands: [], ticks: 0 } : null
   };
   w.hit = (hero, e, amount) => hit(w, hero, e, amount);
-  w.cost = i => Math.round(HEROES[i].cost * w.gs.heroCost);
+  w.attackMult = h => attackMult(w, h);
+  w.gainEnergy = (h, amount) => gainEnergy(h, amount);
+  /* Gold for a hero's next evolution, or null when it has none left. */
+  w.evolveCost = h => { const e = h.def.evolutions[h.tier]; return e ? Math.round(e.cost * w.gs.evolveCost) : null; };
   w.relicCost = () => Math.round(0.6 * (80 + 40 * w.relicsBought));
   w.pickCost = () => Math.max(1, Math.round(0.25 * w.pick.paid * Math.pow(1.05, w.pick.uses)));
   w.previewRange = i => resolve(HEROES[i].stats.range, 'range', w.mods, HEROES[i].tags);
@@ -69,10 +84,16 @@ export function hit(w, hero, e, amount) {
 /* Recomputes cached numbers after anything that changes modifiers (relics, talents at start). */
 export function recalc(w) {
   w.gs = {
-    bounty: resolve(5, 'bounty', w.mods), heroCost: Math.max(0.25, resolve(1, 'heroCost', w.mods)),
+    bounty: resolve(5, 'bounty', w.mods), evolveCost: Math.max(0.25, resolve(1, 'evolveCost', w.mods)),
     waveGold: resolve(1, 'waveGold', w.mods), interest: resolve(0, 'interest', w.mods), interestCap: resolve(0, 'interestCap', w.mods)
   };
-  for (const h of w.heroes) h.s = heroStats(h.def, w.mods);
+  for (const h of w.heroes) statsFor(w, h);
+}
+/* A hero's stats: the shared modifiers (talents, items, relics) plus its own (evolutions). */
+export function statsFor(w, h) {
+  h.s = heroStats(h.def, h.mods.length ? w.mods.concat(h.mods) : w.mods);
+  if (h.energy > h.s.energyMax) h.energy = h.s.energyMax;
+  return h.s;
 }
 
 export function startWave(w) {
@@ -104,7 +125,10 @@ export function step(w) {
     spawnEnemy(w, waveEnemyType(w.wave, w.spawnLeft)); w.spawnLeft--; w.spawnT = spawnDelay(w.wave);
   }
   updateEnemies(w, STEP);
-  for (const h of w.heroes) BEHAVIORS[h.def.kind].update(w, h, STEP);
+  for (const h of w.heroes) {
+    if (h.s.energyPerSecond > 0 && w.phase === 'wave') gainEnergy(h, h.s.energyPerSecond * STEP);
+    BEHAVIORS[h.def.kind].update(w, h, STEP);
+  }
   updateProjectiles(w, STEP);
   sweep(w.enemies);
   if (w.phase === 'wave' && w.spawnLeft === 0 && !w.enemies.length) waveCleared(w);

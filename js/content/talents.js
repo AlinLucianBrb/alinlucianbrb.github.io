@@ -38,7 +38,7 @@ addTree('general', 'General', '#f2b84b', [
   { angle: -18, nodes: [...small(['Quick', 'Nimble', 'Swift'], () => [inc('speed', 0.04, ['all'])]), ['Frenzy', inc('speed', 0.10, ['all']), inc('damage', 0.04, ['all'])]] },
   { angle: 54,  nodes: [...small(['Far', 'Farther', 'Distant'], () => [inc('range', 0.04, ['all'])]), ['Far Sight', inc('range', 0.10, ['all']), inc('damage', 0.04, ['all'])]] },
   { angle: 126, nodes: [...small(['Pocket Change', 'Savings', 'Nest Egg'], () => [gflat('startGold', 10)]), ['Plunder', gflat('bounty', 1), ginc('waveGold', 0.10)]] },
-  { angle: 198, nodes: [...small(['Stout Gate', 'Sturdy Gate', 'Iron Gate'], () => [gflat('startLives', 1)]), ['Fortified Gate', gflat('startLives', 2), more('heroCost', -0.05)]] }
+  { angle: 198, nodes: [...small(['Stout Gate', 'Sturdy Gate', 'Iron Gate'], () => [gflat('startLives', 1)]), ['Fortified Gate', gflat('startLives', 2), more('evolveCost', -0.05)]] }
 ]);
 const sc = id => [id];
 const dmg = (id, v = 0.06) => () => [inc('damage', v, sc(id))];
@@ -50,30 +50,17 @@ addTree('warrior', 'Warrior', '#c7ced6', [
   { angle: A[1], nodes: [...small(['Wide Grip', 'Broad Stance', 'Long Blade'], () => [flat('arc', 10, sc('warrior'))]), ['Whirlwind', flat('arc', 30, sc('warrior')), inc('damage', 0.08, sc('warrior'))]] },
   { angle: A[2], nodes: [...small(['Footwork', 'Momentum', 'Rhythm'], spd('warrior')), ['Berserker', inc('speed', 0.12, sc('warrior')), flat('range', 10, sc('warrior'))]] }
 ]);
-addTree('archer', 'Archer', '#f2b84b', [
-  { angle: A[0], nodes: [...small(['Marksman', 'Sharpshooter', 'Hawk Eye'], dmg('archer')), ['Deadeye', inc('damage', 0.15, sc('archer')), inc('range', 0.05, sc('archer'))]] },
-  { angle: A[1], nodes: [...small(['Quick Draw', 'Rapid Fire', 'Steady Hands'], spd('archer')), ['Barrage', inc('speed', 0.15, sc('archer'))]] },
-  { angle: A[2], nodes: [...small(['Long Bow', 'Eagle Eye', 'Far Shot'], rng('archer')), ['Longshot', inc('range', 0.12, sc('archer')), inc('damage', 0.06, sc('archer'))]] }
+/* Node ids follow the tree id, so the Ranger tree keeps the old Archer tree's layout (archer_* nodes are renamed in the SQL update). */
+addTree('ranger', 'Ranger', '#f2b84b', [
+  { angle: A[0], nodes: [...small(['Marksman', 'Sharpshooter', 'Hawk Eye'], dmg('ranger')), ['Deadeye', inc('damage', 0.15, sc('ranger')), inc('range', 0.05, sc('ranger'))]] },
+  { angle: A[1], nodes: [...small(['Quick Draw', 'Rapid Fire', 'Steady Hands'], spd('ranger')), ['Barrage', inc('speed', 0.15, sc('ranger'))]] },
+  { angle: A[2], nodes: [...small(['Long Bow', 'Eagle Eye', 'Far Shot'], rng('ranger')), ['Longshot', inc('range', 0.12, sc('ranger')), inc('damage', 0.06, sc('ranger'))]] }
 ]);
-addTree('thief', 'Thief', '#8be28b', [
-  { angle: A[0], nodes: [...small(['Shiv', 'Backstab', 'Cutthroat'], dmg('thief')), ['Assassin', inc('damage', 0.15, sc('thief')), inc('speed', 0.05, sc('thief'))]] },
-  { angle: A[1], nodes: [...small(['Light Fingers', 'Fast Hands', 'Sleight'], spd('thief')), ['Blur', inc('speed', 0.15, sc('thief'))]] },
-  { angle: A[2], nodes: [...small(['Long Throw', 'Wide Arc', 'Far Flight'], rng('thief', 0.06)), ['Boomerang Master', inc('range', 0.15, sc('thief')), inc('damage', 0.10, sc('thief'))]] }
-]);
-addTree('frostmage', 'Frost Mage', '#72c8f0', [
-  { angle: A[0], nodes: [...small(['Frostbite', 'Rime', 'Icicle'], dmg('frostmage')), ['Glacial', inc('damage', 0.15, sc('frostmage')), inc('range', 0.05, sc('frostmage'))]] },
-  { angle: A[1], nodes: [...small(['Cold Snap', 'Deep Chill', 'Numbing Cold'], () => [flat('chillTime', 0.25, sc('frostmage'))]), ['Permafrost', flat('chillTime', 0.75, sc('frostmage')), inc('damage', 0.08, sc('frostmage'))]] },
-  { angle: A[2], nodes: [...small(['Winter Winds', 'Blizzard', 'Whiteout'], spd('frostmage')), ['Absolute Zero', inc('speed', 0.12, sc('frostmage')), inc('range', 0.08, sc('frostmage'))]] }
-]);
-addTree('firemage', 'Fire Mage', '#ff7a45', [
-  { angle: A[0], nodes: [...small(['Ember', 'Flame', 'Blaze'], dmg('firemage')), ['Inferno', inc('damage', 0.15, sc('firemage')), inc('rampRate', 0.10, sc('firemage'))]] },
-  { angle: A[1], nodes: [...small(['Focus', 'Concentration', 'Fixation'], () => [inc('rampRate', 0.08, sc('firemage'))]), ['Searing Focus', inc('rampRate', 0.20, sc('firemage')), inc('damage', 0.10, sc('firemage'))]] },
-  { angle: A[2], nodes: [...small(['Reach', 'Wide Flame', 'Long Fire'], rng('firemage')), ['Pyre', inc('range', 0.12, sc('firemage')), inc('damage', 0.06, sc('firemage'))]] }
-]);
-addTree('lightningmage', 'Lightning Mage', '#d6a2ff', [
-  { angle: A[0], nodes: [...small(['Static', 'Spark', 'Shock'], dmg('lightningmage')), ['Thunder', inc('damage', 0.15, sc('lightningmage')), inc('speed', 0.05, sc('lightningmage'))]] },
-  { angle: A[1], nodes: [...small(['Charge', 'Surge', 'Overload'], spd('lightningmage')), ['Conduction', flat('jumps', 1, sc('lightningmage')), inc('speed', 0.08, sc('lightningmage'))]] },
-  { angle: A[2], nodes: [...small(['Reach', 'Spread', 'Arc'], rng('lightningmage')), ['Arc Lord', flat('jumps', 2, sc('lightningmage')), inc('damage', 0.06, sc('lightningmage'))]] }
+/* The Mage tree keeps the old Frost Mage tree's layout; its slow branch is now an energy branch. */
+addTree('mage', 'Mage', '#72c8f0', [
+  { angle: A[0], nodes: [...small(['Spark', 'Bolt', 'Surge'], dmg('mage')), ['Overcharge', inc('damage', 0.15, sc('mage')), inc('range', 0.05, sc('mage'))]] },
+  { angle: A[1], nodes: [...small(['Focus', 'Channel', 'Attune'], () => [inc('energyPerAttack', 0.08, sc('mage'))]), ['Arcane Flow', inc('energyPerAttack', 0.2, sc('mage')), inc('damage', 0.08, sc('mage'))]] },
+  { angle: A[2], nodes: [...small(['Quick Cast', 'Fluency', 'Haste'], spd('mage')), ['Torrent', inc('speed', 0.12, sc('mage')), inc('range', 0.08, sc('mage'))]] }
 ]);
 /* Safety net: every hero should have a tree. */
 HEROES.forEach(h => { if (!TREES[h.id]) throw new Error('Missing talent tree for ' + h.id); });

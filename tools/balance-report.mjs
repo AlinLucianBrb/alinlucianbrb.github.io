@@ -1,5 +1,5 @@
 /* Plays the levels with the bot many times and prints how hard they are.
-   Usage: npm run balance -- [--runs 8] [--stages 1,2,3,4,5] [--strategies balanced,melee,ranged,spell] [--level 1] [--seed 1]
+   Usage: npm run balance -- [--runs 8] [--stages 1,2,3,4,5] [--strategies trio,warrior,ranger,mage] [--level 1] [--seed 1]
    --level is the player level (talent points = level - 1). Level 1 shows the raw difficulty with no talents. */
 import { playRun, STRATEGIES } from './bot.mjs';
 import { STAGES } from '../js/content/data.js';

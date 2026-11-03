@@ -28,7 +28,7 @@ test('same seed and same commands give exactly the same game', () => {
   const play = () => {
     const w = createWorld({ seed: 77, stage: 2 }); w.gold = 2000;
     const t = tilesNearPath(w, 6);
-    place(w, 'archer', ...t[0]); place(w, 'frostmage', ...t[2]); place(w, 'lightningmage', ...t[4]);
+    place(w, 'ranger', ...t[0]); place(w, 'mage', ...t[2]); place(w, 'warrior', ...t[4]);
     apply(w, { type: 'buyRelic' }); apply(w, { type: 'reroll' }); apply(w, { type: 'choose', index: 1 });
     apply(w, { type: 'auto', on: true });
     return runFor(w, 6000);
@@ -81,7 +81,7 @@ test('clearing the last wave wins the level', () => {
   stage.waves = 2; stage.hpMult = 0.2;
   try {
     const w = createWorld({ seed: 4 }); w.gold = 1000;
-    for (const c of tilesNearPath(w, 4)) place(w, 'archer', ...c);
+    const t = tilesNearPath(w, 6); place(w, 'ranger', ...t[0]); place(w, 'mage', ...t[3]); place(w, 'warrior', ...t[5]);
     apply(w, { type: 'auto', on: true });
     runFor(w, 50000);
     assert.equal(w.phase, 'over'); assert.equal(w.won, true); assert.equal(w.wave, 2);
