@@ -1,0 +1,10 @@
+{
+  "name": "test-tbd",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "balance": "node tools/balance-report.mjs",
+    "talent-sql": "node tools/generate-talent-sql.mjs"
+  }
+}
