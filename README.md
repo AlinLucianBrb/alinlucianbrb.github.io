@@ -84,7 +84,8 @@ The map fills the window and the HUD floats on top: level, wave and lives top le
 - **Evolution:** select a hero and press Evolve (or E) to spend gold on its next evolution. For now each hero has one: +50% damage, range and attack speed for 150 gold. Evolutions are a list per hero, so more steps or branches are just more entries.
 - **Items:** a win always drops an item and a loss has a chance (up to 50%, more for surviving longer). The server rolls the drop, so it cannot be faked. Each hero has one item slot; equip items on the Heroes screen. For now there is one item, the Power Charm (+5 damage).
 - **Talents:** you get 1 talent point per level above 1. One General tree for every hero, plus one tree per hero. Allocate nodes that connect to the origin or to an allocated node; remove one only if the rest stay connected. Respec is free. The old Archer and Frost Mage points carried over to the Ranger and Mage trees; points in the trees of archived heroes were refunded.
-- Talents, items, evolutions and relics are all modifiers, so they stack, and the hero panel shows where each bonus comes from. Bonuses from the same source are shown as one line (two Common Sharpened rounds: "+50% · Sharpened rounds ×2").
+- Talents, items, evolutions and relics are all modifiers, so they stack, and the hero panel shows where each bonus comes from. Bonuses from the same source are shown as one line whatever their rarity (a Common and a Rare Sharpened rounds: "+100% · Sharpened rounds ×2"), and the relic strip shows one chip per relic with the copies added together.
+- **Relic rarities** are whole multiples of the Common version: Uncommon 2×, Rare 3×, Epic 4×. Relics are written at Common strength in `data.js`.
 
 ## Damage types, defenses and ailments
 Ready for content, not used by any hero, relic or enemy yet (so matches play as before):

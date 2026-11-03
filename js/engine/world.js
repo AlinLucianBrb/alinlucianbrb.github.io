@@ -15,7 +15,7 @@ import { createRng } from './rng.js';
 import { attackMult, gainEnergy } from './ultimates.js';
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
-export const ENGINE_VERSION = 5;     /* bump when a rule change would make old command logs play out differently */
+export const ENGINE_VERSION = 6;     /* bump when a rule change would make old command logs play out differently */
 
 function genPath(rng) {
   let x = 0, y = 1 + rng.int(ROWS - 2); const p = [[x, y]];

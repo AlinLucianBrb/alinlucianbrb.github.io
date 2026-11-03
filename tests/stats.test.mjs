@@ -50,9 +50,16 @@ test('explain lists the modifiers behind a stat', () => {
   assert.equal(explain(H('mage'), 'damage', mods).length, 2);
 });
 
-test('Split bolt: more spell targets by rarity (+1, +1, +2, +3), nobody else changes', () => {
+test('rarities are whole multiples of Common: 1x, 2x, 3x, 4x', () => {
+  assert.deepEqual(RARITIES.map(r => r.mult), [1, 2, 3, 4]);
+  assert.deepEqual(RARITIES.map(r => R('Sharpened rounds').desc(r.mult)), ['+25% damage (all heroes)', '+50% damage (all heroes)', '+75% damage (all heroes)', '+100% damage (all heroes)']);
+  assert.deepEqual(RARITIES.map(r => R('Reinforced gate').desc(r.mult)), ['+5 lives', '+10 lives', '+15 lives', '+20 lives']);
+  assert.deepEqual(RARITIES.map(r => R('Compound interest').mods(r.mult)[1].value), [60, 120, 180, 240]);
+});
+
+test('Split bolt: +1, +2, +3, +4 spell targets by rarity, nobody else changes', () => {
   const targets = RARITIES.map(r => heroStats(H('mage'), asMods(R('Split bolt').mods(r.mult))).targets);
-  assert.deepEqual(targets, [3, 3, 4, 5]);
+  assert.deepEqual(targets, [3, 4, 5, 6]);
   assert.equal(heroStats(H('ranger'), asMods(R('Split bolt').mods(3))).targets, undefined);
 });
 
@@ -93,7 +100,7 @@ test('Four-leaf clover gives relic luck, and luck changes the offers the shop ro
     for (let i = 0; i < 300; i++) { n += w.pick.offers.filter(o => o.ri === 3).length; apply(w, { type: 'reroll' }); }
     return { n, luck: w.gs.relicLuck };
   };
-  const base = epics(0), lucky = epics(3);
-  assert.equal(lucky.luck, 1.5, 'Epic clover: +150% luck');
+  const base = epics(0), lucky = epics(4);
+  assert.equal(lucky.luck, 2, 'Epic clover: +200% luck');
   assert.ok(lucky.n > base.n * 3, 'far more epic offers: ' + base.n + ' -> ' + lucky.n);
 });

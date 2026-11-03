@@ -105,13 +105,18 @@ export function renderHUD(g, v) {
     box._g = g; box._n = g.relics.length; box.textContent = '';
     box.hidden = !g.relics.length;
     if (g.relics.length) {
-      const counts = new Map();
-      g.relics.forEach(r => { const k = r.name + '|' + r.r; counts.set(k, (counts.get(k) || 0) + 1); });
-      for (const [k, v] of counts) {
-        const [name, r] = k.split('|'), rar = RARITIES[+r], def = RELICS.find(x => x.name === name);
-        const sp = el('span', 'relicchip', name + (v > 1 ? ' ×' + v : ''));
-        sp.style.color = rar.color; sp.style.borderColor = rar.color; sp.tabIndex = 0;
-        bindTip(sp, () => ({ title: name + (v > 1 ? ' ×' + v : ''), color: rar.color, lines: [rar.name, (v > 1 ? 'Each: ' : '') + def.desc(rar.mult)] }));
+      /* One chip per relic, whatever the rarities of its copies; the colour is the rarest copy's. */
+      const byName = new Map();
+      g.relics.forEach(r => { const list = byName.get(r.name) || []; list.push(r.r); byName.set(r.name, list); });
+      for (const [name, rs] of byName) {
+        const top = RARITIES[Math.max(...rs)], def = RELICS.find(x => x.name === name), n = rs.length;
+        const total = rs.reduce((a, r) => a + RARITIES[r].mult, 0);   /* relic effects scale with the multiplier, so copies add up */
+        const sp = el('span', 'relicchip', name + (n > 1 ? ' ×' + n : ''));
+        sp.style.color = top.color; sp.style.borderColor = top.color; sp.tabIndex = 0;
+        bindTip(sp, () => {
+          const parts = RARITIES.map((r, i) => [r, rs.filter(x => x === i).length]).filter(([, c]) => c).map(([r, c]) => (c > 1 ? c + '× ' : '') + r.name);
+          return { title: name + (n > 1 ? ' ×' + n : ''), color: top.color, lines: [{ text: parts.join(' + '), color: '#9db3a3' }, (n > 1 ? 'Together: ' : '') + def.desc(total)] };
+        });
         box.append(sp);
       }
     }
@@ -146,21 +151,26 @@ const pct = x => f(x * 100) + '%';
 /* Stats shown as percentages (chances). */
 const isChance = key => /Chance$/.test(key);
 
-/* Modifiers from the same source (same name, rarity and kind) are shown as one line: two Common Sharpened rounds become
-   "+50% · Sharpened rounds ×2 (Common)". inc and flat values add up; more values multiply. */
+/* Bonuses from the same source are shown as one line, whatever their rarity: a Common and a Rare Sharpened rounds become
+   "+100% · Sharpened rounds ×2 (Relic)". inc and flat values add up; more values multiply. The line takes the colour of the
+   rarest copy. */
+const kindOf = ri => (ri >= 0 ? 'relic' : String(ri));
 export function stackMods(mods) {
   const groups = new Map();
   for (const m of mods) {
-    const k = m.source + '|' + m.ri + '|' + m.type;
+    const k = m.source + '|' + kindOf(m.ri) + '|' + m.type;
     const g = groups.get(k);
     if (!g) groups.set(k, { ...m, n: 1 });
-    else { g.n++; g.value = m.type === 'more' ? (1 + g.value) * (1 + m.value) - 1 : g.value + m.value; }
+    else {
+      g.n++; g.value = m.type === 'more' ? (1 + g.value) * (1 + m.value) - 1 : g.value + m.value;
+      if (m.ri > g.ri) g.ri = m.ri;
+    }
   }
   return [...groups.values()];
 }
 function describe(m, key) {
   const v = m.type === 'inc' ? '+' + pct(m.value) : m.type === 'flat' ? '+' + (isChance(key) ? pct(m.value) : f(m.value)) : '×' + f(1 + m.value);
-  return v + ' · ' + m.source + (m.n > 1 ? ' ×' + m.n : '') + ' (' + (m.ri >= 0 ? RARITIES[m.ri].name : SOURCE[m.ri] || 'Talent') + ')';
+  return v + ' · ' + m.source + (m.n > 1 ? ' ×' + m.n : '') + ' (' + (m.ri >= 0 ? 'Relic' : SOURCE[m.ri] || 'Talent') + ')';
 }
 /* The inspector is rebuilt only when the selection, the modifiers or the move state change, so buttons never vanish under a click. */
 export function renderInspector(g, v) {

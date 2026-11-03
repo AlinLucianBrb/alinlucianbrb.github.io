@@ -139,7 +139,9 @@ test('hero panel: Move and Evolve come first, bonuses from the same source are s
   const { stackMods } = await import('../js/game/ui.js');
   byId.newRun.onclick(); dom.frames(2);
   const sharp = RELICS.find(r => r.name === 'Sharpened rounds');
-  for (let i = 0; i < 2; i++) world().mods.push(...sharp.mods(1).map(m => ({ ...m, source: sharp.name, ri: 0 })));
+  world().mods.push(...sharp.mods(1).map(m => ({ ...m, source: sharp.name, ri: 0 })));   /* a Common... */
+  world().mods.push(...sharp.mods(3).map(m => ({ ...m, source: sharp.name, ri: 2 })));   /* ...and a Rare */
+  world().relics.push({ name: sharp.name, r: 0 }, { name: sharp.name, r: 2 });
   recalc(world());
   const [t] = freeTiles(1);
   dom.heroButton(0).onclick(); click(...t); click(...t); dom.frames(1);
@@ -147,7 +149,13 @@ test('hero panel: Move and Evolve come first, bonuses from the same source are s
   assert.equal(kids[1].className, 'acts top', 'the buttons come right after the title');
   assert.deepEqual(kids[1].children.map(b => b._text.split(' ')[0]), ['Move', 'Evolve']);
   const lines = dom.made.filter(e => e.className === 'buff').map(e => e._text);
-  assert.ok(lines.includes('+50% · Sharpened rounds ×2 (Common)'), 'stacked: ' + lines.join(' | '));
+  assert.ok(lines.includes('+100% · Sharpened rounds ×2 (Relic)'), 'stacked across rarities: ' + lines.join(' | '));
+  const chips = byId.relics.children;
+  assert.equal(chips.length, 1, 'one relic chip, whatever the rarities');
+  assert.equal(chips[0]._text, 'Sharpened rounds ×2');
+  chips[0].fire('pointerenter', { clientX: 10, clientY: 10 });
+  const tip = dom.made.filter(e => e.className === 'tip').at(-1);
+  assert.deepEqual(tip.children.map(c => c._text), ['Sharpened rounds ×2', 'Common + Rare', 'Together: +100% damage (all heroes)']);
   assert.ok(dom.made.some(e => e._text === 'Damage (Physical)'));
   const more = stackMods([{ stat: 'x', type: 'more', value: 0.5, source: 'E', ri: -3 }, { stat: 'x', type: 'more', value: 0.5, source: 'E', ri: -3 }]);
   assert.equal(more.length, 1); assert.equal(more[0].value, 1.25, '"more" bonuses multiply: 1.5 x 1.5 = 2.25');

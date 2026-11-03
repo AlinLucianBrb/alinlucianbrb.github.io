@@ -75,10 +75,10 @@ export const STAT_LABELS = {
 };
 
 export const RARITIES = [
-  { name: 'Common',   mult: 1,   weight: 55, color: '#ecf1e8' },
-  { name: 'Uncommon', mult: 1.5, weight: 28, color: '#5fd46f' },
-  { name: 'Rare',     mult: 2,   weight: 13, color: '#5aa9ff' },
-  { name: 'Epic',     mult: 3,   weight: 4,  color: '#c084fc' }
+  { name: 'Common',   mult: 1, weight: 55, color: '#ecf1e8' },
+  { name: 'Uncommon', mult: 2, weight: 28, color: '#5fd46f' },
+  { name: 'Rare',     mult: 3, weight: 13, color: '#5aa9ff' },
+  { name: 'Epic',     mult: 4, weight: 4,  color: '#c084fc' }
 ];
 /* Relic luck makes rarer relics more likely: each rarity's weight is multiplied by (1 + luck) once per step above Common.
    With 50% luck: Common 55, Uncommon 28 x 1.5, Rare 13 x 2.25, Epic 4 x 3.375. */
@@ -98,7 +98,7 @@ export function rollRarity(r01, luck = 0) {
 
 /* Modifier: { stat, type: 'inc' | 'more' | 'flat', value, scope }.
    scope is a list of hero tags (or ['all']) for hero stats, or 'global' for economy stats.
-   Relics are defined at Common strength; m is the rarity multiplier (1, 1.5, 2, 3). */
+   Relics are defined at Common strength; m is the rarity multiplier: Common 1, Uncommon 2, Rare 3, Epic 4 (always a whole number). */
 const f = x => +x.toFixed(1);
 const hero = (stat, type, value, scope) => ({ stat, type, value, scope });
 const glob = (stat, type, value) => ({ stat, type, value, scope: 'global' });
@@ -109,12 +109,12 @@ export const RELICS = [
   { name: 'Four-leaf clover',  desc: m => '+' + f(50 * m) + '% relic luck: rarer relics turn up more often', label: 'Relic luck', mods: m => [glob('relicLuck', 'flat', 0.5 * m)] },
   { name: 'Battle focus',      desc: m => '+' + f(25 * m) + '% energy from attacks, so ultimates come sooner', mods: m => [hero('energyPerAttack', 'inc', 0.25 * m, ['all'])] },
   { name: 'Prospector',        desc: m => '+' + f(2 * m) + ' gold per kill',         label: 'Economy', mods: m => [glob('bounty', 'flat', 2 * m)] },
-  { name: 'Reinforced gate',   desc: m => '+' + Math.round(5 * m) + ' lives',        label: 'Your gate', onPick: (g, m) => { g.lives += Math.round(5 * m); } },
+  { name: 'Reinforced gate',   desc: m => '+' + 5 * m + ' lives',                    label: 'Your gate', onPick: (g, m) => { g.lives += 5 * m; } },
   { name: 'Bulk order',        desc: m => 'Evolutions cost ' + f(15 * m) + '% less', label: 'Economy', mods: m => [glob('evolveCost', 'more', -0.15 * m)] },
-  { name: 'Split bolt',        desc: m => 'Spell attacks hit +' + Math.floor(m) + ' more target' + (Math.floor(m) > 1 ? 's' : ''), mods: m => [hero('targets', 'flat', Math.floor(m), ['spell'])] },
+  { name: 'Split bolt',        desc: m => 'Spell attacks hit +' + m + ' more target' + (m > 1 ? 's' : ''), mods: m => [hero('targets', 'flat', m, ['spell'])] },
   { name: 'Tax collector',     desc: m => '+' + f(50 * m) + '% gold for clearing a wave', label: 'Economy', mods: m => [glob('waveGold', 'inc', 0.5 * m)] },
-  { name: 'Compound interest', desc: m => 'After each wave, earn ' + f(5 * m) + '% of your unspent gold as interest, up to ' + Math.round(60 * m) + ' gold. More copies stack: their % and limits add up.',
-    label: 'Economy', mods: m => [glob('interest', 'flat', 0.05 * m), glob('interestCap', 'flat', Math.round(60 * m))] },
+  { name: 'Compound interest', desc: m => 'After each wave, earn ' + f(5 * m) + '% of your unspent gold as interest, up to ' + 60 * m + ' gold. More copies stack: their % and limits add up.',
+    label: 'Economy', mods: m => [glob('interest', 'flat', 0.05 * m), glob('interestCap', 'flat', 60 * m)] },
   { name: 'Fine arrows',       desc: m => '+' + f(30 * m) + '% damage to projectile heroes', mods: m => [hero('damage', 'inc', 0.3 * m, ['projectile'])] },
   { name: 'Whetstone',         desc: m => '+' + f(30 * m) + '% damage to melee heroes',      mods: m => [hero('damage', 'inc', 0.3 * m, ['melee'])] },
   { name: 'Arcane focus',      desc: m => '+' + f(30 * m) + '% damage to spell heroes',      mods: m => [hero('damage', 'inc', 0.3 * m, ['spell'])] },
@@ -127,5 +127,5 @@ export const RELIC_ARCHIVE = [
   { name: 'Focusing lens',     desc: m => 'Beam ramps up ' + f(40 * m) + '% faster', mods: m => [hero('rampRate', 'inc', 0.4 * m, ['beam'])] },
   { name: 'Razor edge',        desc: m => '+' + f(30 * m) + '% Thief damage',        mods: m => [hero('damage', 'inc', 0.3 * m, ['thrown'])] },
   { name: 'Storm core',        desc: m => '+' + f(30 * m) + '% Lightning Mage damage', mods: m => [hero('damage', 'inc', 0.3 * m, ['chain'])] },
-  { name: 'Extra link',        desc: m => '+' + Math.round(m) + ' Chain jump' + (Math.round(m) > 1 ? 's' : ''), mods: m => [hero('jumps', 'flat', Math.round(m), ['chain'])] }
+  { name: 'Extra link',        desc: m => '+' + m + ' Chain jump' + (m > 1 ? 's' : ''), mods: m => [hero('jumps', 'flat', m, ['chain'])] }
 ];

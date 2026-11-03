@@ -103,5 +103,6 @@ test('wave clear pays gold, plus Compound interest: % and limit both stack with 
   assert.equal(clearWaveOne([1], 5000), 18 + 60, 'common: limited to 60');
   assert.equal(clearWaveOne([1, 1], 5000), 18 + 120, 'two copies: the limits add up');
   assert.equal(clearWaveOne([1, 1], 400), 18 + 40, 'two copies: the percentages add up');
-  assert.equal(clearWaveOne([3], 5000), 18 + 180, 'epic: 15% up to 180');
+  assert.equal(clearWaveOne([4], 5000), 18 + 240, 'epic: 20% up to 240');
+  assert.equal(clearWaveOne([4], 400), 18 + 80, 'epic: 20% of 400');
 });
