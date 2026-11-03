@@ -4,7 +4,7 @@ import { createWorld, step, summary, recalc, STEP } from '../js/engine/world.js'
 import { apply } from '../js/engine/commands.js';
 import { hashWorld } from '../js/engine/hash.js';
 import { waveEnemyType, ENEMIES } from '../js/engine/enemies.js';
-import { STAGES } from '../js/content/data.js';
+import { STAGES, RELICS } from '../js/content/data.js';
 import { richWorld, tilesNearPath, place, heroIndex } from './helpers.mjs';
 
 const runFor = (w, ticks) => { for (let i = 0; i < ticks && step(w); i++); return w; };
@@ -88,15 +88,20 @@ test('clearing the last wave wins the level', () => {
   } finally { Object.assign(stage, saved); }
 });
 
-test('wave clear pays gold, plus Compound interest capped at 60', () => {
-  const clearWaveOne = interest => {
+test('wave clear pays gold, plus Compound interest: % and limit both stack with more copies', () => {
+  const ci = RELICS.find(r => r.name === 'Compound interest');
+  const clearWaveOne = (copies, gold) => {
     const w = createWorld({ seed: 2 });
-    if (interest) { w.mods.push({ stat: 'interest', type: 'flat', value: interest, scope: 'global', source: 't', ri: 0 }); recalc(w); }
-    apply(w, { type: 'wave' }); w.spawnLeft = 0; w.gold = 1000;
+    for (const m of copies) w.mods.push(...ci.mods(m).map(x => ({ ...x, source: ci.name, ri: 0 })));
+    recalc(w);
+    apply(w, { type: 'wave' }); w.spawnLeft = 0; w.gold = gold;
     step(w);
-    return w.gold;
+    return w.gold - gold;
   };
-  assert.equal(clearWaveOne(0), 1000 + 15 + 3);
-  assert.equal(clearWaveOne(0.02), 1000 + 18 + 20);
-  assert.equal(clearWaveOne(0.5), 1000 + 18 + 60, 'interest is capped at 60');
+  assert.equal(clearWaveOne([], 1000), 15 + 3, 'no relic: just the wave reward');
+  assert.equal(clearWaveOne([1], 400), 18 + 20, 'common: 5% of 400');
+  assert.equal(clearWaveOne([1], 5000), 18 + 60, 'common: limited to 60');
+  assert.equal(clearWaveOne([1, 1], 5000), 18 + 120, 'two copies: the limits add up');
+  assert.equal(clearWaveOne([1, 1], 400), 18 + 40, 'two copies: the percentages add up');
+  assert.equal(clearWaveOne([3], 5000), 18 + 180, 'epic: 15% up to 180');
 });

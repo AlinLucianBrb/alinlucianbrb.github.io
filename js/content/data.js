@@ -7,22 +7,28 @@ export const COLS = 16, ROWS = 10, T = 40;
 export const HEROES = [
   { id: 'warrior', name: 'Warrior', archetype: 'melee', kind: 'swing', cost: 60, color: '#c7ced6', shape: [5, -Math.PI / 2], tags: ['melee', 'physical'],
     stats: { damage: 16, range: 55, cooldown: 0.8, speed: 1, arc: 120 },
-    desc: 'Warrior (melee): swings at close range, hitting every enemy in the arc.' },
+    desc: 'Warrior (melee): swings at close range, hitting every enemy in the arc.',
+    short: 'Swings a blade at close range, hitting every enemy in front of him.' },
   { id: 'archer', name: 'Archer', archetype: 'range', kind: 'shot', cost: 50, color: '#f2b84b', shape: [0, 0], tags: ['range', 'projectile', 'physical'],
     stats: { damage: 10, range: 110, cooldown: 0.5, speed: 1 },
-    desc: 'Archer (range): fast arrows at the enemy closest to your gate.' },
+    desc: 'Archer (range): fast arrows at the enemy closest to your gate.',
+    short: 'Cheap and fast. Shoots the enemy closest to your gate.' },
   { id: 'thief', name: 'Thief', archetype: 'range', kind: 'boom', cost: 100, color: '#8be28b', shape: [4, Math.PI / 4], tags: ['range', 'projectile', 'thrown', 'physical'],
     stats: { damage: 12, range: 130, cooldown: 0.7, speed: 1 },
-    desc: 'Thief (range): throws a boomerang that hits everything on the way out and back.' },
+    desc: 'Thief (range): throws a boomerang that hits everything on the way out and back.',
+    short: 'Throws a boomerang that hits every enemy on the way out and back.' },
   { id: 'frostmage', name: 'Frost Mage', archetype: 'spell', kind: 'shot', cost: 70, color: '#72c8f0', shape: [4, -Math.PI / 2], tags: ['spell', 'cold'],
     stats: { damage: 3, range: 90, cooldown: 0.8, speed: 1, chillTime: 1.5, targets: 1 }, applies: { chill: 'chillTime' },
-    desc: 'Frost Mage (spell): weak bolts that chill enemies, slowing them by half.' },
+    desc: 'Frost Mage (spell): weak bolts that chill enemies, slowing them by half.',
+    short: 'Weak bolts that slow enemies to half speed. Best next to damage dealers.' },
   { id: 'firemage', name: 'Fire Mage', archetype: 'spell', kind: 'beam', cost: 120, color: '#ff7a45', shape: [3, -Math.PI / 2], tags: ['spell', 'fire', 'beam'], dps: true,
     stats: { damage: 10, range: 100, rampRate: 1 },
-    desc: 'Fire Mage (spell): continuous beam. Damage ramps up to 4× the longer it stays on one target.' },
+    desc: 'Fire Mage (spell): continuous beam. Damage ramps up to 4× the longer it stays on one target.',
+    short: 'A beam that burns hotter the longer it stays on one enemy (up to 4×).' },
   { id: 'lightningmage', name: 'Lightning Mage', archetype: 'spell', kind: 'chain', cost: 110, color: '#d6a2ff', shape: [6, 0], tags: ['spell', 'lightning', 'chain'],
     stats: { damage: 9, range: 100, cooldown: 1.1, speed: 1, jumps: 3 },
-    desc: 'Lightning Mage (spell): lightning that jumps to several nearby enemies, weaker with each jump.' }
+    desc: 'Lightning Mage (spell): lightning that jumps to several nearby enemies, weaker with each jump.',
+    short: 'Lightning that jumps between nearby enemies, a little weaker each jump.' }
 ];
 HEROES.forEach(h => h.tags.push(h.id));
 
@@ -38,7 +44,7 @@ export const STAGES = [
 export const STAT_LABELS = {
   damage: 'Damage', range: 'Range', speed: 'Attacks per second', chillTime: 'Chill duration (s)', jumps: 'Chain jumps',
   rampRate: 'Beam ramp speed', arc: 'Swing arc (°)', targets: 'Targets per attack',
-  bounty: 'Gold per kill', startGold: 'Starting gold', startLives: 'Starting lives', waveGold: 'Wave clear gold', heroCost: 'Hero cost', interest: 'Interest'
+  bounty: 'Gold per kill', startGold: 'Starting gold', startLives: 'Starting lives', waveGold: 'Wave clear gold', heroCost: 'Hero cost', interest: 'Interest', interestCap: 'Interest limit'
 };
 
 export const RARITIES = [
@@ -69,7 +75,8 @@ export const RELICS = [
   { name: 'Bulk order',        desc: m => 'Heroes cost ' + f(15 * m) + '% less',     label: 'Economy', mods: m => [glob('heroCost', 'more', -0.15 * m)] },
   { name: 'Deep freeze',       desc: m => 'Frost attacks hit +' + Math.floor(m) + ' more target' + (Math.floor(m) > 1 ? 's' : ''), mods: m => [hero('targets', 'flat', Math.floor(m), ['cold'])] },
   { name: 'Tax collector',     desc: m => '+' + f(50 * m) + '% gold for clearing a wave', label: 'Economy', mods: m => [glob('waveGold', 'inc', 0.5 * m)] },
-  { name: 'Compound interest', desc: m => 'Wave clear pays ' + f(5 * m) + '% of your gold (max 60)', label: 'Economy', mods: m => [glob('interest', 'flat', 0.05 * m)] },
+  { name: 'Compound interest', desc: m => 'After each wave, earn ' + f(5 * m) + '% of your unspent gold as interest, up to ' + Math.round(60 * m) + ' gold. More copies stack: their % and limits add up.',
+    label: 'Economy', mods: m => [glob('interest', 'flat', 0.05 * m), glob('interestCap', 'flat', Math.round(60 * m))] },
   { name: 'Fine arrows',       desc: m => '+' + f(30 * m) + '% damage to projectile heroes', mods: m => [hero('damage', 'inc', 0.3 * m, ['projectile'])] },
   { name: 'Whetstone',         desc: m => '+' + f(30 * m) + '% damage to melee heroes',      mods: m => [hero('damage', 'inc', 0.3 * m, ['melee'])] },
   { name: 'Arcane focus',      desc: m => '+' + f(30 * m) + '% damage to spell heroes',      mods: m => [hero('damage', 'inc', 0.3 * m, ['spell'])] },

@@ -10,16 +10,42 @@ const f = x => +x.toFixed(2);
 const num = x => Math.round(x).toLocaleString();
 const cap = s => s[0].toUpperCase() + s.slice(1);
 const btns = [], rows = [];
+export const heroButton = i => btns[i];
 let meterEmpty, cb = {}, banishBtns = [];
+
+/* Short stat line for a hero tooltip, using its current stats (relics and talents included). */
+function statLine(d, s) {
+  const dmg = f(s.damage), range = Math.round(s.range);
+  if (d.dps) return 'Damage ' + dmg + '/s, up to ' + f(s.damage * 4) + '/s · Range ' + range;
+  return 'Damage ' + dmg + ' · Range ' + range + ' · ' + f(s.speed / s.cooldown) + ' attacks/s';
+}
 
 export function initUI(callbacks) {
   cb = callbacks;
   HEROES.forEach((d, i) => {
-    const b = el('button', 'herobtn'); b.id = 't' + i; b.onclick = () => cb.onSelectType(i);
-    b.style.borderLeft = '6px solid ' + d.color;
-    bindTip(b, () => ({ title: d.name + ' · ' + cap(d.archetype), color: d.color, lines: [d.desc, 'Key: ' + (i + 1)] }));
+    const b = el('button', 'herocard'); b.id = 't' + i; b.onclick = () => cb.onSelectType(i);
+    b.style.setProperty?.('--hc', d.color);
+    const key = el('span', 'key', String(i + 1)), name = el('span', 'nm', d.name), cost = el('span', 'cost');
+    b.append(key, name, cost); b._cost = cost;
+    bindTip(b, () => {
+      const info = cb.heroInfo(i);
+      return { title: d.name + ' · ' + cap(d.archetype), color: d.color, lines: [d.short, { text: statLine(d, info.stats), color: '#9db3a3' },
+        { text: 'Cost ' + info.cost + ' gold · key ' + (i + 1) + (info.poor ? ' · not enough gold' : ''), color: info.poor ? '#ffb4a8' : '#9db3a3' }] };
+    });
     $('tbtns').append(b); btns.push(b);
   });
+  bindTip($('relic'), () => ({ title: 'Relic', color: '#dcc6ff', lines: [
+    'Spend gold to choose 1 of 3 random relics: permanent bonuses for the rest of this run.',
+    'Rarer relics are stronger. You can reroll or banish the offers for a little gold.',
+    { text: 'The price goes up with each relic you buy. Key: R', color: '#9db3a3' }] }));
+  bindTip($('auto'), () => ({ title: 'Auto-start', lines: ['Starts the next wave by itself 3 seconds after a wave is cleared.', { text: 'Turned off again when you retry a level.', color: '#9db3a3' }] }));
+  bindTip($('spd'), () => ({ title: 'Game speed', lines: ['Switch between normal and double speed.'] }));
+  bindTip($('menuBtn'), () => ({ title: 'Menu', lines: ['Pauses the game and asks before quitting the match. Key: P to pause, Esc to resume.'] }));
+  $('meterToggle').onclick = () => {
+    const open = $('meterToggle').getAttribute?.('aria-expanded') !== 'false';
+    $('meterToggle').setAttribute('aria-expanded', String(!open)); $('meter').hidden = open;
+    cb.onLayoutChange && cb.onLayoutChange();
+  };
   const m = $('meter'); m.textContent = '';
   meterEmpty = el('p', 'muted', 'No damage dealt yet.'); m.append(meterEmpty);
   HEROES.forEach(() => {
@@ -32,18 +58,22 @@ export function initUI(callbacks) {
 export function renderHUD(g, v) {
   const sel = v.sel, auto = g.auto;
   setText($('gold'), g.gold); setText($('lives'), g.lives);
+  $('relic').classList.toggle('poor', g.gold < g.relicCost());
   setText($('wave'), g.wave + ' / ' + g.maxWave); setText($('stage'), g.stage.n);
   $('go').disabled = g.phase !== 'build' || g.picking;
   setText($('go'), g.phase === 'build' && auto ? 'Start now (' + Math.max(0, Math.ceil(g.autoT)) + 's)' : 'Start wave');
   setText($('relic'), 'Relic · ' + g.relicCost());
   setText($('auto'), 'Auto-start: ' + (auto ? 'on' : 'off')); $('auto').classList.toggle('on', auto);
   setText($('spd'), 'Speed: ' + v.speed + 'x');
-  HEROES.forEach((d, i) => { setText(btns[i], d.name + ' · ' + g.cost(i)); btns[i].classList.toggle('on', sel === i); });
+  HEROES.forEach((d, i) => {
+    const c = g.cost(i); setText(btns[i]._cost, c);
+    btns[i].classList.toggle('on', sel === i); btns[i].classList.toggle('poor', g.gold < c);
+  });
   const box = $('relics');
   if (box._g !== g || box._n !== g.relics.length) {
     box._g = g; box._n = g.relics.length; box.textContent = '';
-    if (!g.relics.length) box.append(el('span', 'muted', 'None yet. Buy one with gold.'));
-    else {
+    box.hidden = !g.relics.length;
+    if (g.relics.length) {
       const counts = new Map();
       g.relics.forEach(r => { const k = r.name + '|' + r.r; counts.set(k, (counts.get(k) || 0) + 1); });
       for (const [k, v] of counts) {
@@ -80,10 +110,8 @@ function describe(m) {
 /* The inspector is rebuilt only when the selection, the modifiers or the move state change, so buttons never vanish under a click. */
 export function renderInspector(g, v) {
   const box = $('inspect'), t = v.selected;
-  if (!t) {
-    if (box._k !== 'none') { box._k = 'none'; box._t = null; box.textContent = ''; box.append(el('p', 'muted', 'Click a hero on the map to see its stats and buffs.')); }
-    return;
-  }
+  $('heroPanel').hidden = !t;
+  if (!t) { box._k = 'none'; box._t = null; return; }
   const moving = v.moving === t;
   if (box._t !== t || box._m !== g.mods.length || box._mv !== moving) {
     box._k = 't'; box._t = t; box._m = g.mods.length; box._mv = moving; box.textContent = '';

@@ -42,7 +42,7 @@ supabase-cleanup-old-prototypes.sql  optional: deletes tables from the earlier p
 - **Commands.** The only way to change a game is `apply(world, { type, ... })`. A command is checked, applied and recorded with the tick it happened on; a refused command changes nothing. To add a player action, add an entry to `COMMANDS` in `commands.js`.
 - **Seeded randomness.** Each run gets a seed. Separate random streams for the map and for relics mean, for example, that rerolling relics never changes the map.
 - **Command logs.** A seed plus the list of commands replays a run exactly: `replay(log)` gives the same final state, and `verify(log)` checks the result a log claims. The Play screen receives the log when a run ends (`onRunEnd`), ready for a future step where the server re-plays runs to stop cheating.
-- **Engine version.** `ENGINE_VERSION` in `world.js` must go up whenever a rule change would make old logs play out differently; `replay` refuses logs from another version.
+- **Engine version.** `ENGINE_VERSION` in `world.js` must go up whenever a rule change would make old logs play out differently; `replay` refuses logs from another version. (Now 2: Compound interest changed.)
 - **Golden rule:** game state changes only through commands and `step()`. Setting values directly (like `world.gold = 500`) breaks replays.
 
 ## Tests and the balance bot
@@ -52,10 +52,27 @@ supabase-cleanup-old-prototypes.sql  optional: deletes tables from the earlier p
 ## Levels
 Five levels: 15 waves, then 5 more each (20, 25, 30, 35). A level unlocks when the previous one is cleared. Levels differ in enemy health and how fast it grows (`STAGES` in `data.js`, easy to tune). The leaderboard shows levels cleared, then the furthest wave on the level a player is working on.
 
-## Window and background play
-- Every screen fits the browser window and never scrolls. The game board scales to the space available; the panels sit beside it (below it on a tall, narrow screen).
+## Game screen and controls
+The map fills the window and the HUD floats on top: level, wave and lives top left; speed, Auto-start and Menu top right; the damage meter (click its title to fold it) and the hero panel on the right; gold, the hero cards, Relic and Start wave at the bottom. Hover any hero card or button for a tooltip.
+
+| Action | Mouse / touch | Keys |
+|---|---|---|
+| Choose a hero | click its card | 1-6 |
+| Place it / select a hero | click a tile | |
+| Move / sell the selected hero | buttons in the hero panel | M / X |
+| Move the map | drag (any mouse button), or drag with one finger | arrows or WASD |
+| Zoom | mouse wheel, pinch, or the + / − buttons | + / − |
+| Fit the map to the screen | Fit button | F |
+| Buy a relic | Relic | R |
+| Start the wave | Start wave | Space |
+| Pause | Menu (asks before quitting) | P (Esc resumes) |
+
+- The camera fits the map into the space the HUD leaves free whenever a run starts or the window changes size (until you move or zoom it yourself; Fit returns to that view).
+- Every run, including Retry after a win or a loss, starts with Auto-start off and unpaused.
+
+## Background play
 - The game runs on a fixed time step, so it plays the same at any frame rate. When the tab is hidden or the window is minimized, a timer keeps it running, and it catches up on any time the browser paused (up to 30 minutes).
-- Heroes cannot be controlled while the tab is hidden, so turn on Auto-start before switching away.
+- Heroes cannot be controlled while the tab is hidden, so turn on Auto-start before switching away. A paused game stays paused in the background.
 
 ## Heroes and talents
 - Heroes have an **archetype** (melee, range or spell) and **tags**; relics and talents are modifiers aimed at tags. Every hero's tags include its archetype and its own id, so a modifier can target "all spell heroes" or just one hero.

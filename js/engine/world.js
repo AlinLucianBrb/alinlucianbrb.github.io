@@ -13,7 +13,7 @@ import { createMeter } from './meter.js';
 import { createRng } from './rng.js';
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
-export const ENGINE_VERSION = 1;     /* bump when a rule change would make old command logs play out differently */
+export const ENGINE_VERSION = 2;     /* bump when a rule change would make old command logs play out differently */
 
 function genPath(rng) {
   let x = 0, y = 1 + rng.int(ROWS - 2); const p = [[x, y]];
@@ -70,7 +70,7 @@ export function hit(w, hero, e, amount) {
 export function recalc(w) {
   w.gs = {
     bounty: resolve(5, 'bounty', w.mods), heroCost: Math.max(0.25, resolve(1, 'heroCost', w.mods)),
-    waveGold: resolve(1, 'waveGold', w.mods), interest: resolve(0, 'interest', w.mods)
+    waveGold: resolve(1, 'waveGold', w.mods), interest: resolve(0, 'interest', w.mods), interestCap: resolve(0, 'interestCap', w.mods)
   };
   for (const h of w.heroes) h.s = heroStats(h.def, w.mods);
 }
@@ -81,7 +81,7 @@ export function startWave(w) {
 }
 
 function waveCleared(w) {
-  const interest = Math.min(60, Math.floor(w.gold * w.gs.interest));
+  const interest = Math.min(w.gs.interestCap, Math.floor(w.gold * w.gs.interest));
   w.gold += Math.round((15 + w.wave * 3) * w.gs.waveGold) + interest;
   w.ev.emit('waveClear', { wave: w.wave });
   if (w.wave >= w.maxWave) { endRun(w, true); return; }
