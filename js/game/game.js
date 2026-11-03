@@ -120,9 +120,10 @@ function freeRect() {
     const b = e.getBoundingClientRect(); return b.width ? { l: b.left - c.left, t: b.top - c.top, r: b.right - c.left, b: b.bottom - c.top } : null;
   };
   let top = pad, bottom = H - pad, left = pad, right = W - pad;
-  for (const id of ['hud', 'hudTopRight', 'relics']) { const b = box(id); if (b && b.t < H / 3) top = Math.max(top, b.b + pad); }
+  for (const id of ['hud', 'hudTopRight']) { const b = box(id); if (b && b.b < H / 3) top = Math.max(top, b.b + pad); }
   const bar = box('hudBottom'); if (bar && bar.t > H / 2) bottom = Math.min(bottom, bar.t - pad);
-  const side = box('meterPanel'); if (side && side.l > W * 0.55) right = Math.min(right, side.l - pad);
+  const meter = box('meterPanel'); if (meter && meter.l > W * 0.55) right = Math.min(right, meter.l - pad);
+  const relics = box('relics'); if (relics && relics.r < W * 0.3) left = Math.max(left, relics.r + pad);
   const cam = box('hudCam'); if (cam && cam.r < W * 0.2 && cam.t < bottom) left = Math.max(left, cam.r + pad);
   if (right - left < W * 0.4) { left = pad; right = W - pad; }
   if (bottom - top < H * 0.35) { top = pad; bottom = H - pad; }

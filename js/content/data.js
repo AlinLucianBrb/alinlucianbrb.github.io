@@ -12,7 +12,16 @@ export const ENERGY = { energyMax: 100, energyPerAttack: 20, energyPerSecond: 0 
 /* Every hero gets the energy stats and the combat stats (added damage by type, ailment chances), so anything can raise them. */
 const withEnergy = (stats, own = {}) => ({ ...stats, ...ENERGY, ...COMBAT_STATS, ...own });
 
-/* Evolution: heroes can evolve during a match by spending gold. For now there is one step per hero: +50% to its main stats. */
+/* Hero levels during a match: every hero on the field gains XP from each enemy killed (the enemy's xp value, see enemies.js),
+   whoever landed the blow. Each level adds perLevel (scaled by levels gained); xpToNext(L) is the XP from level L to L + 1. */
+export const HERO_LEVELS = {
+  max: 30,
+  xpToNext: L => 10 + 2 * (L - 1),
+  perLevel: [{ stat: 'damage', type: 'inc', value: 0.03 }]
+};
+
+/* Evolution: heroes can evolve during a match by spending gold, once they reach the evolution's level.
+   For now there is one step per hero, at level 10: +50% to its main stats. */
 const plus50 = ['damage', 'range', 'speed'].map(stat => ({ stat, type: 'more', value: 0.5, scope: ['all'] }));
 
 /* The playable heroes. A player brings up to LINEUP_SIZE of them into a match, one of each, free to place.
@@ -22,17 +31,17 @@ export const LINEUP_SIZE = 3;
 export const HEROES = [
   { id: 'warrior', name: 'Warrior', archetype: 'melee', kind: 'swing', damageType: 'physical', color: '#c7ced6', shape: [5, -Math.PI / 2], tags: ['melee', 'physical'],
     stats: withEnergy({ damage: 28, range: 60, cooldown: 0.8, speed: 1, arc: 120 }), ultimate: 'empowered',
-    evolutions: [{ name: 'Veteran Warrior', cost: 150, mods: plus50 }],
+    evolutions: [{ name: 'Veteran Warrior', level: 10, cost: 150, mods: plus50 }],
     desc: 'Warrior (melee): swings at close range, hitting every enemy in the arc.',
     short: 'Swings a blade at close range, hitting every enemy in front of him.' },
   { id: 'ranger', name: 'Ranger', archetype: 'range', kind: 'shot', damageType: 'physical', color: '#f2b84b', shape: [0, 0], tags: ['range', 'projectile', 'physical'],
     stats: withEnergy({ damage: 16, range: 120, cooldown: 0.5, speed: 1 }), ultimate: 'empowered',
-    evolutions: [{ name: 'Veteran Ranger', cost: 150, mods: plus50 }],
+    evolutions: [{ name: 'Veteran Ranger', level: 10, cost: 150, mods: plus50 }],
     desc: 'Ranger (range): fast arrows at the enemy closest to your gate.',
     short: 'Long range and fast. Shoots the enemy closest to your gate.' },
   { id: 'mage', name: 'Mage', archetype: 'spell', kind: 'shot', damageType: 'cold', color: '#72c8f0', shape: [4, -Math.PI / 2], tags: ['spell', 'arcane'],
     stats: withEnergy({ damage: 16, range: 100, cooldown: 1, speed: 1, targets: 2 }), ultimate: 'empowered',
-    evolutions: [{ name: 'Archmage', cost: 150, mods: plus50 }],
+    evolutions: [{ name: 'Archmage', level: 10, cost: 150, mods: plus50 }],
     desc: 'Mage (spell): magic bolts that strike two enemies at once.',
     short: 'Casts bolts that hit the two enemies closest to your gate.' }
 ];

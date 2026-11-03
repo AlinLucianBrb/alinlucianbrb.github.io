@@ -80,27 +80,28 @@ button:focus-visible,input:focus-visible{outline:3px solid #fff;outline-offset:2
 .hud-layer>*{position:absolute;pointer-events:auto}
 .glass{background:rgba(16,24,20,.9);border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.35)}
 .panel{background:var(--panel);border:2px solid var(--line);border-radius:6px;padding:8px 10px}
-#hud{top:10px;left:10px;display:flex;padding:6px 4px}
+#hud{top:10px;left:0;right:0;margin-inline:auto;width:fit-content;display:flex;padding:6px 4px}
 .stat{display:flex;flex-direction:column;align-items:center;min-width:62px;padding:0 8px;line-height:1.15}
 .stat+.stat{border-left:1px solid var(--line)}
 .stat small,.goldbox small{color:var(--muted);font-size:.7em;text-transform:uppercase;letter-spacing:.07em}
 .stat b{font-size:1.15em;font-variant-numeric:tabular-nums}
-#relics{top:10px;left:0;right:0;margin-inline:auto;width:fit-content;max-width:min(40vw,560px);display:flex;flex-wrap:wrap;justify-content:center;gap:4px;padding:6px 8px}
-#relics .relicchip{margin:0}
+#relics{left:10px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:stretch;gap:4px;padding:8px;max-height:55%;max-width:210px;overflow:auto}
+#relics .relicchip{margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #hudTopRight{top:10px;right:10px;display:flex;gap:6px;align-items:center}
 #menuConfirm{display:flex;gap:6px;align-items:center;padding:4px 6px}
 #menuConfirm .q{font-weight:600;padding:0 4px}
 button.danger{border-color:#e5645a;color:#ffb4a8}
-#hudRight{top:62px;right:10px;width:clamp(210px,21vw,280px);max-height:calc(100% - 190px);display:flex;flex-direction:column;gap:8px;pointer-events:none}
-#hudRight>*{pointer-events:auto;padding:8px 10px;overflow:auto;min-height:0}
-#heroPanel{flex:0 1 auto}
+#heroPanel{top:58px;right:10px;width:clamp(230px,21vw,290px);max-height:calc(68% - 70px);overflow:auto;padding:8px 10px}
+#meterPanel{right:10px;bottom:10px;width:var(--meterW);max-height:30%;overflow:auto;padding:8px 10px}
 .ph{background:none;border:none;padding:0;color:var(--text);font-weight:700;width:100%;display:flex;justify-content:space-between;cursor:pointer}
 .ph::after{content:'▾';color:var(--muted)}
 .ph[aria-expanded=false]::after{content:'▸'}
 #meter{margin-top:6px}
 #hudCam{left:10px;bottom:10px;display:flex;flex-direction:column;gap:4px}
 #hudCam button{min-width:40px;padding:.3em .4em;background:rgba(16,24,20,.9)}
-#hudBottom{left:0;right:0;margin-inline:auto;width:fit-content;bottom:10px;display:flex;gap:10px;align-items:stretch;padding:8px;max-width:calc(100% - 120px)}
+/* The bar is centred in the space between the camera buttons and the damage meter, so it never covers either. */
+.hud-layer{--meterW:clamp(200px,17vw,250px)}
+#hudBottom{left:62px;right:calc(var(--meterW) + 20px);margin-inline:auto;width:fit-content;max-width:calc(100% - var(--meterW) - 82px);bottom:10px;display:flex;gap:10px;align-items:stretch;padding:8px}
 .goldbox{display:flex;flex-direction:column;justify-content:center;align-items:center;min-width:76px;padding:0 10px 0 4px;border-right:1px solid var(--line)}
 .goldbox b{color:var(--accent);font-size:1.45em;font-variant-numeric:tabular-nums}
 .goldbox .interest{text-transform:none;letter-spacing:0;font-size:.72em;white-space:nowrap;margin-top:2px}
@@ -118,8 +119,18 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
 .ebar i{display:block;height:100%;width:0;background:#5aa9ff}
 .ebar.full i{background:#ffd84a}
 .ebar.wide{width:55%;height:7px;align-self:center}
+.xpbar i{background:#8fd3ff}
+.lvl{font-weight:700;color:#8fd3ff;white-space:nowrap}
+#inspect .srow .ebar.wide{flex:1;width:auto;min-width:50px;margin-left:12px}
 .actions{display:flex;flex-direction:column;gap:6px;justify-content:center;padding-left:10px;border-left:1px solid var(--line)}
-#go.big{font-size:1.05em;padding:.5em 1.1em;white-space:nowrap}
+.waverow{display:flex;gap:6px;align-items:stretch}
+/* Start wave and Auto-start are one button: about 80% start, 20% auto. */
+.split{display:flex;flex:1;min-width:150px}
+.split #go{flex:4;border-radius:4px 0 0 4px;font-size:1.05em;padding:.5em .8em;white-space:nowrap}
+.split .autobtn{flex:1;min-width:46px;border-radius:0 4px 4px 0;border-left:1px solid rgba(0,0,0,.35);padding:.2em .3em;font-size:.68em;font-weight:700;letter-spacing:.05em;background:#3b3420;color:#d9c48a;border-color:var(--accent)}
+.split .autobtn.on{background:#8be28b;color:#10200f;border-color:#8be28b}
+.spdbtn{min-width:46px;font-weight:700}
+.spdbtn.on{border-color:var(--accent);color:var(--accent)}
 #pauseBanner{top:42%;left:50%;transform:translate(-50%,-50%);font-size:2em;font-weight:700;letter-spacing:.12em;padding:.25em 1em;pointer-events:none}
 .overlay{position:absolute;inset:0;z-index:5;background:rgba(12,18,15,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px;text-align:center;overflow:auto}
 .choices{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
@@ -135,15 +146,16 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
 .buff{font-size:.8em;padding-left:10px}
 .acts{display:flex;gap:6px;margin-top:8px}
 .acts.top{margin:6px 0 8px}
-.acts.top button{flex:1}
+.acts.top button{flex:1;white-space:nowrap;font-size:.92em;padding:.45em .5em}
 .chip{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 4px 0 6px}
 .relicchip{display:inline-block;border:1px solid;border-radius:4px;padding:1px 6px;margin:0 4px 4px 0;font-size:.85em;font-weight:600;cursor:default}
 /* Smaller screens: tighter HUD, relic strip moves under the stats. */
 @media (max-width:1000px){
   .herocard{min-width:72px;font-size:.85em}
-  #relics{top:66px;left:10px;right:auto;margin:0;max-width:46vw;justify-content:flex-start}
-  #hudRight{width:min(240px,42vw)}
-  #hudBottom{max-width:calc(100% - 70px);left:auto;right:10px;margin:0}
+  #relics{max-width:150px;font-size:.85em}
+  #heroPanel{width:min(250px,44vw)}
+  .hud-layer{--meterW:min(190px,30vw)}
+  .split{min-width:120px}
 }
 @media (max-width:640px){
   #hudTopRight button{padding:.35em .5em;font-size:.85em}
@@ -231,33 +243,40 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
 <section id="screen-play" class="screen play" hidden>
   <canvas id="c" aria-label="Game board. Click a tile to place the chosen hero; drag to move the map; scroll to zoom."></canvas>
   <div class="hud-layer">
+    <!-- Top middle: level, wave and lives. -->
     <div id="hud" class="glass">
       <span class="stat"><small>Level</small><b id="stage"></b></span>
       <span class="stat"><small>Wave</small><b id="wave"></b></span>
       <span class="stat"><small>Lives</small><b id="lives"></b></span>
     </div>
+    <!-- Left middle: the relics you own, one under the other. -->
     <div id="relics" class="glass" hidden></div>
+    <!-- Top right: Menu (pause), with the selected hero's details under it. -->
     <div id="hudTopRight">
-      <button id="spd">Speed: 1x</button>
-      <button id="auto">Auto-start: off</button>
       <button id="menuBtn">Menu</button>
       <span id="menuConfirm" class="glass" hidden><span class="q">Quit this match?</span><button id="quitYes" class="danger">Quit</button><button id="resumeBtn" class="go">Resume</button></span>
     </div>
-    <div id="hudRight">
-      <div id="meterPanel" class="glass"><button class="ph" id="meterToggle" aria-expanded="true">Damage meter</button><div id="meter"></div></div>
-      <div id="heroPanel" class="glass" hidden><div id="inspect"></div></div>
-    </div>
+    <div id="heroPanel" class="glass" hidden><div id="inspect"></div></div>
+    <!-- Bottom right: the damage meter. -->
+    <div id="meterPanel" class="glass"><button class="ph" id="meterToggle" aria-expanded="true">Damage meter</button><div id="meter"></div></div>
     <div id="hudCam">
       <button id="camIn" aria-label="Zoom in" title="Zoom in (+)">+</button>
       <button id="camOut" aria-label="Zoom out" title="Zoom out (−)">−</button>
       <button id="camFit" title="Fit the map to the screen (F)">Fit</button>
     </div>
+    <!-- Bottom: gold, heroes, Relic, then Start wave with Auto-start built in, and Speed beside it. -->
     <div id="hudBottom" class="glass">
       <div class="goldbox"><small>Gold</small><b id="gold"></b><small id="interest" class="interest" hidden></small></div>
       <div class="heroes" id="tbtns"></div>
       <div class="actions">
         <button id="relic" class="relic">Relic</button>
-        <button id="go" class="go big">Start wave</button>
+        <div class="waverow">
+          <div class="split">
+            <button id="go" class="go big">Start wave</button>
+            <button id="auto" class="autobtn" aria-pressed="false" aria-label="Auto-start">AUTO</button>
+          </div>
+          <button id="spd" class="spdbtn" aria-label="Game speed">1x</button>
+        </div>
       </div>
     </div>
     <div id="pauseBanner" class="glass" hidden>Paused</div>

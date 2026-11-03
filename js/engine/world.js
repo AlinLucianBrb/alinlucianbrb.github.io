@@ -13,9 +13,10 @@ import { updateProjectiles } from './projectiles.js';
 import { createMeter } from './meter.js';
 import { createRng } from './rng.js';
 import { attackMult, gainEnergy } from './ultimates.js';
+import { gainXp } from './levels.js';
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
-export const ENGINE_VERSION = 6;     /* bump when a rule change would make old command logs play out differently */
+export const ENGINE_VERSION = 7;     /* bump when a rule change would make old command logs play out differently */
 
 function genPath(rng) {
   let x = 0, y = 1 + rng.int(ROWS - 2); const p = [[x, y]];
@@ -64,7 +65,11 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
   w.pickCost = () => Math.max(1, Math.round(0.25 * w.pick.paid * Math.pow(1.05, w.pick.uses)));
   w.previewRange = i => resolve(HEROES[i].stats.range, 'range', w.mods, HEROES[i].tags);
   w.meter = createMeter(w.ev);
-  w.ev.on('kill', ({ enemy }) => { w.gold += Math.round(w.gs.bounty * enemy.def.bounty); w.kills++; });
+  w.ev.on('kill', ({ enemy }) => {
+    w.gold += Math.round(w.gs.bounty * enemy.def.bounty); w.kills++;
+    for (const h of w.heroes) gainXp(w, h, enemy.def.xp || 0);   /* every hero on the field learns from every kill */
+  });
+  w.statsFor = h => statsFor(w, h);
   w.ev.on('escape', ({ enemy }) => { w.lives = Math.max(0, w.lives - enemy.def.leak); if (w.lives <= 0) endRun(w, false); });
   recalc(w);
   return w;
@@ -89,9 +94,10 @@ export function recalc(w) {
   };
   for (const h of w.heroes) statsFor(w, h);
 }
-/* A hero's stats: the shared modifiers (talents, items, relics) plus its own (evolutions). */
+/* A hero's stats: the shared modifiers (talents, items, relics) plus its own (evolutions, level). */
 export function statsFor(w, h) {
-  h.s = heroStats(h.def, h.mods.length ? w.mods.concat(h.mods) : w.mods);
+  const own = h.lvlMods && h.lvlMods.length ? h.mods.concat(h.lvlMods) : h.mods;
+  h.s = heroStats(h.def, own.length ? w.mods.concat(own) : w.mods);
   if (h.energy > h.s.energyMax) h.energy = h.s.energyMax;
   return h.s;
 }

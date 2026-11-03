@@ -26,18 +26,19 @@ export const COMMANDS = {
     if (w.heroes.some(h => h.def === def)) return fail('already placed');
     if (!isFree(w, c.cx, c.cy)) return fail('blocked');
     const h = { id: w.nextHeroId++, type, def, cx: c.cx, cy: c.cy, x: (c.cx + 0.5) * T, y: (c.cy + 0.5) * T,
-      cd: 0, ramp: 0, lock: null, proj: null, dealt: 0, kills: 0, energy: 0, ults: 0, tier: 0, mods: [], s: null };
+      cd: 0, ramp: 0, lock: null, proj: null, dealt: 0, kills: 0, energy: 0, ults: 0, tier: 0, mods: [], level: 1, xp: 0, lvlMods: [], s: null };
     statsFor(w, h);
     w.heroes.push(h);
     return { ok: true, id: h.id };
   },
-  /* Spends gold to take a hero to its next evolution. */
+  /* Spends gold to take a hero to its next evolution, once it has reached that evolution's level. */
   evolve(w, c) {
     const b = blocked(w); if (b) return b;
     const h = w.heroes.find(x => x.id === c.id);
     if (!h) return fail('no such hero');
     const evo = h.def.evolutions[h.tier], cost = w.evolveCost(h);
     if (!evo) return fail('fully evolved');
+    if (h.level < (evo.level || 1)) return fail('level');
     if (w.gold < cost) return fail('gold');
     w.gold -= cost;
     h.mods.push(...evo.mods.map(m => ({ ...m, source: evo.name, ri: -3 })));

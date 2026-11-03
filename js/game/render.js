@@ -139,6 +139,11 @@ export function draw(ctx, g, v) {
     if (t.tier) {                          /* evolved: a gold ring */
       ctx.beginPath(); ctx.arc(t.x, t.y, 18, 0, 7); ctx.strokeStyle = '#f2b84b'; ctx.lineWidth = 2.5; ctx.stroke();
     }
+    /* Level badge, top right of the hero. */
+    ctx.beginPath(); ctx.arc(t.x + 13, t.y - 13, 7, 0, 7); ctx.fillStyle = '#10200f'; ctx.fill();
+    ctx.strokeStyle = t.level >= 10 ? '#f2b84b' : '#8fd3ff'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 8px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(String(t.level), t.x + 13, t.y - 12.5);
     /* Energy bar under the hero: blue while filling, gold when the ultimate is ready. */
     const f = Math.max(0, Math.min(1, t.energy / t.s.energyMax));
     ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(t.x - 15, t.y + 19, 30, 5);

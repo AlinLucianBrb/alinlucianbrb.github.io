@@ -50,7 +50,7 @@ test('placing is free and once per hero; cards then select the hero; move and ev
   const t = freeTiles(4);
   dom.heroButton(1).onclick(); click(...t[0]); dom.frames(1);
   assert.equal(gold(), 100, 'placing is free'); assert.equal(world().heroes.length, 1);
-  assert.equal(dom.heroButton(1).children[2]._v, 'On the field');
+  assert.equal(dom.heroButton(1).children[2]._v, 'On the field · Lv 1');
   click(...t[2]); dom.frames(1);
   assert.equal(world().heroes.length, 2, 'the next click places the next hero waiting in the lineup');
   assert.notEqual(world().heroes[1].def.id, 'ranger', 'never the same hero twice');
@@ -60,7 +60,9 @@ test('placing is free and once per hero; cards then select the hero; move and ev
   assert.deepEqual([world().heroes[0].cx, world().heroes[0].cy], t[1]);
   click(...t[1]); dom.frames(20);
   const evo = dom.button('Evolve');
-  assert.ok(evo, 'Evolve button in the hero panel'); assert.equal(evo.disabled, true, 'not enough gold yet (150)');
+  assert.ok(evo, 'Evolve button in the hero panel'); assert.equal(evo.disabled, true);
+  assert.equal(evo._v, 'Evolve at Lv 10', 'a level 1 hero cannot evolve yet');
+  assert.ok(dom.made.some(e => e.className === 'lvl' && /^Level 1 · 0\/10 XP$/.test(e._v)), 'level and XP shown');
   assert.equal(dom.button('Sell'), undefined, 'no selling');
   assert.equal(dom.made.some(e => e.tag === 'div' && /^When full: Empowered strike/.test(e._text)), true, 'the panel explains the ultimate');
 });
@@ -128,7 +130,8 @@ test('Retry always starts with Auto-start off, after a loss and after a win', ()
       assert.equal(ends[0].won, winning);
       byId.newRun.onclick(); dom.frames(2);
       assert.equal(world().auto, false, 'retry after a ' + (winning ? 'win' : 'loss') + ' starts with Auto-start off');
-      assert.equal(byId.auto._v, 'Auto-start: off');
+      assert.equal(byId.auto.classList.contains('on'), false, 'the AUTO part of the button is not lit');
+      assert.equal(byId.auto.attrs['aria-pressed'], 'false');
     }
   } finally { Object.assign(stage, saved); }
 });
@@ -159,6 +162,23 @@ test('hero panel: Move and Evolve come first, bonuses from the same source are s
   assert.ok(dom.made.some(e => e._text === 'Damage (Physical)'));
   const more = stackMods([{ stat: 'x', type: 'more', value: 0.5, source: 'E', ri: -3 }, { stat: 'x', type: 'more', value: 0.5, source: 'E', ri: -3 }]);
   assert.equal(more.length, 1); assert.equal(more[0].value, 1.25, '"more" bonuses multiply: 1.5 x 1.5 = 2.25');
+});
+
+test('talent bonuses are stacked into one "Talents" line per stat', async () => {
+  stopGame();
+  /* Three damage nodes from two trees: Sharpened (+4% all heroes), Brawler and Bruiser (+6% each, Warrior only). */
+  startGame({ ...hooks, talents: ['general_0_0', 'warrior_0_0', 'warrior_0_1'] }); dom.frames(2);
+  const [t] = freeTiles(1);
+  dom.heroButton(0).onclick(); click(...t); click(...t); dom.frames(1);
+  const lines = dom.made.filter(e => e.className === 'buff' && / · Talents/.test(e._text)).map(e => e._text);
+  assert.ok(lines.includes('+16% · Talents ×3'), 'one line: ' + lines.join(' | '));
+  assert.equal(world().heroes[0].s.damage, 28 * 1.16);
+  /* Level the Warrior up twice: its +6% shows as one "Hero level" line. */
+  const { gainXp } = await import('../js/engine/levels.js');
+  gainXp(world(), world().heroes[0], 22); dom.frames(20);
+  const lv = dom.made.filter(e => e.className === 'buff' && / · Hero level$/.test(e._text)).map(e => e._text);
+  assert.ok(lv.includes('+6% · Hero level'), 'level bonus listed: ' + lv.join(' | '));
+  stopGame(); startGame(hooks); dom.frames(2);
 });
 
 test('the gold box shows Compound interest: what the next wave pays and the gold for the full amount', async () => {

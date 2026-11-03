@@ -1,13 +1,14 @@
 import { T } from '../content/data.js';
 import { tickEffects } from './effects.js';
 
-/* Enemy types. hp and speed are multipliers on the wave's base values; bounty multiplies kill gold; leak is the lives lost if it reaches the gate.
+/* Enemy types. hp and speed are multipliers on the wave's base values; bounty multiplies kill gold; leak is the lives lost if it reaches the gate;
+   xp is what every hero on the field gains when it dies.
    armor and res (resistances by damage type, 0 to 0.75) are their defenses; all 0 for now, ready for tougher enemies and bosses.
    Add a type here, then return it from waveEnemyType. */
 export const ENEMIES = {
-  grunt:  { name: 'Grunt',  color: '#d1564d', radius: 10, hp: 1,   speed: 1,   bounty: 1,   leak: 1 },
-  brute:  { name: 'Brute',  color: '#8c3b8f', radius: 14, hp: 3,   speed: 0.6, bounty: 2.5, leak: 2 },
-  runner: { name: 'Runner', color: '#e8c547', radius: 8,  hp: 0.5, speed: 1.5, bounty: 0.8, leak: 1 }
+  grunt:  { name: 'Grunt',  color: '#d1564d', radius: 10, hp: 1,   speed: 1,   bounty: 1,   leak: 1, xp: 1 },
+  brute:  { name: 'Brute',  color: '#8c3b8f', radius: 14, hp: 3,   speed: 0.6, bounty: 2.5, leak: 2, xp: 3 },
+  runner: { name: 'Runner', color: '#e8c547', radius: 8,  hp: 0.5, speed: 1.5, bounty: 0.8, leak: 1, xp: 1 }
 };
 export const waveCount = w => 5 + w * 2;
 export const spawnDelay = w => Math.max(0.35, 0.85 - w * 0.02);

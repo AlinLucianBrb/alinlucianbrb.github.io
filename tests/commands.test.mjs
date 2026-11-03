@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createWorld, step, recalc } from '../js/engine/world.js';
 import { apply } from '../js/engine/commands.js';
 import { RELICS } from '../js/content/data.js';
+import { levelMods } from '../js/engine/levels.js';
 import { richWorld, tilesNearPath, place, heroIndex } from './helpers.mjs';
 
 test('heroes are free to place, once each, only from the lineup, on a free tile; placing is recorded', () => {
@@ -33,8 +34,10 @@ test('items apply to the hero wearing them, only if that hero is in the lineup',
   assert.deepEqual(createWorld({ seed: 1, lineup: ['ranger'], items: { warrior: 'power_charm' } }).items, {}, 'items on heroes left at home are ignored');
 });
 
-test('evolving costs gold, gives +50% damage, range and attack speed, and only once for now', () => {
+test('evolving needs level 10 and costs gold, gives +50% damage, range and attack speed, and only once for now', () => {
   const w = richWorld(), [t] = tilesNearPath(w, 1), h = place(w, 'ranger', ...t);
+  assert.equal(apply(w, { type: 'evolve', id: h.id }).reason, 'level', 'a fresh hero is level 1');
+  h.level = 10;   /* test only: skip the XP (levels are tested in levels.test.mjs) */
   const before = { ...h.s }, g = w.gold;
   assert.equal(w.evolveCost(h), 150);
   assert.ok(apply(w, { type: 'evolve', id: h.id }).ok);
@@ -42,19 +45,20 @@ test('evolving costs gold, gives +50% damage, range and attack speed, and only o
   assert.equal(h.s.damage, before.damage * 1.5); assert.equal(h.s.range, before.range * 1.5); assert.equal(h.s.speed, before.speed * 1.5);
   assert.equal(apply(w, { type: 'evolve', id: h.id }).reason, 'fully evolved');
   assert.equal(w.evolveCost(h), null);
-  const w2 = createWorld({ seed: 1 }), h2 = place(w2, 'ranger', ...tilesNearPath(w2, 1)[0]);
+  const w2 = createWorld({ seed: 1 }), h2 = place(w2, 'ranger', ...tilesNearPath(w2, 1)[0]); h2.level = 10;
   assert.equal(apply(w2, { type: 'evolve', id: h2.id }).reason, 'gold');
   assert.equal(apply(w2, { type: 'evolve', id: 99 }).reason, 'no such hero');
 });
 
 test('evolution stacks with relics and Bulk order makes it cheaper', () => {
   const w = richWorld(), h = place(w, 'warrior', ...tilesNearPath(w, 1)[0]);
+  h.level = 10; h.lvlMods = levelMods(10);   /* test only: a level-10 hero with its level bonus */
   w.mods.push(...RELICS.find(r => r.name === 'Bulk order').mods(2).map(m => ({ ...m, source: 'Bulk order', ri: 2 })));
   w.mods.push(...RELICS.find(r => r.name === 'Sharpened rounds').mods(1).map(m => ({ ...m, source: 'x', ri: 0 })));
   recalc(w);
-  assert.equal(w.evolveCost(h), Math.round(150 * 0.7));
+  assert.equal(w.evolveCost(h), Math.round(150 * (1 - 0.15 * 2)), 'Uncommon Bulk order: -30%');
   apply(w, { type: 'evolve', id: h.id });
-  assert.equal(h.s.damage, 28 * 1.25 * 1.5);
+  assert.equal(h.s.damage, 28 * (1 + 0.25 + 0.03 * 9) * 1.5, 'relic and level bonuses add up, then evolution multiplies');
 });
 
 test('moving needs a free tile and briefly delays the next attack', () => {

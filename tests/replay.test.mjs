@@ -22,7 +22,7 @@ test('replay covers every command type: place, move, evolve, reroll, banish, cho
   apply(w, { type: 'place', hero: 'warrior', cx: t[2][0], cy: t[2][1] });
   apply(w, { type: 'wave' });
   apply(w, { type: 'auto', on: true });
-  while (w.gold < 260 && w.phase !== 'over') step(w);
+  while ((w.gold < 260 || w.heroes[0].level < 10) && w.phase !== 'over') step(w);   /* earn the gold and the level by playing */
   assert.ok(apply(w, { type: 'evolve', id: a }).ok);
   assert.ok(apply(w, { type: 'buyRelic' }).ok);
   assert.ok(apply(w, { type: 'reroll' }).ok);

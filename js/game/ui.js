@@ -1,5 +1,5 @@
 /* All DOM work for the game screen. Values are only written when they change, to avoid needless page updates. */
-import { HEROES, RARITIES, RELICS, STAT_LABELS, rarityOdds } from '../content/data.js';
+import { HEROES, RARITIES, RELICS, STAT_LABELS, rarityOdds, HERO_LEVELS } from '../content/data.js';
 import { ULTIMATES } from '../engine/ultimates.js';
 import { DAMAGE_LABEL } from '../content/combat.js';
 import { explain, affected } from '../engine/stats.js';
@@ -35,7 +35,8 @@ export function initUI(callbacks) {
       const lines = [d.short, { text: statLine(d, info.stats), color: '#9db3a3' }];
       if (u) lines.push({ text: 'Ultimate: ' + u.name + ' (' + u.desc + ')', color: '#9db3a3' });
       lines.push(info.unit ? { text: 'On the field: click to select it.', color: '#9db3a3' } : { text: 'Free to place: one per match · key ' + b._key.textContent, color: '#9db3a3' });
-      if (info.evo) lines.push({ text: 'Evolves into ' + info.evo.name + ' for ' + info.evoCost + ' gold (+50% damage, range and attack speed).', color: info.gold >= info.evoCost ? '#f2b84b' : '#9db3a3' });
+      if (info.unit) lines.push({ text: 'Level ' + info.unit.level + ': heroes gain XP from every kill while on the field.', color: '#8fd3ff' });
+      if (info.evo) lines.push({ text: 'At level ' + info.evo.level + ' it can evolve into ' + info.evo.name + ' for ' + info.evoCost + ' gold (+50% damage, range and attack speed).', color: info.unit && info.unit.level >= info.evo.level && info.gold >= info.evoCost ? '#f2b84b' : '#9db3a3' });
       return { title: d.name + ' · ' + cap(d.archetype), color: d.color, lines };
     });
     $('tbtns').append(b); btns.push(b);
@@ -45,8 +46,8 @@ export function initUI(callbacks) {
     'Rarer relics are stronger. You can reroll or banish the offers for a little gold.',
     ...oddsLines(cb.luck ? cb.luck() : 0),
     { text: 'The price goes up with each relic you buy. Key: R', color: '#9db3a3' }] }));
-  bindTip($('auto'), () => ({ title: 'Auto-start', lines: ['Starts the next wave by itself 3 seconds after a wave is cleared.', { text: 'Turned off again when you retry a level.', color: '#9db3a3' }] }));
-  bindTip($('spd'), () => ({ title: 'Game speed', lines: ['Switch between normal and double speed.'] }));
+  bindTip($('auto'), () => ({ title: 'Auto-start', lines: ['Starts the next wave by itself 3 seconds after a wave is cleared. Lit up when on.', { text: 'Turned off again when you retry a level.', color: '#9db3a3' }] }));
+  bindTip($('spd'), () => ({ title: 'Game speed', lines: ['Switch between normal (1x) and double (2x) speed.'] }));
   bindTip($('menuBtn'), () => ({ title: 'Menu', lines: ['Pauses the game and asks before quitting the match. Key: P to pause, Esc to resume.'] }));
   $('meterToggle').onclick = () => {
     const open = $('meterToggle').getAttribute?.('aria-expanded') !== 'false';
@@ -85,13 +86,13 @@ export function renderHUD(g, v) {
   $('go').disabled = g.phase !== 'build' || g.picking;
   setText($('go'), g.phase === 'build' && auto ? 'Start now (' + Math.max(0, Math.ceil(g.autoT)) + 's)' : 'Start wave');
   setText($('relic'), 'Relic · ' + g.relicCost());
-  setText($('auto'), 'Auto-start: ' + (auto ? 'on' : 'off')); $('auto').classList.toggle('on', auto);
-  setText($('spd'), 'Speed: ' + v.speed + 'x');
+  $('auto').classList.toggle('on', auto); $('auto').setAttribute('aria-pressed', String(auto));
+  setText($('spd'), v.speed + 'x'); $('spd').classList.toggle('on', v.speed > 1);
   HEROES.forEach((d, i) => {
     const b = btns[i];
     if (b.hidden) return;
     const unit = g.heroes.find(h => h.type === i);
-    setText(b._status, !unit ? 'Free · place it' : unit.tier ? '★ ' + d.evolutions[unit.tier - 1].name : 'On the field');
+    setText(b._status, !unit ? 'Free · place it' : (unit.tier ? '★ ' + d.evolutions[unit.tier - 1].name : 'On the field') + ' · Lv ' + unit.level);
     b.classList.toggle('on', sel === i && (!unit || v.selected === unit)); b.classList.toggle('placed', !!unit);
     b._ebar.hidden = !unit;
     if (unit) {
@@ -145,8 +146,8 @@ export function renderMeter(g) {
 }
 
 /* Where a non-relic modifier comes from: ri -1 talent, -2 item, -3 evolution. */
-const SOURCE = { '-1': 'Talent', '-2': 'Item', '-3': 'Evolution' };
-const SOURCE_COLOR = { '-1': '#f2b84b', '-2': '#8be28b', '-3': '#dcc6ff' };
+const SOURCE = { '-1': 'Talent', '-2': 'Item', '-3': 'Evolution', '-4': 'Level' };
+const SOURCE_COLOR = { '-1': '#f2b84b', '-2': '#8be28b', '-3': '#dcc6ff', '-4': '#8fd3ff' };
 const pct = x => f(x * 100) + '%';
 /* Stats shown as percentages (chances). */
 const isChance = key => /Chance$/.test(key);
@@ -172,6 +173,7 @@ export function stackMods(mods) {
 function describe(m, key) {
   const v = m.type === 'inc' ? '+' + pct(m.value) : m.type === 'flat' ? '+' + (isChance(key) ? pct(m.value) : f(m.value)) : '×' + f(1 + m.value);
   if (m.ri === -1) return v + ' · Talents' + (m.n > 1 ? ' ×' + m.n : '');   /* the name already says where it comes from */
+  if (m.ri === -4) return v + ' · Hero level';
   return v + ' · ' + m.source + (m.n > 1 ? ' ×' + m.n : '') + ' (' + (m.ri >= 0 ? 'Relic' : SOURCE[m.ri] || 'Talent') + ')';
 }
 /* The inspector is rebuilt only when the selection, the modifiers or the move state change, so buttons never vanish under a click. */
@@ -180,20 +182,23 @@ export function renderInspector(g, v) {
   $('heroPanel').hidden = !t;
   if (!t) { box._k = 'none'; box._t = null; return; }
   const moving = v.moving === t;
-  if (box._t !== t || box._m !== g.mods.length || box._mv !== moving || box._tier !== t.tier) {
-    box._k = 't'; box._t = t; box._m = g.mods.length; box._mv = moving; box._tier = t.tier; box.textContent = '';
+  if (box._t !== t || box._m !== g.mods.length || box._mv !== moving || box._tier !== t.tier || box._lv !== t.level) {
+    box._k = 't'; box._t = t; box._m = g.mods.length; box._mv = moving; box._tier = t.tier; box._lv = t.level; box.textContent = '';
     const d = t.def, head = el('div', 'srow'), title = el('b', '', (t.tier ? '★ ' + d.evolutions[t.tier - 1].name : d.name) + ' · ' + cap(d.archetype)), close = el('button', 'linkbtn', 'Close');
     title.style.color = d.color; close.onclick = cb.onCloseInspector; head.append(title, close); box.append(head);
     /* The actions come first, so they never move as the stats below change. */
     const acts = el('div', 'acts top'), mv = el('button', '', moving ? 'Cancel move' : 'Move'), evo = el('button', 'go');
     mv.onclick = cb.onMove; evo.onclick = cb.onEvolve; acts.append(mv, evo); box.append(acts); box._evo = evo;
     if (moving) box.append(el('p', 'muted', 'Click a free tile to move it there.'));
+    /* Level and XP. */
+    const lr = el('div', 'srow'), lv = el('span', 'lvl'), xbar = el('span', 'ebar wide xpbar'), xfill = el('i');
+    xbar.append(xfill); lr.append(lv, xbar); box.append(lr); box._lvl = lv; box._xfill = xfill; box._xbar = xbar;
     /* Energy and the ultimate. */
     const u = ULTIMATES[d.ultimate], er = el('div', 'srow'), ebar = el('span', 'ebar wide'), efill = el('i');
     ebar.append(efill); er.append(el('span', '', 'Energy'), ebar); box.append(er);
     if (u) box.append(el('div', 'buff', 'When full: ' + u.name + ' (' + u.desc + ')'));
     box._efill = efill; box._ebar = ebar;
-    const all = g.mods.concat(t.mods);
+    const all = g.mods.concat(t.mods, t.lvlMods || []);
     for (const key in d.stats) {
       if (key === 'cooldown' || key === 'energyMax') continue;
       if (!t.s[key] && !d.stats[key]) continue;          /* unused stats (most combat stats for now) stay hidden */
@@ -212,10 +217,14 @@ export function renderInspector(g, v) {
   const pctE = Math.round(t.energy / t.s.energyMax * 100) + '%';
   if (box._efill.style.width !== pctE) box._efill.style.width = pctE;
   box._ebar.classList.toggle('full', t.energy >= t.s.energyMax);
-  const cost = g.evolveCost(t), evo = t.def.evolutions[t.tier];
-  setText(box._evo, evo ? 'Evolve · ' + cost : 'Fully evolved');
-  box._evo.disabled = !evo || g.gold < cost;
-  box._evo.title = evo ? evo.name + ': +50% damage, range and attack speed (key E)' : '';
+  const need = HERO_LEVELS.xpToNext(t.level), maxed = t.level >= HERO_LEVELS.max;
+  setText(box._lvl, 'Level ' + t.level + (maxed ? ' (max)' : ' · ' + Math.floor(t.xp) + '/' + need + ' XP'));
+  const xp = maxed ? '100%' : Math.round(t.xp / need * 100) + '%';
+  if (box._xfill.style.width !== xp) box._xfill.style.width = xp;
+  const cost = g.evolveCost(t), evo = t.def.evolutions[t.tier], early = evo && t.level < evo.level;
+  setText(box._evo, !evo ? 'Fully evolved' : early ? 'Evolve at Lv ' + evo.level : 'Evolve · ' + cost);
+  box._evo.disabled = !evo || early || g.gold < cost;
+  box._evo.title = evo ? evo.name + ' (level ' + evo.level + ', ' + cost + ' gold): +50% damage, range and attack speed (key E)' : '';
 }
 
 function indicator(g, r, m) {
