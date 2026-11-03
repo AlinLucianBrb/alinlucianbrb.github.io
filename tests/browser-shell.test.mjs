@@ -59,6 +59,24 @@ test('placing, selecting, moving and selling heroes by clicking', () => {
   assert.equal(gold(), 85, 'sold for 70%'); assert.equal(byId.heroPanel.hidden, true);
 });
 
+test('the land outside the map cannot hold heroes, and shows a not-allowed cursor there', () => {
+  byId.newRun.onclick(); dom.frames(2);
+  const g0 = gold();
+  dom.heroButton(1).onclick();
+  for (const [cx, cy] of [[-1, 3], [COLS, 0], [4, -1], [7, 10]]) {
+    click(cx, cy);
+    const [x, y] = toScreen(view().cam, (cx + 0.5) * T, (cy + 0.5) * T);
+    byId.c.fire('pointermove', { clientX: x, clientY: y, pointerType: 'mouse' });
+    assert.equal(byId.c.classList.contains('blocked'), true, 'not-allowed cursor at ' + cx + ',' + cy);
+  }
+  dom.frames(2);
+  assert.equal(world().heroes.length, 0); assert.equal(gold(), g0);
+  const [t] = freeTiles(1), [x, y] = toScreen(view().cam, (t[0] + 0.5) * T, (t[1] + 0.5) * T);
+  byId.c.fire('pointermove', { clientX: x, clientY: y, pointerType: 'mouse' });
+  assert.equal(byId.c.classList.contains('blocked'), false, 'normal cursor back on the map');
+  assert.deepEqual(drawErrors, [], 'drawing the land outside works');
+});
+
 test('dragging moves the map without placing anything; zoom keeps clicks on the right tile', () => {
   byId.newRun.onclick(); dom.frames(2);
   const cam = view().cam, x0 = cam.x;

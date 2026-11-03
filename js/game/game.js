@@ -125,7 +125,15 @@ function freeRect() {
   if (bottom - top < H * 0.35) { top = pad; bottom = H - pad; }
   return { x: left, y: top, w: right - left, h: bottom - top };
 }
-function fitToScreen() { fitCamera(v.cam, freeRect(), MAP_W, MAP_H); }
+/* Centres the map on the screen, as large as it can be while staying clear of the HUD on every side
+   (the margins are mirrored, so the centre stays in the middle). On screens too small for that, it uses the free space as it is. */
+function fitToScreen() {
+  const r = freeRect(), W = v.cw, H = v.ch;
+  const mx = Math.max(r.x, W - (r.x + r.w)), my = Math.max(r.y, H - (r.y + r.h));
+  const centred = { x: mx, y: my, w: W - 2 * mx, h: H - 2 * my };
+  const ok = centred.w >= W * 0.4 && centred.h >= H * 0.35;
+  fitCamera(v.cam, ok ? centred : r, MAP_W, MAP_H);
+}
 function resize() {
   const r = cv.getBoundingClientRect();
   if (!r.width || !r.height) return;
@@ -153,7 +161,7 @@ cv.addEventListener('pointerdown', e => {
 });
 cv.addEventListener('pointermove', e => {
   const [x, y] = local(e), p = pointers.get(e.pointerId ?? 1);
-  if (!p) { if (e.pointerType !== 'touch') v.hover = cellAt(x, y); return; }
+  if (!p) { if (e.pointerType !== 'touch') setHover(cellAt(x, y)); return; }
   if (pointers.size === 2 && pinch) {
     const [a, b] = [...pointers.values()], mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
     p.x = x; p.y = y;
@@ -164,8 +172,14 @@ cv.addEventListener('pointermove', e => {
   if (!dragged && Math.hypot(x - p.sx, y - p.sy) > 6) dragged = true;
   if (dragged) { pan(x - p.x, y - p.y); cv.classList.add('dragging'); }
   p.x = x; p.y = y;
-  if (e.pointerType !== 'touch') v.hover = cellAt(x, y);
+  if (e.pointerType !== 'touch') setHover(cellAt(x, y));
 });
+/* Hovering the land outside the map shows a "not allowed" cursor. */
+function setHover(c) {
+  v.hover = c;
+  const outside = !!c && !(c[0] >= 0 && c[1] >= 0 && c[0] < COLS && c[1] < ROWS);
+  cv.classList.toggle('blocked', outside);
+}
 function endPointer(e, cancelled) {
   const id = e.pointerId ?? 1, p = pointers.get(id);
   if (!p) return;
