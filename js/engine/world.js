@@ -6,7 +6,7 @@ import { itemMods } from '../content/items.js';
 import { createBus } from '../core/bus.js';
 import { talentMods } from '../content/talents.js';
 import { resolve, heroStats } from './stats.js';
-import { applyEffect } from './effects.js';
+import { attack, dotDamage } from './combat.js';
 import { BEHAVIORS } from './behaviors.js';
 import { spawnEnemy, updateEnemies, sweep, waveCount, spawnDelay, waveEnemyType } from './enemies.js';
 import { updateProjectiles } from './projectiles.js';
@@ -15,7 +15,7 @@ import { createRng } from './rng.js';
 import { attackMult, gainEnergy } from './ultimates.js';
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
-export const ENGINE_VERSION = 3;     /* bump when a rule change would make old command logs play out differently */
+export const ENGINE_VERSION = 5;     /* bump when a rule change would make old command logs play out differently */
 
 function genPath(rng) {
   let x = 0, y = 1 + rng.int(ROWS - 2); const p = [[x, y]];
@@ -40,7 +40,7 @@ export function cleanLineup(lineup) {
 export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, items = {}, record = true } = {}) {
   const def = STAGES[stage - 1];
   if (!def) throw new Error('Unknown stage ' + stage);
-  const root = createRng(seed), rng = { path: root.fork('path'), relic: root.fork('relic') };
+  const root = createRng(seed), rng = { path: root.fork('path'), relic: root.fork('relic'), combat: root.fork('combat') };
   const team = cleanLineup(lineup), equipped = {};
   for (const id of team) if (items && items[id]) equipped[id] = items[id];
   const path = genPath(rng.path), mods = [...talentMods(talents), ...itemMods(equipped)];
@@ -53,7 +53,9 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
     ev: createBus(), fx: null, gs: null, talents: [...talents], lineup: team, items: equipped,
     log: record ? { v: 1, ver: ENGINE_VERSION, seed: seed >>> 0, stage, talents: [...talents], lineup: [...team], items: { ...equipped }, commands: [], ticks: 0 } : null
   };
-  w.hit = (hero, e, amount) => hit(w, hero, e, amount);
+  w.hit = (hero, e, amount, type) => hit(w, hero, e, amount, type);
+  w.attack = (hero, e, scale, rate) => attack(w, hero, e, scale, rate);
+  w.dot = (src, e, amount, type) => dotDamage(w, src, e, amount, type);
   w.attackMult = h => attackMult(w, h);
   w.gainEnergy = (h, amount) => gainEnergy(h, amount);
   /* Gold for a hero's next evolution, or null when it has none left. */
@@ -68,24 +70,22 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
   return w;
 }
 
-/* Central damage function: every hit goes through here, so effects, the meter and kills all hook in one place. */
-export function hit(w, hero, e, amount) {
-  if (e.dead) return;
+/* Central damage function: all damage ends here (already reduced by armor and resistances, see combat.js), so the meter,
+   kills and gold hook in one place. Heroes attack through w.attack(); damage over time comes through w.dot(). */
+export function hit(w, hero, e, amount, type = 'physical') {
+  if (e.dead || !(amount > 0)) return;
   const dealt = Math.min(amount, e.hp);
-  e.hp -= amount; e.last = hero;
-  if (hero) {
-    w.ev.emit('damage', { hero, enemy: e, amount: dealt });
-    const ap = hero.def.applies;
-    if (ap) for (const id in ap) applyEffect(e, id, hero.s[ap[id]]);
-  }
-  if (e.hp <= 0) { e.dead = true; w.ev.emit('kill', { hero, enemy: e }); }
+  e.hp -= amount; if (hero) e.last = hero;
+  if (hero) w.ev.emit('damage', { hero, enemy: e, amount: dealt, type });
+  if (e.hp <= 0) { e.dead = true; w.ev.emit('kill', { hero: hero || e.last, enemy: e }); }
 }
 
 /* Recomputes cached numbers after anything that changes modifiers (relics, talents at start). */
 export function recalc(w) {
   w.gs = {
     bounty: resolve(5, 'bounty', w.mods), evolveCost: Math.max(0.25, resolve(1, 'evolveCost', w.mods)),
-    waveGold: resolve(1, 'waveGold', w.mods), interest: resolve(0, 'interest', w.mods), interestCap: resolve(0, 'interestCap', w.mods)
+    waveGold: resolve(1, 'waveGold', w.mods), interest: resolve(0, 'interest', w.mods), interestCap: resolve(0, 'interestCap', w.mods),
+    relicLuck: resolve(0, 'relicLuck', w.mods)
   };
   for (const h of w.heroes) statsFor(w, h);
 }

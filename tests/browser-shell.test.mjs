@@ -133,6 +133,40 @@ test('Retry always starts with Auto-start off, after a loss and after a win', ()
   } finally { Object.assign(stage, saved); }
 });
 
+test('hero panel: Move and Evolve come first, bonuses from the same source are stacked, damage type shown', async () => {
+  const { recalc } = await import('../js/engine/world.js');
+  const { RELICS } = await import('../js/content/data.js');
+  const { stackMods } = await import('../js/game/ui.js');
+  byId.newRun.onclick(); dom.frames(2);
+  const sharp = RELICS.find(r => r.name === 'Sharpened rounds');
+  for (let i = 0; i < 2; i++) world().mods.push(...sharp.mods(1).map(m => ({ ...m, source: sharp.name, ri: 0 })));
+  recalc(world());
+  const [t] = freeTiles(1);
+  dom.heroButton(0).onclick(); click(...t); click(...t); dom.frames(1);
+  const kids = byId.inspect.children;
+  assert.equal(kids[1].className, 'acts top', 'the buttons come right after the title');
+  assert.deepEqual(kids[1].children.map(b => b._text.split(' ')[0]), ['Move', 'Evolve']);
+  const lines = dom.made.filter(e => e.className === 'buff').map(e => e._text);
+  assert.ok(lines.includes('+50% · Sharpened rounds ×2 (Common)'), 'stacked: ' + lines.join(' | '));
+  assert.ok(dom.made.some(e => e._text === 'Damage (Physical)'));
+  const more = stackMods([{ stat: 'x', type: 'more', value: 0.5, source: 'E', ri: -3 }, { stat: 'x', type: 'more', value: 0.5, source: 'E', ri: -3 }]);
+  assert.equal(more.length, 1); assert.equal(more[0].value, 1.25, '"more" bonuses multiply: 1.5 x 1.5 = 2.25');
+});
+
+test('the gold box shows Compound interest: what the next wave pays and the gold for the full amount', async () => {
+  const { recalc } = await import('../js/engine/world.js');
+  const { RELICS } = await import('../js/content/data.js');
+  byId.newRun.onclick(); dom.frames(2);
+  assert.equal(byId.interest.hidden, true, 'hidden without the relic');
+  const ci = RELICS.find(r => r.name === 'Compound interest');
+  world().mods.push(...ci.mods(1).map(m => ({ ...m, source: ci.name, ri: 0 }))); recalc(world());
+  dom.frames(1);
+  assert.equal(byId.interest.hidden, false);
+  assert.equal(byId.interest._v, 'Interest +5 · full at 1,200', '5% of 100 gold, full at 60 / 5% = 1,200');
+  world().gold = 1500; dom.frames(1);
+  assert.equal(byId.interest._v, 'Interest +60 (full)');
+});
+
 test('the match uses the lineup and items from the Play screen', () => {
   stopGame();
   startGame({ ...hooks, lineup: ['mage', 'warrior'], items: { warrior: 'power_charm' } }); dom.frames(2);

@@ -70,3 +70,30 @@ test('relic descriptions scale with rarity', () => {
   assert.equal(fmtMod({ stat: 'damage', type: 'inc', value: 0.04, scope: ['all'] }), '+4% damage');
   assert.equal(fmtMod({ stat: 'evolveCost', type: 'more', value: -0.05, scope: 'global' }), '×0.95 evolution cost');
 });
+
+test('relic luck shifts the odds toward rarer relics', async () => {
+  const { rarityOdds, rollRarity } = await import('../js/content/data.js');
+  const r = x => Math.round(x * 1000) / 10;
+  assert.deepEqual(rarityOdds(0).map(r), [55, 28, 13, 4]);
+  const lucky = rarityOdds(0.5);
+  assert.ok(lucky[3] > 0.08 && lucky[0] < 0.4, 'Epic about doubles, Common drops: ' + lucky.map(r).join(' / '));
+  assert.ok(Math.abs(lucky.reduce((a, b) => a + b) - 1) < 1e-9);
+  const count = luck => { let epic = 0; for (let i = 0; i < 10000; i++) if (rollRarity((i + 0.5) / 10000, luck) === 3) epic++; return epic; };
+  assert.equal(count(0), 400); assert.ok(count(1) > 1500);
+});
+
+test('Four-leaf clover gives relic luck, and luck changes the offers the shop rolls', async () => {
+  const { createWorld, recalc } = await import('../js/engine/world.js');
+  const { apply } = await import('../js/engine/commands.js');
+  const epics = luckM => {
+    const w = createWorld({ seed: 3 }); w.gold = 1e9;
+    if (luckM) { w.mods.push(...R('Four-leaf clover').mods(luckM).map(m => ({ ...m, source: 'x', ri: 0 }))); recalc(w); }
+    let n = 0;
+    apply(w, { type: 'buyRelic' });   /* then count offers over many rerolls, without picking (picks could add more luck) */
+    for (let i = 0; i < 300; i++) { n += w.pick.offers.filter(o => o.ri === 3).length; apply(w, { type: 'reroll' }); }
+    return { n, luck: w.gs.relicLuck };
+  };
+  const base = epics(0), lucky = epics(3);
+  assert.equal(lucky.luck, 1.5, 'Epic clover: +150% luck');
+  assert.ok(lucky.n > base.n * 3, 'far more epic offers: ' + base.n + ' -> ' + lucky.n);
+});

@@ -245,7 +245,8 @@ ui.initUI({
     const evoCost = evo && w ? Math.round(evo.cost * w.gs.evolveCost) : evo ? evo.cost : null;
     return { stats: unit ? unit.s : heroStats(def, w ? w.mods : []), unit, evo, evoCost, gold: w ? w.gold : 0 };
   },
-  onLayoutChange: () => { if (!v.cam.touched) v.needFit = true; }
+  onLayoutChange: () => { if (!v.cam.touched) v.needFit = true; },
+  luck: () => (w ? w.gs.relicLuck : 0)
 });
 $('go').onclick = () => act({ type: 'wave' });
 $('relic').onclick = () => act({ type: 'buyRelic' });

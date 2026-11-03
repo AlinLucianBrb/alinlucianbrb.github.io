@@ -15,7 +15,7 @@ export const PROJECTILES = {
       for (const e of g.enemies) {
         if (e.dead || p.hit.has(e)) continue;
         const dx = e.x - p.x, dy = e.y - p.y;
-        if (dx * dx + dy * dy <= 256) { p.hit.add(e); g.hit(p.owner, e, p.damage); }
+        if (dx * dx + dy * dy <= 256) { p.hit.add(e); g.attack(p.owner, e, p.scale); }
       }
       return true;
     },

@@ -2,6 +2,7 @@ import { T } from '../content/data.js';
 import { tickEffects } from './effects.js';
 
 /* Enemy types. hp and speed are multipliers on the wave's base values; bounty multiplies kill gold; leak is the lives lost if it reaches the gate.
+   armor and res (resistances by damage type, 0 to 0.75) are their defenses; all 0 for now, ready for tougher enemies and bosses.
    Add a type here, then return it from waveEnemyType. */
 export const ENEMIES = {
   grunt:  { name: 'Grunt',  color: '#d1564d', radius: 10, hp: 1,   speed: 1,   bounty: 1,   leak: 1 },
@@ -26,7 +27,8 @@ export function pathPos(path, i, out) {
 export function spawnEnemy(g, type) {
   const def = ENEMIES[type], st = g.stage;
   const hp = Math.max(1, Math.round(20 * st.hpMult * Math.pow(st.growth, g.wave - 1) * def.hp));
-  const e = { type, def, d: 0, hp, max: hp, speed: Math.min(90, 50 + g.wave * 2) * def.speed, x: 0, y: 0, fx: null, dead: false, escaped: false, last: null };
+  const e = { type, def, d: 0, hp, max: hp, speed: Math.min(90, 50 + g.wave * 2) * def.speed, x: 0, y: 0, fx: null, dead: false, escaped: false, last: null,
+    armor: def.armor || 0, res: { ...(def.res || {}) } };
   pathPos(g.path, 0, e);
   g.enemies.push(e);
 }

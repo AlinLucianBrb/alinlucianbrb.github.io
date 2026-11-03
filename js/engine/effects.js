@@ -1,22 +1,62 @@
-/* Status effects on enemies. Add an entry to create a new one (slow, damage over time, ...).
-   Heros apply effects through their "applies" field in data.js. */
-export const EFFECTS = {
-  chill: { name: 'Chill', speedMult: 0.5, tint: '#8fb4e8' }
-  /* example for later: burn: { name: 'Burn', tint: '#ff8a4c', onTick(g, e, dt) { g.hit(null, e, 3 * dt); } } */
-};
-export function applyEffect(e, id, duration) {
-  if (!(duration > 0)) return;
-  (e.fx ||= {})[id] = Math.max(e.fx[id] || 0, duration);
+/* Effects on enemies: the ailments from js/content/combat.js (bleed, poison, burn, shock, freeze) plus the chill slow kept
+   for the archived Frost Mage. Each effect on an enemy is { t: seconds left, dps?, mag?, src? }; poison keeps a list of stacks.
+   To add an effect: add it to AILMENTS (for one heroes can cause) or to EXTRA here (for anything else). */
+import { AILMENTS } from '../content/combat.js';
+
+const EXTRA = { chill: { name: 'Chill', kind: 'slow', speedMult: 0.5, tint: '#8fb4e8' } };
+export const EFFECTS = { ...AILMENTS, ...EXTRA };
+/* Which tint shows when an enemy has several effects. */
+const TINT_ORDER = ['freeze', 'shock', 'burn', 'poison', 'bleed', 'chill'];
+
+export function applyEffect(e, id, eff) {
+  if (typeof eff === 'number') eff = { t: eff };          /* old style: just a duration */
+  if (!(eff.t > 0)) return;
+  const def = EFFECTS[id], fx = (e.fx ||= {});
+  if (def.stacks) {
+    const st = (fx[id] ||= { stacks: [] }).stacks;
+    st.push({ ...eff });
+    if (st.length > def.maxStacks) st.shift();             /* drop the oldest */
+    return;
+  }
+  const cur = fx[id];
+  if (!cur) { fx[id] = { ...eff }; return; }
+  /* Only the strongest of a kind counts: bigger damage over time or bigger shock wins; otherwise keep the longer one. */
+  if ((eff.dps || 0) > (cur.dps || 0) || (eff.mag || 0) > (cur.mag || 0)) fx[id] = { ...eff };
+  else if (eff.dps === cur.dps && eff.mag === cur.mag) cur.t = Math.max(cur.t, eff.t);
 }
-/* Ticks an enemy's effects and returns its speed multiplier. */
+
+/* Shock makes an enemy take more damage from everything. */
+export const damageTakenMult = e => (e.fx && e.fx.shock ? 1 + e.fx.shock.mag : 1);
+
+/* Ticks an enemy's effects (damage over time through g.dot) and returns its speed multiplier. */
 export function tickEffects(g, e, dt) {
+  if (!e.fx) return 1;
   let mult = 1;
-  if (e.fx) for (const id in e.fx) {
-    const d = EFFECTS[id];
-    mult *= d.speedMult || 1;
-    if (d.onTick) d.onTick(g, e, dt);
-    if ((e.fx[id] -= dt) <= 0) delete e.fx[id];
+  for (const id in e.fx) {
+    const def = EFFECTS[id], f = e.fx[id];
+    if (def.stacks) {
+      const st = f.stacks;
+      let j = 0;
+      for (let i = 0; i < st.length; i++) {
+        const s = st[i], d = Math.min(dt, s.t);
+        if (g.dot) g.dot(s.src, e, s.dps * d, def.type);
+        if ((s.t -= dt) > 0) st[j++] = s;
+      }
+      st.length = j;
+      if (!j) delete e.fx[id];
+      continue;
+    }
+    if (def.kind === 'dot' && g.dot) g.dot(f.src, e, f.dps * Math.min(dt, f.t), def.type);
+    if (def.kind === 'freeze') mult = 0;
+    else if (def.speedMult) mult *= def.speedMult;
+    if ((f.t -= dt) <= 0) delete e.fx[id];
+    if (e.dead) break;
   }
   return mult;
 }
-export function tintOf(e) { if (e.fx) for (const id in e.fx) if (EFFECTS[id].tint) return EFFECTS[id].tint; return null; }
+
+export function tintOf(e) {
+  if (!e.fx) return null;
+  for (const id of TINT_ORDER) if (e.fx[id]) return EFFECTS[id].tint;
+  return null;
+}

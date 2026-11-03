@@ -79,13 +79,13 @@ test('the archived Frost Mage still chills enemies (kept for later)', () => {
   const { w, h } = setupArchived('frostmage');
   const a = enemyAt(w, h.x + 20, h.y, 30);
   tickHero(w, h);
-  assert.equal(dealt(a), 3); assert.ok(a.fx.chill > 1.4);
+  assert.equal(dealt(a), 3); assert.ok(a.fx.chill.t > 1.4);
 });
 
 test('chilled enemies move at half speed', () => {
   const w = richWorld({ seed: 3 }); w.phase = 'wave'; w.spawnLeft = 0;
   const e = enemyAt(w, 0, 0, 0); e.speed = 60;
-  const e2 = enemyAt(w, 0, 0, 0); e2.speed = 60; e2.fx = { chill: 100 };
+  const e2 = enemyAt(w, 0, 0, 0); e2.speed = 60; e2.fx = { chill: { t: 100 } };
   for (let i = 0; i < 60; i++) step(w);
   assert.ok(Math.abs(e.d - 60) < 1e-6); assert.ok(Math.abs(e2.d - 30) < 1e-6);
 });

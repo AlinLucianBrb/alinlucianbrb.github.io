@@ -84,7 +84,20 @@ The map fills the window and the HUD floats on top: level, wave and lives top le
 - **Evolution:** select a hero and press Evolve (or E) to spend gold on its next evolution. For now each hero has one: +50% damage, range and attack speed for 150 gold. Evolutions are a list per hero, so more steps or branches are just more entries.
 - **Items:** a win always drops an item and a loss has a chance (up to 50%, more for surviving longer). The server rolls the drop, so it cannot be faked. Each hero has one item slot; equip items on the Heroes screen. For now there is one item, the Power Charm (+5 damage).
 - **Talents:** you get 1 talent point per level above 1. One General tree for every hero, plus one tree per hero. Allocate nodes that connect to the origin or to an allocated node; remove one only if the rest stay connected. Respec is free. The old Archer and Frost Mage points carried over to the Ranger and Mage trees; points in the trees of archived heroes were refunded.
-- Talents, items, evolutions and relics are all modifiers, so they stack, and the hero panel shows where each bonus comes from.
+- Talents, items, evolutions and relics are all modifiers, so they stack, and the hero panel shows where each bonus comes from. Bonuses from the same source are shown as one line (two Common Sharpened rounds: "+50% · Sharpened rounds ×2").
+
+## Damage types, defenses and ailments
+Ready for content, not used by any hero, relic or enemy yet (so matches play as before):
+- **Damage types:** physical, fire, cold, lightning and toxic. Each hero deals its own type (`damageType`: Warrior and Ranger physical, Mage cold) and can gain added damage of any type (`fireDamage`, `coldDamage`, ...).
+- **Defenses:** enemies have `armor` (blocks part of physical hits, more of small hits, up to 90%) and `res` per type (up to 75%; negative means extra damage). Both are 0 for now, set per enemy type in `js/engine/enemies.js`.
+- **Ailments** (`js/content/combat.js`), each with a chance stat on heroes (`bleedChance`, ...):
+  bleed (physical hits; damage over time, strongest counts), poison (physical or toxic hits; toxic damage over time, stacks up to 20), burn (fire hits; damage over time, strongest counts), shock (lightning hits; enemy takes 20% more damage for 2 s), freeze (cold hits; enemy stops, longer for bigger hits, up to 1.5 s).
+- Every attack goes through `attack()` in `js/engine/combat.js` and damage over time through `dotDamage()`; ailment rolls use the match's seeded random numbers, so replays stay exact. The damage meter credits damage over time to the hero that caused it.
+- To try it, give a relic, talent node or item a modifier such as `{ stat: 'burnChance', type: 'flat', value: 0.25, scope: ['all'] }` together with `fireDamage`.
+
+## Relic luck and interest
+- **Relic luck** (`relicLuck`, from the Four-leaf clover relic) makes rarer relics more likely: each rarity's weight is multiplied by 1 + luck once per step above Common. The relic picker and the Relic button's tooltip show the current odds.
+- With Compound interest, the gold box shows what the next wave clear pays in interest and how much gold earns the full amount.
 
 ## Extending the game
 Everything in combat flows through `hit()` in `js/engine/world.js`, which emits `damage` and `kill` events. Pieces react to events instead of calling each other.

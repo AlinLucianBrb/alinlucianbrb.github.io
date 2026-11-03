@@ -12,7 +12,7 @@ const blocked = w => w.phase === 'over' ? fail('over') : w.picking ? fail('busy'
 
 function drawRelics(w, n, taken) {
   const pool = RELICS.filter(r => !w.banned.has(r.name) && !taken.includes(r.name)), out = [];
-  while (out.length < n && pool.length) out.push({ relic: pool.splice(w.rng.relic.int(pool.length), 1)[0], ri: rollRarity(w.rng.relic.next()) });
+  while (out.length < n && pool.length) out.push({ relic: pool.splice(w.rng.relic.int(pool.length), 1)[0], ri: rollRarity(w.rng.relic.next(), w.gs.relicLuck) });
   return out;
 }
 

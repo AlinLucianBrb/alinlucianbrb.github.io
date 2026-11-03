@@ -1,6 +1,7 @@
 /* All DOM work for the game screen. Values are only written when they change, to avoid needless page updates. */
-import { HEROES, RARITIES, RELICS, STAT_LABELS } from '../content/data.js';
+import { HEROES, RARITIES, RELICS, STAT_LABELS, rarityOdds } from '../content/data.js';
 import { ULTIMATES } from '../engine/ultimates.js';
+import { DAMAGE_LABEL } from '../content/combat.js';
 import { explain, affected } from '../engine/stats.js';
 import { bindTip } from '../core/tooltip.js';
 
@@ -9,6 +10,7 @@ const setText = (el, v) => { v = String(v); if (el._v !== v) { el._v = v; el.tex
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 const f = x => +x.toFixed(2);
 const num = x => Math.round(x).toLocaleString();
+const odd = x => (Math.round(x * 1000) / 10) + '%';   /* odds with one decimal */
 const cap = s => s[0].toUpperCase() + s.slice(1);
 const btns = [], rows = [];
 export const heroButton = i => btns[i];
@@ -41,6 +43,7 @@ export function initUI(callbacks) {
   bindTip($('relic'), () => ({ title: 'Relic', color: '#dcc6ff', lines: [
     'Spend gold to choose 1 of 3 random relics: permanent bonuses for the rest of this run.',
     'Rarer relics are stronger. You can reroll or banish the offers for a little gold.',
+    ...oddsLines(cb.luck ? cb.luck() : 0),
     { text: 'The price goes up with each relic you buy. Key: R', color: '#9db3a3' }] }));
   bindTip($('auto'), () => ({ title: 'Auto-start', lines: ['Starts the next wave by itself 3 seconds after a wave is cleared.', { text: 'Turned off again when you retry a level.', color: '#9db3a3' }] }));
   bindTip($('spd'), () => ({ title: 'Game speed', lines: ['Switch between normal and double speed.'] }));
@@ -59,9 +62,24 @@ export function initUI(callbacks) {
   $('reroll').onclick = () => cb.onReroll();
 }
 
+/* Rarity odds as tooltip lines, e.g. "Odds: Common 55% · Uncommon 28% ...", plus the luck that shaped them. */
+function oddsLines(luck) {
+  const odds = rarityOdds(luck);
+  return [{ text: 'Odds: ' + RARITIES.map((r, i) => r.name + ' ' + odd(odds[i])).join(' · '), color: '#9db3a3' },
+    ...(luck > 0 ? [{ text: 'Relic luck +' + f(luck * 100) + '%', color: '#8be28b' }] : [])];
+}
+
 export function renderHUD(g, v) {
   const sel = v.sel, auto = g.auto;
   setText($('gold'), g.gold); setText($('lives'), g.lives);
+  /* Compound interest: what the next wave clear pays, and how much gold earns the full amount. */
+  const ir = g.gs.interest, icap = g.gs.interestCap, line = $('interest');
+  if (ir > 0 && icap > 0) {
+    const need = Math.ceil(icap / ir), now = Math.min(icap, Math.floor(g.gold * ir));
+    line.hidden = false;
+    setText(line, g.gold >= need ? 'Interest +' + now + ' (full)' : 'Interest +' + now + ' · full at ' + need.toLocaleString());
+    line.classList.toggle('full', g.gold >= need);
+  } else line.hidden = true;
   $('relic').classList.toggle('poor', g.gold < g.relicCost());
   setText($('wave'), g.wave + ' / ' + g.maxWave); setText($('stage'), g.stage.n);
   $('go').disabled = g.phase !== 'build' || g.picking;
@@ -124,9 +142,25 @@ export function renderMeter(g) {
 /* Where a non-relic modifier comes from: ri -1 talent, -2 item, -3 evolution. */
 const SOURCE = { '-1': 'Talent', '-2': 'Item', '-3': 'Evolution' };
 const SOURCE_COLOR = { '-1': '#f2b84b', '-2': '#8be28b', '-3': '#dcc6ff' };
-function describe(m) {
-  const v = m.type === 'inc' ? '+' + f(m.value * 100) + '%' : m.type === 'flat' ? '+' + f(m.value) : '×' + f(1 + m.value);
-  return v + ' · ' + m.source + ' (' + (m.ri >= 0 ? RARITIES[m.ri].name : SOURCE[m.ri] || 'Talent') + ')';
+const pct = x => f(x * 100) + '%';
+/* Stats shown as percentages (chances). */
+const isChance = key => /Chance$/.test(key);
+
+/* Modifiers from the same source (same name, rarity and kind) are shown as one line: two Common Sharpened rounds become
+   "+50% · Sharpened rounds ×2 (Common)". inc and flat values add up; more values multiply. */
+export function stackMods(mods) {
+  const groups = new Map();
+  for (const m of mods) {
+    const k = m.source + '|' + m.ri + '|' + m.type;
+    const g = groups.get(k);
+    if (!g) groups.set(k, { ...m, n: 1 });
+    else { g.n++; g.value = m.type === 'more' ? (1 + g.value) * (1 + m.value) - 1 : g.value + m.value; }
+  }
+  return [...groups.values()];
+}
+function describe(m, key) {
+  const v = m.type === 'inc' ? '+' + pct(m.value) : m.type === 'flat' ? '+' + (isChance(key) ? pct(m.value) : f(m.value)) : '×' + f(1 + m.value);
+  return v + ' · ' + m.source + (m.n > 1 ? ' ×' + m.n : '') + ' (' + (m.ri >= 0 ? RARITIES[m.ri].name : SOURCE[m.ri] || 'Talent') + ')';
 }
 /* The inspector is rebuilt only when the selection, the modifiers or the move state change, so buttons never vanish under a click. */
 export function renderInspector(g, v) {
@@ -138,29 +172,33 @@ export function renderInspector(g, v) {
     box._k = 't'; box._t = t; box._m = g.mods.length; box._mv = moving; box._tier = t.tier; box.textContent = '';
     const d = t.def, head = el('div', 'srow'), title = el('b', '', (t.tier ? '★ ' + d.evolutions[t.tier - 1].name : d.name) + ' · ' + cap(d.archetype)), close = el('button', 'linkbtn', 'Close');
     title.style.color = d.color; close.onclick = cb.onCloseInspector; head.append(title, close); box.append(head);
+    /* The actions come first, so they never move as the stats below change. */
+    const acts = el('div', 'acts top'), mv = el('button', '', moving ? 'Cancel move' : 'Move'), evo = el('button', 'go');
+    mv.onclick = cb.onMove; evo.onclick = cb.onEvolve; acts.append(mv, evo); box.append(acts); box._evo = evo;
+    if (moving) box.append(el('p', 'muted', 'Click a free tile to move it there.'));
     /* Energy and the ultimate. */
     const u = ULTIMATES[d.ultimate], er = el('div', 'srow'), ebar = el('span', 'ebar wide'), efill = el('i');
     ebar.append(efill); er.append(el('span', '', 'Energy'), ebar); box.append(er);
     if (u) box.append(el('div', 'buff', 'When full: ' + u.name + ' (' + u.desc + ')'));
     box._efill = efill; box._ebar = ebar;
+    const all = g.mods.concat(t.mods);
     for (const key in d.stats) {
-      if (key === 'cooldown' || key === 'energyMax' || (key === 'energyPerSecond' && !t.s.energyPerSecond)) continue;
+      if (key === 'cooldown' || key === 'energyMax') continue;
+      if (!t.s[key] && !d.stats[key]) continue;          /* unused stats (most combat stats for now) stay hidden */
       const isRate = key === 'speed';
-      const label = key === 'damage' && d.dps ? 'Damage per second' : STAT_LABELS[key];
+      const label = key === 'damage' ? (d.dps ? 'Damage per second' : 'Damage') + ' (' + DAMAGE_LABEL[d.damageType || 'physical'] + ')' : STAT_LABELS[key] || key;
       const value = isRate ? t.s.speed / t.s.cooldown : t.s[key];
       const base = isRate ? d.stats.speed / d.stats.cooldown : d.stats[key];
-      const row = el('div', 'srow'); row.append(el('span', '', label), el('span', '', f(value) + (f(value) !== f(base) ? '  (base ' + f(base) + ')' : '')));
+      const show = x => (isChance(key) ? pct(x) : f(x));
+      const row = el('div', 'srow'); row.append(el('span', '', label), el('span', '', show(value) + (f(value) !== f(base) ? '  (base ' + show(base) + ')' : '')));
       box.append(row);
-      for (const m of explain(d, key, g.mods.concat(t.mods))) { const line = el('div', 'buff', describe(m)); line.style.color = m.ri >= 0 ? RARITIES[m.ri].color : SOURCE_COLOR[m.ri] || '#f2b84b'; box.append(line); }
+      for (const m of stackMods(explain(d, key, all))) { const line = el('div', 'buff', describe(m, key)); line.style.color = m.ri >= 0 ? RARITIES[m.ri].color : SOURCE_COLOR[m.ri] || '#f2b84b'; box.append(line); }
     }
     box._dealt = el('p', 'muted'); box.append(box._dealt);
-    const acts = el('div', 'acts'), mv = el('button', '', moving ? 'Cancel move' : 'Move'), evo = el('button', 'go');
-    mv.onclick = cb.onMove; evo.onclick = cb.onEvolve; acts.append(mv, evo); box.append(acts); box._evo = evo;
-    if (moving) box.append(el('p', 'muted', 'Click a free tile to move it there.'));
   }
   setText(box._dealt, 'Damage dealt: ' + num(t.dealt) + ' · Kills: ' + t.kills + ' · Ultimates: ' + t.ults);
-  const pct = Math.round(t.energy / t.s.energyMax * 100) + '%';
-  if (box._efill.style.width !== pct) box._efill.style.width = pct;
+  const pctE = Math.round(t.energy / t.s.energyMax * 100) + '%';
+  if (box._efill.style.width !== pctE) box._efill.style.width = pctE;
   box._ebar.classList.toggle('full', t.energy >= t.s.energyMax);
   const cost = g.evolveCost(t), evo = t.def.evolutions[t.tier];
   setText(box._evo, evo ? 'Evolve · ' + cost : 'Fully evolved');
@@ -192,6 +230,13 @@ export function showPick(g) {
 /* Cheap per-frame refresh of prices and disabled states while the picker is open. */
 export function updatePick(g) {
   const c = g.pickCost();
+  const odds = rarityOdds(g.gs.relicLuck), box = $('pickOdds');
+  if (box._luck !== g.gs.relicLuck) {
+    box._luck = g.gs.relicLuck; box.textContent = '';
+    box.append('Odds: ');
+    RARITIES.forEach((r, i) => { const sp = el('span', '', r.name + ' ' + odd(odds[i])); sp.style.color = r.color; if (i) box.append(' · '); box.append(sp); });
+    if (g.gs.relicLuck > 0) box.append(' (luck +' + f(g.gs.relicLuck * 100) + '%)');
+  }
   setText($('reroll'), 'Reroll all · ' + c); $('reroll').disabled = g.gold < c;
   setText($('pickGold'), 'Gold: ' + g.gold);
   banishBtns.forEach(b => { setText(b, 'Banish · ' + c); b.disabled = g.gold < c; });
