@@ -16,9 +16,11 @@ export default {
 
     /* Every run is registered with the server when it starts; the server only accepts a result for a run it saw begin. */
     async function register() {
-      let r = await startRun(stage);
-      if (r.error && /slow down/i.test(r.error)) { await wait(2100); r = await startRun(stage); }
-      runId = r.id; return r;
+      try {
+        let r = await startRun(stage);
+        if (r.error && /slow down/i.test(r.error)) { await wait(2100); r = await startRun(stage); }
+        runId = r.id; return r;
+      } catch (e) { runId = null; return { error: 'no connection to the server' }; }   /* the game still plays; only saving is affected */
     }
     async function onRunEnd({ waves, kills, won }) {
       const s = await starting;

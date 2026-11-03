@@ -64,6 +64,10 @@ function frame(now) {
     if (performance.now() > deadline) break;
   }
   if (hidden) return;
+  try { render(real); } catch (err) { if (!drawErr) { drawErr = true; console.error('Drawing failed (the game keeps running):', err); } }
+}
+let drawErr = false;
+function render(real) {
   if (v.selected && !w.heroes.includes(v.selected)) { v.selected = v.moving = null; ui.renderInspector(w, v); }
   tickBeams(v.vfx, real * v.speed); tickSlashes(v.vfx, real * v.speed);
   draw(ctx, w, v);
@@ -71,7 +75,7 @@ function frame(now) {
   if (w.picking) ui.updatePick(w);
   if ((uiT += real) >= 0.25) { uiT = 0; ui.renderMeter(w); if (v.selected) ui.renderInspector(w, v); }
 }
-function loopRaf(t) { frame(t); raf = requestAnimationFrame(loopRaf); }
+function loopRaf(t) { raf = requestAnimationFrame(loopRaf); frame(t); }   /* next frame is booked first, so an error can never stop the loop */
 function startBg() {
   if (bgWorker || bgTimer) return;
   try {

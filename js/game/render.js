@@ -62,7 +62,7 @@ function poly(ctx, x, y, r, n, rot) {
 
 export function draw(ctx, g, view) {
   ctx.setTransform(view.scale, 0, 0, view.scale, 0, 0);
-  ctx.drawImage(g.bg, 0, 0, COLS * T, ROWS * T);
+  ctx.drawImage(view.bg, 0, 0, COLS * T, ROWS * T);
   const h = view.hover;
   if (h && !g.pathSet.has(h[0] + ',' + h[1]) && !g.heroes.some(t => t.cx === h[0] && t.cy === h[1])) {
     const mv = view.moving, range = mv ? mv.s.range : g.previewRange(view.sel);
