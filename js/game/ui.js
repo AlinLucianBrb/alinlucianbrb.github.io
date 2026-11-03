@@ -152,15 +152,16 @@ const pct = x => f(x * 100) + '%';
 const isChance = key => /Chance$/.test(key);
 
 /* Bonuses from the same source are shown as one line, whatever their rarity: a Common and a Rare Sharpened rounds become
-   "+100% · Sharpened rounds ×2 (Relic)". inc and flat values add up; more values multiply. The line takes the colour of the
-   rarest copy. */
+   "+100% · Sharpened rounds ×2 (Relic)". All talent nodes count as one source, "Talents". inc and flat values add up;
+   more values multiply. The line takes the colour of the rarest copy. */
 const kindOf = ri => (ri >= 0 ? 'relic' : String(ri));
+const sourceOf = m => (m.ri === -1 ? 'Talents' : m.source);
 export function stackMods(mods) {
   const groups = new Map();
   for (const m of mods) {
-    const k = m.source + '|' + kindOf(m.ri) + '|' + m.type;
+    const k = sourceOf(m) + '|' + kindOf(m.ri) + '|' + m.type;
     const g = groups.get(k);
-    if (!g) groups.set(k, { ...m, n: 1 });
+    if (!g) groups.set(k, { ...m, source: sourceOf(m), n: 1 });
     else {
       g.n++; g.value = m.type === 'more' ? (1 + g.value) * (1 + m.value) - 1 : g.value + m.value;
       if (m.ri > g.ri) g.ri = m.ri;
@@ -170,6 +171,7 @@ export function stackMods(mods) {
 }
 function describe(m, key) {
   const v = m.type === 'inc' ? '+' + pct(m.value) : m.type === 'flat' ? '+' + (isChance(key) ? pct(m.value) : f(m.value)) : '×' + f(1 + m.value);
+  if (m.ri === -1) return v + ' · Talents' + (m.n > 1 ? ' ×' + m.n : '');   /* the name already says where it comes from */
   return v + ' · ' + m.source + (m.n > 1 ? ' ×' + m.n : '') + ' (' + (m.ri >= 0 ? 'Relic' : SOURCE[m.ri] || 'Talent') + ')';
 }
 /* The inspector is rebuilt only when the selection, the modifiers or the move state change, so buttons never vanish under a click. */
