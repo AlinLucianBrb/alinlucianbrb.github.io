@@ -151,8 +151,8 @@ export function renderMeter(g) {
 }
 
 /* Where a non-relic modifier comes from: ri -1 talent, -2 item, -3 evolution. */
-const SOURCE = { '-1': 'Talent', '-2': 'Item', '-3': 'Evolution', '-4': 'Level' };
-const SOURCE_COLOR = { '-1': '#f2b84b', '-2': '#8be28b', '-3': '#dcc6ff', '-4': '#8fd3ff' };
+const SOURCE = { '-1': 'Talent', '-2': 'Item', '-3': 'Evolution', '-4': 'Level', '-5': 'Buff' };
+const SOURCE_COLOR = { '-1': '#f2b84b', '-2': '#8be28b', '-3': '#dcc6ff', '-4': '#8fd3ff', '-5': '#ff9d8a' };
 const pct = x => f(x * 100) + '%';
 /* Stats shown as percentages (chances). */
 const isChance = key => /Chance$/.test(key);
@@ -188,8 +188,9 @@ export function renderInspector(g, v) {
   if (!t) { box._k = 'none'; box._t = null; return; }
   const moving = v.moving === t;
   const picking = !!v.evoPick;
-  if (box._t !== t || box._m !== g.mods.length || box._mv !== moving || box._tier !== t.tier || box._lv !== t.level || box._pk !== picking) {
-    box._k = 't'; box._t = t; box._m = g.mods.length; box._mv = moving; box._tier = t.tier; box._lv = t.level; box._pk = picking; box.textContent = '';
+  const bk = (t.buffs || []).map(b => b.id).join(',');   /* rebuild when a buff starts or ends */
+  if (box._t !== t || box._m !== g.mods.length || box._mv !== moving || box._tier !== t.tier || box._lv !== t.level || box._pk !== picking || box._bk !== bk) {
+    box._k = 't'; box._t = t; box._m = g.mods.length; box._mv = moving; box._tier = t.tier; box._lv = t.level; box._pk = picking; box._bk = bk; box.textContent = '';
     const d = t.def, head = el('div', 'srow'), title = el('b', '', (t.tier ? '★ ' : '') + d.name + ' · ' + cap(d.archetype)), close = el('button', 'linkbtn', 'Close');
     title.style.color = d.color; close.onclick = cb.onCloseInspector; head.append(title, close); box.append(head);
     /* The actions come first, so they never move as the stats below change. */
@@ -224,7 +225,7 @@ export function renderInspector(g, v) {
     ebar.append(efill); er.append(el('span', '', 'Energy'), ebar); box.append(er);
     if (u) box.append(el('div', 'buff', 'When full: ' + u.name + ' (' + u.desc + ')'));
     box._efill = efill; box._ebar = ebar;
-    const all = g.mods.concat(t.mods, t.lvlMods || []);
+    const all = g.mods.concat(t.mods, t.lvlMods || [], ...(t.buffs || []).map(b => b.mods));
     for (const key in d.stats) {
       if (key === 'cooldown' || key === 'energyMax') continue;
       if (!t.s[key] && !d.stats[key]) continue;          /* unused stats (most combat stats for now) stay hidden */

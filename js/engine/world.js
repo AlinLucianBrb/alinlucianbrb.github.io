@@ -17,7 +17,7 @@ import { attackMult, gainEnergy } from './ultimates.js';
 import { gainXp } from './levels.js';
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
-export const ENGINE_VERSION = 9;     /* bump when a rule change would make old command logs play out differently */
+export const ENGINE_VERSION = 10;     /* bump when a rule change would make old command logs play out differently */
 
 function genPath(rng) {
   let x = 0, y = 1 + rng.int(ROWS - 2); const p = [[x, y]];
@@ -71,6 +71,7 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
     for (const h of w.heroes) gainXp(w, h, enemy.def.xp || 0);   /* every hero on the field learns from every kill */
   });
   w.statsFor = h => statsFor(w, h);
+  w.addBuff = (h, id, name, mods, seconds) => addBuff(w, h, id, name, mods, seconds);
   w.ev.on('escape', ({ enemy }) => { w.lives = Math.max(0, w.lives - enemy.def.leak); if (w.lives <= 0) endRun(w, false); });
   recalc(w);
   return w;
@@ -86,6 +87,22 @@ export function hit(w, hero, e, amount, type = 'physical') {
   if (e.hp <= 0) { e.dead = true; w.ev.emit('kill', { hero: hero || e.last, enemy: e }); }
 }
 
+/* Timed buffs on a hero (Frenzy, Rally): { id, name, mods, t }. Giving a buff the hero already has refreshes it instead
+   of stacking. Stats are recomputed when a buff starts or ends. */
+export function addBuff(w, h, id, name, mods, seconds) {
+  const list = (h.buffs ||= []), cur = list.find(b => b.id === id);
+  if (cur) { cur.t = Math.max(cur.t, seconds); return; }
+  list.push({ id, name, t: seconds, mods: mods.map(m => ({ ...m, scope: ['all'], source: name, ri: -5 })) });
+  statsFor(w, h);
+}
+function tickBuffs(w, h, dt) {
+  if (!h.buffs || !h.buffs.length) return;
+  let changed = false, j = 0;
+  for (const b of h.buffs) { if ((b.t -= dt) > 0) h.buffs[j++] = b; else changed = true; }
+  h.buffs.length = j;
+  if (changed) statsFor(w, h);
+}
+
 /* Recomputes cached numbers after anything that changes modifiers (relics, talents at start). */
 export function recalc(w) {
   w.gs = {
@@ -95,9 +112,10 @@ export function recalc(w) {
   };
   for (const h of w.heroes) statsFor(w, h);
 }
-/* A hero's stats: the shared modifiers (talents, items, relics) plus its own (evolutions, level). */
+/* A hero's stats: the shared modifiers (talents, items, relics) plus its own (evolutions, level, timed buffs). */
 export function statsFor(w, h) {
-  const own = h.lvlMods && h.lvlMods.length ? h.mods.concat(h.lvlMods) : h.mods;
+  let own = h.lvlMods && h.lvlMods.length ? h.mods.concat(h.lvlMods) : h.mods;
+  if (h.buffs && h.buffs.length) for (const b of h.buffs) own = own.concat(b.mods);
   h.s = heroStats(h.def, own.length ? w.mods.concat(own) : w.mods);
   if (h.energy > h.s.energyMax) h.energy = h.s.energyMax;
   return h.s;
@@ -133,6 +151,7 @@ export function step(w) {
   }
   updateEnemies(w, STEP);
   for (const h of w.heroes) {
+    tickBuffs(w, h, STEP);
     if (h.s.energyPerSecond > 0 && w.phase === 'wave') gainEnergy(h, h.s.energyPerSecond * STEP);
     BEHAVIORS[h.def.kind].update(w, h, STEP);
   }

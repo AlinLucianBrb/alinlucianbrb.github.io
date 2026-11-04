@@ -34,9 +34,16 @@ export const LINEUP_SIZE = 3;
 export const HEROES = [
   { id: 'warrior', name: 'Warrior', archetype: 'melee', kind: 'swing', damageType: 'physical', color: '#c7ced6', shape: [5, -Math.PI / 2], tags: ['melee', 'physical'],
     stats: withEnergy({ damage: 28, range: 60, cooldown: 0.8, speed: 1, arc: 120 }), ultimate: 'empowered',
-    evolutions: [{ level: 10, cost: 150, choices: [{ id: 'veteranwarrior', name: 'Veteran Warrior', mods: plus50, short: '+50% damage, range and attack speed.' }] }],
-    desc: 'Warrior (melee): swings at close range, hitting every enemy in the arc.',
-    short: 'Swings a blade at close range, hitting every enemy in front of him.' },
+    evolutions: [{ level: 10, cost: 150, choices: [
+      { id: 'berserker', name: 'Berserker', color: '#e5645a', kind: 'doubleswing', ultimate: 'frenzy', mods: [...plus50, always('bleedChance')],
+        short: 'Swings twice in quick succession, and every hit makes enemies bleed.', ultShort: 'Frenzy: +50% damage and attack speed for 5 seconds.' },
+      { id: 'commander', name: 'Commander', color: '#7fb3ff', kind: 'launch', ultimate: 'rally', stats: { range: 110 }, mods: plus50,
+        short: 'Launches the sword forward, hitting every enemy in its way.', ultShort: 'Rally: doubles energy from attacks for nearby heroes (and himself) for 5 seconds.' },
+      { id: 'sentinel', name: 'Sentinel', color: '#c9b37e', ultimate: 'barricade', mods: plus50,
+        short: 'The same swing, and a barricade to hold the line.', ultShort: 'Barricade: blocks the path, stopping enemies for 1 second.' }
+    ] }],
+    desc: 'Warrior (melee): swings at close range, hitting every enemy in the arc. Evolves into a Berserker, Commander or Sentinel.',
+    short: 'Swings a blade at close range, hitting every enemy in front of him. At level 10, choose a path.' },
   { id: 'ranger', name: 'Ranger', archetype: 'range', kind: 'bolt', projLook: 'arrow', projSpeed: 620, damageType: 'physical', color: '#f2b84b', shape: [0, 0],
     tags: ['range', 'projectile', 'physical'],
     stats: withEnergy({ damage: 16, range: 120, cooldown: 0.5, speed: 1 }), ultimate: 'empowered',

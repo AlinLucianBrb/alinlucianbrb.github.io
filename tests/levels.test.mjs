@@ -50,5 +50,5 @@ test('heroes reach level 10 during a normal level 1, and can then evolve with en
   assert.ok(w.wave >= 6 && w.wave <= 13, 'around the middle of the level (wave ' + w.wave + ')');
   assert.ok(w.heroes.every(h => h.level === 10), 'all three level together');
   while (w.gold < 150 && w.phase !== 'over') step(w);
-  assert.ok(apply(w, { type: 'evolve', id: war.id }).ok);
+  assert.ok(apply(w, { type: 'evolve', id: war.id, choice: 0 }).ok);
 });

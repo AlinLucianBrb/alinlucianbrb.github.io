@@ -40,24 +40,63 @@ const charge = (g, t) => { if (t.ultNow) { t.ultNow = false; return; } if (g.gai
 /* Ultimates look different: brighter and thicker. */
 const look = (t, mult) => (mult > 1 ? '#fff6c8' : t.def.color);
 
+/* One swing: hits every enemy inside the arc and range, facing the target. */
+function swingAt(g, t, tg, mult, ttl) {
+  const ang = Math.atan2(tg.y - t.y, tg.x - t.x), half = Math.min(Math.PI, t.s.arc * Math.PI / 360), r2 = t.s.range * t.s.range;
+  for (const e of g.enemies) {
+    if (e.dead) continue;
+    const dx = e.x - t.x, dy = e.y - t.y;
+    if (dx * dx + dy * dy > r2) continue;
+    let da = Math.abs(Math.atan2(dy, dx) - ang);
+    if (da > Math.PI) da = 2 * Math.PI - da;
+    if (da <= half) g.attack(t, e, mult);
+  }
+  g.fx?.slash(t.x, t.y, ang, half, t.s.range, ttl, look(t, mult));
+}
+
 registerBehavior('swing', {
   update(g, t, dt) {
     if (!ready(t, dt)) return;
     const tg = pickTarget(g, t, t.s.range);
     if (!tg) return;
-    const ang = Math.atan2(tg.y - t.y, tg.x - t.x), half = Math.min(Math.PI, t.s.arc * Math.PI / 360), r2 = t.s.range * t.s.range;
     const mult = strike(g, t, tg);
     if (mult === 0) { rearm(t); charge(g, t); return; }
-    for (const e of g.enemies) {
-      if (e.dead) continue;
-      const dx = e.x - t.x, dy = e.y - t.y;
-      if (dx * dx + dy * dy > r2) continue;
-      let da = Math.abs(Math.atan2(dy, dx) - ang);
-      if (da > Math.PI) da = 2 * Math.PI - da;
-      if (da <= half) g.attack(t, e, mult);
-    }
+    swingAt(g, t, tg, mult, mult > 1 ? 0.35 : 0.2);
     rearm(t); charge(g, t);
-    g.fx?.slash(t.x, t.y, ang, half, t.s.range, mult > 1 ? 0.35 : 0.2, look(t, mult));
+  }
+});
+
+/* Berserker: two swings in quick succession (the second 0.15 s after the first). Together they count as one attack for energy. */
+export const DOUBLE_SWING_GAP = 0.15;
+registerBehavior('doubleswing', {
+  update(g, t, dt) {
+    if (t.second > 0 && (t.second -= dt) <= 0) {
+      const tg = pickTarget(g, t, t.s.range);
+      if (tg) swingAt(g, t, tg, t.secondMult || 1, 0.16);
+    }
+    if (!ready(t, dt)) return;
+    const tg = pickTarget(g, t, t.s.range);
+    if (!tg) return;
+    const mult = strike(g, t, tg);
+    if (mult === 0) { rearm(t); charge(g, t); return; }
+    swingAt(g, t, tg, mult, 0.16);
+    t.second = DOUBLE_SWING_GAP; t.secondMult = mult;
+    rearm(t); charge(g, t);
+  }
+});
+
+/* Commander: launches the sword in a straight line toward the target, out to its range, hitting every enemy in the way once. */
+registerBehavior('launch', {
+  update(g, t, dt) {
+    if (!ready(t, dt)) return;
+    const tg = pickTarget(g, t, t.s.range);
+    if (!tg) return;
+    const mult = strike(g, t, tg);
+    if (mult === 0) { rearm(t); charge(g, t); return; }
+    const len = Math.hypot(tg.x - t.x, tg.y - t.y) || 1;
+    g.projs.push({ type: 'sword', owner: t, x: t.x, y: t.y, dx: (tg.x - t.x) / len, dy: (tg.y - t.y) / len, dist: 0, max: t.s.range + 20,
+      hit: new Set(), scale: mult, color: look(t, mult) });
+    rearm(t); charge(g, t);
   }
 });
 

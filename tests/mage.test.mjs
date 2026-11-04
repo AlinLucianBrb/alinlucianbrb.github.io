@@ -38,10 +38,10 @@ test('the Mage offers three evolutions; a choice is required and is recorded', (
   assert.equal(apply(w, { type: 'evolve', id: h.id, choice: 0 }).reason, 'fully evolved');
 });
 
-test('Warrior and Ranger still evolve without a choice', () => {
+test('every hero now offers three evolutions, so a choice is always needed', () => {
+  for (const h of HEROES) assert.equal(h.evolutions[0].choices.length, 3, h.id);
   const w = richWorld(), war = place(w, 'warrior', ...tilesNearPath(w, 1)[0]); war.level = 10;
-  assert.ok(apply(w, { type: 'evolve', id: war.id }).ok);
-  assert.equal(war.def.name, 'Veteran Warrior');
+  assert.equal(apply(w, { type: 'evolve', id: war.id }).reason, 'choose an evolution');
 });
 
 test('each element changes the damage type, keeps +50% stats, and adds its on-hit effect', () => {

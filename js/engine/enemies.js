@@ -37,7 +37,10 @@ export function updateEnemies(g, dt) {
   const end = g.path.length - 1.001;
   for (const e of g.enemies) {
     if (e.dead) continue;
+    const before = e.d;
     e.d += e.speed * tickEffects(g, e, dt) * dt;
+    /* A barricade (zones.js) stops enemies that reach it; enemies already past it keep going. */
+    if (g.zones) for (const z of g.zones) if (z.type === 'barrier' && before <= z.d && e.d > z.d) e.d = z.d;
     const i = e.d / T;
     if (i >= end) { e.dead = true; e.escaped = true; g.ev.emit('escape', { enemy: e }); continue; }
     pathPos(g.path, i, e);

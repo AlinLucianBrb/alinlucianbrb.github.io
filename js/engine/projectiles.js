@@ -13,6 +13,19 @@ export const PROJECTILES = {
       return true;
     }
   },
+  /* Commander's thrown sword: flies straight out to the Commander's range, hitting every enemy it passes once. */
+  sword: {
+    update(g, p, dt) {
+      const step = 520 * dt;
+      p.x += p.dx * step; p.y += p.dy * step; p.dist += step;
+      for (const e of g.enemies) {
+        if (e.dead || p.hit.has(e)) continue;
+        const ex = e.x - p.x, ey = e.y - p.y;
+        if (ex * ex + ey * ey <= (e.def.radius + 10) ** 2) { p.hit.add(e); g.attack(p.owner, e, p.scale); }
+      }
+      return p.dist < p.max;
+    }
+  },
   /* Marksman's piercing shot: charges at the Ranger, then flies straight on, hitting every enemy it passes once. */
   pierce: {
     update(g, p, dt) {

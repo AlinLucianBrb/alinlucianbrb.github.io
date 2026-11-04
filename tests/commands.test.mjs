@@ -34,19 +34,19 @@ test('items apply to the hero wearing them, only if that hero is in the lineup',
   assert.deepEqual(createWorld({ seed: 1, lineup: ['ranger'], items: { warrior: 'power_charm' } }).items, {}, 'items on heroes left at home are ignored');
 });
 
-test('evolving needs level 10 and costs gold, gives +50% damage, range and attack speed, and only once for now', () => {
+test('evolving needs level 10 and costs gold, gives +50% damage, range and attack speed, and only once for now (Warrior to Sentinel)', () => {
   const w = richWorld(), [t] = tilesNearPath(w, 1), h = place(w, 'warrior', ...t);
-  assert.equal(apply(w, { type: 'evolve', id: h.id }).reason, 'level', 'a fresh hero is level 1');
+  assert.equal(apply(w, { type: 'evolve', id: h.id, choice: 2 }).reason, 'level', 'a fresh hero is level 1');
   h.level = 10;   /* test only: skip the XP (levels are tested in levels.test.mjs) */
   const before = { ...h.s }, g = w.gold;
   assert.equal(w.evolveCost(h), 150);
-  assert.ok(apply(w, { type: 'evolve', id: h.id }).ok);
+  assert.ok(apply(w, { type: 'evolve', id: h.id, choice: 2 }).ok);
   assert.equal(g - w.gold, 150); assert.equal(h.tier, 1);
   assert.equal(h.s.damage, before.damage * 1.5); assert.equal(h.s.range, before.range * 1.5); assert.equal(h.s.speed, before.speed * 1.5);
-  assert.equal(apply(w, { type: 'evolve', id: h.id }).reason, 'fully evolved');
+  assert.equal(apply(w, { type: 'evolve', id: h.id, choice: 2 }).reason, 'fully evolved');
   assert.equal(w.evolveCost(h), null);
   const w2 = createWorld({ seed: 1 }), h2 = place(w2, 'warrior', ...tilesNearPath(w2, 1)[0]); h2.level = 10;
-  assert.equal(apply(w2, { type: 'evolve', id: h2.id }).reason, 'gold');
+  assert.equal(apply(w2, { type: 'evolve', id: h2.id, choice: 2 }).reason, 'gold');
   assert.equal(apply(w2, { type: 'evolve', id: 99 }).reason, 'no such hero');
 });
 
@@ -57,7 +57,7 @@ test('evolution stacks with relics and Bulk order makes it cheaper', () => {
   w.mods.push(...RELICS.find(r => r.name === 'Sharpened rounds').mods(1).map(m => ({ ...m, source: 'x', ri: 0 })));
   recalc(w);
   assert.equal(w.evolveCost(h), Math.round(150 * (1 - 0.15 * 2)), 'Uncommon Bulk order: -30%');
-  apply(w, { type: 'evolve', id: h.id });
+  apply(w, { type: 'evolve', id: h.id, choice: 2 });
   assert.equal(h.s.damage, 28 * (1 + 0.25 + 0.03 * 9) * 1.5, 'relic and level bonuses add up, then evolution multiplies');
 });
 

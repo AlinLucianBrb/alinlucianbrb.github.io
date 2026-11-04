@@ -37,6 +37,9 @@ ZONES.trap = {
   }
 };
 
+/* Sentinel's barricade: blocks the path at progress d (see updateEnemies in enemies.js) until it runs out. */
+ZONES.barrier = { update(g, z, dt) { return (z.t -= dt) > 0; } };
+
 export function updateZones(g, dt) {
   const list = g.zones; if (!list || !list.length) return;
   let j = 0;

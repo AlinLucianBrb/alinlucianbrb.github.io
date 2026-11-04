@@ -73,3 +73,28 @@ registerUltimate('traps', { name: 'Toxic traps', desc: 'Lays 3 traps on the path
     const mine = w.zones.filter(z => z.type === 'trap' && z.owner === h);
     for (let k = 0; k < mine.length - TRAP.max; k++) mine[k].t = 0;
   } });
+
+/* Berserker: Frenzy, +50% damage and attack speed for 5 seconds (more, so it multiplies everything else). */
+export const FRENZY = { seconds: 5, mods: [{ stat: 'damage', type: 'more', value: 0.5 }, { stat: 'speed', type: 'more', value: 0.5 }] };
+registerUltimate('frenzy', { name: 'Frenzy', desc: '+50% damage and attack speed for 5 seconds.', damageMult: 1,
+  onFire(w, h) { w.addBuff(h, 'frenzy', 'Frenzy', FRENZY.mods, FRENZY.seconds); } });
+
+/* Commander: Rally, doubles the energy every hero within 220 px (the Commander too) gets from attacks, for 5 seconds. */
+export const RALLY = { seconds: 5, radius: 220, mods: [{ stat: 'energyPerAttack', type: 'inc', value: 1 }] };
+registerUltimate('rally', { name: 'Rally', desc: 'Doubles energy from attacks for nearby heroes, the Commander included, for 5 seconds.', damageMult: 1,
+  onFire(w, h) {
+    for (const o of w.heroes) if ((o.x - h.x) ** 2 + (o.y - h.y) ** 2 <= RALLY.radius ** 2) w.addBuff(o, 'rally', 'Rally', RALLY.mods, RALLY.seconds);
+    w.fx?.slash(h.x, h.y, 0, Math.PI, RALLY.radius, 0.5, '#7fb3ff');
+  } });
+
+/* Sentinel: Barricade, blocks the path for 1 second right in front of the enemy the Sentinel is attacking, so that enemy
+   and everything behind it stop at once. (Placed further ahead it would block nothing: enemies cover about 50 px a second.) */
+export const BARRICADE = { seconds: 1, ahead: 4 };
+registerUltimate('barricade', { name: 'Barricade', desc: 'Blocks the path in front of the enemies, stopping them for 1 second.', damageMult: 1,
+  onFire(w, h, target) {
+    if (!target) return;
+    const d = Math.min(target.d + BARRICADE.ahead, (w.path.length - 1.01) * T), i = d / T, k = Math.floor(i), f = i - k;
+    const a = w.path[k], b = w.path[k + 1] || a;
+    w.zones.push({ type: 'barrier', owner: h, d, x: (a[0] + 0.5 + (b[0] - a[0]) * f) * T, y: (a[1] + 0.5 + (b[1] - a[1]) * f) * T,
+      r: T / 2, t: BARRICADE.seconds });
+  } });

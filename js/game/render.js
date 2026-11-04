@@ -31,6 +31,14 @@ const PROJ_DRAW = {
     ctx.beginPath(); ctx.moveTo(p.x - p.dx * 30, p.y - p.dy * 30); ctx.lineTo(p.x, p.y); ctx.stroke();
   },
   orbit(ctx, p) { PROJ_DRAW.boomerang(ctx, p); },
+  /* Commander's sword: a blade with a crossguard, pointing where it flies. */
+  sword(ctx, p) {
+    const hx = p.x, hy = p.y, bx = hx - p.dx * 22, by = hy - p.dy * 22;
+    ctx.strokeStyle = p.color; ctx.lineWidth = 4; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(hx, hy); ctx.stroke();
+    ctx.strokeStyle = '#8a6b3a'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(bx - p.dy * 7, by + p.dx * 7); ctx.lineTo(bx + p.dy * 7, by - p.dx * 7); ctx.stroke();
+  },
   boomerang(ctx, p) {
     ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
     ctx.strokeStyle = '#8be28b'; ctx.lineWidth = 5; ctx.lineCap = 'round';
@@ -71,6 +79,14 @@ const ZONE_DRAW = {
     ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, 7);
     ctx.fillStyle = 'rgba(255,228,92,' + (0.1 * a) + ')'; ctx.fill();
     ctx.setLineDash([8, 6]); ctx.strokeStyle = 'rgba(255,228,92,' + (0.7 * a) + ')'; ctx.lineWidth = 2; ctx.stroke(); ctx.setLineDash([]);
+  },
+  /* The Sentinel's barricade: a wooden wall across the path tile. */
+  barrier(ctx, z) {
+    ctx.globalAlpha = Math.min(1, z.t * 4);
+    ctx.fillStyle = '#6b4f2a'; ctx.fillRect(z.x - 16, z.y - 18, 32, 36);
+    ctx.strokeStyle = '#c9b37e'; ctx.lineWidth = 2; ctx.strokeRect(z.x - 16, z.y - 18, 32, 36);
+    ctx.beginPath(); for (const k of [-6, 6]) { ctx.moveTo(z.x - 16, z.y + k); ctx.lineTo(z.x + 16, z.y + k); } ctx.stroke();
+    ctx.globalAlpha = 1;
   },
   /* The Hunter's trap: a green spiked ring on the path. */
   trap(ctx, z) {
@@ -176,6 +192,11 @@ export function draw(ctx, g, v) {
       ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
     }
     const full = t.energy >= t.s.energyMax;
+    /* Timed buffs: a red ring for Frenzy, a blue one for Rally. */
+    if (t.buffs) t.buffs.forEach((b, i) => {
+      ctx.beginPath(); ctx.arc(t.x, t.y, 24 + i * 4, 0, 7);
+      ctx.strokeStyle = b.id === 'frenzy' ? 'rgba(229,100,90,.85)' : 'rgba(127,179,255,.85)'; ctx.lineWidth = 2.5; ctx.stroke();
+    });
     if (full) {                            /* ultimate ready: a soft gold glow */
       ctx.beginPath(); ctx.arc(t.x, t.y, 21, 0, 7); ctx.fillStyle = 'rgba(255,216,74,.28)'; ctx.fill();
     }
