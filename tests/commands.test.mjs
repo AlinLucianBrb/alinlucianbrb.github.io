@@ -35,7 +35,7 @@ test('items apply to the hero wearing them, only if that hero is in the lineup',
 });
 
 test('evolving needs level 10 and costs gold, gives +50% damage, range and attack speed, and only once for now', () => {
-  const w = richWorld(), [t] = tilesNearPath(w, 1), h = place(w, 'ranger', ...t);
+  const w = richWorld(), [t] = tilesNearPath(w, 1), h = place(w, 'warrior', ...t);
   assert.equal(apply(w, { type: 'evolve', id: h.id }).reason, 'level', 'a fresh hero is level 1');
   h.level = 10;   /* test only: skip the XP (levels are tested in levels.test.mjs) */
   const before = { ...h.s }, g = w.gold;
@@ -45,7 +45,7 @@ test('evolving needs level 10 and costs gold, gives +50% damage, range and attac
   assert.equal(h.s.damage, before.damage * 1.5); assert.equal(h.s.range, before.range * 1.5); assert.equal(h.s.speed, before.speed * 1.5);
   assert.equal(apply(w, { type: 'evolve', id: h.id }).reason, 'fully evolved');
   assert.equal(w.evolveCost(h), null);
-  const w2 = createWorld({ seed: 1 }), h2 = place(w2, 'ranger', ...tilesNearPath(w2, 1)[0]); h2.level = 10;
+  const w2 = createWorld({ seed: 1 }), h2 = place(w2, 'warrior', ...tilesNearPath(w2, 1)[0]); h2.level = 10;
   assert.equal(apply(w2, { type: 'evolve', id: h2.id }).reason, 'gold');
   assert.equal(apply(w2, { type: 'evolve', id: 99 }).reason, 'no such hero');
 });

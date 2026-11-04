@@ -23,7 +23,7 @@ test('replay covers every command type: place, move, evolve, reroll, banish, cho
   apply(w, { type: 'wave' });
   apply(w, { type: 'auto', on: true });
   while ((w.gold < 260 || w.heroes[0].level < 10) && w.phase !== 'over') step(w);   /* earn the gold and the level by playing */
-  assert.ok(apply(w, { type: 'evolve', id: a }).ok);
+  assert.ok(apply(w, { type: 'evolve', id: a, choice: 2 }).ok);   /* the Ranger becomes a Hunter */
   assert.ok(apply(w, { type: 'buyRelic' }).ok);
   assert.ok(apply(w, { type: 'reroll' }).ok);
   assert.ok(apply(w, { type: 'banish', index: 2 }).ok);

@@ -7,9 +7,30 @@ const MAP_W = COLS * T, MAP_H = ROWS * T;
 /* How each projectile type looks (the engine only simulates them). */
 const PROJ_DRAW = {
   bolt(ctx, p) {
+    if (p.look === 'arrow') {                 /* a shaft with a head, pointing where it flies */
+      const L = p.size > 5 ? 20 : 14, hx = p.x, hy = p.y, tx = hx - p.dx * L, ty = hy - p.dy * L;
+      ctx.strokeStyle = p.color; ctx.lineWidth = p.size > 5 ? 3.5 : 2; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(hx, hy); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(hx - p.dx * 6 - p.dy * 4, hy - p.dy * 6 + p.dx * 4);
+      ctx.lineTo(hx - p.dx * 6 + p.dy * 4, hy - p.dy * 6 - p.dx * 4); ctx.closePath(); ctx.fillStyle = p.color; ctx.fill();
+      return;
+    }
     ctx.beginPath(); ctx.arc(p.x, p.y, p.size + 4, 0, 7); ctx.fillStyle = 'rgba(255,255,255,.15)'; ctx.fill();
     ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, 7); ctx.fillStyle = p.color; ctx.fill();
   },
+  /* Charging: a growing glow on the Marksman; flying: a long bright streak. */
+  pierce(ctx, p) {
+    if (p.charge > 0) {
+      const k = 1 - p.charge / 0.35;
+      ctx.beginPath(); ctx.arc(p.x, p.y, 8 + 14 * k, 0, 7); ctx.fillStyle = 'rgba(255,246,200,' + (0.25 + 0.4 * k) + ')'; ctx.fill();
+      return;
+    }
+    ctx.strokeStyle = '#fff6c8'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(p.x - p.dx * 46, p.y - p.dy * 46); ctx.lineTo(p.x, p.y); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,215,106,.45)'; ctx.lineWidth = 11;
+    ctx.beginPath(); ctx.moveTo(p.x - p.dx * 30, p.y - p.dy * 30); ctx.lineTo(p.x, p.y); ctx.stroke();
+  },
+  orbit(ctx, p) { PROJ_DRAW.boomerang(ctx, p); },
   boomerang(ctx, p) {
     ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
     ctx.strokeStyle = '#8be28b'; ctx.lineWidth = 5; ctx.lineCap = 'round';
@@ -41,6 +62,26 @@ export function tickSlashes(vfx, dt) {
   for (let i = 0; i < list.length; i++) { const s = list[i]; if ((s.t -= dt) > 0) list[j++] = s; else spool.push(s); }
   list.length = j;
 }
+
+/* How each zone type looks. */
+const ZONE_DRAW = {
+  /* The Lightning Mage's storm: a flickering circle that fades as it ends. */
+  storm(ctx, z) {
+    const a = Math.min(1, z.t) * (0.75 + 0.25 * Math.sin(z.t * 40));
+    ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, 7);
+    ctx.fillStyle = 'rgba(255,228,92,' + (0.1 * a) + ')'; ctx.fill();
+    ctx.setLineDash([8, 6]); ctx.strokeStyle = 'rgba(255,228,92,' + (0.7 * a) + ')'; ctx.lineWidth = 2; ctx.stroke(); ctx.setLineDash([]);
+  },
+  /* The Hunter's trap: a green spiked ring on the path. */
+  trap(ctx, z) {
+    ctx.beginPath(); ctx.arc(z.x, z.y, 9, 0, 7); ctx.fillStyle = 'rgba(30,50,20,.85)'; ctx.fill();
+    ctx.strokeStyle = '#7ad04b'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; ctx.moveTo(z.x + Math.cos(a) * 9, z.y + Math.sin(a) * 9); ctx.lineTo(z.x + Math.cos(a) * 14, z.y + Math.sin(a) * 14); }
+    ctx.stroke();
+    ctx.beginPath(); ctx.arc(z.x, z.y, 3.5, 0, 7); ctx.fillStyle = '#b6f07c'; ctx.fill();
+  }
+};
 
 function poly(ctx, x, y, r, n, rot) {
   ctx.beginPath();
@@ -165,13 +206,7 @@ export function draw(ctx, g, v) {
   }
   for (const b of v.vfx.beams) { ctx.strokeStyle = b.c; ctx.lineWidth = b.w; ctx.beginPath(); ctx.moveTo(b.x1, b.y1); ctx.lineTo(b.x2, b.y2); ctx.stroke(); }
   for (const p of g.projs) PROJ_DRAW[p.type](ctx, p);
-  /* Zones: the Lightning Mage's storm is a flickering circle that fades as it ends. */
-  for (const z of g.zones || []) {
-    const a = Math.min(1, z.t) * (0.75 + 0.25 * Math.sin(z.t * 40));
-    ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, 7);
-    ctx.fillStyle = 'rgba(255,228,92,' + (0.1 * a) + ')'; ctx.fill();
-    ctx.setLineDash([8, 6]); ctx.strokeStyle = 'rgba(255,228,92,' + (0.7 * a) + ')'; ctx.lineWidth = 2; ctx.stroke(); ctx.setLineDash([]);
-  }
+  for (const z of g.zones || []) (ZONE_DRAW[z.type] || ZONE_DRAW.storm)(ctx, z);
   for (const e of g.enemies) {
     ctx.beginPath(); ctx.arc(e.x, e.y, e.def.radius, 0, 7); ctx.fillStyle = tintOf(e) || e.def.color; ctx.fill();
     const f = e.hp / e.max, bw = e.def.radius * 2.2, by = e.y - e.def.radius - 7;

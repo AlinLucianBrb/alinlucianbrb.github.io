@@ -6,15 +6,50 @@ export const PROJECTILES = {
     update(g, p, dt) {
       const e = p.target;
       if (!e || e.dead) return false;
-      const dx = e.x - p.x, dy = e.y - p.y, len = Math.hypot(dx, dy), step = BOLT_SPEED * dt;
+      const dx = e.x - p.x, dy = e.y - p.y, len = Math.hypot(dx, dy), step = (p.speed || BOLT_SPEED) * dt;
+      if (len) { p.dx = dx / len; p.dy = dy / len; }
       if (len <= step + 6) { g.attack(p.owner, e, p.scale); return false; }
-      p.x += dx / len * step; p.y += dy / len * step;
+      p.x += p.dx * step; p.y += p.dy * step;
+      return true;
+    }
+  },
+  /* Marksman's piercing shot: charges at the Ranger, then flies straight on, hitting every enemy it passes once. */
+  pierce: {
+    update(g, p, dt) {
+      if (p.charge > 0) { p.charge -= dt; p.x = p.owner.x; p.y = p.owner.y; return true; }
+      const step = 900 * dt;
+      p.x += p.dx * step; p.y += p.dy * step; p.dist += step;
+      for (const e of g.enemies) {
+        if (e.dead || p.hit.has(e)) continue;
+        const ex = e.x - p.x, ey = e.y - p.y;
+        if (ex * ex + ey * ey <= (e.def.radius + 8) ** 2) { p.hit.add(e); g.attack(p.owner, e, p.scale); }
+      }
+      return p.dist < p.max;
+    }
+  },
+  /* Boomerang Ranger's spinning boomerang: circles the Ranger. All of one Ranger's spinning boomerangs share the circle,
+     spaced evenly (two are opposite each other, three are a third of a turn apart). Each enemy is hit at most every 0.4 s. */
+  orbit: {
+    update(g, p, dt) {
+      if ((p.t -= dt) <= 0) return false;
+      const o = p.owner, mine = [];
+      for (const q of g.projs) if (q.type === 'orbit' && q.owner === o && q.t > 0) mine.push(q);
+      const idx = mine.indexOf(p);
+      if (idx === 0) o.orbitA = (o.orbitA || 0) + 4 * dt;
+      const a = (o.orbitA || 0) + idx * 2 * Math.PI / mine.length, r = Math.min(90, o.s.range * 0.45);
+      p.x = o.x + Math.cos(a) * r; p.y = o.y + Math.sin(a) * r; p.rot += dt * 15;
+      for (const [e, left] of p.hitT) { if (left - dt <= 0) p.hitT.delete(e); else p.hitT.set(e, left - dt); }
+      for (const e of g.enemies) {
+        if (e.dead || p.hitT.has(e)) continue;
+        const ex = e.x - p.x, ey = e.y - p.y;
+        if (ex * ex + ey * ey <= 256) { p.hitT.set(e, 0.4); g.attack(o, e, p.scale); }
+      }
       return true;
     }
   },
   boomerang: {
     update(g, p, dt) {
-      const step = 260 * dt;
+      const step = 380 * (p.owner.s.speed || 1) * dt;   /* flies faster with attack speed, so attack-speed bonuses help it */
       if (p.out) {
         p.x += p.dx * step; p.y += p.dy * step; p.dist += step;
         if (p.dist >= p.max) { p.out = false; p.hit.clear(); }

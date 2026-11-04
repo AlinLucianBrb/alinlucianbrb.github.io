@@ -17,7 +17,7 @@ import { attackMult, gainEnergy } from './ultimates.js';
 import { gainXp } from './levels.js';
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
-export const ENGINE_VERSION = 8;     /* bump when a rule change would make old command logs play out differently */
+export const ENGINE_VERSION = 9;     /* bump when a rule change would make old command logs play out differently */
 
 function genPath(rng) {
   let x = 0, y = 1 + rng.int(ROWS - 2); const p = [[x, y]];
@@ -58,7 +58,7 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
   w.hit = (hero, e, amount, type) => hit(w, hero, e, amount, type);
   w.attack = (hero, e, scale, rate) => attack(w, hero, e, scale, rate);
   w.dot = (src, e, amount, type) => dotDamage(w, src, e, amount, type);
-  w.attackMult = h => attackMult(w, h);
+  w.attackMult = (h, target) => attackMult(w, h, target);
   w.gainEnergy = (h, amount) => gainEnergy(h, amount);
   /* Gold for a hero's next evolution, or null when it has none left. */
   w.evolveCost = h => { const e = (h.base || h.def).evolutions[h.tier]; return e ? Math.round(e.cost * w.gs.evolveCost) : null; };

@@ -22,6 +22,21 @@ export const ZONES = {
   }
 };
 
+/* Hunter's trap: waits on the path; when an enemy steps on it, it bursts, hitting every enemy within r for `scale` hits. */
+ZONES.trap = {
+  update(g, z, dt) {
+    if ((z.t -= dt) <= 0) return false;
+    let stepped = false;
+    for (const e of g.enemies) if (!e.dead && (e.x - z.x) ** 2 + (e.y - z.y) ** 2 <= 14 * 14) { stepped = true; break; }
+    if (!stepped) return true;
+    const r2 = z.r * z.r;
+    for (const e of g.enemies) if (!e.dead && (e.x - z.x) ** 2 + (e.y - z.y) ** 2 <= r2) g.attack(z.owner, e, z.scale);
+    g.ev.emit('trap', { zone: z });
+    g.fx?.slash(z.x, z.y, 0, Math.PI, z.r, 0.3, '#7ad04b');
+    return false;
+  }
+};
+
 export function updateZones(g, dt) {
   const list = g.zones; if (!list || !list.length) return;
   let j = 0;

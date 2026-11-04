@@ -51,8 +51,10 @@ function scoreOffer(w, o) {
   return n * 3 * m;
 }
 
-/* form: which evolution to take when a hero offers a choice (the Mage's element), by choice id; the first choice otherwise. */
-export function playRun({ seed = 1, stage = 1, strategy = 'trio', level = 1, relics = true, items = {}, form = 'firemage', maxTicks = 4000000 } = {}) {
+/* form: which evolutions to take when a hero offers a choice, by choice id, comma-separated (e.g. 'firemage,hunter');
+   heroes with none of them listed take their first choice. */
+export function playRun({ seed = 1, stage = 1, strategy = 'trio', level = 1, relics = true, items = {}, form = 'firemage,marksman', maxTicks = 4000000 } = {}) {
+  const wanted = String(form).split(',');
   const lineup = STRATEGIES[strategy];
   const w = createWorld({ seed, stage, talents: talentsFor(level, strategy), lineup, items });
   /* Place every hero once, longest range first so the short-range heroes get the tiles right next to the path. */
@@ -64,7 +66,7 @@ export function playRun({ seed = 1, stage = 1, strategy = 'trio', level = 1, rel
     for (const h of w.heroes) {
       const step = h.base.evolutions[h.tier];
       if (!step || h.level < step.level || w.gold < w.evolveCost(h)) continue;
-      const i = step.choices.findIndex(c => c.id === form);
+      const i = step.choices.findIndex(c => wanted.includes(c.id));
       apply(w, { type: 'evolve', id: h.id, choice: i >= 0 ? i : 0 });
     }
     const evolving = w.heroes.some(h => w.evolveCost(h) !== null && h.level >= h.base.evolutions[h.tier].level);

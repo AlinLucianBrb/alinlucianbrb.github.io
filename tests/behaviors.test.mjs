@@ -20,15 +20,20 @@ function setupArchived(heroId) {
   return { w, h: archivedUnit(w, heroId, ...freeTile(w)) };
 }
 const tickHero = (w, h, n = 1) => { for (let i = 0; i < n; i++) BEHAVIORS[h.def.kind].update(w, h, 1 / 60); };
+/* Lets every projectile in the air land (arrows and bolts fly). */
+const land = w => { for (let i = 0; i < 120 && w.projs.length; i++) updateProjectiles(w, 1 / 60); };
 const addRelic = (w, name, m, ri = 0) => { w.mods.push(...RELICS.find(r => r.name === name).mods(m).map(x => ({ ...x, source: name, ri }))); recalc(w); };
 
-test('ranger hits the enemy furthest along the path, within range only', () => {
+test('ranger shoots an arrow at the enemy furthest along the path, within range only; it hits when it lands', () => {
   const { w, h } = setup('ranger');
-  const near = enemyAt(w, h.x + 30, h.y, 5), ahead = enemyAt(w, h.x - 30, h.y, 50), far = enemyAt(w, h.x + 500, h.y, 999);
+  const near = enemyAt(w, h.x + 30, h.y, 5), ahead = enemyAt(w, h.x - 60, h.y, 50), far = enemyAt(w, h.x + 500, h.y, 999);
   tickHero(w, h);
+  assert.equal(w.projs.length, 1); assert.equal(w.projs[0].look, 'arrow'); assert.equal(w.projs[0].target, ahead);
+  assert.equal(dealt(ahead), 0, 'still in the air');
+  land(w);
   assert.equal(dealt(ahead), 16); assert.equal(dealt(near), 0); assert.equal(dealt(far), 0);
-  tickHero(w, h, 10); assert.equal(dealt(ahead), 16, 'cooldown');
-  tickHero(w, h, 25); assert.equal(dealt(ahead), 32, 'fires again after 0.5 s');
+  tickHero(w, h, 10); land(w); assert.equal(dealt(ahead), 16, 'cooldown');
+  tickHero(w, h, 25); land(w); assert.equal(dealt(ahead), 32, 'fires again after 0.5 s');
 });
 
 test('warrior swing hits everything inside the arc and range, nothing behind it', () => {
@@ -67,7 +72,7 @@ test('energy fills by 20 per attack; the 6th attack is the ultimate (2x damage) 
   const { w, h } = setup('ranger');
   const e = enemyAt(w, h.x + 30, h.y, 10);
   const hits = [];
-  for (let i = 0; i < 7; i++) { const before = dealt(e); h.cd = 0; tickHero(w, h); hits.push(dealt(e) - before); if (i < 5) assert.equal(h.energy, 20 * (i + 1)); }
+  for (let i = 0; i < 7; i++) { const before = dealt(e); h.cd = 0; tickHero(w, h); land(w); hits.push(dealt(e) - before); if (i < 5) assert.equal(h.energy, 20 * (i + 1)); }
   assert.deepEqual(hits, [16, 16, 16, 16, 16, 32, 16]);
   assert.equal(h.ults, 1);
   assert.equal(h.energy, 20, 'the ultimate empties the bar, and the attack after it starts filling again');
@@ -141,7 +146,7 @@ test('archived Thief boomerang hits on the way out and again on the way back, th
 test('each kill pays gold by enemy type and counts for the hero', () => {
   const { w, h } = setup('ranger');
   const e = enemyAt(w, h.x + 30, h.y, 10, 5, 'brute');
-  const g = w.gold; tickHero(w, h);
+  const g = w.gold; tickHero(w, h); land(w);
   assert.ok(e.dead); assert.equal(w.gold - g, Math.round(5 * 2.5)); assert.equal(h.kills, 1); assert.equal(w.kills, 1);
   assert.equal(h.dealt, 5, 'overkill is not counted as damage');
 });

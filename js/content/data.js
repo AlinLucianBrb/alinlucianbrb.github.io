@@ -37,11 +37,19 @@ export const HEROES = [
     evolutions: [{ level: 10, cost: 150, choices: [{ id: 'veteranwarrior', name: 'Veteran Warrior', mods: plus50, short: '+50% damage, range and attack speed.' }] }],
     desc: 'Warrior (melee): swings at close range, hitting every enemy in the arc.',
     short: 'Swings a blade at close range, hitting every enemy in front of him.' },
-  { id: 'ranger', name: 'Ranger', archetype: 'range', kind: 'shot', damageType: 'physical', color: '#f2b84b', shape: [0, 0], tags: ['range', 'projectile', 'physical'],
+  { id: 'ranger', name: 'Ranger', archetype: 'range', kind: 'bolt', projLook: 'arrow', projSpeed: 620, damageType: 'physical', color: '#f2b84b', shape: [0, 0],
+    tags: ['range', 'projectile', 'physical'],
     stats: withEnergy({ damage: 16, range: 120, cooldown: 0.5, speed: 1 }), ultimate: 'empowered',
-    evolutions: [{ level: 10, cost: 150, choices: [{ id: 'veteranranger', name: 'Veteran Ranger', mods: plus50, short: '+50% damage, range and attack speed.' }] }],
-    desc: 'Ranger (range): fast arrows at the enemy closest to your gate.',
-    short: 'Long range and fast. Shoots the enemy closest to your gate.' },
+    evolutions: [{ level: 10, cost: 150, choices: [
+      { id: 'marksman', name: 'Marksman', color: '#ffd76a', ultimate: 'piercing', mods: plus50,
+        short: 'Same arrows, more of them.', ultShort: 'Charges a powerful arrow that pierces every enemy in its path.' },
+      { id: 'boomeranger', name: 'Boomerang Ranger', color: '#8be28b', kind: 'boom', ultimate: 'orbit', tags: ['thrown'], mods: plus50,
+        short: 'Throws a boomerang that hits every enemy on the way out and back.', ultShort: 'A boomerang spins around the Ranger, hitting everything it touches.' },
+      { id: 'hunter', name: 'Hunter', color: '#7ad04b', damageType: 'toxic', ultimate: 'traps', tags: ['toxic'], mods: plus50,
+        short: 'Arrows deal toxic damage.', ultShort: 'Lays traps on the path that burst with heavy toxic damage when stepped on.' }
+    ] }],
+    desc: 'Ranger (range): fast arrows at the enemy closest to your gate. Evolves into a Marksman, Boomerang Ranger or Hunter.',
+    short: 'Long range and fast. Shoots arrows at the enemy closest to your gate. At level 10, choose a path.' },
   { id: 'mage', name: 'Mage', archetype: 'spell', kind: 'bolt', damageType: 'spell', color: '#c39bf2', shape: [4, -Math.PI / 2], tags: ['spell', 'arcane'],
     stats: withEnergy({ damage: 26, range: 110, cooldown: 1, speed: 1, targets: 1 }), ultimate: 'empowered',
     /* At level 10 the Mage picks an element. The slow is the Frost Mage's old chill effect, kept for exactly this. */
@@ -65,7 +73,7 @@ HEROES.forEach(h => h.tags.push(h.id));
    and the lineup keep working; form holds the choice's id. */
 export function evolvedDef(base, choice) {
   return {
-    ...base, form: choice.id, name: choice.name, color: choice.color || base.color,
+    ...base, form: choice.id, name: choice.name, color: choice.color || base.color, kind: choice.kind || base.kind,
     damageType: choice.damageType || base.damageType, ultimate: choice.ultimate || base.ultimate,
     applies: choice.applies || base.applies, short: choice.short || base.short,
     stats: { ...base.stats, ...(choice.stats || {}) }, tags: [...base.tags, ...(choice.tags || [])]

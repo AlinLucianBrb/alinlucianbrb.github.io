@@ -2,7 +2,7 @@
    Behaviors never touch the DOM or the economy: they attack through g.attack(hero, enemy, scale, rate), which handles damage
    types, armor, resistances and ailments (combat.js), and draw through g.fx?.beam().
    Every attack follows the same pattern: strike(g, t) right before it (the ultimate when the energy bar is full, see
-   ultimates.js), then charge(g, t, mult) once it has hit something. */
+   ultimates.js), then charge(g, t) once it has hit something. */
 export const BEHAVIORS = {};
 export const registerBehavior = (kind, impl) => { BEHAVIORS[kind] = impl; };
 
@@ -32,10 +32,11 @@ export function pickTargets(g, t, range, n) {
 }
 const ready = (t, dt) => (t.cd -= dt) <= 0;
 const rearm = t => { t.cd = t.s.cooldown / t.s.speed; };
-/* Damage multiplier for this attack: 1, or the ultimate's when the bar is full. Worlds without energy (old tests) give 1. */
-const strike = (g, t) => (g.attackMult ? g.attackMult(t) : 1);
-/* Fills the energy bar after an attack that hit, unless that attack was the ultimate. */
-const charge = (g, t, mult) => { if (mult === 1 && g.gainEnergy) g.gainEnergy(t); };
+/* Damage multiplier for this attack: 1, or the ultimate's when the bar is full (0 when the ultimate replaces the attack).
+   Worlds without energy (old tests) give 1. */
+const strike = (g, t, target) => (g.attackMult ? g.attackMult(t, target) : 1);
+/* Fills the energy bar after an attack, unless that attack fired the ultimate. */
+const charge = (g, t) => { if (t.ultNow) { t.ultNow = false; return; } if (g.gainEnergy) g.gainEnergy(t); };
 /* Ultimates look different: brighter and thicker. */
 const look = (t, mult) => (mult > 1 ? '#fff6c8' : t.def.color);
 
@@ -45,7 +46,8 @@ registerBehavior('swing', {
     const tg = pickTarget(g, t, t.s.range);
     if (!tg) return;
     const ang = Math.atan2(tg.y - t.y, tg.x - t.x), half = Math.min(Math.PI, t.s.arc * Math.PI / 360), r2 = t.s.range * t.s.range;
-    const mult = strike(g, t);
+    const mult = strike(g, t, tg);
+    if (mult === 0) { rearm(t); charge(g, t); return; }
     for (const e of g.enemies) {
       if (e.dead) continue;
       const dx = e.x - t.x, dy = e.y - t.y;
@@ -54,7 +56,7 @@ registerBehavior('swing', {
       if (da > Math.PI) da = 2 * Math.PI - da;
       if (da <= half) g.attack(t, e, mult);
     }
-    rearm(t); charge(g, t, mult);
+    rearm(t); charge(g, t);
     g.fx?.slash(t.x, t.y, ang, half, t.s.range, mult > 1 ? 0.35 : 0.2, look(t, mult));
   }
 });
@@ -66,9 +68,11 @@ registerBehavior('bolt', {
     if (!ready(t, dt)) return;
     const n = Math.round(t.s.targets || 1), list = n > 1 ? pickTargets(g, t, t.s.range, n) : [pickTarget(g, t, t.s.range)];
     if (!list[0]) return;
-    const mult = strike(g, t), color = look(t, mult);
-    for (const tg of list) g.projs.push({ type: 'bolt', owner: t, target: tg, x: t.x, y: t.y, scale: mult, color, size: mult > 1 ? 8 : 5 });
-    rearm(t); charge(g, t, mult);
+    const mult = strike(g, t, list[0]), color = look(t, mult);
+    if (mult === 0) { rearm(t); charge(g, t); return; }   /* the ultimate replaced this attack */
+    for (const tg of list) g.projs.push({ type: 'bolt', owner: t, target: tg, x: t.x, y: t.y, scale: mult, color, size: mult > 1 ? 8 : 5,
+      look: t.def.projLook || 'orb', speed: t.def.projSpeed || 0, dx: 1, dy: 0 });
+    rearm(t); charge(g, t);
   }
 });
 
@@ -81,12 +85,12 @@ registerBehavior('shot', {
       if (!list.length) return;
       const mult = strike(g, t);
       for (const tg of list) { g.attack(t, tg, mult); g.fx?.beam(t.x, t.y, tg.x, tg.y, mult > 1 ? 0.16 : 0.08, look(t, mult), mult > 1 ? 6 : 3); }
-      rearm(t); charge(g, t, mult); return;
+      rearm(t); charge(g, t); return;
     }
     const tg = pickTarget(g, t, t.s.range);
     if (!tg) return;
     const mult = strike(g, t);
-    g.attack(t, tg, mult); rearm(t); charge(g, t, mult);
+    g.attack(t, tg, mult); rearm(t); charge(g, t);
     g.fx?.beam(t.x, t.y, tg.x, tg.y, mult > 1 ? 0.16 : 0.08, look(t, mult), mult > 1 ? 6 : 3);
   }
 });
@@ -113,9 +117,10 @@ registerBehavior('boom', {
     if (t.proj || !ready(t, dt)) return;
     const tg = pickTarget(g, t, t.s.range);
     if (!tg) return;
-    const a = Math.atan2(tg.y - t.y, tg.x - t.x), mult = strike(g, t);
+    const a = Math.atan2(tg.y - t.y, tg.x - t.x), mult = strike(g, t, tg);
+    if (mult === 0) { rearm(t); charge(g, t); return; }
     t.proj = { type: 'boomerang', owner: t, x: t.x, y: t.y, dx: Math.cos(a), dy: Math.sin(a), dist: 0, max: t.s.range, out: true, hit: new Set(), scale: mult, rot: 0 };
-    g.projs.push(t.proj); charge(g, t, mult);
+    g.projs.push(t.proj); charge(g, t);
   }
 });
 
@@ -138,6 +143,6 @@ registerBehavior('chain', {
       }
       cur = next;
     }
-    rearm(t); charge(g, t, mult);
+    rearm(t); charge(g, t);
   }
 });
