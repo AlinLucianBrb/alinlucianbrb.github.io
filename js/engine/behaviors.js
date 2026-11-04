@@ -59,6 +59,19 @@ registerBehavior('swing', {
   }
 });
 
+/* A real projectile: a bolt flies to its target and hits on arrival (see projectiles.js). With more than one target
+   (Split bolt) it fires one bolt at each. */
+registerBehavior('bolt', {
+  update(g, t, dt) {
+    if (!ready(t, dt)) return;
+    const n = Math.round(t.s.targets || 1), list = n > 1 ? pickTargets(g, t, t.s.range, n) : [pickTarget(g, t, t.s.range)];
+    if (!list[0]) return;
+    const mult = strike(g, t), color = look(t, mult);
+    for (const tg of list) g.projs.push({ type: 'bolt', owner: t, target: tg, x: t.x, y: t.y, scale: mult, color, size: mult > 1 ? 8 : 5 });
+    rearm(t); charge(g, t, mult);
+  }
+});
+
 registerBehavior('shot', {
   update(g, t, dt) {
     if (!ready(t, dt)) return;

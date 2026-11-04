@@ -36,7 +36,10 @@ export function initUI(callbacks) {
       if (u) lines.push({ text: 'Ultimate: ' + u.name + ' (' + u.desc + ')', color: '#9db3a3' });
       lines.push(info.unit ? { text: 'On the field: click to select it.', color: '#9db3a3' } : { text: 'Free to place: one per match · key ' + b._key.textContent, color: '#9db3a3' });
       if (info.unit) lines.push({ text: 'Level ' + info.unit.level + ': heroes gain XP from every kill while on the field.', color: '#8fd3ff' });
-      if (info.evo) lines.push({ text: 'At level ' + info.evo.level + ' it can evolve into ' + info.evo.name + ' for ' + info.evoCost + ' gold (+50% damage, range and attack speed).', color: info.unit && info.unit.level >= info.evo.level && info.gold >= info.evoCost ? '#f2b84b' : '#9db3a3' });
+      if (info.evo) {
+        const names = info.evo.choices.map(c => c.name), list = names.length > 1 ? names.slice(0, -1).join(', ') + ' or ' + names.at(-1) : names[0];
+        lines.push({ text: 'At level ' + info.evo.level + ' it can evolve into ' + list + ' for ' + info.evoCost + ' gold.', color: info.unit && info.unit.level >= info.evo.level && info.gold >= info.evoCost ? '#f2b84b' : '#9db3a3' });
+      }
       return { title: d.name + ' · ' + cap(d.archetype), color: d.color, lines };
     });
     $('tbtns').append(b); btns.push(b);
@@ -92,7 +95,9 @@ export function renderHUD(g, v) {
     const b = btns[i];
     if (b.hidden) return;
     const unit = g.heroes.find(h => h.type === i);
-    setText(b._status, !unit ? 'Free · place it' : (unit.tier ? '★ ' + d.evolutions[unit.tier - 1].name : 'On the field') + ' · Lv ' + unit.level);
+    setText(b._status, !unit ? 'Free · place it' : (unit.tier ? '★ ' + unit.def.name : 'On the field') + ' · Lv ' + unit.level);
+    const hc = unit ? unit.def.color : d.color;
+    if (b._hc !== hc) { b._hc = hc; b.style.setProperty?.('--hc', hc); }
     b.classList.toggle('on', sel === i && (!unit || v.selected === unit)); b.classList.toggle('placed', !!unit);
     b._ebar.hidden = !unit;
     if (unit) {
@@ -182,14 +187,35 @@ export function renderInspector(g, v) {
   $('heroPanel').hidden = !t;
   if (!t) { box._k = 'none'; box._t = null; return; }
   const moving = v.moving === t;
-  if (box._t !== t || box._m !== g.mods.length || box._mv !== moving || box._tier !== t.tier || box._lv !== t.level) {
-    box._k = 't'; box._t = t; box._m = g.mods.length; box._mv = moving; box._tier = t.tier; box._lv = t.level; box.textContent = '';
-    const d = t.def, head = el('div', 'srow'), title = el('b', '', (t.tier ? '★ ' + d.evolutions[t.tier - 1].name : d.name) + ' · ' + cap(d.archetype)), close = el('button', 'linkbtn', 'Close');
+  const picking = !!v.evoPick;
+  if (box._t !== t || box._m !== g.mods.length || box._mv !== moving || box._tier !== t.tier || box._lv !== t.level || box._pk !== picking) {
+    box._k = 't'; box._t = t; box._m = g.mods.length; box._mv = moving; box._tier = t.tier; box._lv = t.level; box._pk = picking; box.textContent = '';
+    const d = t.def, head = el('div', 'srow'), title = el('b', '', (t.tier ? '★ ' : '') + d.name + ' · ' + cap(d.archetype)), close = el('button', 'linkbtn', 'Close');
     title.style.color = d.color; close.onclick = cb.onCloseInspector; head.append(title, close); box.append(head);
     /* The actions come first, so they never move as the stats below change. */
     const acts = el('div', 'acts top'), mv = el('button', '', moving ? 'Cancel move' : 'Move'), evo = el('button', 'go');
     mv.onclick = cb.onMove; evo.onclick = cb.onEvolve; acts.append(mv, evo); box.append(acts); box._evo = evo;
     if (moving) box.append(el('p', 'muted', 'Click a free tile to move it there.'));
+    /* The Mage's element choice: one button per form, with what it does. */
+    box._choices = [];
+    const step = t.base.evolutions[t.tier];
+    if (picking && step) {
+      box.append(el('p', 'muted', 'Choose an evolution:'));
+      const row = el('div', 'evochoices');
+      step.choices.forEach((c, i) => {
+        const b = el('button', 'evochoice'), u = ULTIMATES[c.ultimate || d.ultimate];
+        const nm = el('b', '', c.name);
+        b.append(nm, el('small', '', c.short));
+        b.style.borderColor = c.color || d.color; nm.style.color = c.color || d.color;
+        bindTip(b, () => ({ title: c.name, color: c.color || d.color, lines: [c.short,
+          { text: 'Damage: ' + DAMAGE_LABEL[c.damageType || d.damageType], color: '#9db3a3' },
+          ...(u ? [{ text: 'Ultimate: ' + u.name + ' (' + (c.ultShort || u.desc) + ')', color: '#9db3a3' }] : []),
+          { text: '+50% damage, range and attack speed', color: '#9db3a3' }] }));
+        b.onclick = () => cb.onEvolveChoice(i);
+        row.append(b); box._choices.push(b);
+      });
+      box.append(row);
+    }
     /* Level and XP. */
     const lr = el('div', 'srow'), lv = el('span', 'lvl'), xbar = el('span', 'ebar wide xpbar'), xfill = el('i');
     xbar.append(xfill); lr.append(lv, xbar); box.append(lr); box._lvl = lv; box._xfill = xfill; box._xbar = xbar;
@@ -221,10 +247,11 @@ export function renderInspector(g, v) {
   setText(box._lvl, 'Level ' + t.level + (maxed ? ' (max)' : ' · ' + Math.floor(t.xp) + '/' + need + ' XP'));
   const xp = maxed ? '100%' : Math.round(t.xp / need * 100) + '%';
   if (box._xfill.style.width !== xp) box._xfill.style.width = xp;
-  const cost = g.evolveCost(t), evo = t.def.evolutions[t.tier], early = evo && t.level < evo.level;
-  setText(box._evo, !evo ? 'Fully evolved' : early ? 'Evolve at Lv ' + evo.level : 'Evolve · ' + cost);
-  box._evo.disabled = !evo || early || g.gold < cost;
-  box._evo.title = evo ? evo.name + ' (level ' + evo.level + ', ' + cost + ' gold): +50% damage, range and attack speed (key E)' : '';
+  const cost = g.evolveCost(t), evo = t.base.evolutions[t.tier], early = evo && t.level < evo.level;
+  setText(box._evo, !evo ? 'Fully evolved' : early ? 'Evolve at Lv ' + evo.level : picking ? 'Cancel' : 'Evolve · ' + cost);
+  box._evo.disabled = !evo || early || (!picking && g.gold < cost);
+  box._evo.title = evo ? 'Level ' + evo.level + ', ' + cost + ' gold: ' + evo.choices.map(c => c.name).join(' / ') + ' (key E)' : '';
+  for (const b of box._choices || []) b.disabled = g.gold < cost;
 }
 
 function indicator(g, r, m) {

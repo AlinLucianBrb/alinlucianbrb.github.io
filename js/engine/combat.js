@@ -2,19 +2,20 @@
    apply it, then roll for ailments. Every attack in the game goes through attack(); damage over time goes through dotDamage().
    The rolls use the world's seeded 'combat' random stream, so replays stay exact. */
 import { DAMAGE_TYPES, AILMENTS, RES_CAP, ARMOR_FACTOR, ARMOR_CAP } from '../content/combat.js';
-import { applyEffect, damageTakenMult } from './effects.js';
+import { applyEffect } from './effects.js';
 
-/* How much of `amount` gets through, for one damage type. Armor only stops hits, not damage over time. */
+/* How much of `amount` gets through, for one damage type. Armor only stops hits, not damage over time.
+   Shock lowers armor (by a share) and every resistance (by percentage points, after the 75% cap, so it always bites). */
 export function mitigate(e, type, amount, isHit = true) {
   if (amount <= 0) return 0;
-  let out = amount;
+  const shock = e.fx && e.fx.shock;
   if (type === 'physical') {
-    if (isHit && e.armor > 0) out *= 1 - Math.min(ARMOR_CAP, e.armor / (e.armor + ARMOR_FACTOR * amount));
-  } else {
-    const r = Math.max(-1, Math.min(RES_CAP, (e.res && e.res[type]) || 0));
-    out *= 1 - r;
+    const armor = (e.armor || 0) * (shock ? 1 - shock.armorDown : 1);
+    if (!isHit || armor <= 0) return amount;
+    return amount * (1 - Math.min(ARMOR_CAP, armor / (armor + ARMOR_FACTOR * amount)));
   }
-  return out * damageTakenMult(e);
+  const r = Math.max(-1, Math.min(RES_CAP, (e.res && e.res[type]) || 0) - (shock ? shock.resDown : 0));
+  return amount * (1 - r);
 }
 
 const raw = Object.fromEntries(DAMAGE_TYPES.map(t => [t, 0]));   /* reused for every hit: no garbage */
@@ -55,7 +56,7 @@ export function attack(w, hero, e, scale = 1, rate = 1) {
 export function inflict(w, hero, e, id, hit) {
   const a = AILMENTS[id];
   if (a.kind === 'dot') applyEffect(e, id, { t: a.duration, dps: a.dpsOfHit * hit, src: hero });
-  else if (a.kind === 'shock') applyEffect(e, id, { t: a.duration, mag: a.damageTaken });
+  else if (a.kind === 'shock') applyEffect(e, id, { t: a.duration, mag: a.resDown, armorDown: a.armorDown, resDown: a.resDown });
   else if (a.kind === 'freeze') applyEffect(e, id, { t: Math.min(a.max, a.base + a.perLifeShare * hit / e.max) });
   w.ev.emit('ailment', { hero, enemy: e, id });
 }

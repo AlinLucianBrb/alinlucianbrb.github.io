@@ -20,9 +20,12 @@ export const HERO_LEVELS = {
   perLevel: [{ stat: 'damage', type: 'inc', value: 0.03 }]
 };
 
-/* Evolution: heroes can evolve during a match by spending gold, once they reach the evolution's level.
-   For now there is one step per hero, at level 10: +50% to its main stats. */
+/* Evolution: heroes can evolve during a match by spending gold, once they reach the step's level.
+   evolutions is a list of steps: { level, cost, choices: [...] }. With one choice the hero simply evolves; with several the
+   player picks one. A choice is a new form of the hero: it can change the name, colour, damage type, ultimate, on-hit effects
+   (applies), add base stats and tags, and gives its modifiers. For now every form also gets +50% to the main stats. */
 const plus50 = ['damage', 'range', 'speed'].map(stat => ({ stat, type: 'more', value: 0.5, scope: ['all'] }));
+const always = stat => ({ stat, type: 'flat', value: 1, scope: ['all'] });   /* a 100% chance */
 
 /* The playable heroes. A player brings up to LINEUP_SIZE of them into a match, one of each, free to place.
    archetype: melee | range | spell. Every hero's tags include its archetype and its own id.
@@ -31,21 +34,43 @@ export const LINEUP_SIZE = 3;
 export const HEROES = [
   { id: 'warrior', name: 'Warrior', archetype: 'melee', kind: 'swing', damageType: 'physical', color: '#c7ced6', shape: [5, -Math.PI / 2], tags: ['melee', 'physical'],
     stats: withEnergy({ damage: 28, range: 60, cooldown: 0.8, speed: 1, arc: 120 }), ultimate: 'empowered',
-    evolutions: [{ name: 'Veteran Warrior', level: 10, cost: 150, mods: plus50 }],
+    evolutions: [{ level: 10, cost: 150, choices: [{ id: 'veteranwarrior', name: 'Veteran Warrior', mods: plus50, short: '+50% damage, range and attack speed.' }] }],
     desc: 'Warrior (melee): swings at close range, hitting every enemy in the arc.',
     short: 'Swings a blade at close range, hitting every enemy in front of him.' },
   { id: 'ranger', name: 'Ranger', archetype: 'range', kind: 'shot', damageType: 'physical', color: '#f2b84b', shape: [0, 0], tags: ['range', 'projectile', 'physical'],
     stats: withEnergy({ damage: 16, range: 120, cooldown: 0.5, speed: 1 }), ultimate: 'empowered',
-    evolutions: [{ name: 'Veteran Ranger', level: 10, cost: 150, mods: plus50 }],
+    evolutions: [{ level: 10, cost: 150, choices: [{ id: 'veteranranger', name: 'Veteran Ranger', mods: plus50, short: '+50% damage, range and attack speed.' }] }],
     desc: 'Ranger (range): fast arrows at the enemy closest to your gate.',
     short: 'Long range and fast. Shoots the enemy closest to your gate.' },
-  { id: 'mage', name: 'Mage', archetype: 'spell', kind: 'shot', damageType: 'cold', color: '#72c8f0', shape: [4, -Math.PI / 2], tags: ['spell', 'arcane'],
-    stats: withEnergy({ damage: 16, range: 100, cooldown: 1, speed: 1, targets: 2 }), ultimate: 'empowered',
-    evolutions: [{ name: 'Archmage', level: 10, cost: 150, mods: plus50 }],
-    desc: 'Mage (spell): magic bolts that strike two enemies at once.',
-    short: 'Casts bolts that hit the two enemies closest to your gate.' }
+  { id: 'mage', name: 'Mage', archetype: 'spell', kind: 'bolt', damageType: 'spell', color: '#c39bf2', shape: [4, -Math.PI / 2], tags: ['spell', 'arcane'],
+    stats: withEnergy({ damage: 26, range: 110, cooldown: 1, speed: 1, targets: 1 }), ultimate: 'empowered',
+    /* At level 10 the Mage picks an element. The slow is the Frost Mage's old chill effect, kept for exactly this. */
+    evolutions: [{ level: 10, cost: 150, choices: [
+      { id: 'firemage', name: 'Fire Mage', color: '#ff7a45', damageType: 'fire', ultimate: 'inferno', tags: ['fire'],
+        mods: [...plus50, always('burnChance')],
+        short: 'Bolts deal fire damage and set enemies on fire.', ultShort: 'Sets every enemy on the map on fire.' },
+      { id: 'coldmage', name: 'Cold Mage', color: '#72c8f0', damageType: 'cold', ultimate: 'blizzard', tags: ['cold'],
+        applies: { chill: 'chillTime' }, stats: { chillTime: 1.5 }, mods: plus50,
+        short: 'Bolts deal cold damage and slow enemies to half speed.', ultShort: 'Freezes every enemy in place.' },
+      { id: 'lightningmage', name: 'Lightning Mage', color: '#d6a2ff', damageType: 'lightning', ultimate: 'storm', tags: ['lightning'],
+        mods: [...plus50, always('shockChance')],
+        short: 'Bolts deal lightning damage and shock enemies, lowering their defenses.', ultShort: 'Calls a storm that strikes and shocks enemies around the Mage.' }
+    ] }],
+    desc: 'Mage (spell): fires a magic bolt at the enemy closest to your gate. Evolves into a Fire, Cold or Lightning Mage.',
+    short: 'Fires a magic bolt at the enemy closest to your gate. At level 10, choose an element.' }
 ];
 HEROES.forEach(h => h.tags.push(h.id));
+
+/* A hero's evolved form: the base hero with the choice's changes on top. The id stays the base hero's, so talents, items
+   and the lineup keep working; form holds the choice's id. */
+export function evolvedDef(base, choice) {
+  return {
+    ...base, form: choice.id, name: choice.name, color: choice.color || base.color,
+    damageType: choice.damageType || base.damageType, ultimate: choice.ultimate || base.ultimate,
+    applies: choice.applies || base.applies, short: choice.short || base.short,
+    stats: { ...base.stats, ...(choice.stats || {}) }, tags: [...base.tags, ...(choice.tags || [])]
+  };
+}
 
 /* Kept for later, not playable right now: these become advanced variants (evolutions) once that system grows.
    Their behaviors (boomerang, beam, chain) and the Frost Mage's slow (the "chill" effect) still live in the engine. */

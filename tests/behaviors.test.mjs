@@ -39,15 +39,28 @@ test('warrior swing hits everything inside the arc and range, nothing behind it'
   assert.equal(dealt(behind), 0); assert.equal(dealt(out), 0);
 });
 
-test('mage bolts hit the two lead enemies; Split bolt adds targets; no slow', () => {
+test('mage fires a bolt that flies to the lead enemy and hits on arrival; Split bolt fires more bolts', () => {
   const { w, h } = setup('mage');
-  const a = enemyAt(w, h.x + 20, h.y, 30), b = enemyAt(w, h.x - 20, h.y, 20), c = enemyAt(w, h.x, h.y + 20, 10);
+  const a = enemyAt(w, h.x + 90, h.y, 30), b = enemyAt(w, h.x - 60, h.y, 20), c = enemyAt(w, h.x, h.y + 60, 10);
   tickHero(w, h);
-  assert.deepEqual([dealt(a), dealt(b), dealt(c)], [16, 16, 0]);
-  assert.equal(a.fx, null, 'the Mage does not slow (the slow is kept for later on the archived Frost Mage)');
-  addRelic(w, 'Split bolt', 2, 2);
+  assert.equal(w.projs.length, 1); assert.equal(w.projs[0].target, a, 'aimed at the enemy furthest along the path');
+  assert.equal(dealt(a), 0, 'nothing yet: the bolt is in the air');
+  for (let i = 0; i < 20; i++) updateProjectiles(w, 1 / 60);
+  assert.equal(dealt(a), 26); assert.equal(w.projs.length, 0);
+  assert.equal(a.fx, null, 'the plain Mage has no on-hit effect');
+  addRelic(w, 'Split bolt', 2, 1);
   h.cd = 0; tickHero(w, h);
-  assert.deepEqual([dealt(a), dealt(b), dealt(c)], [32, 32, 16], 'Rare Split bolt: 4 targets, only 3 enemies here');
+  assert.equal(w.projs.length, 3, 'Uncommon Split bolt: +2 targets, one bolt each');
+  for (let i = 0; i < 30; i++) updateProjectiles(w, 1 / 60);
+  assert.deepEqual([dealt(a), dealt(b), dealt(c)], [52, 26, 26]);
+});
+
+test('a bolt fizzles if its target dies before it arrives', () => {
+  const { w, h } = setup('mage');
+  const e = enemyAt(w, h.x + 100, h.y, 30);
+  tickHero(w, h); e.dead = true;
+  updateProjectiles(w, 1 / 60);
+  assert.equal(w.projs.length, 0);
 });
 
 test('energy fills by 20 per attack; the 6th attack is the ultimate (2x damage) and empties the bar', () => {

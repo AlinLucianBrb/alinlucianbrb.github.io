@@ -25,8 +25,6 @@ export function applyEffect(e, id, eff) {
   else if (eff.dps === cur.dps && eff.mag === cur.mag) cur.t = Math.max(cur.t, eff.t);
 }
 
-/* Shock makes an enemy take more damage from everything. */
-export const damageTakenMult = e => (e.fx && e.fx.shock ? 1 + e.fx.shock.mag : 1);
 
 /* Ticks an enemy's effects (damage over time through g.dot) and returns its speed multiplier. */
 export function tickEffects(g, e, dt) {

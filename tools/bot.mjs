@@ -51,7 +51,8 @@ function scoreOffer(w, o) {
   return n * 3 * m;
 }
 
-export function playRun({ seed = 1, stage = 1, strategy = 'trio', level = 1, relics = true, items = {}, maxTicks = 4000000 } = {}) {
+/* form: which evolution to take when a hero offers a choice (the Mage's element), by choice id; the first choice otherwise. */
+export function playRun({ seed = 1, stage = 1, strategy = 'trio', level = 1, relics = true, items = {}, form = 'firemage', maxTicks = 4000000 } = {}) {
   const lineup = STRATEGIES[strategy];
   const w = createWorld({ seed, stage, talents: talentsFor(level, strategy), lineup, items });
   /* Place every hero once, longest range first so the short-range heroes get the tiles right next to the path. */
@@ -60,8 +61,13 @@ export function playRun({ seed = 1, stage = 1, strategy = 'trio', level = 1, rel
     for (const s of spotsFor(w, heroStats(HEROES.find(h => h.id === id), w.mods).range)) if (apply(w, { type: 'place', hero: id, cx: s.cx, cy: s.cy }).ok) break;
   }
   function spend() {
-    for (const h of w.heroes) if (w.evolveCost(h) !== null && w.gold >= w.evolveCost(h)) apply(w, { type: 'evolve', id: h.id });
-    const evolving = w.heroes.some(h => w.evolveCost(h) !== null);
+    for (const h of w.heroes) {
+      const step = h.base.evolutions[h.tier];
+      if (!step || h.level < step.level || w.gold < w.evolveCost(h)) continue;
+      const i = step.choices.findIndex(c => c.id === form);
+      apply(w, { type: 'evolve', id: h.id, choice: i >= 0 ? i : 0 });
+    }
+    const evolving = w.heroes.some(h => w.evolveCost(h) !== null && h.level >= h.base.evolutions[h.tier].level);
     if (relics && !evolving && w.relicsBought < 12 && w.gold >= w.relicCost() && apply(w, { type: 'buyRelic' }).ok) {
       let best = 0, bs = -1;
       w.pick.offers.forEach((o, i) => { const s = scoreOffer(w, o); if (s > bs) { bs = s; best = i; } });

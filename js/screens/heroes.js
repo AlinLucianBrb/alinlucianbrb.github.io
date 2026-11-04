@@ -65,7 +65,9 @@ function render() {
     head.append(title, arch);
     const pick = el('button', inLineup ? 'go' : '', inLineup ? '✓ In lineup' : 'Add to lineup');
     pick.onclick = () => toggleLineup(h.id);
+    const evo = h.evolutions[0];
     card.append(head, el('p', 'hdesc', h.short), el('p', 'muted hstats', statLine(h)));
+    if (evo) card.append(el('p', 'muted hstats', 'Evolves at level ' + evo.level + ' into ' + evo.choices.map(c => c.name).join(', ').replace(/, ([^,]*)$/, ' or $1') + '.'));
     /* The item slot. */
     const slot = el('div', 'hslot'), worn = equipment[h.id], type = worn && typeOf(worn);
     slot.append(el('small', 'muted', 'Item slot'));

@@ -1,5 +1,17 @@
 /* Projectile types. A projectile has update(g, p, dt) -> false when finished, and optional onEnd(g, p). How it looks is decided by the renderer. */
+export const BOLT_SPEED = 380;   /* pixels per second */
 export const PROJECTILES = {
+  /* Homing bolt: flies to its target and hits on arrival. If the target dies first, the bolt fizzles. */
+  bolt: {
+    update(g, p, dt) {
+      const e = p.target;
+      if (!e || e.dead) return false;
+      const dx = e.x - p.x, dy = e.y - p.y, len = Math.hypot(dx, dy), step = BOLT_SPEED * dt;
+      if (len <= step + 6) { g.attack(p.owner, e, p.scale); return false; }
+      p.x += dx / len * step; p.y += dy / len * step;
+      return true;
+    }
+  },
   boomerang: {
     update(g, p, dt) {
       const step = 260 * dt;

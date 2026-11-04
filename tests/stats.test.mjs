@@ -59,7 +59,7 @@ test('rarities are whole multiples of Common: 1x, 2x, 3x, 4x', () => {
 
 test('Split bolt: +1, +2, +3, +4 spell targets by rarity, nobody else changes', () => {
   const targets = RARITIES.map(r => heroStats(H('mage'), asMods(R('Split bolt').mods(r.mult))).targets);
-  assert.deepEqual(targets, [3, 4, 5, 6]);
+  assert.deepEqual(targets, [2, 3, 4, 5]);
   assert.equal(heroStats(H('ranger'), asMods(R('Split bolt').mods(3))).targets, undefined);
 });
 

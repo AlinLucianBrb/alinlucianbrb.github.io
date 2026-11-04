@@ -10,13 +10,14 @@ import { attack, dotDamage } from './combat.js';
 import { BEHAVIORS } from './behaviors.js';
 import { spawnEnemy, updateEnemies, sweep, waveCount, spawnDelay, waveEnemyType } from './enemies.js';
 import { updateProjectiles } from './projectiles.js';
+import { updateZones } from './zones.js';
 import { createMeter } from './meter.js';
 import { createRng } from './rng.js';
 import { attackMult, gainEnergy } from './ultimates.js';
 import { gainXp } from './levels.js';
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
-export const ENGINE_VERSION = 7;     /* bump when a rule change would make old command logs play out differently */
+export const ENGINE_VERSION = 8;     /* bump when a rule change would make old command logs play out differently */
 
 function genPath(rng) {
   let x = 0, y = 1 + rng.int(ROWS - 2); const p = [[x, y]];
@@ -50,7 +51,7 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
     tick: 0, phase: 'build', won: false, auto: false, autoT: 3, picking: false, pick: null,
     gold: 100 + resolve(0, 'startGold', mods), lives: 20 + resolve(0, 'startLives', mods),
     wave: 0, spawnLeft: 0, spawnT: 0, kills: 0, nextHeroId: 1,
-    heroes: [], enemies: [], projs: [], mods, relics: [], relicsBought: 0, banned: new Set(),
+    heroes: [], enemies: [], projs: [], zones: [], mods, relics: [], relicsBought: 0, banned: new Set(),
     ev: createBus(), fx: null, gs: null, talents: [...talents], lineup: team, items: equipped,
     log: record ? { v: 1, ver: ENGINE_VERSION, seed: seed >>> 0, stage, talents: [...talents], lineup: [...team], items: { ...equipped }, commands: [], ticks: 0 } : null
   };
@@ -60,7 +61,7 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
   w.attackMult = h => attackMult(w, h);
   w.gainEnergy = (h, amount) => gainEnergy(h, amount);
   /* Gold for a hero's next evolution, or null when it has none left. */
-  w.evolveCost = h => { const e = h.def.evolutions[h.tier]; return e ? Math.round(e.cost * w.gs.evolveCost) : null; };
+  w.evolveCost = h => { const e = (h.base || h.def).evolutions[h.tier]; return e ? Math.round(e.cost * w.gs.evolveCost) : null; };
   w.relicCost = () => Math.round(0.6 * (80 + 40 * w.relicsBought));
   w.pickCost = () => Math.max(1, Math.round(0.25 * w.pick.paid * Math.pow(1.05, w.pick.uses)));
   w.previewRange = i => resolve(HEROES[i].stats.range, 'range', w.mods, HEROES[i].tags);
@@ -136,6 +137,7 @@ export function step(w) {
     BEHAVIORS[h.def.kind].update(w, h, STEP);
   }
   updateProjectiles(w, STEP);
+  updateZones(w, STEP);
   sweep(w.enemies);
   if (w.phase === 'wave' && w.spawnLeft === 0 && !w.enemies.length) waveCleared(w);
   w.tick++;

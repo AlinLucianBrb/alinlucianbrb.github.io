@@ -6,6 +6,10 @@ const MAP_W = COLS * T, MAP_H = ROWS * T;
 
 /* How each projectile type looks (the engine only simulates them). */
 const PROJ_DRAW = {
+  bolt(ctx, p) {
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.size + 4, 0, 7); ctx.fillStyle = 'rgba(255,255,255,.15)'; ctx.fill();
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, 7); ctx.fillStyle = p.color; ctx.fill();
+  },
   boomerang(ctx, p) {
     ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
     ctx.strokeStyle = '#8be28b'; ctx.lineWidth = 5; ctx.lineCap = 'round';
@@ -161,6 +165,13 @@ export function draw(ctx, g, v) {
   }
   for (const b of v.vfx.beams) { ctx.strokeStyle = b.c; ctx.lineWidth = b.w; ctx.beginPath(); ctx.moveTo(b.x1, b.y1); ctx.lineTo(b.x2, b.y2); ctx.stroke(); }
   for (const p of g.projs) PROJ_DRAW[p.type](ctx, p);
+  /* Zones: the Lightning Mage's storm is a flickering circle that fades as it ends. */
+  for (const z of g.zones || []) {
+    const a = Math.min(1, z.t) * (0.75 + 0.25 * Math.sin(z.t * 40));
+    ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, 7);
+    ctx.fillStyle = 'rgba(255,228,92,' + (0.1 * a) + ')'; ctx.fill();
+    ctx.setLineDash([8, 6]); ctx.strokeStyle = 'rgba(255,228,92,' + (0.7 * a) + ')'; ctx.lineWidth = 2; ctx.stroke(); ctx.setLineDash([]);
+  }
   for (const e of g.enemies) {
     ctx.beginPath(); ctx.arc(e.x, e.y, e.def.radius, 0, 7); ctx.fillStyle = tintOf(e) || e.def.color; ctx.fill();
     const f = e.hp / e.max, bw = e.def.radius * 2.2, by = e.y - e.def.radius - 7;

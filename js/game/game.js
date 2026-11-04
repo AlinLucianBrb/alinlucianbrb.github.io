@@ -214,7 +214,7 @@ function clickCell(cx, cy) {
     if (act({ type: 'move', id: v.moving.id, cx, cy }).ok) v.moving = null;
     ui.renderInspector(w, v); return;
   }
-  if (existing) { v.selected = existing; ui.renderInspector(w, v); return; }
+  if (existing) { if (existing !== v.selected) v.evoPick = false; v.selected = existing; ui.renderInspector(w, v); return; }
   if (!inside || !canPlace(v.sel)) { closeInspector(); return; }
   if (act({ type: 'place', hero: HEROES[v.sel].id, cx, cy }).ok) {
     v.selected = null;
@@ -232,17 +232,25 @@ const selectType = i => {
   if (i < 0 || !w.lineup.includes(HEROES[i].id)) return;
   v.moving = null;
   const unit = unitOf(i);
+  if (unit !== v.selected) v.evoPick = false;
   if (unit) { v.selected = unit; v.sel = i; } else { v.sel = i; v.selected = null; }
   ui.renderInspector(w, v);
 };
-const closeInspector = () => { v.selected = v.moving = null; ui.renderInspector(w, v); };
-const evolveSelected = () => { if (v.selected) act({ type: 'evolve', id: v.selected.id }); };
+const closeInspector = () => { v.selected = v.moving = null; v.evoPick = false; ui.renderInspector(w, v); };
+/* Evolve: with one form it evolves straight away; with several (the Mage's elements) it opens the choice in the hero panel. */
+const evolveSelected = () => {
+  const h = v.selected; if (!h) return;
+  const step = h.base.evolutions[h.tier]; if (!step) return;
+  if (step.choices.length > 1) { v.evoPick = !v.evoPick; ui.renderInspector(w, v); }
+  else act({ type: 'evolve', id: h.id, choice: 0 });
+};
+const chooseEvolution = i => { if (v.selected && act({ type: 'evolve', id: v.selected.id, choice: i }).ok) { v.evoPick = false; ui.renderInspector(w, v); } };
 const toggleMove = () => { if (v.selected && w.phase !== 'over') { v.moving = v.moving === v.selected ? null : v.selected; ui.renderInspector(w, v); } };
 ui.initUI({
-  onSelectType: selectType, onCloseInspector: closeInspector, onEvolve: evolveSelected, onMove: toggleMove,
+  onSelectType: selectType, onCloseInspector: closeInspector, onEvolve: evolveSelected, onEvolveChoice: chooseEvolution, onMove: toggleMove,
   onChoose: i => act({ type: 'choose', index: i }), onReroll: () => act({ type: 'reroll' }), onBanish: i => act({ type: 'banish', index: i }),
   heroInfo: i => {
-    const def = HEROES[i], unit = w && unitOf(i), tier = unit ? unit.tier : 0, evo = def.evolutions[tier];
+    const def = HEROES[i], unit = w && unitOf(i), tier = unit ? unit.tier : 0, evo = def.evolutions[tier];   /* a step: { level, cost, choices } */
     const evoCost = evo && w ? Math.round(evo.cost * w.gs.evolveCost) : evo ? evo.cost : null;
     return { stats: unit ? unit.s : heroStats(def, w ? w.mods : []), unit, evo, evoCost, gold: w ? w.gold : 0 };
   },

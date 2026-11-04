@@ -21,7 +21,7 @@ function setup(heroId, mods = [], seed = 31) {
 const tick = (w, e, seconds) => { for (let i = 0; i < seconds * 60; i++) tickEffects(w, e, 1 / 60); };
 
 test('every hero has a damage type and all the combat stats, starting at 0', () => {
-  assert.deepEqual(HEROES.map(h => h.damageType), ['physical', 'physical', 'cold']);
+  assert.deepEqual(HEROES.map(h => h.damageType), ['physical', 'physical', 'spell']);
   for (const h of HEROES) for (const k in COMBAT_STATS) assert.equal(h.stats[k], 0, h.id + ' ' + k);
 });
 
@@ -57,10 +57,10 @@ test("added damage of other types is dealt alongside the hero's own, each reduce
   assert.equal(dealt(e), 37);
 });
 
-test('the Mage deals cold damage, so cold resistance applies to it', () => {
+test('the Mage deals spell damage, so spell resistance applies to it (and nothing else does)', () => {
   const { w, h } = setup('mage');
-  const e = enemyAt(w, h.x + 20, h.y, 10); e.res = { cold: 0.25 };
-  w.attack(h, e); assert.equal(dealt(e), 12);
+  const e = enemyAt(w, h.x + 20, h.y, 10); e.res = { spell: 0.5, cold: 0.75 };
+  w.attack(h, e); assert.equal(dealt(e), 13);
 });
 
 test('bleed: 70% of the physical hit per second for 4 s; only the strongest bleed counts; credited to the hero', () => {
@@ -96,16 +96,22 @@ test('burn comes only from fire; a warrior with fire damage burns, one without d
   assert.ok(Math.abs(e2.fx.burn.dps - 0.9 * 10) < near);
 });
 
-test('shock makes the enemy take 20% more damage from everything, for 2 s', () => {
+test('shock lowers defenses for 2 s: half the armor, and 20 points off every resistance', () => {
+  const e = { armor: 100, res: { fire: 0.5, cold: 0.9 }, fx: { shock: { t: 2, armorDown: 0.5, resDown: 0.2 } } };
+  assert.ok(Math.abs(mitigate(e, 'physical', 20) - 20 * (1 - 50 / (50 + 100))) < near, 'armor 100 counts as 50');
+  assert.ok(Math.abs(mitigate(e, 'fire', 100) - 70) < near, '50% fire resistance counts as 30%');
+  assert.ok(Math.abs(mitigate(e, 'cold', 100) - 45) < near, 'capped 75% first, then shocked down to 55%');
+  assert.ok(Math.abs(mitigate(e, 'toxic', 100) - 120) < near, 'no resistance: shocked to -20%, so 20% extra');
   const { w, h } = setup('warrior', [mod('shockChance', 1), mod('lightningDamage', 5)]);
-  const e = enemyAt(w, h.x + 30, h.y, 10);
-  w.attack(h, e); const first = dealt(e);
-  w.attack(h, e); assert.ok(Math.abs(dealt(e) - first - first * 1.2) < near);
-  tick(w, e, 2.1); assert.ok(!e.fx.shock);
+  const t = enemyAt(w, h.x + 30, h.y, 10);
+  w.attack(h, t); const first = dealt(t);
+  assert.equal(first, 33, 'the hit that shocks is not boosted');
+  w.attack(h, t); assert.ok(Math.abs(dealt(t) - first - (28 + 6)) < near, 'next hit: physical unchanged (no armor), lightning +20%');
+  tick(w, t, 2.1); assert.ok(!t.fx.shock);
 });
 
 test('freeze stops an enemy; bigger hits (relative to its life) freeze longer, up to 1.5 s', () => {
-  const { w, h } = setup('mage', [mod('freezeChance', 1)]);
+  const { w, h } = setup('warrior', [mod('freezeChance', 1), mod('coldDamage', 16)]);   /* only the cold part can freeze */
   w.phase = 'wave'; w.spawnLeft = 0;
   const e = enemyAt(w, h.x + 20, h.y, 0, 64); e.speed = 60;
   w.attack(h, e);
@@ -137,7 +143,7 @@ test('chances are rolled with the seeded combat stream: same seed, same ailments
 test('a whole match with every ailment switched on runs, and every ailment happens', () => {
   const w = createWorld({ seed: 9, stage: 1 });
   for (const id in AILMENTS) w.mods.push(mod(id + 'Chance', 0.25));
-  w.mods.push(mod('fireDamage', 3), mod('lightningDamage', 3), mod('toxicDamage', 2));
+  w.mods.push(mod('fireDamage', 3), mod('coldDamage', 3), mod('lightningDamage', 3), mod('toxicDamage', 2));
   recalc(w);
   const free = []; for (const [x, y] of w.path.slice(3)) for (const dy of [-1, 1]) { const c = [x, y + dy]; if (c[1] >= 0 && c[1] < 10 && !w.pathSet.has(c.join())) free.push(c); }
   place(w, 'warrior', ...free[0]); place(w, 'ranger', ...free[6]); place(w, 'mage', ...free[12]);

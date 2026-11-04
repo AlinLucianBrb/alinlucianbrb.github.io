@@ -195,6 +195,24 @@ test('the gold box shows Compound interest: what the next wave pays and the gold
   assert.equal(byId.interest._v, 'Interest +60 (full)');
 });
 
+test('evolving the Mage: Evolve opens the element choice in the hero panel, and a choice evolves it', async () => {
+  const { levelMods } = await import('../js/engine/levels.js');
+  byId.newRun.onclick(); dom.frames(2);
+  const [t] = freeTiles(1);
+  dom.heroButton(2).onclick(); click(...t); click(...t); dom.frames(1);
+  const m = world().heroes[0];
+  m.level = 10; m.lvlMods = levelMods(10); world().statsFor(m); world().gold = 500;   /* test only */
+  dom.frames(20);
+  dom.button('Evolve').onclick(); dom.frames(1);
+  const choices = dom.made.filter(e => e.className === 'evochoice' && byId.inspect.children.some(c => c.children.includes(e)));
+  assert.deepEqual(choices.map(c => c.children[0]._text), ['Fire Mage', 'Cold Mage', 'Lightning Mage']);
+  assert.equal(world().heroes[0].tier, 0, 'opening the choice does not evolve yet');
+  choices[2].onclick(); dom.frames(1);
+  assert.equal(m.def.name, 'Lightning Mage'); assert.equal(world().gold, 350);
+  assert.ok(dom.made.some(e => e.tag === 'b' && e._text === '★ Lightning Mage · Spell'), 'the panel title shows the new form');
+  assert.equal(dom.heroButton(2).children[2]._v, '★ Lightning Mage · Lv 10');
+});
+
 test('the match uses the lineup and items from the Play screen', () => {
   stopGame();
   startGame({ ...hooks, lineup: ['mage', 'warrior'], items: { warrior: 'power_charm' } }); dom.frames(2);
