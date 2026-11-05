@@ -45,6 +45,15 @@ create table if not exists public.player_items (
   created_at timestamptz not null default now()
 );
 create index if not exists player_items_user_idx on public.player_items (user_id);
+-- Rarity (0 Common, 1 Uncommon, 2 Rare, 3 Epic) and bonuses (relic names, no repeats, at most 4), rolled by finish_run.
+-- Items from before this existed stay Common with no bonuses.
+alter table public.player_items add column if not exists rarity int not null default 0 check (rarity between 0 and 3);
+alter table public.player_items add column if not exists bonuses text[] not null default '{}';
+-- The relics an item bonus can be (generated from js/content/items.js).
+create table if not exists public.item_bonuses (
+  id text primary key
+);
+alter table public.item_bonuses enable row level security;
 alter table public.hero_classes enable row level security;
 alter table public.item_types enable row level security;
 alter table public.player_items enable row level security;

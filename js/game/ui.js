@@ -1,5 +1,8 @@
 /* All DOM work for the game screen. Values are only written when they change, to avoid needless page updates. */
-import { HEROES, RARITIES, RELICS, STAT_LABELS, rarityOdds, HERO_LEVELS } from '../content/data.js';
+import { HEROES, RARITIES, RELICS, STAT_LABELS, rarityOdds, HERO_LEVELS, ATTRIBUTES } from '../content/data.js';
+/* Attribute short names and colours: strength red, dexterity green, intellect blue. */
+export const ATTR_SHORT = { strength: 'Str', dexterity: 'Dex', intellect: 'Int' };
+export const ATTR_COLOR = { strength: '#e5645a', dexterity: '#5fd46f', intellect: '#5aa9ff' };
 import { ULTIMATES } from '../engine/ultimates.js';
 import { DAMAGE_LABEL } from '../content/combat.js';
 import { explain, affected, attributeDamage } from '../engine/stats.js';
@@ -108,8 +111,14 @@ export function renderHUD(g, v) {
     const done = !!unit && !unit.base.evolutions[unit.tier];
     if (b.hidden !== done) { b.hidden = b._wrap.hidden = done; layout = true; }
     if (done) { b._up.hidden = true; return; }
-    const ready = !!unit && canEvolve(g, unit);
-    if (b._up.hidden === ready) { b._up.hidden = !ready; b._up.title = ready ? 'Choose an evolution for ' + unit.def.name : ''; }
+    /* Evolve button above the card: shown once the hero has the level, with the cost; dimmed until you have the gold. */
+    const step = unit && unit.base.evolutions[unit.tier], due = !!step && unit.level >= (step.level || 1) && g.phase !== 'over';
+    if (b._up.hidden === due) b._up.hidden = !due;
+    if (due) {
+      const cost = g.evolveCost(unit), short = g.gold < cost;
+      setText(b._up, '▲ Evolve · ' + cost); b._up.disabled = short; b._up.classList.toggle('short', short);
+      b._up.title = short ? 'Evolving costs ' + cost + ' gold (you have ' + g.gold + ')' : 'Evolve the ' + unit.def.name + ' for ' + cost + ' gold';
+    }
     setText(b._nm, unit ? (unit.tier ? '★ ' : '') + unit.def.name : d.name);
     setText(b._lv, unit ? 'Lv ' + unit.level : '');
     setText(b._status, unit ? '' : 'Free · place it');
@@ -203,48 +212,34 @@ export function renderInspector(g, v) {
   const box = $('inspect'), t = v.selected;
   $('heroPanel').hidden = !t;
   if (!t) { box._k = 'none'; box._t = null; return; }
-  const moving = v.moving === t;
-  const step = t.base.evolutions[t.tier], ready = !!step && t.level >= (step.level || 1);
   const bk = (t.buffs || []).map(b => b.id).join(',');   /* rebuild when a buff starts or ends */
-  if (box._t !== t || box._m !== g.mods.length || box._mv !== moving || box._tier !== t.tier || box._lv !== t.level || box._rd !== ready || box._bk !== bk) {
-    box._k = 't'; box._t = t; box._m = g.mods.length; box._mv = moving; box._tier = t.tier; box._lv = t.level; box._rd = ready; box._bk = bk; box.textContent = '';
+  if (box._t !== t || box._m !== g.mods.length || box._tier !== t.tier || box._lv !== t.level || box._bk !== bk) {
+    box._k = 't'; box._t = t; box._m = g.mods.length; box._tier = t.tier; box._lv = t.level; box._bk = bk; box.textContent = '';
     const d = t.def, head = el('div', 'srow'), title = el('b', '', (t.tier ? '★ ' : '') + d.name + ' · Lv ' + t.level), close = el('button', 'linkbtn', 'Close');
     title.style.color = d.color; close.onclick = cb.onCloseInspector; head.append(title, close); box.append(head);
-    box.append(el('p', 'muted', moving ? 'Release it on a free tile to move it there.' : cap(d.archetype) + ' · click and hold it on the map to move it.'));
-    /* Evolution: what comes next, and once the level is reached, one button per form. */
-    box._choices = []; box._evoHead = null;
-    if (step && !ready) {
-      const names = step.choices.map(c => c.name);
-      box.append(el('p', 'muted', 'Evolves at level ' + step.level + ' into ' + (names.length > 1 ? names.slice(0, -1).join(', ') + ' or ' + names.at(-1) : names[0]) + '.'));
-    }
-    if (step && ready) {
-      box._evoHead = el('div', 'evohead'); box.append(box._evoHead);
-      const row = el('div', 'evochoices');
-      step.choices.forEach((c, i) => {
-        const b = el('button', 'evochoice'), u = ULTIMATES[c.ultimate || d.ultimate];
-        const nm = el('b', '', c.name);
-        b.append(nm, el('small', '', c.short));
-        b.style.borderColor = c.color || d.color; nm.style.color = c.color || d.color;
-        bindTip(b, () => ({ title: c.name, color: c.color || d.color, lines: [c.short,
-          { text: 'Damage: ' + DAMAGE_LABEL[c.damageType || d.damageType], color: '#9db3a3' },
-          ...(u ? [{ text: 'Ultimate: ' + u.name + ' (' + (c.ultShort || u.desc) + ')', color: '#9db3a3' }] : []),
-          { text: '+50% damage, range and attack speed', color: '#9db3a3' }] }));
-        b.onclick = () => cb.onEvolveChoice(i);
-        row.append(b); box._choices.push(b);
-      });
-      box.append(row);
-    }
-    /* Level and XP. */
+    /* XP, right under the name. */
     const lr = el('div', 'srow'), lv = el('span', 'lvl'), xbar = el('span', 'ebar wide xpbar'), xfill = el('i');
     xbar.append(xfill); lr.append(lv, xbar); box.append(lr); box._lvl = lv; box._xfill = xfill; box._xbar = xbar;
-    /* Energy and the ultimate. */
-    const u = ULTIMATES[d.ultimate], er = el('div', 'srow'), ebar = el('span', 'ebar wide'), efill = el('i');
-    ebar.append(efill); er.append(el('span', '', 'Energy'), ebar); box.append(er);
-    if (u) box.append(el('div', 'buff', 'When full: ' + u.name + ' (' + u.desc + ')'));
-    box._efill = efill; box._ebar = ebar;
+    /* Attributes, right under XP; the hero's own one in its colour. */
     const all = g.mods.concat(t.mods, t.lvlMods || [], ...(t.buffs || []).map(b => b.mods));
+    const ar = el('div', 'attrs');
+    for (const a of ATTRIBUTES) {
+      const own = a === d.attribute, sp = el('span', 'attr' + (own ? ' main' : ''));
+      sp.append(el('small', '', ATTR_SHORT[a]), el('b', '', f(t.s[a])));
+      if (own) sp.style.color = ATTR_COLOR[a];
+      bindTip(sp, () => ({ title: STAT_LABELS[a] + (own ? ' (main attribute)' : ''), color: own ? ATTR_COLOR[a] : undefined,
+        lines: own ? ['+' + pct(attributeDamage(d, t.s)) + ' damage (+1% per point)', ...stackMods(explain(d, a, all).concat(explain(d, 'mainAttribute', all))).map(m => ({ text: describe(m, a), color: '#9db3a3' }))]
+          : ['Not ' + d.name + "'s main attribute: no effect yet."] }));
+      ar.append(sp);
+    }
+    box.append(ar);
+    /* Energy as x/max, then the ultimate. */
+    const u = ULTIMATES[d.ultimate], er = el('div', 'srow'), el2 = el('span', 'lvl energy'), ebar = el('span', 'ebar wide'), efill = el('i');
+    ebar.append(efill); er.append(el2, ebar); box.append(er);
+    if (u) box.append(el('div', 'buff', 'When full: ' + u.name + ' (' + u.desc + ')'));
+    box._elbl = el2; box._efill = efill; box._ebar = ebar;
     for (const key in d.stats) {
-      if (key === 'cooldown' || key === 'energyMax') continue;
+      if (key === 'cooldown' || key === 'energyMax' || ATTRIBUTES.includes(key)) continue;
       if (!t.s[key] && !d.stats[key]) continue;          /* unused stats (most combat stats for now) stay hidden */
       const isRate = key === 'speed';
       const label = key === 'damage' ? (d.dps ? 'Damage per second' : 'Damage') + ' (' + DAMAGE_LABEL[d.damageType || 'physical'] + ')' : STAT_LABELS[key] || key;
@@ -254,14 +249,14 @@ export function renderInspector(g, v) {
       const row = el('div', 'srow'); row.append(el('span', '', label), el('span', '', show(value) + (f(value) !== f(base) ? '  (base ' + show(base) + ')' : '')));
       box.append(row);
       if (key === 'damage' && attributeDamage(d, t.s) > 0) {   /* the hero's own attribute: +1% damage per point */
-        const line = el('div', 'buff', '+' + pct(attributeDamage(d, t.s)) + ' · ' + STAT_LABELS[d.attribute] + ' (attribute)'); line.style.color = '#e8c9a0'; box.append(line);
+        const line = el('div', 'buff', '+' + pct(attributeDamage(d, t.s)) + ' · ' + STAT_LABELS[d.attribute] + ' (attribute)'); line.style.color = ATTR_COLOR[d.attribute]; box.append(line);
       }
-      const shown = key === d.attribute ? explain(d, key, all).concat(explain(d, 'mainAttribute', all)) : explain(d, key, all);
-      for (const m of stackMods(shown)) { const line = el('div', 'buff', describe(m, key)); line.style.color = m.ri >= 0 ? RARITIES[m.ri].color : SOURCE_COLOR[m.ri] || '#f2b84b'; box.append(line); }
+      for (const m of stackMods(explain(d, key, all))) { const line = el('div', 'buff', describe(m, key)); line.style.color = m.ri >= 0 ? RARITIES[m.ri].color : SOURCE_COLOR[m.ri] || '#f2b84b'; box.append(line); }
     }
     box._dealt = el('p', 'muted'); box.append(box._dealt);
   }
   setText(box._dealt, 'Damage dealt: ' + num(t.dealt) + ' · Kills: ' + t.kills + ' · Ultimates: ' + t.ults);
+  setText(box._elbl, 'Energy ' + Math.floor(t.energy) + '/' + f(t.s.energyMax));
   const pctE = Math.round(t.energy / t.s.energyMax * 100) + '%';
   if (box._efill.style.width !== pctE) box._efill.style.width = pctE;
   box._ebar.classList.toggle('full', t.energy >= t.s.energyMax);
@@ -269,12 +264,26 @@ export function renderInspector(g, v) {
   setText(box._lvl, maxed ? 'XP (max level)' : 'XP ' + Math.floor(t.xp) + '/' + need);
   const xp = maxed ? '100%' : Math.round(t.xp / need * 100) + '%';
   if (box._xfill.style.width !== xp) box._xfill.style.width = xp;
-  if (box._evoHead) {
-    const cost = g.evolveCost(t), short = g.gold < cost;
-    setText(box._evoHead, 'Evolve · ' + cost + ' gold' + (short ? ' (you have ' + g.gold + ')' : ': choose a form'));
-    for (const b of box._choices) b.disabled = short || g.phase === 'over';
-  }
 }
+
+/* The evolution picker: like the relic picker, it covers the game (which pauses) and offers the hero's forms side by side. */
+export function showEvoPick(g, h) {
+  const step = h.base.evolutions[h.tier]; if (!step) return;
+  const cost = g.evolveCost(h), box = $('evoChoices'); box.textContent = '';
+  setText($('evoTitle'), 'Evolve the ' + h.def.name + ' · ' + cost + ' gold');
+  step.choices.forEach((c, i) => {
+    const d = h.def, u = ULTIMATES[c.ultimate || d.ultimate], color = c.color || d.color, card = el('div', 'card'), b = el('button', 'choose');
+    const nm = el('b', '', c.name); nm.style.color = color; b.style.borderColor = color;
+    b.append(nm, el('small', 'rar', DAMAGE_LABEL[c.damageType || d.damageType] + ' damage'), el('small', '', c.short),
+      ...(u ? [el('small', 'aff', 'Ultimate: ' + (c.ultShort || u.name + ': ' + u.desc))] : []), el('small', 'aff', '+50% damage, range and attack speed'));
+    b.disabled = g.gold < cost;
+    b.onclick = () => cb.onEvolveChoice(i);
+    card.append(b); box.append(card);
+  });
+  setText($('evoGold'), g.gold < cost ? 'You need ' + cost + ' gold (you have ' + g.gold + ').' : 'Gold: ' + g.gold);
+  $('evoPick').hidden = false;
+}
+export const hideEvoPick = () => { $('evoPick').hidden = true; };
 
 
 
