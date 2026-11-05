@@ -2,7 +2,7 @@
    for balance ("how often does a sensible, unskilled player win level 3?") and a source of long, realistic test runs.
    It places each hero in its lineup once on the best tile it can find, then spends gold on evolutions and relics. */
 import { HEROES, RARITIES, STAGES, T } from '../js/content/data.js';
-import { NODES, canAllocate, pointsFor } from '../js/content/talents.js';
+import { TREES, TREE_ID, pathTo, pointsFor } from '../js/content/talents.js';
 import { createWorld, step, summary } from '../js/engine/world.js';
 import { apply } from '../js/engine/commands.js';
 import { exportLog } from '../js/engine/replay.js';
@@ -18,19 +18,19 @@ export const STRATEGIES = {
   rogue3: ['rogue', 'ranger', 'mage']
 };
 
-/* Talents for a player of the given level, branch by branch in the single tree: damage and speed first, then the branches
-   for the lineup's heroes (melee, projectiles, spells), then energy, elements, gold, the gate and the rest. */
-const HERO_BRANCH = { warrior: 2, ranger: 3, mage: 4, rogue: 2 };
+/* Talents for a player of the given level: whole clusters in order of usefulness for the lineup (damage and crits first,
+   then the lineup's own clusters, then the rest), each reached by the shortest path from what is already taken. */
+const HERO_CLUSTERS = { warrior: ['melee', 'armorpen'], ranger: ['projectile'], mage: ['spell', 'cast'], rogue: ['melee', 'crit'] };
 export function talentsFor(level, strategy = 'trio') {
-  const points = pointsFor(level), picked = new Set(), order = [];
-  const branches = [0, 1, ...STRATEGIES[strategy].map(h => HERO_BRANCH[h]), 6, 5, 7, 10, 2, 3, 4, 8, 9, 11];
-  for (const b of new Set(branches)) for (let i = 0; i < 4; i++) { const nid = 'main_' + b + '_' + i; if (NODES.has(nid)) order.push(nid); }
-  let progress = true;
-  while (picked.size < points && progress) {
-    progress = false;
-    for (const nid of order) {
-      if (picked.size >= points) break;
-      if (!picked.has(nid) && canAllocate(picked, NODES.get(nid))) { picked.add(nid); progress = true; }
+  const points = pointsFor(level), picked = new Set();
+  const order = [...new Set(['damage', 'speed', ...STRATEGIES[strategy].flatMap(h => HERO_CLUSTERS[h] || []), 'crit', 'energy', 'gate', 'elements', 'gold', 'fire', 'lightning', 'cold', 'respen', 'relics', 'tempo', 'rewards'])];
+  const clusters = TREES[TREE_ID].clusters;
+  for (const key of order) {
+    const cl = clusters.find(c => c.key === key); if (!cl) continue;
+    for (const node of [...cl.ring, cl.notable]) {
+      const way = pathTo(picked, node.id);
+      if (!way || picked.size + way.length > points) return [...picked];
+      for (const id of way) picked.add(id);
     }
   }
   return [...picked];

@@ -4,6 +4,7 @@ import { createWorld, step, recalc } from '../js/engine/world.js';
 import { apply } from '../js/engine/commands.js';
 import { RELICS } from '../js/content/data.js';
 import { levelMods } from '../js/engine/levels.js';
+import { pathTo } from '../js/content/talents.js';
 import { richWorld, tilesNearPath, place, heroIndex } from './helpers.mjs';
 
 test('heroes are free to place, once each, only from the lineup, on a free tile; placing is recorded', () => {
@@ -105,8 +106,8 @@ test('rerolls and banishes come only from talents, are free, and run out; banish
   const plain = richWorld(); apply(plain, { type: 'buyRelic' });
   assert.equal(apply(plain, { type: 'reroll' }).reason, 'no rerolls', 'none without talents');
   assert.equal(apply(plain, { type: 'banish', index: 0 }).reason, 'no banishes');
-  /* Second Look and Third Look (+1 reroll each), Picky (+1 banish). */
-  const w = createWorld({ seed: 1, talents: ['main_9_0', 'main_9_1', 'main_9_2'] }); w.gold = 100000;
+  /* The path into the Relics cluster, then Second Look and Third Look (+1 reroll each) and Picky (+1 banish). */
+  const w = createWorld({ seed: 1, talents: pathTo(new Set(), 't2_relics_2') }); w.gold = 100000;
   assert.equal(w.rerolls, 2); assert.equal(w.banishes, 1);
   apply(w, { type: 'buyRelic' });
   let g = w.gold; assert.ok(apply(w, { type: 'reroll' }).ok); assert.equal(g - w.gold, 0, 'free'); assert.equal(w.rerolls, 1);

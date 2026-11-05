@@ -5,11 +5,11 @@ alter table public.profiles add column if not exists frontier_wave int not null 
 alter table public.profiles add column if not exists lineup text[] not null default '{warrior,ranger,mage}';
 alter table public.profiles add column if not exists equipment jsonb not null default '{}';
 
--- Talent rework: the General and per-hero trees became one tree (node ids start with main_). Points in the old trees are
--- refunded, so players allocate them again in the new tree.
+-- Talent tree reworks: the tree is now made of clusters joined by attribute paths (node ids start with t2_). Points spent in
+-- any older tree are refunded, so players allocate them again in the new tree.
 update public.profiles p
-   set talents = coalesce((select array_agg(x) from unnest(p.talents) as x where x ~ '^main_'), '{}')
- where exists (select 1 from unnest(p.talents) as x where x !~ '^main_');
+   set talents = coalesce((select array_agg(x) from unnest(p.talents) as x where x ~ '^t2_'), '{}')
+ where exists (select 1 from unnest(p.talents) as x where x !~ '^t2_');
 
 -- Gear slots: equipment used to be { "hero": "itemId" } (one trinket); now it is { "hero": { "slot": "itemId" } }.
 update public.profiles p

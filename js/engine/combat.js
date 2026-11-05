@@ -5,16 +5,19 @@ import { DAMAGE_TYPES, AILMENTS, RES_CAP, ARMOR_FACTOR, ARMOR_CAP } from '../con
 import { applyEffect } from './effects.js';
 
 /* How much of `amount` gets through, for one damage type. Armor only stops hits, not damage over time.
-   Shock lowers armor (by a share) and every resistance (by percentage points, after the 75% cap, so it always bites). */
-export function mitigate(e, type, amount, isHit = true) {
+   Shock lowers armor (by a share) and every resistance (by percentage points, after the cap, so it always bites).
+   s: the attacking hero's stats, for penetration (hits only): armorPen ignores a share of the armor, firePen... take points
+   off that resistance, also after the cap. */
+export function mitigate(e, type, amount, isHit = true, s = null) {
   if (amount <= 0) return 0;
   const shock = e.fx && e.fx.shock;
   if (type === 'physical') {
-    const armor = (e.armor || 0) * (shock ? 1 - shock.armorDown : 1);
+    const armor = (e.armor || 0) * (shock ? 1 - shock.armorDown : 1) * (isHit && s ? Math.max(0, 1 - (s.armorPen || 0)) : 1);
     if (!isHit || armor <= 0) return amount;
     return amount * (1 - Math.min(ARMOR_CAP, armor / (armor + ARMOR_FACTOR * amount)));
   }
-  const r = Math.max(-1, Math.min(RES_CAP, (e.res && e.res[type]) || 0) - (shock ? shock.resDown : 0));
+  const pen = isHit && s ? s[type + 'Pen'] || 0 : 0;
+  const r = Math.max(-1, Math.min(RES_CAP, (e.res && e.res[type]) || 0) - (shock ? shock.resDown : 0) - pen);
   return amount * (1 - r);
 }
 
@@ -42,7 +45,7 @@ export function attack(w, hero, e, scale = 1, rate = 1, as = null) {
   let total = 0;
   for (const t of DAMAGE_TYPES) {
     if (raw[t] <= 0) continue;
-    const got = mitigate(e, t, raw[t]);
+    const got = mitigate(e, t, raw[t], true, s);
     raw[t] = got; total += got;
     w.hit(hero, e, got, t);
     if (e.dead) return;

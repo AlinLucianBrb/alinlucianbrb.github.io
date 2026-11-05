@@ -107,15 +107,21 @@ button:focus-visible,input:focus-visible{outline:3px solid #fff;outline-offset:2
 #screen-talents{justify-content:flex-start}
 .tabs{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
 .tabs button.on{background:#2b4a38}
-.treebox{flex:1;min-height:0;width:min(1000px,100%);background:#101813;border:2px solid var(--line);border-radius:6px}
-.treebox svg{display:block;width:100%;height:100%}
+.treebox{position:relative;flex:1;min-height:0;width:min(1200px,100%);background:#101813;border:2px solid var(--line);border-radius:6px;overflow:hidden}
+.treebox svg{display:block;width:100%;height:100%;cursor:grab;touch-action:none}
+.treebox svg.dragging{cursor:grabbing}
+.tlcam{position:absolute;left:8px;bottom:8px;display:flex;flex-direction:column;gap:4px}
+.tlcam button{min-width:34px;padding:.2em .4em}
+.tlhint{position:absolute;right:10px;bottom:8px;pointer-events:none}
 .tlink{stroke:#385043;stroke-width:5}
 .tlink.on{stroke:#f2b84b}
-.tbranch{fill:#9db3a3;font-size:15px;font-weight:600;pointer-events:none;letter-spacing:.02em}
+.tbranch{fill:#9db3a3;font-size:28px;stroke:#101813;stroke-width:7px;paint-order:stroke;stroke-linejoin:round;font-weight:600;pointer-events:none;letter-spacing:.02em}
 .tnode circle{fill:#1d2f55;stroke:#4a6a58;stroke-width:3;cursor:pointer}
 .tnode.on circle{stroke:#fff}
 .tnode.avail circle{stroke:#f2b84b;stroke-width:4}
 .tnode.notable circle{stroke-width:5}
+.tnode.path circle{fill:#2a3a31;stroke-width:2}
+.tnode.path.avail circle{stroke-width:3}
 .tnode:focus-visible circle{stroke:#fff;stroke-width:6}
 
 /* Game screen: the map fills the window and the HUD floats on top of it. */
@@ -333,7 +339,9 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
     <button id="tlReset">Respec</button>
   </div>
   <div class="tabs" id="tlTabs"></div>
-  <div class="treebox"><svg id="tlSvg" viewBox="-420 -385 840 770" role="group" aria-label="Talent tree"></svg></div>
+  <div class="treebox"><svg id="tlSvg" viewBox="-880 -880 1760 1760" role="group" aria-label="Talent tree"></svg>
+    <div class="tlcam"><button id="tlZoomIn" aria-label="Zoom in">+</button><button id="tlZoomOut" aria-label="Zoom out">−</button><button id="tlFit">Fit</button></div>
+    <small class="tlhint muted">Scroll to zoom, drag to move. Click a far node to take the whole path to it.</small></div>
 </section>
 
 <section id="screen-play" class="screen play" hidden>

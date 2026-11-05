@@ -27,11 +27,16 @@ export const AILMENTS = {
 
 /* Combat stats every hero has, all 0 to start, so talents, relics and items can raise them:
    added damage per hit of each type, and the chance to inflict each ailment. */
+/* Penetration (hits only, not damage over time): armorPen ignores that share of the enemy's armor; firePen, coldPen and
+   lightningPen take that many points off the enemy's resistance (after the cap, like shock). */
+export const PEN_TYPES = ['fire', 'cold', 'lightning'];
 export const COMBAT_STATS = {
+  armorPen: 0, ...Object.fromEntries(PEN_TYPES.map(t => [t + 'Pen', 0])),
   ...Object.fromEntries(DAMAGE_TYPES.map(t => [t + 'Damage', 0])),
   ...Object.fromEntries(Object.keys(AILMENTS).map(a => [a + 'Chance', 0]))
 };
 export const COMBAT_LABELS = {
+  armorPen: 'Armor penetration', ...Object.fromEntries(PEN_TYPES.map(t => [t + 'Pen', DAMAGE_LABEL[t] + ' penetration'])),
   ...Object.fromEntries(DAMAGE_TYPES.map(t => [t + 'Damage', 'Added ' + DAMAGE_LABEL[t].toLowerCase() + ' damage'])),
   ...Object.fromEntries(Object.entries(AILMENTS).map(([id, a]) => [id + 'Chance', a.name + ' chance']))
 };
