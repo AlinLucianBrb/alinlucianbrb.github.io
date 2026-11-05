@@ -2,7 +2,7 @@
    the talent tree (to check talent saves, and the reward bonuses its nodes give), the playable heroes (to check lineups) and the item types (to drop and check items). */
 import { TREES, TREE_ORDER, NODES } from '../js/content/talents.js';
 import { HEROES } from '../js/content/data.js';
-import { ITEMS } from '../js/content/items.js';
+import { ITEMS, ITEM_BONUSES } from '../js/content/items.js';
 
 const q = s => "'" + String(s).replace(/'/g, "''") + "'";
 const list = ids => 'array[' + ids.map(q).join(', ') + ']::text[]';
@@ -30,6 +30,9 @@ export function contentSeedSql() {
     'delete from public.hero_classes where id <> all (' + list(heroes) + ');',
     '-- Item types. Removed items stay in the table (players may own them) but stop dropping.',
     'insert into public.item_types (id, slot, droppable) values\n' + items.map(id => '  (' + q(id) + ', ' + q(ITEMS[id].slot) + ', true)').join(',\n') + '\non conflict (id) do update set slot = excluded.slot, droppable = true;',
-    'update public.item_types set droppable = false where id <> all (' + list(items) + ');'
+    'update public.item_types set droppable = false where id <> all (' + list(items) + ');',
+    '-- Item bonuses: the relics an item can roll.',
+    'insert into public.item_bonuses (id) values ' + ITEM_BONUSES.map(b => '(' + q(b) + ')').join(', ') + ' on conflict (id) do nothing;',
+    'delete from public.item_bonuses where id <> all (' + list(ITEM_BONUSES) + ');'
   ].join('\n') + '\n';
 }

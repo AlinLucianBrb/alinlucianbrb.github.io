@@ -1,6 +1,7 @@
 import { startGame, stopGame } from '../game/game.js';
 import { startRun, finishRun, getItems } from '../services/api.js';
-import { ITEMS } from '../content/items.js';
+import { itemName } from '../content/items.js';
+import { wornItems } from './loadout.js';
 import { runRewards } from '../core/rules.js';
 import { rewardBonus } from '../content/talents.js';
 import { bus } from '../core/bus.js';
@@ -14,16 +15,12 @@ export default {
   async mount(el, params) {
     const stage = (params && params.stage) || 1;
     if (stage > (state.profile.levels_cleared || 0) + 1) return bus.emit('nav', { to: 'levels' });
-    /* Equipped items: { heroId: itemId } in the profile, turned into { heroId: itemType } for the game. */
+    /* Equipped items: { heroId: { slot: itemId } } in the profile, turned into { heroId: [{ type, rarity, bonuses }] } for the game. */
     if (!state.items && Object.keys(state.profile.equipment || {}).length) {
       const { items, error } = await getItems().catch(() => ({ error: 'offline' }));
       state.items = error ? null : items;
     }
-    const equipped = {};
-    for (const [heroId, itemId] of Object.entries(state.profile.equipment || {})) {
-      const it = (state.items || []).find(i => i.id === itemId);
-      if (it) equipped[heroId] = it.item_type;
-    }
+    const equipped = wornItems();
     let runId = null, starting = Promise.resolve({});
 
     /* Every run is registered with the server when it starts; the server only accepts a result for a run it saw begin. */
@@ -44,7 +41,7 @@ export default {
       state.profile = profile;
       if (drops.length) state.items = null;   /* reload the inventory next time it is needed */
       const r = runRewards(waves, kills, rewardBonus(before.talents));
-      const names = drops.map(d => (ITEMS[d] ? ITEMS[d].name : d));
+      const names = drops.map(d => itemName(d));
       return (won ? 'Level ' + stage + ' cleared! ' : '') + '+' + r.xp + ' XP, +' + r.gold + ' gold.' +
         (names.length ? ' You found ' + (names.length > 1 ? names.length + ' items: ' : 'an item: ') + names.join(', ') + '! Equip ' + (names.length > 1 ? 'them' : 'it') + ' on the Heroes screen.' : '') +
         (profile.level > before.level ? ' Level up! You are now level ' + profile.level + '.' : '');

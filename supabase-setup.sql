@@ -92,6 +92,15 @@ create table if not exists public.player_items (
   created_at timestamptz not null default now()
 );
 create index if not exists player_items_user_idx on public.player_items (user_id);
+-- Rarity (0 Common, 1 Uncommon, 2 Rare, 3 Epic) and bonuses (relic names, no repeats, at most 4), rolled by finish_run.
+-- Items from before this existed stay Common with no bonuses.
+alter table public.player_items add column if not exists rarity int not null default 0 check (rarity between 0 and 3);
+alter table public.player_items add column if not exists bonuses text[] not null default '{}';
+-- The relics an item bonus can be (generated from js/content/items.js).
+create table if not exists public.item_bonuses (
+  id text primary key
+);
+alter table public.item_bonuses enable row level security;
 alter table public.hero_classes enable row level security;
 alter table public.item_types enable row level security;
 alter table public.player_items enable row level security;
@@ -280,9 +289,16 @@ insert into public.hero_classes (id) values ('warrior'), ('ranger'), ('mage') on
 delete from public.hero_classes where id <> all (array['warrior', 'ranger', 'mage']::text[]);
 -- Item types. Removed items stay in the table (players may own them) but stop dropping.
 insert into public.item_types (id, slot, droppable) values
+  ('helm', 'helm', true),
+  ('body_armour', 'body', true),
+  ('leggings', 'legs', true),
+  ('boots', 'boots', true),
   ('power_charm', 'trinket', true)
 on conflict (id) do update set slot = excluded.slot, droppable = true;
-update public.item_types set droppable = false where id <> all (array['power_charm']::text[]);
+update public.item_types set droppable = false where id <> all (array['helm', 'body_armour', 'leggings', 'boots', 'power_charm']::text[]);
+-- Item bonuses: the relics an item can roll.
+insert into public.item_bonuses (id) values ('Sharpened rounds'), ('Long barrels'), ('Quick hands'), ('Four-leaf clover'), ('Battle focus'), ('Prospector'), ('Reinforced gate'), ('Bulk order'), ('Split bolt'), ('Tax collector'), ('Compound interest'), ('Fine arrows'), ('Whetstone'), ('Arcane focus'), ('Wide swing') on conflict (id) do nothing;
+delete from public.item_bonuses where id <> all (array['Sharpened rounds', 'Long barrels', 'Quick hands', 'Four-leaf clover', 'Battle focus', 'Prospector', 'Reinforced gate', 'Bulk order', 'Split bolt', 'Tax collector', 'Compound interest', 'Fine arrows', 'Whetstone', 'Arcane focus', 'Wide swing']::text[]);
 
 -- ===== Functions =====
 
@@ -399,8 +415,9 @@ begin
 end;
 $$;
 
--- Saves which heroes a player brings into matches (1 to 3 different heroes) and the item equipped on each hero.
--- equipment is { "heroId": "itemId" }: every hero must exist, every item must belong to the player, and an item can only be worn once.
+-- Saves which heroes a player brings into matches (1 to 3 different heroes) and the gear each hero wears.
+-- equipment is { "heroId": { "slot": "itemId" } }: every hero must exist, every item must belong to the player and fit the slot
+-- it is in (its type's slot), and an item can only be worn once.
 create or replace function public.save_loadout(p_lineup text[], p_equipment jsonb) returns public.profiles
 language plpgsql security definer set search_path = public as $$
 declare me public.profiles; n int;
@@ -411,14 +428,22 @@ begin
   if (select count(distinct x) from unnest(p_lineup) x) <> n then raise exception 'each hero can only be brought once'; end if;
   if (select count(*) from public.hero_classes h where h.id = any (p_lineup)) <> n then raise exception 'unknown hero'; end if;
   if p_equipment is null or jsonb_typeof(p_equipment) <> 'object' then raise exception 'bad equipment'; end if;
-  if exists (select 1 from jsonb_each_text(p_equipment) e where not exists (select 1 from public.hero_classes h where h.id = e.key)) then
+  if exists (select 1 from jsonb_each(p_equipment) e where not exists (select 1 from public.hero_classes h where h.id = e.key)) then
     raise exception 'unknown hero';
   end if;
-  if exists (select 1 from jsonb_each_text(p_equipment) e
-              where not exists (select 1 from public.player_items i where i.id::text = e.value and i.user_id = auth.uid())) then
+  if exists (select 1 from jsonb_each(p_equipment) e where jsonb_typeof(e.value) <> 'object') then raise exception 'bad equipment'; end if;
+  if exists (select 1 from jsonb_each(p_equipment) h, jsonb_each(h.value) s where jsonb_typeof(s.value) <> 'string') then raise exception 'bad equipment'; end if;
+  if exists (select 1 from jsonb_each(p_equipment) h, jsonb_each_text(h.value) s
+              where not exists (select 1 from public.player_items i where i.id::text = s.value and i.user_id = auth.uid())) then
     raise exception 'you do not own that item';
   end if;
-  if (select count(*) from jsonb_each_text(p_equipment)) <> (select count(distinct value) from jsonb_each_text(p_equipment)) then
+  if exists (select 1 from jsonb_each(p_equipment) h, jsonb_each_text(h.value) s
+              join public.player_items i on i.id::text = s.value join public.item_types t on t.id = i.item_type
+              where t.slot <> s.key) then
+    raise exception 'that item does not go in that slot';
+  end if;
+  if (select count(*) from jsonb_each(p_equipment) h, jsonb_each_text(h.value) s)
+     <> (select count(distinct s.value) from jsonb_each(p_equipment) h, jsonb_each_text(h.value) s) then
     raise exception 'an item can only be equipped once';
   end if;
   update public.profiles set lineup = p_lineup, equipment = p_equipment where id = auth.uid() returning * into me;
@@ -430,7 +455,10 @@ $$;
 -- The run must have been started on the server, be long enough to be real, and at most 30 runs per hour are saved.
 drop function if exists public.finish_run(int, int);
 drop function if exists public.finish_run(int, int, int, boolean);
--- Returns { "profile": the updated profile, "drop": the first item type found or null, "drops": every item type found }.
+-- Returns { "profile": the updated profile, "drop": the first item type found or null,
+--           "drops": every item found, as [{ "item_type", "rarity", "bonuses" }] }.
+-- Each item gets a rarity (Common 55%, Uncommon 28%, Rare 13%, Epic 4%), at least rarity + 1 bonuses, then a 30% chance for
+-- each further one, up to 4, all different (the same rules as ROLL in js/content/items.js).
 -- A win always drops an item; a loss has a chance that grows with the waves survived (up to 50%). Item find from talents raises
 -- that: every full 100% is an item, and the rest is the chance of one more. Players can hold at most 200 items.
 -- Talents can also raise the gold and XP the match gives (reward_gold, reward_xp in talent_nodes).
@@ -441,7 +469,8 @@ drop function if exists public.finish_run(uuid, int, int, boolean, int);
 create function public.finish_run(p_run uuid, p_waves int, p_kills int, p_won boolean, p_bosses int default 0) returns jsonb
 language plpgsql security definer set search_path = public as $$
 declare me public.profiles; r public.runs; cap int; frontier boolean; elapsed numeric; done_waves int; dropped text := null;
-        drops text[] := '{}'; b_gold numeric; b_xp numeric; b_loot numeric; chance numeric; n int; boss_cap int;
+        drops jsonb := '[]'; b_gold numeric; b_xp numeric; b_loot numeric; chance numeric; n int; boss_cap int;
+        roll numeric; rar int; nb int; bon text[];
 begin
   if auth.uid() is null then raise exception 'not signed in'; end if;
   select * into r from public.runs where id = p_run and user_id = auth.uid() and finished_at is null for update;
@@ -483,12 +512,18 @@ begin
   n := p_bosses + floor(chance)::int + (case when random() < chance - floor(chance) then 1 else 0 end);
   for i in 1 .. n loop
     exit when (select count(*) from public.player_items where user_id = auth.uid()) >= 200;
+    dropped := null;
     select id into dropped from public.item_types where droppable order by random() limit 1;
     exit when dropped is null;
-    insert into public.player_items (user_id, item_type) values (auth.uid(), dropped);
-    drops := drops || dropped;
+    roll := random() * 100;
+    rar := case when roll < 55 then 0 when roll < 83 then 1 when roll < 96 then 2 else 3 end;
+    nb := rar + 1;
+    while nb < 4 and random() < 0.3 loop nb := nb + 1; end loop;
+    select coalesce(array_agg(b.id), '{}') into bon from (select id from public.item_bonuses order by random() limit nb) b;
+    insert into public.player_items (user_id, item_type, rarity, bonuses) values (auth.uid(), dropped, rar, bon);
+    drops := drops || jsonb_build_array(jsonb_build_object('item_type', dropped, 'rarity', rar, 'bonuses', to_jsonb(bon)));
   end loop;
-  return jsonb_build_object('profile', to_jsonb(me), 'drop', drops[1], 'drops', to_jsonb(drops));
+  return jsonb_build_object('profile', to_jsonb(me), 'drop', drops -> 0 ->> 'item_type', 'drops', drops);
 end;
 $$;
 
@@ -503,8 +538,8 @@ revoke all on function public.get_leaderboard(int) from public, anon, authentica
 grant execute on function public.get_leaderboard(int) to anon, authenticated;
 revoke all on function public.start_run(int) from public, anon, authenticated;
 grant execute on function public.start_run(int) to authenticated;
-revoke all on function public.finish_run(uuid, int, int, boolean) from public, anon, authenticated;
-grant execute on function public.finish_run(uuid, int, int, boolean) to authenticated;
+revoke all on function public.finish_run(uuid, int, int, boolean, int) from public, anon, authenticated;
+grant execute on function public.finish_run(uuid, int, int, boolean, int) to authenticated;
 revoke all on function public.save_loadout(text[], jsonb) from public, anon, authenticated;
 grant execute on function public.save_loadout(text[], jsonb) to authenticated;
 revoke all on function public.save_talents(text[]) from public, anon, authenticated;
@@ -513,7 +548,7 @@ grant execute on function public.save_talents(text[]) to authenticated;
 revoke all on function public.username_problem(text) from public, anon, authenticated;
 revoke all on function public.min_run_seconds(int) from public, anon, authenticated;
 -- These tables are private. With row security on and no policies, players cannot read or write them directly.
-revoke all on table public.runs, public.talent_nodes, public.talent_links, public.blocked_names, public.hero_classes, public.item_types from anon, authenticated;
+revoke all on table public.runs, public.talent_nodes, public.talent_links, public.blocked_names, public.hero_classes, public.item_types, public.item_bonuses from anon, authenticated;
 -- Players can read their own items (row security) but never create, change or delete them.
 revoke insert, update, delete on public.player_items from anon, authenticated;
 grant select on public.player_items to authenticated;

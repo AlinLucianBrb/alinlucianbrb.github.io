@@ -46,6 +46,20 @@ test('finish_run takes the boss count: one guaranteed item each, never more than
   }
 });
 
+/* A grant or revoke on a function signature that no longer exists stops the whole SQL script in Supabase (error 42883),
+   so every signature in the permissions must match a function the script creates. */
+test('permissions name only functions the script creates, with the same argument types', () => {
+  const norm = t => t.trim().replace(/\s+default\s+.*$/i, '').replace(/^p_\w+\s+/, '').replace(/\binteger\b/g, 'int').replace(/\s+/g, ' ');
+  for (const [f, sql] of sqlFiles) {
+    const created = new Set();
+    for (const m of sql.matchAll(/create (?:or replace )?function public\.(\w+)\(([^)]*)\)/g))
+      created.add(m[1] + '(' + (m[2].trim() ? m[2].split(',').map(norm).join(', ') : '') + ')');
+    const named = [...sql.matchAll(/(?:grant execute|revoke all) on function public\.(\w+)\(([^)]*)\)/g)].map(m => m[1] + '(' + (m[2].trim() ? m[2].split(',').map(norm).join(', ') : '') + ')');
+    assert.ok(named.length >= 10, f + ': found the permissions');
+    for (const sig of named) assert.ok(created.has(sig), f + ': permissions name ' + sig + ', but the script creates ' + [...created].filter(c => c.startsWith(sig.split('(')[0] + '(')).join(' / '));
+  }
+});
+
 test('the SQL files are up to date with sql/ and js/content (run: npm run sql)', () => {
   assert.equal(sqlFiles[0][1], buildSetup(), 'supabase-setup.sql is out of date');
   assert.equal(sqlFiles[1][1], buildUpdate(), 'supabase-update.sql is out of date');
