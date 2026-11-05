@@ -142,6 +142,12 @@ Used by the heroes' evolutions and by enemy defenses:
 - **Relic luck** (`relicLuck`, from the Four-leaf clover relic) makes rarer relics more likely: each rarity's weight is multiplied by 1 + luck once per step above Common. The relic picker and the Relic button's tooltip show the current odds.
 - With Compound interest, the gold box shows what the next wave clear pays in interest and how much gold earns the full amount.
 
+## Art
+Pixel art, made by scripts in `art/` (output in `art/out/`, not used by the game yet).
+- **Sizes:** tiles, items and heroes are 64x64 images; small things are 32x32 or 16x16. Everything is drawn at half resolution (32x32 art pixels in a 64x64 tile) and scaled up 2x with hard edges, so every asset has the same chunky pixel size. Draw new art the same way so the pixel sizes never mix.
+- **Style:** one fixed palette (`PALETTE` in `art/tiles.py`), light from the top left, solid clusters of pixels with no anti-aliasing, a 1-pixel dark outline on sprites and none on ground tiles.
+- **Terrain** (`python3 art/tiles.py`): grass, dirt and forest floor are each a seamless 4x4-tile texture (16 tiles; pick one by the cell's position, x % 4 and y % 4). The path has 47 autotile variants (`pathmask_<sides>`, plus `pathedge_<sides>` drawn on top), named by the path neighbours in N, E, S, W, NE, SE, SW, NW order, with a diagonal counting only when both sides next to it are path. `tiles.json` maps names to sheet positions. Decorations: two trees (64x64), and a bush, a rock, flowers and mushrooms (32x32).
+
 ## Extending the game
 Everything in combat flows through `hit()` in `js/engine/world.js`, which emits `damage` and `kill` events. Pieces react to events instead of calling each other.
 - **New relic:** add an entry to `RELICS` in `data.js`: a list of modifiers like `{ stat: 'damage', type: 'inc', value: 0.3, scope: ['cold'] }`. `inc` values add together, `more` values multiply, `flat` values add to the base. Scope is a list of hero tags, `['all']`, or `'global'` for economy stats.
