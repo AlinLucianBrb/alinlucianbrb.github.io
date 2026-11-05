@@ -23,7 +23,7 @@ export function installFakeDom() {
       append(...a) { for (const x of a) if (typeof x === 'object') e.children.push(x); },
       addEventListener(ev, fn) { (e.hs[ev] ||= []).push(fn); },
       fire(ev, data = {}) { for (const fn of e.hs[ev] || []) fn(data); },
-      setAttribute(k, v) { e.attrs[k] = v; }, getAttribute: k => e.attrs[k] ?? null, closest: () => null, focus: noop,
+      setAttribute(k, v) { e.attrs[k] = v; }, getAttribute: k => e.attrs[k] ?? null, closest: () => null, focus: noop, remove() { e.removed = true; },
       getBoundingClientRect: () => ({ left: 0, top: 0, width: 640, height: 400, bottom: 400 }), getContext: ctx2d,
       set textContent(v) { e._text = String(v); if (v === '') e.children.length = 0; }, get textContent() { return e._text; }
     };

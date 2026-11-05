@@ -30,6 +30,12 @@ export function pickTargets(g, t, range, n) {
   }
   return scratch;
 }
+/* How many targets this attack hits: the whole part of the targets stat, plus a chance of one more from the rest
+   (Split bolt gives a 15% chance per Common copy). Rolls only when there is a fraction, on the seeded combat stream. */
+export function targetCount(g, t) {
+  const n = t.s.targets || 1, whole = Math.floor(n + 1e-9), rest = n - whole;
+  return Math.max(1, whole + (rest > 1e-9 && g.rng && g.rng.combat.next() < rest ? 1 : 0));
+}
 const ready = (t, dt) => (t.cd -= dt) <= 0;
 const rearm = t => { t.cd = t.s.cooldown / t.s.speed; };
 /* Damage multiplier for this attack: 1, or the ultimate's when the bar is full (0 when the ultimate replaces the attack).
@@ -105,8 +111,9 @@ registerBehavior('launch', {
 registerBehavior('bolt', {
   update(g, t, dt) {
     if (!ready(t, dt)) return;
-    const n = Math.round(t.s.targets || 1), list = n > 1 ? pickTargets(g, t, t.s.range, n) : [pickTarget(g, t, t.s.range)];
-    if (!list[0]) return;
+    const first = pickTarget(g, t, t.s.range);
+    if (!first) return;
+    const n = targetCount(g, t), list = n > 1 ? pickTargets(g, t, t.s.range, n) : [first];
     const mult = strike(g, t, list[0]), color = look(t, mult);
     if (mult === 0) { rearm(t); charge(g, t); return; }   /* the ultimate replaced this attack */
     for (const tg of list) g.projs.push({ type: 'bolt', owner: t, target: tg, x: t.x, y: t.y, scale: mult, color, size: mult > 1 ? 8 : 5,
@@ -118,7 +125,8 @@ registerBehavior('bolt', {
 registerBehavior('shot', {
   update(g, t, dt) {
     if (!ready(t, dt)) return;
-    const n = Math.round(t.s.targets || 1);
+    if (!pickTarget(g, t, t.s.range)) return;
+    const n = targetCount(g, t);
     if (n > 1) {
       const list = pickTargets(g, t, t.s.range, n);
       if (!list.length) return;

@@ -56,9 +56,9 @@ test('evolution stacks with relics and Bulk order makes it cheaper', () => {
   w.mods.push(...RELICS.find(r => r.name === 'Bulk order').mods(2).map(m => ({ ...m, source: 'Bulk order', ri: 2 })));
   w.mods.push(...RELICS.find(r => r.name === 'Sharpened rounds').mods(1).map(m => ({ ...m, source: 'x', ri: 0 })));
   recalc(w);
-  assert.equal(w.evolveCost(h), Math.round(150 * (1 - 0.15 * 2)), 'Uncommon Bulk order: -30%');
+  assert.equal(w.evolveCost(h), Math.round(150 * (1 - 0.0225 * 2)), 'Uncommon Bulk order: -4.5%');
   apply(w, { type: 'evolve', id: h.id, choice: 2 });
-  assert.equal(h.s.damage, 28 * (1 + 0.25 + 0.03 * 9) * 1.5, 'relic and level bonuses add up, then evolution multiplies');
+  assert.ok(Math.abs(h.s.damage - 28 * (1 + 0.0375 + 0.03 * 9) * 1.5) < 1e-9, 'relic and level bonuses add up, then evolution multiplies');
 });
 
 test('moving needs a free tile and briefly delays the next attack', () => {
@@ -90,7 +90,7 @@ test('relic shop: price is 60% and rises; three different offers; choosing appli
   const w = richWorld();
   assert.equal(w.relicCost(), 48);
   assert.ok(apply(w, { type: 'buyRelic' }).ok);
-  assert.equal(w.relicCost(), 72); assert.equal(w.picking, true);
+  assert.equal(w.relicCost(), 60, 'each relic costs 12 more (half the old step)'); assert.equal(w.picking, true);
   assert.equal(new Set(w.pick.offers.map(o => o.relic.name)).size, 3);
   assert.equal(step(w), false, 'the game waits while a relic is being chosen');
   for (const c of ['place', 'move', 'evolve', 'buyRelic']) assert.equal(apply(w, { type: c, hero: 'ranger', id: 1, cx: 0, cy: 0 }).reason, 'busy');
@@ -100,22 +100,27 @@ test('relic shop: price is 60% and rises; three different offers; choosing appli
   assert.equal(apply(w, { type: 'choose', index: 0 }).reason, 'no relic choice open');
 });
 
-test('reroll and banish cost 25% of the price, +5% per use; banished relics never come back', () => {
-  const w = richWorld();
+test('rerolls and banishes come only from talents, are free, and run out; banished relics never come back', () => {
+  const plain = richWorld(); apply(plain, { type: 'buyRelic' });
+  assert.equal(apply(plain, { type: 'reroll' }).reason, 'no rerolls', 'none without talents');
+  assert.equal(apply(plain, { type: 'banish', index: 0 }).reason, 'no banishes');
+  /* Second Look and Third Look (+1 reroll each), Picky (+1 banish). */
+  const w = createWorld({ seed: 1, talents: ['main_9_0', 'main_9_1', 'main_9_2'] }); w.gold = 100000;
+  assert.equal(w.rerolls, 2); assert.equal(w.banishes, 1);
   apply(w, { type: 'buyRelic' });
-  assert.equal(w.pickCost(), 12);
-  let g = w.gold; apply(w, { type: 'reroll' }); assert.equal(g - w.gold, 12);
-  assert.equal(w.pickCost(), Math.round(0.25 * 48 * 1.05));
+  let g = w.gold; assert.ok(apply(w, { type: 'reroll' }).ok); assert.equal(g - w.gold, 0, 'free'); assert.equal(w.rerolls, 1);
   const gone = w.pick.offers[0].relic.name;
-  g = w.gold; apply(w, { type: 'banish', index: 0 }); assert.equal(g - w.gold, 13);
+  g = w.gold; assert.ok(apply(w, { type: 'banish', index: 0 }).ok); assert.equal(g - w.gold, 0); assert.equal(w.banishes, 0);
+  assert.equal(apply(w, { type: 'banish', index: 0 }).reason, 'no banishes', 'used up');
   assert.ok(w.banned.has(gone)); assert.equal(w.pick.offers.length, 3);
   assert.equal(new Set(w.pick.offers.map(o => o.relic.name)).size, 3, 'no duplicate offers after a banish');
   apply(w, { type: 'choose', index: 0 });
+  w.rerolls = 40;   /* test only */
   for (let i = 0; i < 40; i++) { apply(w, { type: 'buyRelic' }); assert.ok(!w.pick.offers.some(o => o.relic.name === gone)); apply(w, { type: 'reroll' }); assert.ok(!w.pick.offers.some(o => o.relic.name === gone)); apply(w, { type: 'choose', index: 0 }); }
 });
 
 test('banishing can empty the pool without breaking anything', () => {
-  const w = richWorld(); apply(w, { type: 'buyRelic' });
+  const w = richWorld(); w.banishes = 99; apply(w, { type: 'buyRelic' });
   for (let i = 0; i < RELICS.length + 5; i++) apply(w, { type: 'banish', index: 0 });
   assert.ok(w.pick.offers.length <= 3);
   assert.ok(w.banned.size <= RELICS.length);

@@ -65,7 +65,7 @@ export const COMMANDS = {
   },
   auto(w, c) { w.auto = !!c.on; w.autoT = 3; return OK; },
 
-  /* Relic shop: buy, then choose one of three. Reroll or banish costs 25% of the relic's price, +5% each use. */
+  /* Relic shop: buy, then choose one of three. Rerolls and banishes are free, but only talents give them (w.rerolls, w.banishes per match). */
   buyRelic(w) {
     const b = blocked(w); if (b) return b;
     const cost = w.relicCost();
@@ -77,17 +77,15 @@ export const COMMANDS = {
   },
   reroll(w) {
     if (!w.pick) return fail('no relic choice open');
-    const cost = w.pickCost();
-    if (w.gold < cost) return fail('gold');
-    w.gold -= cost; w.pick.uses++; w.pick.offers = drawRelics(w, 3, []);
+    if (!(w.rerolls > 0)) return fail('no rerolls');
+    w.rerolls--; w.pick.uses++; w.pick.offers = drawRelics(w, 3, []);
     return OK;
   },
   banish(w, c) {
     if (!w.pick) return fail('no relic choice open');
     if (!w.pick.offers[c.index]) return fail('bad index');
-    const cost = w.pickCost();
-    if (w.gold < cost) return fail('gold');
-    w.gold -= cost; w.pick.uses++;
+    if (!(w.banishes > 0)) return fail('no banishes');
+    w.banishes--; w.pick.uses++;
     w.banned.add(w.pick.offers[c.index].relic.name);
     w.pick.offers.splice(c.index, 1, ...drawRelics(w, 1, w.pick.offers.map(o => o.relic.name)));
     return OK;

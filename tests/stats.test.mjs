@@ -28,8 +28,8 @@ test('scope: tags, "all" and global are kept apart', () => {
 
 test('hero stats apply only matching modifiers and only to stats the hero has', () => {
   const mods = asMods([...R('Sharpened rounds').mods(1.5), ...R('Fine arrows').mods(1), ...R('Quick hands').mods(1)]);
-  assert.ok(Math.abs(heroStats(H('ranger'), mods).damage - 16 * (1 + 0.375 + 0.3)) < 1e-9);
-  assert.ok(Math.abs(heroStats(H('warrior'), mods).damage - 28 * 1.375) < 1e-9, 'Fine arrows (projectile) skips the warrior');
+  assert.ok(Math.abs(heroStats(H('ranger'), mods).damage - 16 * (1 + 0.05625 + 0.045)) < 1e-9);
+  assert.ok(Math.abs(heroStats(H('warrior'), mods).damage - 28 * 1.05625) < 1e-9, 'Fine arrows (projectile) skips the warrior');
   assert.equal('arc' in heroStats(H('ranger'), mods), false, 'only the warrior has a swing arc');
   assert.equal(touches(H('ranger'), R('Wide swing').mods(1)[0]), false);
   assert.equal(touches(H('ranger'), R('Quick hands').mods(1)[0]), true);
@@ -50,16 +50,35 @@ test('explain lists the modifiers behind a stat', () => {
   assert.equal(explain(H('mage'), 'damage', mods).length, 2);
 });
 
-test('rarities are whole multiples of Common: 1x, 2x, 3x, 4x', () => {
+test('rarities are whole multiples of Common: 1x, 2x, 3x, 4x, and relics are 15% of their old strength', () => {
   assert.deepEqual(RARITIES.map(r => r.mult), [1, 2, 3, 4]);
-  assert.deepEqual(RARITIES.map(r => R('Sharpened rounds').desc(r.mult)), ['+25% damage (all heroes)', '+50% damage (all heroes)', '+75% damage (all heroes)', '+100% damage (all heroes)']);
-  assert.deepEqual(RARITIES.map(r => R('Reinforced gate').desc(r.mult)), ['+5 lives', '+10 lives', '+15 lives', '+20 lives']);
-  assert.deepEqual(RARITIES.map(r => R('Compound interest').mods(r.mult)[1].value), [60, 120, 180, 240]);
+  assert.deepEqual(RARITIES.map(r => R('Sharpened rounds').desc(r.mult)), ['+3.75% damage (all heroes)', '+7.5% damage (all heroes)', '+11.25% damage (all heroes)', '+15% damage (all heroes)']);
+  assert.deepEqual(RARITIES.map(r => R('Reinforced gate').desc(r.mult)), ['+1 life', '+2 lives', '+2 lives', '+3 lives'], 'whole lives, at least 1');
+  assert.deepEqual(RARITIES.map(r => +R('Compound interest').mods(r.mult)[1].value.toFixed(6)), [9, 18, 27, 36]);
+  assert.deepEqual(RARITIES.map(r => R('Prospector').desc(r.mult)), ['25% chance of +2 gold per kill', '50% chance of +2 gold per kill', '75% chance of +2 gold per kill', '100% chance of +2 gold per kill (always)']);
+  assert.deepEqual(RARITIES.map(r => R('Tax collector').mods(r.mult)[0].value), [0.25, 0.5, 0.75, 1], 'half the old wave gold');
 });
 
-test('Split bolt: +1, +2, +3, +4 spell targets by rarity, nobody else changes', () => {
-  const targets = RARITIES.map(r => heroStats(H('mage'), asMods(R('Split bolt').mods(r.mult))).targets);
-  assert.deepEqual(targets, [2, 3, 4, 5]);
+test('Prospector: chances add up; each full 100% is a sure +2 gold per kill', async () => {
+  const { createWorld, recalc } = await import('../js/engine/world.js');
+  const killGold = (copies, kills = 400) => {
+    const w = createWorld({ seed: 4 });
+    for (const m of copies) w.mods.push(...R('Prospector').mods(m).map(x => ({ ...x, source: 'Prospector', ri: m - 1 })));
+    recalc(w);
+    const g0 = w.gold;
+    for (let i = 0; i < kills; i++) w.ev.emit('kill', { enemy: { def: { bounty: 1, xp: 0 } } });
+    return (w.gold - g0) / kills - 5;   /* minus the normal 5 gold per kill */
+  };
+  assert.equal(killGold([]), 0);
+  assert.equal(killGold([4]), 2, 'Epic: always +2');
+  assert.equal(killGold([4, 4]), 4, 'two Epics: always +4');
+  const c = killGold([1]);
+  assert.ok(c > 0.35 && c < 0.65, 'Common: about 25% x 2 = 0.5 gold per kill on average, got ' + c);
+});
+
+test('Split bolt: a 15% chance of one more target per Common, by rarity; nobody else changes', () => {
+  const targets = RARITIES.map(r => +heroStats(H('mage'), asMods(R('Split bolt').mods(r.mult))).targets.toFixed(6));
+  assert.deepEqual(targets, [1.15, 1.3, 1.45, 1.6]);
   assert.equal(heroStats(H('ranger'), asMods(R('Split bolt').mods(3))).targets, undefined);
 });
 
@@ -72,8 +91,8 @@ test('relic indicator lists only the hero types that would be affected', () => {
 });
 
 test('relic descriptions scale with rarity', () => {
-  assert.equal(R('Sharpened rounds').desc(1), '+25% damage (all heroes)');
-  assert.equal(R('Sharpened rounds').desc(3), '+75% damage (all heroes)');
+  assert.equal(R('Sharpened rounds').desc(1), '+3.75% damage (all heroes)');
+  assert.equal(R('Split bolt').desc(2), 'Spell attacks: 30% chance to hit 1 more target');
   assert.equal(fmtMod({ stat: 'damage', type: 'inc', value: 0.04, scope: ['all'] }), '+4% damage');
   assert.equal(fmtMod({ stat: 'evolveCost', type: 'more', value: -0.05, scope: 'global' }), '×0.95 evolution cost');
 });
@@ -93,7 +112,7 @@ test('Four-leaf clover gives relic luck, and luck changes the offers the shop ro
   const { createWorld, recalc } = await import('../js/engine/world.js');
   const { apply } = await import('../js/engine/commands.js');
   const epics = luckM => {
-    const w = createWorld({ seed: 3 }); w.gold = 1e9;
+    const w = createWorld({ seed: 3 }); w.gold = 1e9; w.rerolls = 300;   /* test only: plenty of free rerolls */
     if (luckM) { w.mods.push(...R('Four-leaf clover').mods(luckM).map(m => ({ ...m, source: 'x', ri: 0 }))); recalc(w); }
     let n = 0;
     apply(w, { type: 'buyRelic' });   /* then count offers over many rerolls, without picking (picks could add more luck) */
@@ -101,6 +120,6 @@ test('Four-leaf clover gives relic luck, and luck changes the offers the shop ro
     return { n, luck: w.gs.relicLuck };
   };
   const base = epics(0), lucky = epics(4);
-  assert.equal(lucky.luck, 2, 'Epic clover: +200% luck');
-  assert.ok(lucky.n > base.n * 3, 'far more epic offers: ' + base.n + ' -> ' + lucky.n);
+  assert.ok(Math.abs(lucky.luck - 0.3) < 1e-9, 'Epic clover: +30% luck');
+  assert.ok(lucky.n > base.n * 1.4, 'more epic offers: ' + base.n + ' -> ' + lucky.n);
 });

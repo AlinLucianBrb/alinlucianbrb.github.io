@@ -53,11 +53,21 @@ test('mage fires a bolt that flies to the lead enemy and hits on arrival; Split 
   for (let i = 0; i < 20; i++) updateProjectiles(w, 1 / 60);
   assert.equal(dealt(a), 26); assert.equal(w.projs.length, 0);
   assert.equal(a.fx, null, 'the plain Mage has no on-hit effect');
-  addRelic(w, 'Split bolt', 2, 1);
+  h.mods.push({ stat: 'targets', type: 'flat', value: 2, scope: ['spell'], source: 'test', ri: -2 }); w.statsFor(h);
   h.cd = 0; tickHero(w, h);
-  assert.equal(w.projs.length, 3, 'Uncommon Split bolt: +2 targets, one bolt each');
+  assert.equal(w.projs.length, 3, '+2 targets: one bolt each');
   for (let i = 0; i < 30; i++) updateProjectiles(w, 1 / 60);
   assert.deepEqual([dealt(a), dealt(b), dealt(c)], [52, 26, 26]);
+});
+
+test('Split bolt is a chance of one more target: 15% per Common copy, rolled on the seeded combat stream', () => {
+  const { w, h } = setup('mage');
+  enemyAt(w, h.x + 90, h.y, 1e6); enemyAt(w, h.x - 60, h.y, 1e6);
+  addRelic(w, 'Split bolt', 4, 3); addRelic(w, 'Split bolt', 2, 1);   /* an Epic and an Uncommon: 60% + 30% = 90% */
+  assert.ok(Math.abs(h.s.targets - 1.9) < 1e-9);
+  let two = 0;
+  for (let i = 0; i < 400; i++) { w.projs.length = 0; h.cd = 0; tickHero(w, h); if (w.projs.length === 2) two++; }
+  assert.ok(two > 330 && two < 390, '~90% of attacks hit a second target: ' + two + '/400');
 });
 
 test('a bolt fizzles if its target dies before it arrives', () => {

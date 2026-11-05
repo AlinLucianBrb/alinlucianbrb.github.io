@@ -2,6 +2,7 @@ import { startGame, stopGame } from '../game/game.js';
 import { startRun, finishRun, getItems } from '../services/api.js';
 import { ITEMS } from '../content/items.js';
 import { runRewards } from '../core/rules.js';
+import { rewardBonus } from '../content/talents.js';
 import { bus } from '../core/bus.js';
 import { state } from '../core/state.js';
 
@@ -38,13 +39,14 @@ export default {
       if (!runId) return 'Could not save your run: ' + (s.error || 'it was not started') + hint(s.error);
       const id = runId; runId = null;
       const before = state.profile;
-      const { profile, drop, error } = await finishRun(id, waves, kills, won);
+      const { profile, drop, drops = drop ? [drop] : [], error } = await finishRun(id, waves, kills, won);
       if (error || !profile) return 'Could not save your run: ' + (error || 'unknown error') + hint(error);
       state.profile = profile;
-      if (drop) state.items = null;   /* reload the inventory next time it is needed */
-      const r = runRewards(waves, kills);
+      if (drops.length) state.items = null;   /* reload the inventory next time it is needed */
+      const r = runRewards(waves, kills, rewardBonus(before.talents));
+      const names = drops.map(d => (ITEMS[d] ? ITEMS[d].name : d));
       return (won ? 'Level ' + stage + ' cleared! ' : '') + '+' + r.xp + ' XP, +' + r.gold + ' gold.' +
-        (drop ? ' You found an item: ' + (ITEMS[drop] ? ITEMS[drop].name : drop) + '! Equip it on the Heroes screen.' : '') +
+        (names.length ? ' You found ' + (names.length > 1 ? names.length + ' items: ' : 'an item: ') + names.join(', ') + '! Equip ' + (names.length > 1 ? 'them' : 'it') + ' on the Heroes screen.' : '') +
         (profile.level > before.level ? ' Level up! You are now level ' + profile.level + '.' : '');
     }
     startGame({

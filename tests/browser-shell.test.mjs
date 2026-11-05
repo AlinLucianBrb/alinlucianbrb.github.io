@@ -22,6 +22,16 @@ function click(cx, cy) {
   byId.c.fire('pointerdown', { clientX: x, clientY: y, button: 0, pointerId: 1 });
   byId.c.fire('pointerup', { clientX: x, clientY: y, button: 0, pointerId: 1 });
 }
+/* Click and hold a hero, carry it to another tile and let go (the hold has to last HOLD_MS, so this waits a little). */
+async function holdMove(from, to) {
+  const [x, y] = toScreen(view().cam, (from[0] + 0.5) * T, (from[1] + 0.5) * T), [x2, y2] = toScreen(view().cam, (to[0] + 0.5) * T, (to[1] + 0.5) * T);
+  byId.c.fire('pointerdown', { clientX: x, clientY: y, button: 0, pointerId: 1 });
+  await new Promise(r => setTimeout(r, 320));
+  byId.c.fire('pointermove', { clientX: x2, clientY: y2, pointerId: 1, pointerType: 'mouse' });
+  byId.c.fire('pointerup', { clientX: x2, clientY: y2, button: 0, pointerId: 1 });
+}
+const nameOf = card => card.children[1].children[0]._v ?? card.children[1].children[0]._text;
+const levelOf = card => card.children[1].children[1]._v ?? '';
 const gold = () => Number(byId.gold._v);
 const wave = () => Number(String(byId.wave._v).split(' / ')[0]);
 const freeTiles = n => {
@@ -32,37 +42,45 @@ const freeTiles = n => {
   }
   return out.slice(0, n);
 };
+const closeAll = () => { const b = [...dom.made].reverse().find(e => e.tag === 'button' && e._text === 'Close'); if (b) b.onclick(); };
 const runUntil = (cond, max = 20000) => { for (let i = 0; i < max && !cond(); i++) dom.frame(); };
 
 test('the screen comes alive: hero cards, gold and HUD values, no drawing errors', () => {
   startGame(hooks); dom.frames(3);
   assert.deepEqual(drawErrors, []);
   const card = dom.heroButton(0);
-  assert.equal(card.children[1]._text, 'Warrior'); assert.equal(card.children[2]._v, 'Free · place it'); assert.equal(card.children[0]._v, '1');
-  assert.equal(dom.heroButton(2).children[1]._text, 'Mage');
+  assert.equal(nameOf(card), 'Warrior'); assert.equal(card.children[2]._v, 'Free · place it'); assert.equal(card.children[0]._v, '1');
+  assert.equal(levelOf(card), '', 'no level before the hero is on the map');
+  assert.equal(nameOf(dom.heroButton(2)), 'Mage');
+  assert.equal(card.children.some(c => c.className === 'ebar'), false, 'no energy bar on the hero buttons');
   assert.equal(dom.heroButton(3), undefined, 'only the three playable heroes have cards');
   assert.equal(byId.gold._v, '100'); assert.equal(byId.wave._v, '0 / 15'); assert.equal(byId.stage._v, '1'); assert.equal(byId.lives._v, '20');
   assert.equal(byId.heroPanel.hidden, true, 'the hero panel only appears when a hero is selected');
   assert.equal(byId.relics.hidden, true, 'the relic strip is hidden until you own a relic');
 });
 
-test('placing is free and once per hero; cards then select the hero; move and evolve from the hero panel', () => {
+test('placing is free and once per hero; cards then select the hero; click and hold to move; evolution shown in the panel', async () => {
   const t = freeTiles(4);
   dom.heroButton(1).onclick(); click(...t[0]); dom.frames(1);
   assert.equal(gold(), 100, 'placing is free'); assert.equal(world().heroes.length, 1);
-  assert.equal(dom.heroButton(1).children[2]._v, 'On the field · Lv 1');
+  assert.equal(dom.heroButton(1).children[2]._v, '', 'no "On the field" text');
+  assert.equal(levelOf(dom.heroButton(1)), 'Lv 1', 'the level sits next to the name');
   click(...t[2]); dom.frames(1);
   assert.equal(world().heroes.length, 2, 'the next click places the next hero waiting in the lineup');
   assert.notEqual(world().heroes[1].def.id, 'ranger', 'never the same hero twice');
   dom.heroButton(1).onclick(); dom.frames(1);
   assert.equal(byId.heroPanel.hidden, false, 'the card of a placed hero selects it on the map');
-  dom.button('Move').onclick(); click(...t[1]); dom.frames(1);
-  assert.deepEqual([world().heroes[0].cx, world().heroes[0].cy], t[1]);
+  assert.equal(dom.button('Move'), undefined, 'no Move button');
+  click(...t[0]); dom.frames(1);
+  assert.deepEqual([world().heroes[0].cx, world().heroes[0].cy], t[0], 'a quick click only selects');
+  await holdMove(t[0], t[1]); dom.frames(1);
+  assert.deepEqual([world().heroes[0].cx, world().heroes[0].cy], t[1], 'click and hold carries the hero to the new tile');
+  assert.equal(view().moving, null);
   click(...t[1]); dom.frames(20);
-  const evo = dom.button('Evolve');
-  assert.ok(evo, 'Evolve button in the hero panel'); assert.equal(evo.disabled, true);
-  assert.equal(evo._v, 'Evolve at Lv 10', 'a level 1 hero cannot evolve yet');
-  assert.ok(dom.made.some(e => e.className === 'lvl' && /^Level 1 · 0\/10 XP$/.test(e._v)), 'level and XP shown');
+  assert.equal(dom.button('Evolve'), undefined, 'no Evolve button in the panel');
+  assert.ok(dom.made.some(e => e.className === 'muted' && e._text === 'Evolves at level 10 into Marksman, Boomerang Ranger or Hunter.'), 'what comes next');
+  assert.ok(dom.made.some(e => e.tag === 'b' && e._text === 'Ranger · Lv 1'), 'the panel title shows the level');
+  assert.ok(dom.made.some(e => e.className === 'lvl' && e._v === 'XP 0/10'), 'XP shown');
   assert.equal(dom.button('Sell'), undefined, 'no selling');
   assert.equal(dom.made.some(e => e.tag === 'div' && /^When full: Empowered strike/.test(e._text)), true, 'the panel explains the ultimate');
 });
@@ -136,7 +154,7 @@ test('Retry always starts with Auto-start off, after a loss and after a win', ()
   } finally { Object.assign(stage, saved); }
 });
 
-test('hero panel: Move and Evolve come first, bonuses from the same source are stacked, damage type shown', async () => {
+test('hero panel: a hint on moving comes first, bonuses from the same source are stacked, damage type shown', async () => {
   const { recalc } = await import('../js/engine/world.js');
   const { RELICS } = await import('../js/content/data.js');
   const { stackMods } = await import('../js/game/ui.js');
@@ -149,16 +167,15 @@ test('hero panel: Move and Evolve come first, bonuses from the same source are s
   const [t] = freeTiles(1);
   dom.heroButton(0).onclick(); click(...t); click(...t); dom.frames(1);
   const kids = byId.inspect.children;
-  assert.equal(kids[1].className, 'acts top', 'the buttons come right after the title');
-  assert.deepEqual(kids[1].children.map(b => b._text.split(' ')[0]), ['Move', 'Evolve']);
+  assert.equal(kids[1].className, 'muted'); assert.match(kids[1]._text, /click and hold it on the map to move it/);
   const lines = dom.made.filter(e => e.className === 'buff').map(e => e._text);
-  assert.ok(lines.includes('+100% · Sharpened rounds ×2 (Relic)'), 'stacked across rarities: ' + lines.join(' | '));
+  assert.ok(lines.includes('+15% · Sharpened rounds ×2 (Relic)'), 'stacked across rarities (3.75% + 11.25%): ' + lines.join(' | '));
   const chips = byId.relics.children;
   assert.equal(chips.length, 1, 'one relic chip, whatever the rarities');
   assert.equal(chips[0]._text, 'Sharpened rounds ×2');
   chips[0].fire('pointerenter', { clientX: 10, clientY: 10 });
   const tip = dom.made.filter(e => e.className === 'tip').at(-1);
-  assert.deepEqual(tip.children.map(c => c._text), ['Sharpened rounds ×2', 'Common + Rare', 'Together: +100% damage (all heroes)']);
+  assert.deepEqual(tip.children.map(c => c._text), ['Sharpened rounds ×2', 'Common + Rare', 'Together: +15% damage (all heroes)']);
   assert.ok(dom.made.some(e => e._text === 'Damage (Physical)'));
   const more = stackMods([{ stat: 'x', type: 'more', value: 0.5, source: 'E', ri: -3 }, { stat: 'x', type: 'more', value: 0.5, source: 'E', ri: -3 }]);
   assert.equal(more.length, 1); assert.equal(more[0].value, 1.25, '"more" bonuses multiply: 1.5 x 1.5 = 2.25');
@@ -166,8 +183,8 @@ test('hero panel: Move and Evolve come first, bonuses from the same source are s
 
 test('talent bonuses are stacked into one "Talents" line per stat', async () => {
   stopGame();
-  /* Three damage nodes from two trees: Sharpened (+4% all heroes), Brawler and Bruiser (+6% each, Warrior only). */
-  startGame({ ...hooks, talents: ['general_0_0', 'warrior_0_0', 'warrior_0_1'] }); dom.frames(2);
+  /* Three damage nodes: Sharpened (+4% all heroes), Brawler and Bruiser (+6% each, melee heroes). */
+  startGame({ ...hooks, talents: ['main_0_0', 'main_2_0', 'main_2_1'] }); dom.frames(2);
   const [t] = freeTiles(1);
   dom.heroButton(0).onclick(); click(...t); click(...t); dom.frames(1);
   const lines = dom.made.filter(e => e.className === 'buff' && / · Talents/.test(e._text)).map(e => e._text);
@@ -190,12 +207,12 @@ test('the gold box shows Compound interest: what the next wave pays and the gold
   world().mods.push(...ci.mods(1).map(m => ({ ...m, source: ci.name, ri: 0 }))); recalc(world());
   dom.frames(1);
   assert.equal(byId.interest.hidden, false);
-  assert.equal(byId.interest._v, 'Interest +5 · full at 1,200', '5% of 100 gold, full at 60 / 5% = 1,200');
+  assert.equal(byId.interest._v, 'Interest +0 · full at 1,200', '0.75% of 100 gold rounds down; full at 9 / 0.75% = 1,200');
   world().gold = 1500; dom.frames(1);
-  assert.equal(byId.interest._v, 'Interest +60 (full)');
+  assert.equal(byId.interest._v, 'Interest +9 (full)');
 });
 
-test('evolving the Mage: Evolve opens the element choice in the hero panel, and a choice evolves it', async () => {
+test('evolving the Mage: an Evolve button rises over it, the panel shows the three forms, and a choice evolves it', async () => {
   const { levelMods } = await import('../js/engine/levels.js');
   byId.newRun.onclick(); dom.frames(2);
   const [t] = freeTiles(1);
@@ -203,14 +220,18 @@ test('evolving the Mage: Evolve opens the element choice in the hero panel, and 
   const m = world().heroes[0];
   m.level = 10; m.lvlMods = levelMods(10); world().statsFor(m); world().gold = 500;   /* test only */
   dom.frames(20);
-  dom.button('Evolve').onclick(); dom.frames(1);
+  const rise = dom.made.find(e => e.className === 'evofloat' && !e.removed);
+  assert.ok(rise, 'a button rises over the hero once it can evolve'); assert.match(rise.style.transform, /^translate\(/);
+  closeAll(); rise.onclick({}); dom.frames(1);
+  assert.equal(byId.heroPanel.hidden, false, 'it opens the hero panel');
   const choices = dom.made.filter(e => e.className === 'evochoice' && byId.inspect.children.some(c => c.children.includes(e)));
   assert.deepEqual(choices.map(c => c.children[0]._text), ['Fire Mage', 'Cold Mage', 'Lightning Mage']);
   assert.equal(world().heroes[0].tier, 0, 'opening the choice does not evolve yet');
   choices[2].onclick(); dom.frames(1);
   assert.equal(m.def.name, 'Lightning Mage'); assert.equal(world().gold, 350);
-  assert.ok(dom.made.some(e => e.tag === 'b' && e._text === '★ Lightning Mage · Spell'), 'the panel title shows the new form');
-  assert.equal(dom.heroButton(2).children[2]._v, '★ Lightning Mage · Lv 10');
+  assert.ok(dom.made.some(e => e.tag === 'b' && e._text === '★ Lightning Mage · Lv 10'), 'the panel title shows the new form');
+  assert.equal(rise.removed, true, 'the rising button goes away');
+  assert.equal(dom.heroButton(2).hidden, true, 'a fully evolved hero has no button any more');
 });
 
 test('the match uses the lineup and items from the Play screen', () => {

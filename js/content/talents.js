@@ -1,8 +1,7 @@
-/* Talent trees, Path of Exile style: a root in the centre and branches growing outward.
+/* The talent tree, Path of Exile style: a root in the centre and branches growing outward.
    You can allocate a node only if it touches the root or an allocated node, and remove one only if everything
    else you allocated stays connected. Each node is a list of modifiers, the same kind relics use.
-   To add a tree: call addTree. To add a node: add an entry to a branch. */
-import { HEROES } from './data.js';
+   To add a node: add an entry to a branch; to add a branch: add one to the addTree call (and space the angles). */
 import { fmtMod } from './format.js';
 
 export const TREES = {}, TREE_ORDER = [], NODES = new Map();
@@ -12,7 +11,7 @@ const more = (stat, value) => ({ stat, type: 'more', value, scope: 'global' });
 const gflat = (stat, value) => ({ stat, type: 'flat', value, scope: 'global' });
 const ginc = (stat, value) => ({ stat, type: 'inc', value, scope: 'global' });
 
-/* branch = { angle, title, nodes: [[name, ...mods] x 3 small, [name, ...mods] notable] } */
+/* branch = { angle, nodes: [[name, ...mods] x 3 small, [name, ...mods] notable] }. Nodes sit on rings 85, 150, 215 and 280 px out. */
 function addTree(id, name, color, branches) {
   const tree = { id, name, color, nodes: [], links: [] };
   const root = { id: id + '_root', tree: id, name: name + ' origin', root: true, x: 0, y: 0, mods: [], links: [], desc: 'The starting point. Every path begins here.' };
@@ -21,8 +20,8 @@ function addTree(id, name, color, branches) {
   branches.forEach((b, bi) => {
     const rad = b.angle * Math.PI / 180; let prev = root;
     b.nodes.forEach(([nname, ...mods], i) => {
-      const r = 78 * (i + 1);
-      const n = { id: id + '_' + bi + '_' + i, tree: id, name: nname, notable: i === 3, x: Math.round(r * Math.cos(rad)), y: Math.round(r * Math.sin(rad)), mods, links: [], desc: mods.map(fmtMod).join(', ') };
+      const r = 85 + 65 * i;
+      const n = { id: id + '_' + bi + '_' + i, tree: id, name: nname, notable: i === 3, branch: b.title, x: Math.round(r * Math.cos(rad)), y: Math.round(r * Math.sin(rad)), mods, links: [], desc: mods.map(fmtMod).join(', ') };
       tree.nodes.push(n); NODES.set(n.id, n); link(prev, n, tree); prev = n;
       if (i === 1) second.push(n);
     });
@@ -32,38 +31,37 @@ function addTree(id, name, color, branches) {
 }
 function link(a, b, tree) { a.links.push(b.id); b.links.push(a.id); tree.links.push([a.id, b.id]); }
 
+/* One tree for every hero. Hero nodes target tags (melee, projectile, spell, fire...), so they reach every hero that has
+   the tag, including evolved forms that gain one (the Hunter is toxic, the Fire Mage is fire). The other branches are not
+   about damage: gold in the match, rewards at the end of it, relic rerolls and banishes, and 3x game speed.
+   Reward stats (rewardGold, rewardXp, rewardLoot) are applied by the server in finish_run, from the talent_nodes table. */
 const small = (names, mk) => names.map(n => [n, ...mk()]);
-addTree('general', 'General', '#f2b84b', [
-  { angle: -90, nodes: [...small(['Sharpened', 'Honed', 'Keen'], () => [inc('damage', 0.04, ['all'])]), ['Overwhelm', inc('damage', 0.10, ['all']), inc('speed', 0.05, ['all'])]] },
-  { angle: -18, nodes: [...small(['Quick', 'Nimble', 'Swift'], () => [inc('speed', 0.04, ['all'])]), ['Frenzy', inc('speed', 0.10, ['all']), inc('damage', 0.04, ['all'])]] },
-  { angle: 54,  nodes: [...small(['Far', 'Farther', 'Distant'], () => [inc('range', 0.04, ['all'])]), ['Far Sight', inc('range', 0.10, ['all']), inc('damage', 0.04, ['all'])]] },
-  { angle: 126, nodes: [...small(['Pocket Change', 'Savings', 'Nest Egg'], () => [gflat('startGold', 10)]), ['Plunder', gflat('bounty', 1), ginc('waveGold', 0.10)]] },
-  { angle: 198, nodes: [...small(['Stout Gate', 'Sturdy Gate', 'Iron Gate'], () => [gflat('startLives', 1)]), ['Fortified Gate', gflat('startLives', 2), more('evolveCost', -0.05)]] }
+const ALL = ['all'], ELEMENTS = ['fire', 'cold', 'lightning', 'toxic'];
+addTree('main', 'Talents', '#f2b84b', [
+  { angle: -90, title: 'Damage', nodes: [...small(['Sharpened', 'Honed', 'Keen'], () => [inc('damage', 0.04, ALL)]), ['Overwhelm', inc('damage', 0.10, ALL), inc('speed', 0.05, ALL)]] },
+  { angle: -60, title: 'Speed', nodes: [...small(['Quick', 'Nimble', 'Swift'], () => [inc('speed', 0.04, ALL)]), ['Flurry', inc('speed', 0.10, ALL), inc('damage', 0.04, ALL)]] },
+  { angle: -30, title: 'Melee', nodes: [...small(['Brawler', 'Bruiser', 'Slugger'], () => [inc('damage', 0.06, ['melee'])]), ['Whirlwind', flat('arc', 30, ['melee']), inc('damage', 0.08, ['melee'])]] },
+  { angle: 0, title: 'Projectiles', nodes: [...small(['Fletching', 'Steady Aim', 'Hawk Eye'], () => [inc('damage', 0.06, ['projectile'])]), ['Deadeye', inc('range', 0.10, ['projectile']), inc('damage', 0.08, ['projectile'])]] },
+  { angle: 30, title: 'Spells', nodes: [...small(['Spark', 'Channel', 'Surge'], () => [inc('damage', 0.06, ['spell'])]), ['Arcane Flow', inc('energyPerAttack', 0.2, ['spell']), inc('damage', 0.08, ['spell'])]] },
+  { angle: 60, title: 'Elements', nodes: [...small(['Kindling', 'Frostbite', 'Venom'], () => [inc('damage', 0.08, ELEMENTS)]), ['Elementalist', inc('damage', 0.12, ELEMENTS), inc('range', 0.06, ELEMENTS)]] },
+  { angle: 90, title: 'Energy', nodes: [...small(['Focus', 'Attune', 'Resolve'], () => [inc('energyPerAttack', 0.06, ALL)]), ['Second Wind', inc('energyPerAttack', 0.15, ALL), inc('damage', 0.04, ALL)]] },
+  { angle: 120, title: 'Gold', nodes: [...small(['Pocket Change', 'Savings', 'Nest Egg'], () => [gflat('startGold', 10)]), ['Plunder', gflat('bounty', 1), ginc('waveGold', 0.10)]] },
+  { angle: 150, title: 'Rewards', nodes: [['Bookkeeper', ginc('rewardGold', 0.10)], ['Scholar', ginc('rewardXp', 0.10)], ['Scavenger', ginc('rewardLoot', 0.15)],
+    ['Fortune', ginc('rewardGold', 0.10), ginc('rewardXp', 0.10), ginc('rewardLoot', 0.15)]] },
+  { angle: 180, title: 'Relics', nodes: [['Second Look', gflat('rerolls', 1)], ['Picky', gflat('banishes', 1)], ['Third Look', gflat('rerolls', 1)],
+    ['Relic Hunter', gflat('banishes', 1), gflat('relicLuck', 0.25)]] },
+  { angle: 210, title: 'Gate', nodes: [...small(['Stout Gate', 'Sturdy Gate', 'Iron Gate'], () => [gflat('startLives', 1)]), ['Fortified Gate', gflat('startLives', 2), more('evolveCost', -0.05)]] },
+  { angle: 240, title: 'Tempo', nodes: [...small(['Quick Study', 'Apprentice', 'Veteran'], () => [ginc('heroXp', 0.10)]), ['Overdrive', gflat('speed3x', 1), ginc('heroXp', 0.10)]] }
 ]);
-const sc = id => [id];
-const dmg = (id, v = 0.06) => () => [inc('damage', v, sc(id))];
-const spd = (id, v = 0.05) => () => [inc('speed', v, sc(id))];
-const rng = (id, v = 0.05) => () => [inc('range', v, sc(id))];
-const A = [-90, 30, 150];
-addTree('warrior', 'Warrior', '#c7ced6', [
-  { angle: A[0], nodes: [...small(['Brawler', 'Bruiser', 'Slugger'], dmg('warrior')), ['Reaper', inc('damage', 0.15, sc('warrior')), inc('speed', 0.05, sc('warrior'))]] },
-  { angle: A[1], nodes: [...small(['Wide Grip', 'Broad Stance', 'Long Blade'], () => [flat('arc', 10, sc('warrior'))]), ['Whirlwind', flat('arc', 30, sc('warrior')), inc('damage', 0.08, sc('warrior'))]] },
-  { angle: A[2], nodes: [...small(['Footwork', 'Momentum', 'Rhythm'], spd('warrior')), ['Berserker', inc('speed', 0.12, sc('warrior')), flat('range', 10, sc('warrior'))]] }
-]);
-/* Node ids follow the tree id, so the Ranger tree keeps the old Archer tree's layout (archer_* nodes are renamed in the SQL update). */
-addTree('ranger', 'Ranger', '#f2b84b', [
-  { angle: A[0], nodes: [...small(['Marksman', 'Sharpshooter', 'Hawk Eye'], dmg('ranger')), ['Deadeye', inc('damage', 0.15, sc('ranger')), inc('range', 0.05, sc('ranger'))]] },
-  { angle: A[1], nodes: [...small(['Quick Draw', 'Rapid Fire', 'Steady Hands'], spd('ranger')), ['Barrage', inc('speed', 0.15, sc('ranger'))]] },
-  { angle: A[2], nodes: [...small(['Long Bow', 'Eagle Eye', 'Far Shot'], rng('ranger')), ['Longshot', inc('range', 0.12, sc('ranger')), inc('damage', 0.06, sc('ranger'))]] }
-]);
-/* The Mage tree keeps the old Frost Mage tree's layout; its slow branch is now an energy branch. */
-addTree('mage', 'Mage', '#72c8f0', [
-  { angle: A[0], nodes: [...small(['Spark', 'Bolt', 'Surge'], dmg('mage')), ['Overcharge', inc('damage', 0.15, sc('mage')), inc('range', 0.05, sc('mage'))]] },
-  { angle: A[1], nodes: [...small(['Focus', 'Channel', 'Attune'], () => [inc('energyPerAttack', 0.08, sc('mage'))]), ['Arcane Flow', inc('energyPerAttack', 0.2, sc('mage')), inc('damage', 0.08, sc('mage'))]] },
-  { angle: A[2], nodes: [...small(['Quick Cast', 'Fluency', 'Haste'], spd('mage')), ['Torrent', inc('speed', 0.12, sc('mage')), inc('range', 0.08, sc('mage'))]] }
-]);
-/* Safety net: every hero should have a tree. */
-HEROES.forEach(h => { if (!TREES[h.id]) throw new Error('Missing talent tree for ' + h.id); });
+
+/* The reward bonuses a set of talents gives: { gold, xp, loot } as fractions (0.2 = +20%). The server sums the same columns. */
+export function rewardBonus(ids) {
+  const out = { gold: 0, xp: 0, loot: 0 };
+  for (const m of talentMods(ids || [])) {
+    if (m.stat === 'rewardGold') out.gold += m.value; else if (m.stat === 'rewardXp') out.xp += m.value; else if (m.stat === 'rewardLoot') out.loot += m.value;
+  }
+  return out;
+}
 
 export const pointsFor = level => Math.max(0, level - 1);
 export const canAllocate = (alloc, node) => !node.root && !alloc.has(node.id) && node.links.some(l => alloc.has(l) || NODES.get(l).root);

@@ -1,49 +1,72 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TREES, TREE_ORDER, NODES, canAllocate, canRemove, pointsFor, talentMods } from '../js/content/talents.js';
-import { HEROES } from '../js/content/data.js';
+import { readFileSync } from 'node:fs';
+import { TREES, TREE_ORDER, NODES, canAllocate, canRemove, pointsFor, talentMods, rewardBonus } from '../js/content/talents.js';
+import { HEROES, evolvedDef } from '../js/content/data.js';
+import { fmtMod } from '../js/content/format.js';
 import { touches, heroStats } from '../js/engine/stats.js';
 import { createRng } from '../js/engine/rng.js';
 
-test('there is a general tree plus one per hero, with unique database-safe ids', () => {
-  assert.deepEqual(TREE_ORDER, ['general', ...HEROES.map(h => h.id)]);
+test('there is one tree for every hero, with unique database-safe ids', () => {
+  assert.deepEqual(TREE_ORDER, ['main']);
   const ids = [...NODES.keys()];
   assert.equal(new Set(ids).size, ids.length);
   assert.ok(ids.every(id => /^[a-z0-9_]{1,40}$/.test(id)), 'ids must match the server rule');
+  assert.equal(TREES.main.nodes.length, 1 + 12 * 4, 'a root and twelve branches of four');
 });
 
-test('every node is reachable from its tree root, and hero nodes only target stats that hero has', () => {
-  for (const id of TREE_ORDER) {
-    const t = TREES[id], seen = new Set([id + '_root']), stack = [id + '_root'];
-    while (stack.length) for (const l of NODES.get(stack.pop()).links) if (!seen.has(l)) { seen.add(l); stack.push(l); }
-    assert.equal(seen.size, t.nodes.length, id + ' must be fully connected');
-    const hero = HEROES.find(h => h.id === id);
-    if (hero) for (const n of t.nodes) for (const m of n.mods) assert.ok(touches(hero, m), id + ' ' + n.id + ' targets ' + m.stat);
+test('every node is reachable from the root, and every hero node reaches at least one hero or evolved form', () => {
+  const t = TREES.main, seen = new Set(['main_root']), stack = ['main_root'];
+  while (stack.length) for (const l of NODES.get(stack.pop()).links) if (!seen.has(l)) { seen.add(l); stack.push(l); }
+  assert.equal(seen.size, t.nodes.length, 'fully connected');
+  const forms = HEROES.flatMap(h => [h, ...h.evolutions.flatMap(s => s.choices.map(c => evolvedDef(h, c)))]);
+  for (const n of t.nodes) for (const m of n.mods) {
+    if (m.scope === 'global') continue;
+    assert.ok(forms.some(f => touches(f, m)), n.id + ' (' + n.name + ') targets ' + m.stat + ' on ' + m.scope + ', which no hero has');
   }
+});
+
+test('talents target tags, not heroes: the Elements branch reaches the Hunter and the Fire Mage but not the plain Ranger', () => {
+  const mods = talentMods(['main_5_0']), ranger = HEROES.find(h => h.id === 'ranger');
+  const hunter = evolvedDef(ranger, ranger.evolutions[0].choices.find(c => c.id === 'hunter'));
+  assert.ok(heroStats(hunter, mods).damage > heroStats(ranger, mods).damage);
+  assert.equal(heroStats(ranger, mods).damage, 16);
 });
 
 test('allocation and removal follow the connection rules', () => {
   const a = new Set();
-  assert.ok(canAllocate(a, NODES.get('warrior_0_0')));
-  assert.ok(!canAllocate(a, NODES.get('warrior_0_1')));
-  a.add('warrior_0_0'); a.add('warrior_0_1');
-  assert.ok(canAllocate(a, NODES.get('warrior_0_2')));
-  assert.ok(!canRemove(a, 'warrior_0_0'), 'cannot remove a node that holds up another');
-  assert.ok(canRemove(a, 'warrior_0_1'));
-  assert.ok(!canAllocate(a, NODES.get('warrior_root')) && !canRemove(a, 'warrior_root'));
-  a.add('warrior_1_0'); a.add('warrior_1_1');           /* the ring link between branches lets a loop keep nodes alive */
-  assert.ok(canRemove(a, 'warrior_0_0'));
+  assert.ok(canAllocate(a, NODES.get('main_0_0')));
+  assert.ok(!canAllocate(a, NODES.get('main_0_1')));
+  a.add('main_0_0'); a.add('main_0_1');
+  assert.ok(canAllocate(a, NODES.get('main_0_2')));
+  assert.ok(canAllocate(a, NODES.get('main_1_1')), 'the ring links neighbouring branches');
+  assert.ok(!canRemove(a, 'main_0_0'), 'cannot remove a node that holds up another');
+  assert.ok(canRemove(a, 'main_0_1'));
+  assert.ok(!canAllocate(a, NODES.get('main_root')) && !canRemove(a, 'main_root'));
+  a.add('main_1_0'); a.add('main_1_1');           /* the ring link between branches lets a loop keep nodes alive */
+  assert.ok(canRemove(a, 'main_0_0'));
 });
 
 test('talent points: one per level above 1', () => { assert.equal(pointsFor(1), 0); assert.equal(pointsFor(5), 4); });
 
 test('talents become modifiers that only hit the intended heroes', () => {
-  const mods = talentMods(['warrior_1_0', 'general_0_0', 'general_3_0', 'nope', 'general_root']);
-  assert.deepEqual(mods.map(m => m.stat).sort(), ['arc', 'damage', 'startGold']);
+  const mods = talentMods(['main_2_0', 'main_0_0', 'main_7_0', 'nope', 'main_root']);
+  assert.deepEqual(mods.map(m => m.stat).sort(), ['damage', 'damage', 'startGold']);
   const warrior = HEROES.find(h => h.id === 'warrior'), ranger = HEROES.find(h => h.id === 'ranger');
-  assert.equal(heroStats(warrior, mods).arc, 130);
-  assert.equal(heroStats(ranger, mods).arc, undefined);
-  assert.ok(Math.abs(heroStats(ranger, mods).damage - 16 * 1.04) < 1e-9, 'general damage reaches the ranger');
+  assert.ok(Math.abs(heroStats(warrior, mods).damage - 28 * 1.10) < 1e-9, 'melee +6% and all +4%');
+  assert.ok(Math.abs(heroStats(ranger, mods).damage - 16 * 1.04) < 1e-9, 'only the general damage reaches the ranger');
+});
+
+test('non-damage talents: rewards, relic rerolls and banishes, hero XP and 3x speed', async () => {
+  const { createWorld } = await import('../js/engine/world.js');
+  assert.deepEqual(rewardBonus(['main_8_0', 'main_8_1', 'main_8_2', 'main_8_3']), { gold: 0.2, xp: 0.2, loot: 0.3 });
+  assert.deepEqual(rewardBonus([]), { gold: 0, xp: 0, loot: 0 });
+  const plain = createWorld({ seed: 1 });
+  assert.equal(plain.rerolls, 0); assert.equal(plain.banishes, 0); assert.equal(plain.gs.speed3x, false); assert.equal(plain.gs.heroXp, 1);
+  const tempo = createWorld({ seed: 1, talents: ['main_11_0', 'main_11_1', 'main_11_2', 'main_11_3'] });
+  assert.equal(tempo.gs.speed3x, true, 'Overdrive unlocks 3x speed');
+  assert.ok(Math.abs(tempo.gs.heroXp - 1.4) < 1e-9, '+40% hero XP');
+  assert.equal(fmtMod(NODES.get('main_11_3').mods[0]), 'Unlocks 3x game speed');
 });
 
 /* The server (save_talents in the SQL) accepts a set if every node exists and connects to a root through allocated nodes.
@@ -69,20 +92,24 @@ test('the server rule accepts exactly the sets a player can build', () => {
   const rng = createRng(2024), pool = [...NODES.values()].filter(n => !n.root);
   let valid = 0;
   for (let i = 0; i < 1500; i++) {
-    const tree = TREE_ORDER[rng.int(TREE_ORDER.length)], cands = pool.filter(n => n.tree === tree).map(n => n.id), k = 1 + rng.int(8), sub = [];
-    while (sub.length < Math.min(k, cands.length)) { const c = cands[rng.int(cands.length)]; if (!sub.includes(c)) sub.push(c); }
+    /* Half the samples grow a set the way a player would (valid), then maybe swap one node for a random one (often invalid). */
+    const k = 1 + rng.int(8), sub = [];
+    while (sub.length < k) {
+      const opts = pool.filter(n => !sub.includes(n.id) && canAllocate(new Set(sub), n));
+      if (!opts.length) break;
+      sub.push(opts[rng.int(opts.length)].id);
+    }
+    if (rng.next() < 0.5) { const c = pool[rng.int(pool.length)].id; if (!sub.includes(c)) sub[rng.int(sub.length)] = c; }
     assert.equal(serverOk(sub), clientOk(sub), 'disagreement on ' + sub.join(','));
     if (serverOk(sub)) valid++;
   }
   assert.ok(valid > 100, 'the sample should include plenty of valid sets');
-  assert.ok(!serverOk(['general_root']) && !serverOk(['nope_1']) && !serverOk(['general_0_0', 'general_0_0']));
+  assert.ok(valid < 1450, 'and plenty of invalid ones');
+  assert.ok(!serverOk(['main_root']) && !serverOk(['nope_1']) && !serverOk(['main_0_0', 'main_0_0']));
 });
 
-test('the Ranger and Mage trees keep the old Archer and Frost Mage layouts, so renamed allocations stay connected', () => {
-  for (const [from, to] of [['archer', 'ranger'], ['frostmage', 'mage']]) {
-    assert.ok(NODES.has(to + '_0_0') && NODES.has(to + '_2_3'));
-    const old = [from + '_0_0', from + '_0_1', from + '_1_0', from + '_1_1'];   /* what an old player may have allocated */
-    const renamed = old.map(id => id.replace(from + '_', to + '_')), alloc = new Set();
-    for (const id of renamed) { assert.ok(canAllocate(alloc, NODES.get(id)), id); alloc.add(id); }
-  }
+test('the SQL refunds points allocated in the old trees', () => {
+  const sql = readFileSync(new URL('../supabase-update.sql', import.meta.url), 'utf8');
+  assert.match(sql, /where exists \(select 1 from unnest\(p\.talents\) as x where x !~ '\^main_'\)/);
+  assert.ok([...NODES.keys()].every(id => id.startsWith('main_')), 'every node id starts with main_, so the refund keeps them');
 });

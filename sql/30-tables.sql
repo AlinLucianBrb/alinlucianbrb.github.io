@@ -9,6 +9,10 @@ create table if not exists public.talent_links (
   b text not null references public.talent_nodes (id) on delete cascade,
   primary key (a, b)
 );
+-- Reward bonuses a node gives at the end of a match (0.1 = +10%), used by finish_run.
+alter table public.talent_nodes add column if not exists reward_gold numeric not null default 0;
+alter table public.talent_nodes add column if not exists reward_xp numeric not null default 0;
+alter table public.talent_nodes add column if not exists reward_loot numeric not null default 0;
 alter table public.talent_nodes enable row level security;
 alter table public.talent_links enable row level security;
 

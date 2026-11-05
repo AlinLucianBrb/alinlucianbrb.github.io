@@ -6,13 +6,14 @@ import { apply } from '../engine/commands.js';
 import { exportLog } from '../engine/replay.js';
 import { heroStats } from '../engine/stats.js';
 import { draw, addBeam, tickBeams, addSlash, tickSlashes } from './render.js';
-import { createCamera, fitCamera, clampCamera, zoomAt, panBy, toWorld } from './camera.js';
+import { createCamera, fitCamera, clampCamera, zoomAt, panBy, toWorld, toScreen } from './camera.js';
 import * as ui from './ui.js';
 
 const $ = id => document.getElementById(id);
 const cv = $('c'), ctx = cv.getContext('2d');
 const MAP_W = COLS * T, MAP_H = ROWS * T;
 const MAX_CATCHUP = 1800;       /* never simulate more than 30 minutes of missed time */
+const HOLD_MS = 280;            /* click and hold a hero this long to pick it up and move it */
 
 let w;                          /* the current world */
 let last = -1, acc = 0, active = false, raf = 0, hooks = {}, uiT = 0, stageN = 1, bgWorker = null, bgTimer = 0, drawErr = false;
@@ -29,7 +30,7 @@ function newRun() {
   w = createWorld({ seed, stage: stageN, talents: hooks.talents || [], lineup: hooks.lineup, items: hooks.items || {} });
   const world = w;
   w.ev.on('end', ({ won }) => finish(world, won));
-  v.selected = v.moving = null; v.vfx.beams.length = 0; v.vfx.slashes.length = 0; v.needFit = true;
+  v.selected = v.moving = null; ui.clearEvoFloats(); if (v.speed > 2) v.speed = 1; v.vfx.beams.length = 0; v.vfx.slashes.length = 0; v.needFit = true;
   v.sel = heroIndex(w.lineup[0]);
   ui.setLineup(w);
   setPaused(false);
@@ -88,6 +89,7 @@ function render(dt) {
   tickBeams(v.vfx, dt); tickSlashes(v.vfx, dt);
   draw(ctx, w, v);
   ui.renderHUD(w, v);
+  ui.renderEvoFloats(w, (x, y) => toScreen(v.cam, x, y), selectHero);
   if (v.needFit) { v.needFit = false; fitToScreen(); }
   if (w.picking) ui.updatePick(w);
   if ((uiT += 1 / 60) >= 0.25) { uiT = 0; ui.renderMeter(w); if (v.selected) ui.renderInspector(w, v); }
@@ -161,11 +163,24 @@ cv.addEventListener('pointerdown', e => {
   pointers.set(id, { x, y, sx: x, sy: y, button: e.button ?? 0 });
   try { cv.setPointerCapture(id); } catch (err) { /* not supported: fine */ }
   if (pointers.size === 1) dragged = (e.button === 1 || e.button === 2);
-  if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1 }; dragged = true; }
+  if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1 }; dragged = true; cancelHold(); }
+  /* Click and hold a hero to pick it up; it follows the pointer and is moved where it is released. */
+  if (pointers.size === 1 && (e.button ?? 0) === 0 && w.phase !== 'over' && !w.picking) {
+    const [cx, cy] = cellAt(x, y), h = w.heroes.find(t => t.cx === cx && t.cy === cy);
+    if (h) holdT = setTimeout(() => {
+      holdT = 0;
+      const p = pointers.get(id);
+      if (!p || dragged) return;
+      p.holding = true; v.moving = v.selected = h; v.hover = [cx, cy]; cv.classList.add('holding'); ui.renderInspector(w, v);
+    }, HOLD_MS);
+  }
 });
+let holdT = 0;
+const cancelHold = () => { if (holdT) { clearTimeout(holdT); holdT = 0; } };
 cv.addEventListener('pointermove', e => {
   const [x, y] = local(e), p = pointers.get(e.pointerId ?? 1);
   if (!p) { if (e.pointerType !== 'touch') setHover(cellAt(x, y)); return; }
+  if (p.holding) { p.x = x; p.y = y; setHover(cellAt(x, y)); return; }   /* carrying a hero: no panning */
   if (pointers.size === 2 && pinch) {
     const [a, b] = [...pointers.values()], mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
     p.x = x; p.y = y;
@@ -173,7 +188,7 @@ cv.addEventListener('pointermove', e => {
     zoomAt(v.cam, mx2, my2, d / pinch.d); pinch.d = d; pan(mx2 - mx, my2 - my);
     return;
   }
-  if (!dragged && Math.hypot(x - p.sx, y - p.sy) > 6) dragged = true;
+  if (!dragged && Math.hypot(x - p.sx, y - p.sy) > 6) { dragged = true; cancelHold(); }
   if (dragged) { pan(x - p.x, y - p.y); cv.classList.add('dragging'); }
   p.x = x; p.y = y;
   if (e.pointerType !== 'touch') setHover(cellAt(x, y));
@@ -187,8 +202,15 @@ function setHover(c) {
 function endPointer(e, cancelled) {
   const id = e.pointerId ?? 1, p = pointers.get(id);
   if (!p) return;
-  pointers.delete(id);
+  pointers.delete(id); cancelHold();
   if (pointers.size < 2) pinch = null;
+  if (p.holding) {                       /* drop the carried hero */
+    cv.classList.remove('holding');
+    const h = v.moving, [x, y] = local(e), [cx, cy] = cellAt(x, y);
+    v.moving = null;
+    if (!cancelled && h && w.heroes.includes(h) && (cx !== h.cx || cy !== h.cy)) act({ type: 'move', id: h.id, cx, cy });
+    ui.renderInspector(w, v); dragged = false; return;
+  }
   if (pointers.size === 0) {
     cv.classList.remove('dragging');
     if (!cancelled && !dragged && p.button === 0) { const [x, y] = local(e); v.hover = cellAt(x, y); clickCell(...v.hover); }
@@ -214,7 +236,7 @@ function clickCell(cx, cy) {
     if (act({ type: 'move', id: v.moving.id, cx, cy }).ok) v.moving = null;
     ui.renderInspector(w, v); return;
   }
-  if (existing) { if (existing !== v.selected) v.evoPick = false; v.selected = existing; ui.renderInspector(w, v); return; }
+  if (existing) { v.selected = existing; ui.renderInspector(w, v); return; }
   if (!inside || !canPlace(v.sel)) { closeInspector(); return; }
   if (act({ type: 'place', hero: HEROES[v.sel].id, cx, cy }).ok) {
     v.selected = null;
@@ -232,22 +254,22 @@ const selectType = i => {
   if (i < 0 || !w.lineup.includes(HEROES[i].id)) return;
   v.moving = null;
   const unit = unitOf(i);
-  if (unit !== v.selected) v.evoPick = false;
   if (unit) { v.selected = unit; v.sel = i; } else { v.sel = i; v.selected = null; }
   ui.renderInspector(w, v);
 };
-const closeInspector = () => { v.selected = v.moving = null; v.evoPick = false; ui.renderInspector(w, v); };
-/* Evolve: with one form it evolves straight away; with several (the Mage's elements) it opens the choice in the hero panel. */
+/* Selecting a hero on the map (also what the rising Evolve button does: the hero panel then shows the choices). */
+const selectHero = h => { v.moving = null; v.selected = h; v.sel = h.type; ui.renderInspector(w, v); };
+const closeInspector = () => { v.selected = v.moving = null; ui.renderInspector(w, v); };
+/* Key E: a hero with a single form evolves straight away; with several, the choices are already in the hero panel. */
 const evolveSelected = () => {
   const h = v.selected; if (!h) return;
-  const step = h.base.evolutions[h.tier]; if (!step) return;
-  if (step.choices.length > 1) { v.evoPick = !v.evoPick; ui.renderInspector(w, v); }
-  else act({ type: 'evolve', id: h.id, choice: 0 });
+  const step = h.base.evolutions[h.tier];
+  if (step && step.choices.length === 1) act({ type: 'evolve', id: h.id, choice: 0 });
 };
-const chooseEvolution = i => { if (v.selected && act({ type: 'evolve', id: v.selected.id, choice: i }).ok) { v.evoPick = false; ui.renderInspector(w, v); } };
+const chooseEvolution = i => { if (v.selected && act({ type: 'evolve', id: v.selected.id, choice: i }).ok) ui.renderInspector(w, v); };
 const toggleMove = () => { if (v.selected && w.phase !== 'over') { v.moving = v.moving === v.selected ? null : v.selected; ui.renderInspector(w, v); } };
 ui.initUI({
-  onSelectType: selectType, onCloseInspector: closeInspector, onEvolve: evolveSelected, onEvolveChoice: chooseEvolution, onMove: toggleMove,
+  onSelectType: selectType, onCloseInspector: closeInspector, onEvolveChoice: chooseEvolution, speed3x: () => !!(w && w.gs.speed3x),
   onChoose: i => act({ type: 'choose', index: i }), onReroll: () => act({ type: 'reroll' }), onBanish: i => act({ type: 'banish', index: i }),
   heroInfo: i => {
     const def = HEROES[i], unit = w && unitOf(i), tier = unit ? unit.tier : 0, evo = def.evolutions[tier];   /* a step: { level, cost, choices } */
@@ -260,7 +282,8 @@ ui.initUI({
 $('go').onclick = () => act({ type: 'wave' });
 $('relic').onclick = () => act({ type: 'buyRelic' });
 $('auto').onclick = () => act({ type: 'auto', on: !w.auto });
-$('spd').onclick = () => { v.speed = v.speed === 1 ? 2 : 1; };
+/* 1x, 2x, and 3x once the Overdrive talent unlocks it. */
+$('spd').onclick = () => { v.speed = v.speed === 1 ? 2 : v.speed === 2 && w.gs.speed3x ? 3 : 1; };
 $('menuBtn').onclick = onMenu;
 $('quitYes').onclick = () => hooks.onExit();
 $('resumeBtn').onclick = () => setPaused(false);

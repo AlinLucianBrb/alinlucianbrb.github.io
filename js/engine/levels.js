@@ -10,7 +10,7 @@ export function levelMods(level) {
 /* Adds XP and handles any level-ups. Returns how many levels were gained. */
 export function gainXp(w, h, amount) {
   if (!(amount > 0) || h.level >= HERO_LEVELS.max) return 0;
-  h.xp += amount;
+  h.xp += amount * (w.gs ? w.gs.heroXp : 1);
   let gained = 0;
   while (h.level < HERO_LEVELS.max && h.xp >= HERO_LEVELS.xpToNext(h.level)) {
     h.xp -= HERO_LEVELS.xpToNext(h.level); h.level++; gained++;

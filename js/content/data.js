@@ -120,7 +120,8 @@ export const STAT_LABELS = {
   rampRate: 'Beam ramp speed', arc: 'Swing arc (°)', targets: 'Targets per attack',
   energyMax: 'Energy needed', energyPerAttack: 'Energy per attack', energyPerSecond: 'Energy per second',
   ...COMBAT_LABELS, relicLuck: 'Relic luck',
-  bounty: 'Gold per kill', startGold: 'Starting gold', startLives: 'Starting lives', waveGold: 'Wave clear gold', evolveCost: 'Evolution cost', interest: 'Interest', interestCap: 'Interest limit'
+  bounty: 'Gold per kill', bountyChance: 'Chance for +2 gold per kill', rerolls: 'Free relic rerolls per match', banishes: 'Free relic banishes per match',
+  speed3x: '3x game speed', heroXp: 'Hero XP', rewardGold: 'Gold at the end of a match', rewardXp: 'XP at the end of a match', rewardLoot: 'Item find', startGold: 'Starting gold', startLives: 'Starting lives', waveGold: 'Wave clear gold', evolveCost: 'Evolution cost', interest: 'Interest', interestCap: 'Interest limit'
 };
 
 export const RARITIES = [
@@ -147,27 +148,32 @@ export function rollRarity(r01, luck = 0) {
 
 /* Modifier: { stat, type: 'inc' | 'more' | 'flat', value, scope }.
    scope is a list of hero tags (or ['all']) for hero stats, or 'global' for economy stats.
-   Relics are defined at Common strength; m is the rarity multiplier: Common 1, Uncommon 2, Rare 3, Epic 4 (always a whole number). */
-const f = x => +x.toFixed(1);
+   Relics are defined at Common strength; m is the rarity multiplier: Common 1, Uncommon 2, Rare 3, Epic 4 (always a whole number).
+   Relics are cheap and you buy many in a run, so each one is small: these are 15% of the earlier values (RELIC_POWER), except
+   Prospector (a 25% chance of +2 gold per kill per Common) and Tax collector (half its earlier value). */
+export const RELIC_POWER = 0.15;
+const f = x => +x.toFixed(2);
+const P = x => x * RELIC_POWER;
 const hero = (stat, type, value, scope) => ({ stat, type, value, scope });
 const glob = (stat, type, value) => ({ stat, type, value, scope: 'global' });
+const lives = m => Math.max(1, Math.round(P(5) * m));
 export const RELICS = [
-  { name: 'Sharpened rounds',  desc: m => '+' + f(25 * m) + '% damage (all heroes)',  mods: m => [hero('damage', 'inc', 0.25 * m, ['all'])] },
-  { name: 'Long barrels',      desc: m => '+' + f(15 * m) + '% range',               mods: m => [hero('range', 'inc', 0.15 * m, ['all'])] },
-  { name: 'Quick hands',       desc: m => '+' + f(20 * m) + '% attack speed',        mods: m => [hero('speed', 'inc', 0.2 * m, ['all'])] },
-  { name: 'Four-leaf clover',  desc: m => '+' + f(50 * m) + '% relic luck: rarer relics turn up more often', label: 'Relic luck', mods: m => [glob('relicLuck', 'flat', 0.5 * m)] },
-  { name: 'Battle focus',      desc: m => '+' + f(25 * m) + '% energy from attacks, so ultimates come sooner', mods: m => [hero('energyPerAttack', 'inc', 0.25 * m, ['all'])] },
-  { name: 'Prospector',        desc: m => '+' + f(2 * m) + ' gold per kill',         label: 'Economy', mods: m => [glob('bounty', 'flat', 2 * m)] },
-  { name: 'Reinforced gate',   desc: m => '+' + 5 * m + ' lives',                    label: 'Your gate', onPick: (g, m) => { g.lives += 5 * m; } },
-  { name: 'Bulk order',        desc: m => 'Evolutions cost ' + f(15 * m) + '% less', label: 'Economy', mods: m => [glob('evolveCost', 'more', -0.15 * m)] },
-  { name: 'Split bolt',        desc: m => 'Spell attacks hit +' + m + ' more target' + (m > 1 ? 's' : ''), mods: m => [hero('targets', 'flat', m, ['spell'])] },
-  { name: 'Tax collector',     desc: m => '+' + f(50 * m) + '% gold for clearing a wave', label: 'Economy', mods: m => [glob('waveGold', 'inc', 0.5 * m)] },
-  { name: 'Compound interest', desc: m => 'After each wave, earn ' + f(5 * m) + '% of your unspent gold as interest, up to ' + 60 * m + ' gold. More copies stack: their % and limits add up.',
-    label: 'Economy', mods: m => [glob('interest', 'flat', 0.05 * m), glob('interestCap', 'flat', 60 * m)] },
-  { name: 'Fine arrows',       desc: m => '+' + f(30 * m) + '% damage to projectile heroes', mods: m => [hero('damage', 'inc', 0.3 * m, ['projectile'])] },
-  { name: 'Whetstone',         desc: m => '+' + f(30 * m) + '% damage to melee heroes',      mods: m => [hero('damage', 'inc', 0.3 * m, ['melee'])] },
-  { name: 'Arcane focus',      desc: m => '+' + f(30 * m) + '% damage to spell heroes',      mods: m => [hero('damage', 'inc', 0.3 * m, ['spell'])] },
-  { name: 'Wide swing',        desc: m => '+' + f(20 * m) + '° swing arc',                    mods: m => [hero('arc', 'flat', 20 * m, ['melee'])] }
+  { name: 'Sharpened rounds',  desc: m => '+' + f(P(25) * m) + '% damage (all heroes)',  mods: m => [hero('damage', 'inc', P(0.25) * m, ['all'])] },
+  { name: 'Long barrels',      desc: m => '+' + f(P(15) * m) + '% range',               mods: m => [hero('range', 'inc', P(0.15) * m, ['all'])] },
+  { name: 'Quick hands',       desc: m => '+' + f(P(20) * m) + '% attack speed',        mods: m => [hero('speed', 'inc', P(0.2) * m, ['all'])] },
+  { name: 'Four-leaf clover',  desc: m => '+' + f(P(50) * m) + '% relic luck: rarer relics turn up more often', label: 'Relic luck', mods: m => [glob('relicLuck', 'flat', P(0.5) * m)] },
+  { name: 'Battle focus',      desc: m => '+' + f(P(25) * m) + '% energy from attacks, so ultimates come sooner', mods: m => [hero('energyPerAttack', 'inc', P(0.25) * m, ['all'])] },
+  { name: 'Prospector',        desc: m => f(25 * m) + '% chance of +2 gold per kill' + (m * 0.25 >= 1 ? ' (always)' : ''), label: 'Economy', mods: m => [glob('bountyChance', 'flat', 0.25 * m)] },
+  { name: 'Reinforced gate',   desc: m => '+' + lives(m) + ' li' + (lives(m) > 1 ? 'ves' : 'fe'), label: 'Your gate', onPick: (g, m) => { g.lives += lives(m); } },
+  { name: 'Bulk order',        desc: m => 'Evolutions cost ' + f(P(15) * m) + '% less', label: 'Economy', mods: m => [glob('evolveCost', 'more', -P(0.15) * m)] },
+  { name: 'Split bolt',        desc: m => 'Spell attacks: ' + f(P(100) * m) + '% chance to hit 1 more target', mods: m => [hero('targets', 'flat', P(1) * m, ['spell'])] },
+  { name: 'Tax collector',     desc: m => '+' + f(25 * m) + '% gold for clearing a wave', label: 'Economy', mods: m => [glob('waveGold', 'inc', 0.25 * m)] },
+  { name: 'Compound interest', desc: m => 'After each wave, earn ' + f(P(5) * m) + '% of your unspent gold as interest, up to ' + f(P(60) * m) + ' gold. More copies stack: their % and limits add up.',
+    label: 'Economy', mods: m => [glob('interest', 'flat', P(0.05) * m), glob('interestCap', 'flat', P(60) * m)] },
+  { name: 'Fine arrows',       desc: m => '+' + f(P(30) * m) + '% damage to projectile heroes', mods: m => [hero('damage', 'inc', P(0.3) * m, ['projectile'])] },
+  { name: 'Whetstone',         desc: m => '+' + f(P(30) * m) + '% damage to melee heroes',      mods: m => [hero('damage', 'inc', P(0.3) * m, ['melee'])] },
+  { name: 'Arcane focus',      desc: m => '+' + f(P(30) * m) + '% damage to spell heroes',      mods: m => [hero('damage', 'inc', P(0.3) * m, ['spell'])] },
+  { name: 'Wide swing',        desc: m => '+' + f(P(20) * m) + '° swing arc',                    mods: m => [hero('arc', 'flat', P(20) * m, ['melee'])] }
 ];
 /* Kept for later: relics for the archived heroes and the Frost Mage's slow. Not offered while those heroes are not playable. */
 export const RELIC_ARCHIVE = [

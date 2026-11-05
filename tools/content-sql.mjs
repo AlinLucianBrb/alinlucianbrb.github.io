@@ -1,5 +1,5 @@
 /* SQL that copies game content the server must know about from js/content into the database:
-   the talent trees (to check talent saves), the playable heroes (to check lineups) and the item types (to drop and check items). */
+   the talent tree (to check talent saves, and the reward bonuses its nodes give), the playable heroes (to check lineups) and the item types (to drop and check items). */
 import { TREES, TREE_ORDER, NODES } from '../js/content/talents.js';
 import { HEROES } from '../js/content/data.js';
 import { ITEMS } from '../js/content/items.js';
@@ -9,7 +9,11 @@ const list = ids => 'array[' + ids.map(q).join(', ') + ']::text[]';
 
 export function contentSeedSql() {
   const ids = [...NODES.keys()];
-  const nodeRows = ids.map(id => { const n = NODES.get(id); return '  (' + q(id) + ', ' + q(n.tree) + ', ' + (n.root ? 'true' : 'false') + ')'; });
+  const reward = (n, stat) => n.mods.filter(m => m.stat === stat).reduce((a, m) => a + m.value, 0);
+  const nodeRows = ids.map(id => {
+    const n = NODES.get(id);
+    return '  (' + [q(id), q(n.tree), n.root ? 'true' : 'false', reward(n, 'rewardGold'), reward(n, 'rewardXp'), reward(n, 'rewardLoot')].join(', ') + ')';
+  });
   const linkRows = [];
   for (const t of TREE_ORDER) for (const [a, b] of TREES[t].links) { linkRows.push('  (' + q(a) + ', ' + q(b) + ')'); linkRows.push('  (' + q(b) + ', ' + q(a) + ')'); }
   const heroes = HEROES.map(h => h.id), items = Object.keys(ITEMS);
@@ -17,7 +21,8 @@ export function contentSeedSql() {
     '-- ===== Game content (generated from js/content by tools/build-sql.mjs; do not edit by hand) =====',
     '-- Talent trees. Links are stored in both directions.',
     'delete from public.talent_links;',
-    'insert into public.talent_nodes (id, tree, is_root) values\n' + nodeRows.join(',\n') + '\non conflict (id) do update set tree = excluded.tree, is_root = excluded.is_root;',
+    'insert into public.talent_nodes (id, tree, is_root, reward_gold, reward_xp, reward_loot) values\n' + nodeRows.join(',\n') +
+      '\non conflict (id) do update set tree = excluded.tree, is_root = excluded.is_root, reward_gold = excluded.reward_gold, reward_xp = excluded.reward_xp, reward_loot = excluded.reward_loot;',
     'delete from public.talent_nodes where id <> all (' + list(ids) + ');',
     'insert into public.talent_links (a, b) values\n' + linkRows.join(',\n') + ';',
     '-- Playable heroes.',

@@ -6,9 +6,9 @@ export const DAMAGE_TYPES = ['physical', 'spell', 'fire', 'cold', 'lightning', '
 export const DAMAGE_LABEL = { physical: 'Physical', spell: 'Spell', fire: 'Fire', cold: 'Cold', lightning: 'Lightning', toxic: 'Toxic' };
 export const DAMAGE_COLOR = { physical: '#c7ced6', spell: '#c39bf2', fire: '#ff8a3d', cold: '#8fd3ff', lightning: '#ffe45c', toxic: '#7ad04b' };
 
-export const RES_CAP = 0.75;          /* resistances never block more than 75% */
+export const RES_CAP = 0.99;          /* resistances never block more than 99% (endless mode will need the room) */
 export const ARMOR_FACTOR = 5;        /* armor blocks armor / (armor + 5 x hit) of a physical hit... */
-export const ARMOR_CAP = 0.9;         /* ...up to 90% */
+export const ARMOR_CAP = 0.99;        /* ...up to 99% */
 
 /* Ailments a hit can inflict. The chance comes from the hero stat <id>Chance (0 to 1); only hits that carry one of the `from`
    damage types can inflict it, and its strength is based on that part of the hit.

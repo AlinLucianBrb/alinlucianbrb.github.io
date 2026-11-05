@@ -50,6 +50,13 @@ function build() {
     const na = NODES.get(a), nb = NODES.get(b), line = svg('line', { x1: na.x, y1: na.y, x2: nb.x, y2: nb.y, class: 'tlink' });
     root.append(line); view.links.push({ a, b, line });
   });
+  /* Branch names just outside each notable. */
+  tree.nodes.filter(n => n.notable && n.branch).forEach(n => {
+    const a = Math.atan2(n.y, n.x), c = Math.cos(a), r = Math.hypot(n.x, n.y) + (Math.abs(c) > 0.3 ? 30 : 40);
+    const anchor = c > 0.3 ? 'start' : c < -0.3 ? 'end' : 'middle';   /* side labels read away from the node, never over it */
+    const t = svg('text', { x: Math.round(r * c), y: Math.round(r * Math.sin(a)) + 5, class: 'tbranch', 'text-anchor': anchor });
+    t.textContent = n.branch; root.append(t);
+  });
   tree.nodes.forEach(n => {
     const g = svg('g', { class: 'tnode', tabindex: 0, role: 'button', 'aria-label': n.name + ': ' + n.desc });
     const c = svg('circle', { cx: n.x, cy: n.y, r: n.root ? 16 : n.notable ? 20 : 13 });
@@ -82,7 +89,7 @@ export default {
   mount() {
     alloc = new Set((state.profile.talents || []).filter(id => NODES.has(id) && !NODES.get(id).root));
     saved = [...alloc]; say('');
-    const tabs = $('tlTabs'); tabs.textContent = '';
+    const tabs = $('tlTabs'); tabs.textContent = ''; tabs.hidden = TREE_ORDER.length < 2;   /* one tree: no tabs needed */
     TREE_ORDER.forEach(id => {
       const b = document.createElement('button');
       b.onclick = () => { tab = id; build(); paint(); };

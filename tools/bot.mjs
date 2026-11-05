@@ -16,10 +16,13 @@ export const STRATEGIES = {
   mage: ['mage']
 };
 
-/* Talents for a player of the given level: general damage/speed first, then the trees of the lineup's heroes. */
+/* Talents for a player of the given level, branch by branch in the single tree: damage and speed first, then the branches
+   for the lineup's heroes (melee, projectiles, spells), then energy, elements, gold, the gate and the rest. */
+const HERO_BRANCH = { warrior: 2, ranger: 3, mage: 4 };
 export function talentsFor(level, strategy = 'trio') {
   const points = pointsFor(level), picked = new Set(), order = [];
-  for (const id of ['general', ...STRATEGIES[strategy]]) for (let b = 0; b < 5; b++) for (let i = 0; i < 4; i++) { const nid = id + '_' + b + '_' + i; if (NODES.has(nid)) order.push(nid); }
+  const branches = [0, 1, ...STRATEGIES[strategy].map(h => HERO_BRANCH[h]), 6, 5, 7, 10, 2, 3, 4, 8, 9, 11];
+  for (const b of new Set(branches)) for (let i = 0; i < 4; i++) { const nid = 'main_' + b + '_' + i; if (NODES.has(nid)) order.push(nid); }
   let progress = true;
   while (picked.size < points && progress) {
     progress = false;

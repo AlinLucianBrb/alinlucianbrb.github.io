@@ -230,6 +230,13 @@ export function draw(ctx, g, v) {
   for (const z of g.zones || []) (ZONE_DRAW[z.type] || ZONE_DRAW.storm)(ctx, z);
   for (const e of g.enemies) {
     ctx.beginPath(); ctx.arc(e.x, e.y, e.def.radius, 0, 7); ctx.fillStyle = tintOf(e) || e.def.color; ctx.fill();
+    if (e.def.boss) {                      /* bosses: a gold rim and a crown */
+      ctx.strokeStyle = '#ffd84a'; ctx.lineWidth = 3; ctx.stroke();
+      const r = e.def.radius, cy = e.y - r * 0.15;
+      ctx.beginPath(); ctx.moveTo(e.x - r * 0.55, cy); ctx.lineTo(e.x - r * 0.55, cy - r * 0.5); ctx.lineTo(e.x - r * 0.27, cy - r * 0.25);
+      ctx.lineTo(e.x, cy - r * 0.6); ctx.lineTo(e.x + r * 0.27, cy - r * 0.25); ctx.lineTo(e.x + r * 0.55, cy - r * 0.5); ctx.lineTo(e.x + r * 0.55, cy); ctx.closePath();
+      ctx.fillStyle = '#ffd84a'; ctx.fill();
+    }
     const f = e.hp / e.max, bw = e.def.radius * 2.2, by = e.y - e.def.radius - 7;
     ctx.fillStyle = 'rgba(0,0,0,.75)'; ctx.fillRect(e.x - bw / 2 - 1, by - 1, bw + 2, 6);
     ctx.fillStyle = hpColor(f); ctx.fillRect(e.x - bw / 2, by, bw * Math.max(0, f), 4);

@@ -4,6 +4,7 @@ import { ULTIMATES } from '../engine/ultimates.js';
 import { DAMAGE_LABEL } from '../content/combat.js';
 import { explain, affected } from '../engine/stats.js';
 import { bindTip } from '../core/tooltip.js';
+import { isBossWave } from '../engine/enemies.js';
 
 const $ = id => document.getElementById(id);
 const setText = (el, v) => { v = String(v); if (el._v !== v) { el._v = v; el.textContent = v; } };
@@ -28,13 +29,13 @@ export function initUI(callbacks) {
   HEROES.forEach((d, i) => {
     const b = el('button', 'herocard'); b.id = 't' + i; b.onclick = () => cb.onSelectType(i);
     b.style.setProperty?.('--hc', d.color);
-    const key = el('span', 'key'), name = el('span', 'nm', d.name), status = el('span', 'cost'), ebar = el('span', 'ebar'), efill = el('i');
-    ebar.append(efill); b.append(key, name, status, ebar); b._status = status; b._key = key; b._efill = efill; b._ebar = ebar;
+    const key = el('span', 'key'), name = el('span', 'nm'), nmText = el('span', '', d.name), lv = el('small'), status = el('span', 'cost');
+    name.append(nmText, lv); b.append(key, name, status); b._status = status; b._key = key; b._nm = nmText; b._lv = lv;
     bindTip(b, () => {
       const info = cb.heroInfo(i), u = ULTIMATES[d.ultimate];
       const lines = [d.short, { text: statLine(d, info.stats), color: '#9db3a3' }];
       if (u) lines.push({ text: 'Ultimate: ' + u.name + ' (' + u.desc + ')', color: '#9db3a3' });
-      lines.push(info.unit ? { text: 'On the field: click to select it.', color: '#9db3a3' } : { text: 'Free to place: one per match · key ' + b._key.textContent, color: '#9db3a3' });
+      lines.push(info.unit ? { text: 'Click to select it. Click and hold it on the map to move it.', color: '#9db3a3' } : { text: 'Free to place: one per match · key ' + b._key.textContent, color: '#9db3a3' });
       if (info.unit) lines.push({ text: 'Level ' + info.unit.level + ': heroes gain XP from every kill while on the field.', color: '#8fd3ff' });
       if (info.evo) {
         const names = info.evo.choices.map(c => c.name), list = names.length > 1 ? names.slice(0, -1).join(', ') + ' or ' + names.at(-1) : names[0];
@@ -46,11 +47,12 @@ export function initUI(callbacks) {
   });
   bindTip($('relic'), () => ({ title: 'Relic', color: '#dcc6ff', lines: [
     'Spend gold to choose 1 of 3 random relics: permanent bonuses for the rest of this run.',
-    'Rarer relics are stronger. You can reroll or banish the offers for a little gold.',
+    'Rarer relics are stronger. Relic talents give free rerolls and banishes for the offers.',
     ...oddsLines(cb.luck ? cb.luck() : 0),
     { text: 'The price goes up with each relic you buy. Key: R', color: '#9db3a3' }] }));
   bindTip($('auto'), () => ({ title: 'Auto-start', lines: ['Starts the next wave by itself 3 seconds after a wave is cleared. Lit up when on.', { text: 'Turned off again when you retry a level.', color: '#9db3a3' }] }));
-  bindTip($('spd'), () => ({ title: 'Game speed', lines: ['Switch between normal (1x) and double (2x) speed.'] }));
+  bindTip($('spd'), () => ({ title: 'Game speed', lines: ['Switch between normal (1x) and double (2x) speed.',
+    cb.speed3x && cb.speed3x() ? { text: 'Overdrive: 3x speed unlocked.', color: '#8be28b' } : { text: 'The Overdrive talent unlocks 3x.', color: '#9db3a3' }] }));
   bindTip($('menuBtn'), () => ({ title: 'Menu', lines: ['Pauses the game and asks before quitting the match. Key: P to pause, Esc to resume.'] }));
   $('meterToggle').onclick = () => {
     const open = $('meterToggle').getAttribute?.('aria-expanded') !== 'false';
@@ -79,33 +81,38 @@ export function renderHUD(g, v) {
   /* Compound interest: what the next wave clear pays, and how much gold earns the full amount. */
   const ir = g.gs.interest, icap = g.gs.interestCap, line = $('interest');
   if (ir > 0 && icap > 0) {
-    const need = Math.ceil(icap / ir), now = Math.min(icap, Math.floor(g.gold * ir));
+    const need = Math.ceil(icap / ir - 1e-9), now = Math.min(Math.floor(icap + 1e-9), Math.floor(g.gold * ir + 1e-9));
     line.hidden = false;
     setText(line, g.gold >= need ? 'Interest +' + now + ' (full)' : 'Interest +' + now + ' · full at ' + need.toLocaleString());
     line.classList.toggle('full', g.gold >= need);
   } else line.hidden = true;
   $('relic').classList.toggle('poor', g.gold < g.relicCost());
-  setText($('wave'), g.wave + ' / ' + g.maxWave); setText($('stage'), g.stage.n);
+  /* Boss waves: shown during the wave, and in the build phase before one. */
+  const boss = g.phase === 'wave' ? isBossWave(g.wave, g.stage) : g.phase === 'build' && isBossWave(g.wave + 1, g.stage);
+  setText($('wave'), g.wave + ' / ' + g.maxWave + (boss ? (g.phase === 'wave' ? ' · Boss' : ' · Boss next') : '')); setText($('stage'), g.stage.n);
+  $('wave').classList.toggle('boss', !!boss);
   $('go').disabled = g.phase !== 'build' || g.picking;
   setText($('go'), g.phase === 'build' && auto ? 'Start now (' + Math.max(0, Math.ceil(g.autoT)) + 's)' : 'Start wave');
   setText($('relic'), 'Relic · ' + g.relicCost());
   $('auto').classList.toggle('on', auto); $('auto').setAttribute('aria-pressed', String(auto));
   setText($('spd'), v.speed + 'x'); $('spd').classList.toggle('on', v.speed > 1);
+  let layout = false;
   HEROES.forEach((d, i) => {
     const b = btns[i];
-    if (b.hidden) return;
+    if (!b._inLineup) return;
     const unit = g.heroes.find(h => h.type === i);
-    setText(b._status, !unit ? 'Free · place it' : (unit.tier ? '★ ' + unit.def.name : 'On the field') + ' · Lv ' + unit.level);
+    /* A hero with no evolution left has nothing more to do from its button, so the button goes away. */
+    const done = !!unit && !unit.base.evolutions[unit.tier];
+    if (b.hidden !== done) { b.hidden = done; layout = true; }
+    if (done) return;
+    setText(b._nm, unit ? (unit.tier ? '★ ' : '') + unit.def.name : d.name);
+    setText(b._lv, unit ? 'Lv ' + unit.level : '');
+    setText(b._status, unit ? '' : 'Free · place it');
     const hc = unit ? unit.def.color : d.color;
     if (b._hc !== hc) { b._hc = hc; b.style.setProperty?.('--hc', hc); }
     b.classList.toggle('on', sel === i && (!unit || v.selected === unit)); b.classList.toggle('placed', !!unit);
-    b._ebar.hidden = !unit;
-    if (unit) {
-      const pct = Math.round(unit.energy / unit.s.energyMax * 100) + '%';
-      if (b._efill.style.width !== pct) b._efill.style.width = pct;
-      b._ebar.classList.toggle('full', unit.energy >= unit.s.energyMax);
-    }
   });
+  if (layout && cb.onLayoutChange) cb.onLayoutChange();
   const box = $('relics');
   if (box._g !== g || box._n !== g.relics.length) {
     box._g = g; box._n = g.relics.length; box.textContent = '';
@@ -131,7 +138,7 @@ export function renderHUD(g, v) {
 
 /* Shows only the heroes in this match's lineup, keyed 1..n in lineup order. */
 export function setLineup(g) {
-  HEROES.forEach((d, i) => { const pos = g.lineup.indexOf(d.id); btns[i].hidden = pos < 0; if (pos >= 0) setText(btns[i]._key, pos + 1); });
+  HEROES.forEach((d, i) => { const pos = g.lineup.indexOf(d.id); btns[i]._inLineup = pos >= 0; btns[i].hidden = pos < 0; if (pos >= 0) setText(btns[i]._key, pos + 1); });
 }
 
 export function renderMeter(g) {
@@ -181,27 +188,32 @@ function describe(m, key) {
   if (m.ri === -4) return v + ' · Hero level';
   return v + ' · ' + m.source + (m.n > 1 ? ' ×' + m.n : '') + ' (' + (m.ri >= 0 ? 'Relic' : SOURCE[m.ri] || 'Talent') + ')';
 }
-/* The inspector is rebuilt only when the selection, the modifiers or the move state change, so buttons never vanish under a click. */
+/* Whether a hero can evolve right now: it has a next step, has reached its level and you have the gold. */
+export const canEvolve = (g, h) => { const s = h.base.evolutions[h.tier]; return !!s && h.level >= (s.level || 1) && g.gold >= g.evolveCost(h) && g.phase !== 'over'; };
+
+/* The inspector is rebuilt only when the selection, the modifiers or the move state change, so buttons never vanish under a click.
+   There are no Move or Evolve buttons: click and hold a hero on the map to move it, and the evolution choices appear here
+   (with a button rising over the hero on the map) once the hero has reached the evolution's level. */
 export function renderInspector(g, v) {
   const box = $('inspect'), t = v.selected;
   $('heroPanel').hidden = !t;
   if (!t) { box._k = 'none'; box._t = null; return; }
   const moving = v.moving === t;
-  const picking = !!v.evoPick;
+  const step = t.base.evolutions[t.tier], ready = !!step && t.level >= (step.level || 1);
   const bk = (t.buffs || []).map(b => b.id).join(',');   /* rebuild when a buff starts or ends */
-  if (box._t !== t || box._m !== g.mods.length || box._mv !== moving || box._tier !== t.tier || box._lv !== t.level || box._pk !== picking || box._bk !== bk) {
-    box._k = 't'; box._t = t; box._m = g.mods.length; box._mv = moving; box._tier = t.tier; box._lv = t.level; box._pk = picking; box._bk = bk; box.textContent = '';
-    const d = t.def, head = el('div', 'srow'), title = el('b', '', (t.tier ? '★ ' : '') + d.name + ' · ' + cap(d.archetype)), close = el('button', 'linkbtn', 'Close');
+  if (box._t !== t || box._m !== g.mods.length || box._mv !== moving || box._tier !== t.tier || box._lv !== t.level || box._rd !== ready || box._bk !== bk) {
+    box._k = 't'; box._t = t; box._m = g.mods.length; box._mv = moving; box._tier = t.tier; box._lv = t.level; box._rd = ready; box._bk = bk; box.textContent = '';
+    const d = t.def, head = el('div', 'srow'), title = el('b', '', (t.tier ? '★ ' : '') + d.name + ' · Lv ' + t.level), close = el('button', 'linkbtn', 'Close');
     title.style.color = d.color; close.onclick = cb.onCloseInspector; head.append(title, close); box.append(head);
-    /* The actions come first, so they never move as the stats below change. */
-    const acts = el('div', 'acts top'), mv = el('button', '', moving ? 'Cancel move' : 'Move'), evo = el('button', 'go');
-    mv.onclick = cb.onMove; evo.onclick = cb.onEvolve; acts.append(mv, evo); box.append(acts); box._evo = evo;
-    if (moving) box.append(el('p', 'muted', 'Click a free tile to move it there.'));
-    /* The Mage's element choice: one button per form, with what it does. */
-    box._choices = [];
-    const step = t.base.evolutions[t.tier];
-    if (picking && step) {
-      box.append(el('p', 'muted', 'Choose an evolution:'));
+    box.append(el('p', 'muted', moving ? 'Release it on a free tile to move it there.' : cap(d.archetype) + ' · click and hold it on the map to move it.'));
+    /* Evolution: what comes next, and once the level is reached, one button per form. */
+    box._choices = []; box._evoHead = null;
+    if (step && !ready) {
+      const names = step.choices.map(c => c.name);
+      box.append(el('p', 'muted', 'Evolves at level ' + step.level + ' into ' + (names.length > 1 ? names.slice(0, -1).join(', ') + ' or ' + names.at(-1) : names[0]) + '.'));
+    }
+    if (step && ready) {
+      box._evoHead = el('div', 'evohead'); box.append(box._evoHead);
       const row = el('div', 'evochoices');
       step.choices.forEach((c, i) => {
         const b = el('button', 'evochoice'), u = ULTIMATES[c.ultimate || d.ultimate];
@@ -245,15 +257,35 @@ export function renderInspector(g, v) {
   if (box._efill.style.width !== pctE) box._efill.style.width = pctE;
   box._ebar.classList.toggle('full', t.energy >= t.s.energyMax);
   const need = HERO_LEVELS.xpToNext(t.level), maxed = t.level >= HERO_LEVELS.max;
-  setText(box._lvl, 'Level ' + t.level + (maxed ? ' (max)' : ' · ' + Math.floor(t.xp) + '/' + need + ' XP'));
+  setText(box._lvl, maxed ? 'XP (max level)' : 'XP ' + Math.floor(t.xp) + '/' + need);
   const xp = maxed ? '100%' : Math.round(t.xp / need * 100) + '%';
   if (box._xfill.style.width !== xp) box._xfill.style.width = xp;
-  const cost = g.evolveCost(t), evo = t.base.evolutions[t.tier], early = evo && t.level < evo.level;
-  setText(box._evo, !evo ? 'Fully evolved' : early ? 'Evolve at Lv ' + evo.level : picking ? 'Cancel' : 'Evolve · ' + cost);
-  box._evo.disabled = !evo || early || (!picking && g.gold < cost);
-  box._evo.title = evo ? 'Level ' + evo.level + ', ' + cost + ' gold: ' + evo.choices.map(c => c.name).join(' / ') + ' (key E)' : '';
-  for (const b of box._choices || []) b.disabled = g.gold < cost;
+  if (box._evoHead) {
+    const cost = g.evolveCost(t), short = g.gold < cost;
+    setText(box._evoHead, 'Evolve · ' + cost + ' gold' + (short ? ' (you have ' + g.gold + ')' : ': choose a form'));
+    for (const b of box._choices) b.disabled = short || g.phase === 'over';
+  }
 }
+
+/* Evolve prompts over the map: one button rises over each hero that can evolve now (level reached, gold in hand).
+   toScreen turns map coordinates into screen pixels. Buttons are created once per hero and only moved afterwards. */
+const floats = new Map();
+export function renderEvoFloats(g, toScreen, onClick) {
+  const box = $('evoFloat'); if (!box) return;
+  for (const [h, b] of floats) if (!g.heroes.includes(h) || !canEvolve(g, h)) { b.remove(); floats.delete(h); }
+  for (const h of g.heroes) {
+    if (!canEvolve(g, h)) continue;
+    let b = floats.get(h);
+    if (!b) {
+      b = el('button', 'evofloat', '▲ Evolve'); b.title = 'Choose an evolution for ' + h.def.name;
+      b.onclick = e => { e.stopPropagation && e.stopPropagation(); onClick(h); };
+      box.append(b); floats.set(h, b);
+    }
+    const [x, y] = toScreen(h.x, h.y - 26), pos = 'translate(' + Math.round(x) + 'px,' + Math.round(y) + 'px) translate(-50%,-100%)';
+    if (b._pos !== pos) { b._pos = pos; b.style.transform = pos; }
+  }
+}
+export function clearEvoFloats() { for (const b of floats.values()) b.remove(); floats.clear(); }
 
 function indicator(g, r, m) {
   const a = affected(r, m, g.heroes), d = el('small', 'aff');
@@ -278,7 +310,6 @@ export function showPick(g) {
 }
 /* Cheap per-frame refresh of prices and disabled states while the picker is open. */
 export function updatePick(g) {
-  const c = g.pickCost();
   const odds = rarityOdds(g.gs.relicLuck), box = $('pickOdds');
   if (box._luck !== g.gs.relicLuck) {
     box._luck = g.gs.relicLuck; box.textContent = '';
@@ -286,9 +317,11 @@ export function updatePick(g) {
     RARITIES.forEach((r, i) => { const sp = el('span', '', r.name + ' ' + odd(odds[i])); sp.style.color = r.color; if (i) box.append(' · '); box.append(sp); });
     if (g.gs.relicLuck > 0) box.append(' (luck +' + f(g.gs.relicLuck * 100) + '%)');
   }
-  setText($('reroll'), 'Reroll all · ' + c); $('reroll').disabled = g.gold < c;
+  /* Rerolls and banishes are free; how many you have comes from talents. */
+  setText($('reroll'), 'Reroll all · ' + g.rerolls + ' left'); $('reroll').disabled = !(g.rerolls > 0);
+  $('reroll').title = g.rerolls > 0 ? 'Draw three new offers (free)' : 'Relic talents give free rerolls';
   setText($('pickGold'), 'Gold: ' + g.gold);
-  banishBtns.forEach(b => { setText(b, 'Banish · ' + c); b.disabled = g.gold < c; });
+  banishBtns.forEach(b => { setText(b, 'Banish · ' + g.banishes + ' left'); b.disabled = !(g.banishes > 0); b.hidden = !(g.banishes > 0); });
 }
 export const hidePick = () => { $('pick').hidden = true; };
 export function showOver(title, text, msg, canNext) {

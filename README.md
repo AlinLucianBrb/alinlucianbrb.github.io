@@ -14,7 +14,7 @@ js/screens/                login, menu, levels, heroes, talents, leaderboard, se
 js/content/                WHAT the game contains (plain data, no logic)
   data.js                  heroes (and archived ones for later), energy defaults, relics, rarities, levels
   items.js                 items that drop after matches (one slot per hero)
-  talents.js               talent trees and allocation rules
+  talents.js               the talent tree and allocation rules
   format.js                display text for modifiers
 js/engine/                 HOW the game works (no page, no clock, no Math.random)
   world.js                 the simulation: createWorld(), step()
@@ -62,13 +62,15 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 |---|---|---|
 | Choose a hero to place, or select a placed one | click its card | 1-3 |
 | Place it / select a hero | click a tile | |
-| Move / evolve the selected hero | buttons in the hero panel | M / E |
+| Move a hero | click and hold it on the map, then let go on a free tile | M, then click a tile |
+| Evolve a hero | the ▲ Evolve button that rises over it, then a form in the hero panel | |
 | Move the map | drag (any mouse button), or drag with one finger | arrows or WASD |
 | Zoom | mouse wheel, pinch, or the + / − buttons | + / − |
 | Fit the map to the screen | Fit button | F |
 | Buy a relic | Relic | R |
 | Start the wave | Start wave | Space |
 | Pause | Menu (asks before quitting) | P (Esc resumes) |
+| Game speed | speed button: 1x, 2x, and 3x with the Overdrive talent | |
 
 - The camera fits the map into the space the HUD leaves free whenever a run starts or the window changes size (until you move or zoom it yourself; Fit returns to that view).
 - Every run, including Retry after a win or a loss, starts with Auto-start off and unpaused.
@@ -82,7 +84,8 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Lineup:** on the Heroes screen, players choose up to 3 different heroes to bring. In a match each one is placed once, for free; gold goes to evolutions and relics.
 - **Energy and ultimates:** every hero has an energy bar (blue under the hero; gold and glowing when full). It fills by `energyPerAttack` per attack and `energyPerSecond` during waves; the defaults are in `ENERGY` in `data.js` (20 per attack, 0 per second), and both are ordinary stats that talents, relics and items can change. When the bar is full, the next attack is the ultimate: for now, double damage.
 - **Hero levels:** during a match, every hero on the field gains XP from each kill (Grunt and Runner 1, Brute 3), whoever landed it. Level 2 takes 10 XP and each level after takes 2 more, so level 10 (162 XP) comes around the middle of level 1. Each level adds +3% damage. The rules are `HERO_LEVELS` in `data.js` (set `perLevel` to `[]` for no bonus). Levels show as a badge on the hero, on its card and in the hero panel.
-- **Evolution:** once a hero reaches the evolution's level (10 for now), select it and press Evolve (or E) to spend 150 gold. Every evolution gives +50% damage, range and attack speed. Every hero chooses one of three forms in the hero panel:
+- **Hero cards** (bottom bar) are small: the name with the level next to it, and "Free · place it" until the hero is on the map. A hero with no evolution left has no card any more (select it on the map).
+- **Evolution:** once a hero reaches the evolution's level (10 for now) and you have the gold (150), an **▲ Evolve** button rises over it on the map. Click it (or select the hero) and pick a form in the hero panel. Every evolution gives +50% damage, range and attack speed. Every hero chooses one of three forms in the hero panel:
   - **Berserker** (Warrior): swings twice in quick succession (0.15 s apart, counting as one attack for energy), and every hit makes the enemy bleed. Ultimate *Frenzy*: +50% damage and attack speed for 5 seconds.
   - **Commander** (Warrior): throws the sword in a straight line out to its range (base 110), hitting every enemy in the way once. Ultimate *Rally*: for 5 seconds, every hero within 220 px (the Commander too) gets double energy per attack.
   - **Sentinel** (Warrior): the normal swing. Ultimate *Barricade*: puts a wall on the path just ahead of the enemy it attacked; for 1 second, enemies pile up against it (a zone of type `barrier`).
@@ -94,15 +97,22 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
   - **Lightning Mage:** lightning bolts that always shock. Ultimate *Storm*: for 3 seconds, strikes every enemy around the Mage (1.3× its range) every half second for half a hit, shocking them.
   Evolutions are data: a hero's `evolutions` is a list of steps `{ level, cost, choices }`, and each choice can change the name, colour, damage type, ultimate, on-hit effects and stats (see `evolvedDef` in `data.js`). Ultimates are registered in `ultimates.js`; areas like the storm are zones in `js/engine/zones.js`.
 - **Items:** a win always drops an item and a loss has a chance (up to 50%, more for surviving longer). The server rolls the drop, so it cannot be faked. Each hero has one item slot; equip items on the Heroes screen. For now there is one item, the Power Charm (+5 damage).
-- **Talents:** you get 1 talent point per level above 1. One General tree for every hero, plus one tree per hero. Allocate nodes that connect to the origin or to an allocated node; remove one only if the rest stay connected. Respec is free. The old Archer and Frost Mage points carried over to the Ranger and Mage trees; points in the trees of archived heroes were refunded.
+- **Talents:** you get 1 talent point per level above 1, spent in **one tree** shared by every hero. Allocate nodes that connect to the origin or to an allocated node; remove one only if the rest stay connected. Respec is free. Twelve branches of four nodes (three small, one notable), linked by a ring:
+  - for heroes, by **tag** rather than by hero: Damage and Speed (all heroes), Melee, Projectiles, Spells, Elements (fire, cold, lightning and toxic, so the Hunter and the elemental Mages), Energy. A talent reaches every hero with the tag, evolved forms included.
+  - not about damage: **Gold** (starting gold, gold per kill, wave gold), **Rewards** (more gold, XP and item find at the end of a match), **Relics** (free relic rerolls and banishes per match, relic luck), **Gate** (lives, cheaper evolutions) and **Tempo** (hero XP; the Overdrive notable unlocks 3x speed).
+  - Points from the old General and per-hero trees are refunded by `supabase-update.sql`.
 - **Timed buffs:** Frenzy and Rally are buffs on the hero (`h.buffs`, added with `w.addBuff`). They are modifiers that last a few seconds; getting the same buff again refreshes it instead of stacking. The hero panel lists them as "Buff", and a coloured ring shows around the hero while one is active.
-- Talents, items, evolutions and relics are all modifiers, so they stack, and the hero panel shows where each bonus comes from. Bonuses from the same source are shown as one line whatever their rarity (a Common and a Rare Sharpened rounds: "+100% · Sharpened rounds ×2"), and the relic strip shows one chip per relic with the copies added together. All talent nodes count as one source, so each stat has a single "Talents" line (for example "+16% · Talents ×3").
+- Talents, items, evolutions and relics are all modifiers, so they stack, and the hero panel shows where each bonus comes from. Bonuses from the same source are shown as one line whatever their rarity (a Common and a Rare Sharpened rounds: "+15% · Sharpened rounds ×2"), and the relic strip shows one chip per relic with the copies added together. All talent nodes count as one source, so each stat has a single "Talents" line (for example "+16% · Talents ×3").
 - **Relic rarities** are whole multiples of the Common version: Uncommon 2×, Rare 3×, Epic 4×. Relics are written at Common strength in `data.js`.
+- **Relic strength:** relics are 15% of their earlier values (`RELIC_POWER` in `data.js`, one number to tune them all), for example Sharpened rounds +3.75% damage per Common. Exceptions: **Prospector** is a 25% chance (per Common) of +2 gold per kill (chances add up; each full 100% is a sure +2), **Tax collector** is half its old value (+25% wave gold), **Reinforced gate** gives whole lives (1, 2, 2, 3), and **Split bolt** is a 15% chance per Common of hitting one more target.
+- **Relic prices** go up by 12 gold per relic bought (half the old step): 48, 60, 72...
+- **Rerolls and banishes** are free, but you only get them from the Relics talents (a number per match, shown on the buttons).
 
 ## Damage types, defenses and ailments
-Used by the Mage's evolutions; enemies have no armor or resistances yet:
+Used by the heroes' evolutions and by enemy defenses:
 - **Damage types:** physical, spell, fire, cold, lightning and toxic. Each hero deals its own type (`damageType`: Warrior and Ranger physical, Mage spell, and its evolutions fire, cold or lightning) and can gain added damage of any type (`fireDamage`, `spellDamage`, ...). Spell damage causes no ailment.
-- **Defenses:** enemies have `armor` (blocks part of physical hits, more of small hits, up to 90%) and `res` per type (up to 75%; negative means extra damage). Both are 0 for now, set per enemy type in `js/engine/enemies.js`.
+- **Defenses:** enemies have `armor` (blocks part of physical hits, more of small hits) and a resistance for every other damage type (negative means extra damage). Both cap at 99%. They start at 0 on wave 1 and grow with **threat**: +1 per wave, and each level after the first adds 25% to that growth (`threat` in `js/engine/enemies.js`). Each type has its own profile per point of threat: Grunts a little of both, Brutes heavy armor, Runners high resistances, Bosses both. At the end of level 1 a Brute has about 21 armor; at the end of level 5 about 100 (roughly a third off a 30-damage hit).
+- **Bosses:** the last wave of every level ends with a boss, and from level 3 on the middle wave has one too (`isBossWave`). It replaces the wave's last enemy, has 12× a Grunt's life, moves slowly, costs 10 lives if it gets through, and pays 20× gold and 25 XP. The HUD shows "Boss" on boss waves ("Boss next" before one), and bosses wear a crown.
 - **Ailments** (`js/content/combat.js`), each with a chance stat on heroes (`bleedChance`, ...):
   bleed (physical hits; damage over time, strongest counts), poison (physical or toxic hits; toxic damage over time, stacks up to 20), burn (fire hits; damage over time, strongest counts), shock (lightning hits; for 2 s the enemy's armor is halved and every resistance drops by 20 points, so with no resistance it takes 20% extra non-physical damage), freeze (cold hits; enemy stops, longer for bigger hits, up to 1.5 s).
 - Every attack goes through `attack()` in `js/engine/combat.js` and damage over time through `dotDamage()`; ailment rolls use the match's seeded random numbers, so replays stay exact. The damage meter credits damage over time to the hero that caused it.
@@ -122,7 +132,7 @@ Everything in combat flows through `hit()` in `js/engine/world.js`, which emits 
 - **New hero behavior:** add `registerBehavior('kind', { update(g, hero, dt) {} })` in `js/engine/behaviors.js`.
 - **New status effect:** add it to `EFFECTS` in `js/engine/effects.js`, then list it in a hero's `applies` field.
 - **New projectile:** add it to `PROJECTILES` in `js/engine/projectiles.js` (and its look to `PROJ_DRAW` in `js/game/render.js`) and spawn it from a behavior.
-- **New enemy:** add it to `ENEMIES` in `js/engine/enemies.js` and return it from `waveEnemyType`.
+- **New enemy:** add it to `ENEMIES` in `js/engine/enemies.js` (with its armor and resistance per point of threat) and return it from `waveEnemyType`.
 - **New talent:** add a node to a branch in `talents.js`, then run `npm run sql` and run `supabase-update.sql` in Supabase (a test fails until the SQL files are rebuilt).
 
 ## Setup
@@ -139,9 +149,9 @@ Everything in combat flows through `hit()` in `js/engine/world.js`, which emits 
 ## Security
 What the server enforces (all in `supabase-setup.sql` / `supabase-update.sql`):
 - **Run records:** a result is accepted only for a run the server saw start (`start_run`), once, within 24 hours. Starting a new run cancels the unfinished one, so runs cannot be started in parallel.
-- **Minimum time:** a run must take at least as long as the enemies need to spawn at 2x speed (80% of it for tolerance), and at least 15 seconds. Clearing level 1 takes at least about 78 seconds, level 5 about 4 minutes.
+- **Minimum time:** a run must take at least as long as the enemies need to spawn at 3x speed (the Overdrive talent; 75% of it for tolerance), and at least 15 seconds. Clearing level 1 takes at least about 49 seconds, level 5 about 2.5 minutes.
 - **Rate limit:** at most 30 saved runs per hour per player.
-- **Talents:** the server has a copy of every talent tree and rejects unknown nodes and nodes that do not connect to their tree's start. After changing `js/content/talents.js`, run `npm run sql`, then run `supabase-update.sql` in the SQL Editor.
+- **Talents:** the server has a copy of the talent tree and rejects unknown nodes and nodes that do not connect to its start. It also keeps each node's reward bonuses (`reward_gold`, `reward_xp`, `reward_loot`), so `finish_run` applies the Rewards talents itself: more gold and XP, and item find (every full 100% drop chance is an item, the rest a chance of one more). After changing `js/content/talents.js`, run `npm run sql`, then run `supabase-update.sql` in the SQL Editor.
 - **Usernames:** 3-16 letters, numbers or underscores. Reserved names (admin, moderator...), a starter list of offensive words and look-alikes of existing names (0/o, 1/l/i) are rejected, even if someone skips the sign-up form. Add rows to `blocked_names` to block more.
 - **Items and lineups:** only the server creates items (in `finish_run`); players can read their own items but not change them. `save_loadout` only accepts known heroes, at most 3 different ones, and items the player owns, each worn once. Each run records the lineup and equipment it started with.
 - **Permissions:** players can only call the functions the game needs, and cannot read or write the private tables directly.

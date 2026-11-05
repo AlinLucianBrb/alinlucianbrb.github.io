@@ -18,21 +18,23 @@ test('level count and wave counts match finish_run (cap = 10 + 5 x level)', () =
   }
 });
 
-test('XP, gold and level-up formulas match finish_run', () => {
+test('XP, gold and level-up formulas match finish_run, with the reward talents', () => {
   assert.deepEqual(runRewards(7, 33), { xp: 7 * 10 + 33, gold: 35 });
+  assert.deepEqual(runRewards(7, 33, { gold: 0.2, xp: 0.1 }), { xp: Math.round(103 * 1.1), gold: 42 });
   assert.equal(xpNeed(4), 50 + 4 * 50);
   for (const [f, sql] of sqlFiles) {
-    assert.match(sql, /me\.xp := me\.xp \+ p_waves \* 10 \+ p_kills;/, f);
-    assert.match(sql, /me\.gold := me\.gold \+ p_waves \* 5;/, f);
+    assert.match(sql, /me\.xp := me\.xp \+ round\(\(p_waves \* 10 \+ p_kills\) \* \(1 \+ b_xp\)\);/, f);
+    assert.match(sql, /me\.gold := me\.gold \+ round\(p_waves \* 5 \* \(1 \+ b_gold\)\);/, f);
+    assert.match(sql, /chance := \(case when p_won then 1 else 0\.5 \* p_waves::numeric \/ cap end\) \* \(1 \+ b_loot\);/, f);
     assert.match(sql, /while me\.xp >= 50 \+ me\.level \* 50 loop/, f);
   }
 });
 
 test('the minimum-time check matches the real spawn timings', () => {
-  const minRun = waves => { let t = 0; for (let w = 1; w <= waves; w++) t += 0.4 * (waveCount(w) - 1) * spawnDelay(w); return t; };
-  const fastest = waves => { let t = 0; for (let w = 1; w <= waves; w++) t += (waveCount(w) - 1) * spawnDelay(w) / 2; return t; };
-  for (const w of [1, 15, 35]) assert.ok(minRun(w) <= fastest(w) * 0.8 + 1e-9, 'the check must never reject a real run at 2x speed');
-  for (const [f, sql] of sqlFiles) assert.match(sql, /0\.4 \* \(4 \+ 2 \* w\) \* greatest\(0\.35, 0\.85 - 0\.02 \* w\)/, f + ': same formula as waveCount and spawnDelay');
+  const minRun = waves => { let t = 0; for (let w = 1; w <= waves; w++) t += 0.25 * (waveCount(w) - 1) * spawnDelay(w); return t; };
+  const fastest = waves => { let t = 0; for (let w = 1; w <= waves; w++) t += (waveCount(w) - 1) * spawnDelay(w) / 3; return t; };
+  for (const w of [1, 15, 35]) assert.ok(minRun(w) <= fastest(w) * 0.8 + 1e-9, 'the check must never reject a real run at 3x speed');
+  for (const [f, sql] of sqlFiles) assert.match(sql, /0\.25 \* \(4 \+ 2 \* w\) \* greatest\(0\.35, 0\.85 - 0\.02 \* w\)/, f + ': same formula as waveCount and spawnDelay');
 });
 
 test('the SQL files are up to date with sql/ and js/content (run: npm run sql)', () => {

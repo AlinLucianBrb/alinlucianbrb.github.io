@@ -3,17 +3,33 @@ import { tickEffects } from './effects.js';
 
 /* Enemy types. hp and speed are multipliers on the wave's base values; bounty multiplies kill gold; leak is the lives lost if it reaches the gate;
    xp is what every hero on the field gains when it dies.
-   armor and res (resistances by damage type, 0 to 0.75) are their defenses; all 0 for now, ready for tougher enemies and bosses.
+   Defenses: armor and res (one resistance for every non-physical damage type) are per point of THREAT, which is 0 on wave 1 and
+   grows each wave, faster on harder levels (see threat). So every enemy starts with no defenses and ends a level with some:
+   Brutes are armored, Runners resist magic and elements, Bosses have both.
    Add a type here, then return it from waveEnemyType. */
 export const ENEMIES = {
-  grunt:  { name: 'Grunt',  color: '#d1564d', radius: 10, hp: 1,   speed: 1,   bounty: 1,   leak: 1, xp: 1 },
-  brute:  { name: 'Brute',  color: '#8c3b8f', radius: 14, hp: 3,   speed: 0.6, bounty: 2.5, leak: 2, xp: 3 },
-  runner: { name: 'Runner', color: '#e8c547', radius: 8,  hp: 0.5, speed: 1.5, bounty: 0.8, leak: 1, xp: 1 }
+  grunt:  { name: 'Grunt',  color: '#d1564d', radius: 10, hp: 1,   speed: 1,    bounty: 1,   leak: 1,  xp: 1,  armor: 0.5, res: 0.004 },
+  brute:  { name: 'Brute',  color: '#8c3b8f', radius: 14, hp: 3,   speed: 0.6,  bounty: 2.5, leak: 2,  xp: 3,  armor: 1.5, res: 0.002 },
+  runner: { name: 'Runner', color: '#e8c547', radius: 8,  hp: 0.5, speed: 1.5,  bounty: 0.8, leak: 1,  xp: 1,  armor: 0.2, res: 0.008 },
+  boss:   { name: 'Boss',   color: '#5b1f24', radius: 20, hp: 12,  speed: 0.45, bounty: 20,  leak: 10, xp: 25, armor: 2,   res: 0.006, boss: true }
 };
+/* Threat: 0 on the first wave, +1 per wave, and each level after the first adds 25% to the growth. */
+export const threat = (wave, stage = 1) => Math.max(0, wave - 1) * (1 + 0.25 * (stage - 1));
+const DEF_TYPES = ['spell', 'fire', 'cold', 'lightning', 'toxic'];
+/* An enemy's defenses on a wave: { armor, res: { type: value } }. Resistances are capped by RES_CAP (99%) when they are used. */
+export function defensesFor(def, wave, stage) {
+  const t = threat(wave, stage), r = (def.res || 0) * t, res = {};
+  for (const k of DEF_TYPES) res[k] = r;
+  return { armor: (def.armor || 0) * t, res };
+}
+
 export const waveCount = w => 5 + w * 2;
 export const spawnDelay = w => Math.max(0.35, 0.85 - w * 0.02);
+/* Boss waves: the last wave of every level, plus the middle wave from level 3 on. The boss is the wave's last enemy. */
+export const isBossWave = (wave, stage) => wave === stage.waves || (stage.n >= 3 && wave === Math.round(stage.waves / 2));
 /* i counts down from the wave size to 1, so the mix is the same every time. */
-export function waveEnemyType(w, i) {
+export function waveEnemyType(w, i, stage) {
+  if (i === 1 && stage && isBossWave(w, stage)) return 'boss';
   if (w >= 4 && i % 6 === 1) return 'brute';
   if (w >= 2 && i % 4 === 0) return 'runner';
   return 'grunt';
@@ -29,7 +45,7 @@ export function spawnEnemy(g, type) {
   const def = ENEMIES[type], st = g.stage;
   const hp = Math.max(1, Math.round(20 * st.hpMult * Math.pow(st.growth, g.wave - 1) * def.hp));
   const e = { type, def, d: 0, hp, max: hp, speed: Math.min(90, 50 + g.wave * 2) * def.speed, x: 0, y: 0, fx: null, dead: false, escaped: false, last: null,
-    armor: def.armor || 0, res: { ...(def.res || {}) } };
+    ...defensesFor(def, g.wave, st.n) };
   pathPos(g.path, 0, e);
   g.enemies.push(e);
 }

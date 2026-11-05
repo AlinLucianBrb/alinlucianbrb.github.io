@@ -56,6 +56,10 @@ create table if not exists public.talent_links (
   b text not null references public.talent_nodes (id) on delete cascade,
   primary key (a, b)
 );
+-- Reward bonuses a node gives at the end of a match (0.1 = +10%), used by finish_run.
+alter table public.talent_nodes add column if not exists reward_gold numeric not null default 0;
+alter table public.talent_nodes add column if not exists reward_xp numeric not null default 0;
+alter table public.talent_nodes add column if not exists reward_loot numeric not null default 0;
 alter table public.talent_nodes enable row level security;
 alter table public.talent_links enable row level security;
 
@@ -98,210 +102,179 @@ create policy "read own items" on public.player_items
 -- ===== Game content (generated from js/content by tools/build-sql.mjs; do not edit by hand) =====
 -- Talent trees. Links are stored in both directions.
 delete from public.talent_links;
-insert into public.talent_nodes (id, tree, is_root) values
-  ('general_root', 'general', true),
-  ('general_0_0', 'general', false),
-  ('general_0_1', 'general', false),
-  ('general_0_2', 'general', false),
-  ('general_0_3', 'general', false),
-  ('general_1_0', 'general', false),
-  ('general_1_1', 'general', false),
-  ('general_1_2', 'general', false),
-  ('general_1_3', 'general', false),
-  ('general_2_0', 'general', false),
-  ('general_2_1', 'general', false),
-  ('general_2_2', 'general', false),
-  ('general_2_3', 'general', false),
-  ('general_3_0', 'general', false),
-  ('general_3_1', 'general', false),
-  ('general_3_2', 'general', false),
-  ('general_3_3', 'general', false),
-  ('general_4_0', 'general', false),
-  ('general_4_1', 'general', false),
-  ('general_4_2', 'general', false),
-  ('general_4_3', 'general', false),
-  ('warrior_root', 'warrior', true),
-  ('warrior_0_0', 'warrior', false),
-  ('warrior_0_1', 'warrior', false),
-  ('warrior_0_2', 'warrior', false),
-  ('warrior_0_3', 'warrior', false),
-  ('warrior_1_0', 'warrior', false),
-  ('warrior_1_1', 'warrior', false),
-  ('warrior_1_2', 'warrior', false),
-  ('warrior_1_3', 'warrior', false),
-  ('warrior_2_0', 'warrior', false),
-  ('warrior_2_1', 'warrior', false),
-  ('warrior_2_2', 'warrior', false),
-  ('warrior_2_3', 'warrior', false),
-  ('ranger_root', 'ranger', true),
-  ('ranger_0_0', 'ranger', false),
-  ('ranger_0_1', 'ranger', false),
-  ('ranger_0_2', 'ranger', false),
-  ('ranger_0_3', 'ranger', false),
-  ('ranger_1_0', 'ranger', false),
-  ('ranger_1_1', 'ranger', false),
-  ('ranger_1_2', 'ranger', false),
-  ('ranger_1_3', 'ranger', false),
-  ('ranger_2_0', 'ranger', false),
-  ('ranger_2_1', 'ranger', false),
-  ('ranger_2_2', 'ranger', false),
-  ('ranger_2_3', 'ranger', false),
-  ('mage_root', 'mage', true),
-  ('mage_0_0', 'mage', false),
-  ('mage_0_1', 'mage', false),
-  ('mage_0_2', 'mage', false),
-  ('mage_0_3', 'mage', false),
-  ('mage_1_0', 'mage', false),
-  ('mage_1_1', 'mage', false),
-  ('mage_1_2', 'mage', false),
-  ('mage_1_3', 'mage', false),
-  ('mage_2_0', 'mage', false),
-  ('mage_2_1', 'mage', false),
-  ('mage_2_2', 'mage', false),
-  ('mage_2_3', 'mage', false)
-on conflict (id) do update set tree = excluded.tree, is_root = excluded.is_root;
-delete from public.talent_nodes where id <> all (array['general_root', 'general_0_0', 'general_0_1', 'general_0_2', 'general_0_3', 'general_1_0', 'general_1_1', 'general_1_2', 'general_1_3', 'general_2_0', 'general_2_1', 'general_2_2', 'general_2_3', 'general_3_0', 'general_3_1', 'general_3_2', 'general_3_3', 'general_4_0', 'general_4_1', 'general_4_2', 'general_4_3', 'warrior_root', 'warrior_0_0', 'warrior_0_1', 'warrior_0_2', 'warrior_0_3', 'warrior_1_0', 'warrior_1_1', 'warrior_1_2', 'warrior_1_3', 'warrior_2_0', 'warrior_2_1', 'warrior_2_2', 'warrior_2_3', 'ranger_root', 'ranger_0_0', 'ranger_0_1', 'ranger_0_2', 'ranger_0_3', 'ranger_1_0', 'ranger_1_1', 'ranger_1_2', 'ranger_1_3', 'ranger_2_0', 'ranger_2_1', 'ranger_2_2', 'ranger_2_3', 'mage_root', 'mage_0_0', 'mage_0_1', 'mage_0_2', 'mage_0_3', 'mage_1_0', 'mage_1_1', 'mage_1_2', 'mage_1_3', 'mage_2_0', 'mage_2_1', 'mage_2_2', 'mage_2_3']::text[]);
+insert into public.talent_nodes (id, tree, is_root, reward_gold, reward_xp, reward_loot) values
+  ('main_root', 'main', true, 0, 0, 0),
+  ('main_0_0', 'main', false, 0, 0, 0),
+  ('main_0_1', 'main', false, 0, 0, 0),
+  ('main_0_2', 'main', false, 0, 0, 0),
+  ('main_0_3', 'main', false, 0, 0, 0),
+  ('main_1_0', 'main', false, 0, 0, 0),
+  ('main_1_1', 'main', false, 0, 0, 0),
+  ('main_1_2', 'main', false, 0, 0, 0),
+  ('main_1_3', 'main', false, 0, 0, 0),
+  ('main_2_0', 'main', false, 0, 0, 0),
+  ('main_2_1', 'main', false, 0, 0, 0),
+  ('main_2_2', 'main', false, 0, 0, 0),
+  ('main_2_3', 'main', false, 0, 0, 0),
+  ('main_3_0', 'main', false, 0, 0, 0),
+  ('main_3_1', 'main', false, 0, 0, 0),
+  ('main_3_2', 'main', false, 0, 0, 0),
+  ('main_3_3', 'main', false, 0, 0, 0),
+  ('main_4_0', 'main', false, 0, 0, 0),
+  ('main_4_1', 'main', false, 0, 0, 0),
+  ('main_4_2', 'main', false, 0, 0, 0),
+  ('main_4_3', 'main', false, 0, 0, 0),
+  ('main_5_0', 'main', false, 0, 0, 0),
+  ('main_5_1', 'main', false, 0, 0, 0),
+  ('main_5_2', 'main', false, 0, 0, 0),
+  ('main_5_3', 'main', false, 0, 0, 0),
+  ('main_6_0', 'main', false, 0, 0, 0),
+  ('main_6_1', 'main', false, 0, 0, 0),
+  ('main_6_2', 'main', false, 0, 0, 0),
+  ('main_6_3', 'main', false, 0, 0, 0),
+  ('main_7_0', 'main', false, 0, 0, 0),
+  ('main_7_1', 'main', false, 0, 0, 0),
+  ('main_7_2', 'main', false, 0, 0, 0),
+  ('main_7_3', 'main', false, 0, 0, 0),
+  ('main_8_0', 'main', false, 0.1, 0, 0),
+  ('main_8_1', 'main', false, 0, 0.1, 0),
+  ('main_8_2', 'main', false, 0, 0, 0.15),
+  ('main_8_3', 'main', false, 0.1, 0.1, 0.15),
+  ('main_9_0', 'main', false, 0, 0, 0),
+  ('main_9_1', 'main', false, 0, 0, 0),
+  ('main_9_2', 'main', false, 0, 0, 0),
+  ('main_9_3', 'main', false, 0, 0, 0),
+  ('main_10_0', 'main', false, 0, 0, 0),
+  ('main_10_1', 'main', false, 0, 0, 0),
+  ('main_10_2', 'main', false, 0, 0, 0),
+  ('main_10_3', 'main', false, 0, 0, 0),
+  ('main_11_0', 'main', false, 0, 0, 0),
+  ('main_11_1', 'main', false, 0, 0, 0),
+  ('main_11_2', 'main', false, 0, 0, 0),
+  ('main_11_3', 'main', false, 0, 0, 0)
+on conflict (id) do update set tree = excluded.tree, is_root = excluded.is_root, reward_gold = excluded.reward_gold, reward_xp = excluded.reward_xp, reward_loot = excluded.reward_loot;
+delete from public.talent_nodes where id <> all (array['main_root', 'main_0_0', 'main_0_1', 'main_0_2', 'main_0_3', 'main_1_0', 'main_1_1', 'main_1_2', 'main_1_3', 'main_2_0', 'main_2_1', 'main_2_2', 'main_2_3', 'main_3_0', 'main_3_1', 'main_3_2', 'main_3_3', 'main_4_0', 'main_4_1', 'main_4_2', 'main_4_3', 'main_5_0', 'main_5_1', 'main_5_2', 'main_5_3', 'main_6_0', 'main_6_1', 'main_6_2', 'main_6_3', 'main_7_0', 'main_7_1', 'main_7_2', 'main_7_3', 'main_8_0', 'main_8_1', 'main_8_2', 'main_8_3', 'main_9_0', 'main_9_1', 'main_9_2', 'main_9_3', 'main_10_0', 'main_10_1', 'main_10_2', 'main_10_3', 'main_11_0', 'main_11_1', 'main_11_2', 'main_11_3']::text[]);
 insert into public.talent_links (a, b) values
-  ('general_root', 'general_0_0'),
-  ('general_0_0', 'general_root'),
-  ('general_0_0', 'general_0_1'),
-  ('general_0_1', 'general_0_0'),
-  ('general_0_1', 'general_0_2'),
-  ('general_0_2', 'general_0_1'),
-  ('general_0_2', 'general_0_3'),
-  ('general_0_3', 'general_0_2'),
-  ('general_root', 'general_1_0'),
-  ('general_1_0', 'general_root'),
-  ('general_1_0', 'general_1_1'),
-  ('general_1_1', 'general_1_0'),
-  ('general_1_1', 'general_1_2'),
-  ('general_1_2', 'general_1_1'),
-  ('general_1_2', 'general_1_3'),
-  ('general_1_3', 'general_1_2'),
-  ('general_root', 'general_2_0'),
-  ('general_2_0', 'general_root'),
-  ('general_2_0', 'general_2_1'),
-  ('general_2_1', 'general_2_0'),
-  ('general_2_1', 'general_2_2'),
-  ('general_2_2', 'general_2_1'),
-  ('general_2_2', 'general_2_3'),
-  ('general_2_3', 'general_2_2'),
-  ('general_root', 'general_3_0'),
-  ('general_3_0', 'general_root'),
-  ('general_3_0', 'general_3_1'),
-  ('general_3_1', 'general_3_0'),
-  ('general_3_1', 'general_3_2'),
-  ('general_3_2', 'general_3_1'),
-  ('general_3_2', 'general_3_3'),
-  ('general_3_3', 'general_3_2'),
-  ('general_root', 'general_4_0'),
-  ('general_4_0', 'general_root'),
-  ('general_4_0', 'general_4_1'),
-  ('general_4_1', 'general_4_0'),
-  ('general_4_1', 'general_4_2'),
-  ('general_4_2', 'general_4_1'),
-  ('general_4_2', 'general_4_3'),
-  ('general_4_3', 'general_4_2'),
-  ('general_0_1', 'general_1_1'),
-  ('general_1_1', 'general_0_1'),
-  ('general_1_1', 'general_2_1'),
-  ('general_2_1', 'general_1_1'),
-  ('general_2_1', 'general_3_1'),
-  ('general_3_1', 'general_2_1'),
-  ('general_3_1', 'general_4_1'),
-  ('general_4_1', 'general_3_1'),
-  ('general_4_1', 'general_0_1'),
-  ('general_0_1', 'general_4_1'),
-  ('warrior_root', 'warrior_0_0'),
-  ('warrior_0_0', 'warrior_root'),
-  ('warrior_0_0', 'warrior_0_1'),
-  ('warrior_0_1', 'warrior_0_0'),
-  ('warrior_0_1', 'warrior_0_2'),
-  ('warrior_0_2', 'warrior_0_1'),
-  ('warrior_0_2', 'warrior_0_3'),
-  ('warrior_0_3', 'warrior_0_2'),
-  ('warrior_root', 'warrior_1_0'),
-  ('warrior_1_0', 'warrior_root'),
-  ('warrior_1_0', 'warrior_1_1'),
-  ('warrior_1_1', 'warrior_1_0'),
-  ('warrior_1_1', 'warrior_1_2'),
-  ('warrior_1_2', 'warrior_1_1'),
-  ('warrior_1_2', 'warrior_1_3'),
-  ('warrior_1_3', 'warrior_1_2'),
-  ('warrior_root', 'warrior_2_0'),
-  ('warrior_2_0', 'warrior_root'),
-  ('warrior_2_0', 'warrior_2_1'),
-  ('warrior_2_1', 'warrior_2_0'),
-  ('warrior_2_1', 'warrior_2_2'),
-  ('warrior_2_2', 'warrior_2_1'),
-  ('warrior_2_2', 'warrior_2_3'),
-  ('warrior_2_3', 'warrior_2_2'),
-  ('warrior_0_1', 'warrior_1_1'),
-  ('warrior_1_1', 'warrior_0_1'),
-  ('warrior_1_1', 'warrior_2_1'),
-  ('warrior_2_1', 'warrior_1_1'),
-  ('warrior_2_1', 'warrior_0_1'),
-  ('warrior_0_1', 'warrior_2_1'),
-  ('ranger_root', 'ranger_0_0'),
-  ('ranger_0_0', 'ranger_root'),
-  ('ranger_0_0', 'ranger_0_1'),
-  ('ranger_0_1', 'ranger_0_0'),
-  ('ranger_0_1', 'ranger_0_2'),
-  ('ranger_0_2', 'ranger_0_1'),
-  ('ranger_0_2', 'ranger_0_3'),
-  ('ranger_0_3', 'ranger_0_2'),
-  ('ranger_root', 'ranger_1_0'),
-  ('ranger_1_0', 'ranger_root'),
-  ('ranger_1_0', 'ranger_1_1'),
-  ('ranger_1_1', 'ranger_1_0'),
-  ('ranger_1_1', 'ranger_1_2'),
-  ('ranger_1_2', 'ranger_1_1'),
-  ('ranger_1_2', 'ranger_1_3'),
-  ('ranger_1_3', 'ranger_1_2'),
-  ('ranger_root', 'ranger_2_0'),
-  ('ranger_2_0', 'ranger_root'),
-  ('ranger_2_0', 'ranger_2_1'),
-  ('ranger_2_1', 'ranger_2_0'),
-  ('ranger_2_1', 'ranger_2_2'),
-  ('ranger_2_2', 'ranger_2_1'),
-  ('ranger_2_2', 'ranger_2_3'),
-  ('ranger_2_3', 'ranger_2_2'),
-  ('ranger_0_1', 'ranger_1_1'),
-  ('ranger_1_1', 'ranger_0_1'),
-  ('ranger_1_1', 'ranger_2_1'),
-  ('ranger_2_1', 'ranger_1_1'),
-  ('ranger_2_1', 'ranger_0_1'),
-  ('ranger_0_1', 'ranger_2_1'),
-  ('mage_root', 'mage_0_0'),
-  ('mage_0_0', 'mage_root'),
-  ('mage_0_0', 'mage_0_1'),
-  ('mage_0_1', 'mage_0_0'),
-  ('mage_0_1', 'mage_0_2'),
-  ('mage_0_2', 'mage_0_1'),
-  ('mage_0_2', 'mage_0_3'),
-  ('mage_0_3', 'mage_0_2'),
-  ('mage_root', 'mage_1_0'),
-  ('mage_1_0', 'mage_root'),
-  ('mage_1_0', 'mage_1_1'),
-  ('mage_1_1', 'mage_1_0'),
-  ('mage_1_1', 'mage_1_2'),
-  ('mage_1_2', 'mage_1_1'),
-  ('mage_1_2', 'mage_1_3'),
-  ('mage_1_3', 'mage_1_2'),
-  ('mage_root', 'mage_2_0'),
-  ('mage_2_0', 'mage_root'),
-  ('mage_2_0', 'mage_2_1'),
-  ('mage_2_1', 'mage_2_0'),
-  ('mage_2_1', 'mage_2_2'),
-  ('mage_2_2', 'mage_2_1'),
-  ('mage_2_2', 'mage_2_3'),
-  ('mage_2_3', 'mage_2_2'),
-  ('mage_0_1', 'mage_1_1'),
-  ('mage_1_1', 'mage_0_1'),
-  ('mage_1_1', 'mage_2_1'),
-  ('mage_2_1', 'mage_1_1'),
-  ('mage_2_1', 'mage_0_1'),
-  ('mage_0_1', 'mage_2_1');
+  ('main_root', 'main_0_0'),
+  ('main_0_0', 'main_root'),
+  ('main_0_0', 'main_0_1'),
+  ('main_0_1', 'main_0_0'),
+  ('main_0_1', 'main_0_2'),
+  ('main_0_2', 'main_0_1'),
+  ('main_0_2', 'main_0_3'),
+  ('main_0_3', 'main_0_2'),
+  ('main_root', 'main_1_0'),
+  ('main_1_0', 'main_root'),
+  ('main_1_0', 'main_1_1'),
+  ('main_1_1', 'main_1_0'),
+  ('main_1_1', 'main_1_2'),
+  ('main_1_2', 'main_1_1'),
+  ('main_1_2', 'main_1_3'),
+  ('main_1_3', 'main_1_2'),
+  ('main_root', 'main_2_0'),
+  ('main_2_0', 'main_root'),
+  ('main_2_0', 'main_2_1'),
+  ('main_2_1', 'main_2_0'),
+  ('main_2_1', 'main_2_2'),
+  ('main_2_2', 'main_2_1'),
+  ('main_2_2', 'main_2_3'),
+  ('main_2_3', 'main_2_2'),
+  ('main_root', 'main_3_0'),
+  ('main_3_0', 'main_root'),
+  ('main_3_0', 'main_3_1'),
+  ('main_3_1', 'main_3_0'),
+  ('main_3_1', 'main_3_2'),
+  ('main_3_2', 'main_3_1'),
+  ('main_3_2', 'main_3_3'),
+  ('main_3_3', 'main_3_2'),
+  ('main_root', 'main_4_0'),
+  ('main_4_0', 'main_root'),
+  ('main_4_0', 'main_4_1'),
+  ('main_4_1', 'main_4_0'),
+  ('main_4_1', 'main_4_2'),
+  ('main_4_2', 'main_4_1'),
+  ('main_4_2', 'main_4_3'),
+  ('main_4_3', 'main_4_2'),
+  ('main_root', 'main_5_0'),
+  ('main_5_0', 'main_root'),
+  ('main_5_0', 'main_5_1'),
+  ('main_5_1', 'main_5_0'),
+  ('main_5_1', 'main_5_2'),
+  ('main_5_2', 'main_5_1'),
+  ('main_5_2', 'main_5_3'),
+  ('main_5_3', 'main_5_2'),
+  ('main_root', 'main_6_0'),
+  ('main_6_0', 'main_root'),
+  ('main_6_0', 'main_6_1'),
+  ('main_6_1', 'main_6_0'),
+  ('main_6_1', 'main_6_2'),
+  ('main_6_2', 'main_6_1'),
+  ('main_6_2', 'main_6_3'),
+  ('main_6_3', 'main_6_2'),
+  ('main_root', 'main_7_0'),
+  ('main_7_0', 'main_root'),
+  ('main_7_0', 'main_7_1'),
+  ('main_7_1', 'main_7_0'),
+  ('main_7_1', 'main_7_2'),
+  ('main_7_2', 'main_7_1'),
+  ('main_7_2', 'main_7_3'),
+  ('main_7_3', 'main_7_2'),
+  ('main_root', 'main_8_0'),
+  ('main_8_0', 'main_root'),
+  ('main_8_0', 'main_8_1'),
+  ('main_8_1', 'main_8_0'),
+  ('main_8_1', 'main_8_2'),
+  ('main_8_2', 'main_8_1'),
+  ('main_8_2', 'main_8_3'),
+  ('main_8_3', 'main_8_2'),
+  ('main_root', 'main_9_0'),
+  ('main_9_0', 'main_root'),
+  ('main_9_0', 'main_9_1'),
+  ('main_9_1', 'main_9_0'),
+  ('main_9_1', 'main_9_2'),
+  ('main_9_2', 'main_9_1'),
+  ('main_9_2', 'main_9_3'),
+  ('main_9_3', 'main_9_2'),
+  ('main_root', 'main_10_0'),
+  ('main_10_0', 'main_root'),
+  ('main_10_0', 'main_10_1'),
+  ('main_10_1', 'main_10_0'),
+  ('main_10_1', 'main_10_2'),
+  ('main_10_2', 'main_10_1'),
+  ('main_10_2', 'main_10_3'),
+  ('main_10_3', 'main_10_2'),
+  ('main_root', 'main_11_0'),
+  ('main_11_0', 'main_root'),
+  ('main_11_0', 'main_11_1'),
+  ('main_11_1', 'main_11_0'),
+  ('main_11_1', 'main_11_2'),
+  ('main_11_2', 'main_11_1'),
+  ('main_11_2', 'main_11_3'),
+  ('main_11_3', 'main_11_2'),
+  ('main_0_1', 'main_1_1'),
+  ('main_1_1', 'main_0_1'),
+  ('main_1_1', 'main_2_1'),
+  ('main_2_1', 'main_1_1'),
+  ('main_2_1', 'main_3_1'),
+  ('main_3_1', 'main_2_1'),
+  ('main_3_1', 'main_4_1'),
+  ('main_4_1', 'main_3_1'),
+  ('main_4_1', 'main_5_1'),
+  ('main_5_1', 'main_4_1'),
+  ('main_5_1', 'main_6_1'),
+  ('main_6_1', 'main_5_1'),
+  ('main_6_1', 'main_7_1'),
+  ('main_7_1', 'main_6_1'),
+  ('main_7_1', 'main_8_1'),
+  ('main_8_1', 'main_7_1'),
+  ('main_8_1', 'main_9_1'),
+  ('main_9_1', 'main_8_1'),
+  ('main_9_1', 'main_10_1'),
+  ('main_10_1', 'main_9_1'),
+  ('main_10_1', 'main_11_1'),
+  ('main_11_1', 'main_10_1'),
+  ('main_11_1', 'main_0_1'),
+  ('main_0_1', 'main_11_1');
 -- Playable heroes.
 insert into public.hero_classes (id) values ('warrior'), ('ranger'), ('mage') on conflict (id) do nothing;
 delete from public.hero_classes where id <> all (array['warrior', 'ranger', 'mage']::text[]);
@@ -395,10 +368,10 @@ end;
 $$;
 
 -- Lower bound on how long a run of this many completed waves takes in real time: enemies spawn one at a time, and the game runs at
--- most 2x speed, so a wave cannot finish faster than half its spawn time. 0.8 leaves a safety margin.
+-- most 3x speed (with the Overdrive talent), so a wave cannot finish faster than a third of its spawn time. 0.25 leaves a margin.
 create or replace function public.min_run_seconds(p_waves int) returns numeric
 language sql immutable as $$
-  select coalesce(sum(0.4 * (4 + 2 * w) * greatest(0.35, 0.85 - 0.02 * w)), 0)
+  select coalesce(sum(0.25 * (4 + 2 * w) * greatest(0.35, 0.85 - 0.02 * w)), 0)
   from generate_series(1, greatest(p_waves, 0)) as w;
 $$;
 
@@ -457,12 +430,15 @@ $$;
 -- The run must have been started on the server, be long enough to be real, and at most 30 runs per hour are saved.
 drop function if exists public.finish_run(int, int);
 drop function if exists public.finish_run(int, int, int, boolean);
--- Returns { "profile": the updated profile, "drop": the item type found, or null }. A win always drops an item; a loss has a
--- chance that grows with the waves survived (up to 50%). Players can hold at most 200 items.
+-- Returns { "profile": the updated profile, "drop": the first item type found or null, "drops": every item type found }.
+-- A win always drops an item; a loss has a chance that grows with the waves survived (up to 50%). Item find from talents raises
+-- that: every full 100% is an item, and the rest is the chance of one more. Players can hold at most 200 items.
+-- Talents can also raise the gold and XP the match gives (reward_gold, reward_xp in talent_nodes).
 drop function if exists public.finish_run(uuid, int, int, boolean);
 create function public.finish_run(p_run uuid, p_waves int, p_kills int, p_won boolean) returns jsonb
 language plpgsql security definer set search_path = public as $$
 declare me public.profiles; r public.runs; cap int; frontier boolean; elapsed numeric; done_waves int; dropped text := null;
+        drops text[] := '{}'; b_gold numeric; b_xp numeric; b_loot numeric; chance numeric; n int;
 begin
   if auth.uid() is null then raise exception 'not signed in'; end if;
   select * into r from public.runs where id = p_run and user_id = auth.uid() and finished_at is null for update;
@@ -481,8 +457,10 @@ begin
   select * into me from public.profiles where id = auth.uid() for update;
   if r.stage > me.levels_cleared + 1 then raise exception 'stage locked'; end if;
   frontier := (r.stage = me.levels_cleared + 1);
-  me.xp := me.xp + p_waves * 10 + p_kills;
-  me.gold := me.gold + p_waves * 5;
+  select coalesce(sum(t.reward_gold), 0), coalesce(sum(t.reward_xp), 0), coalesce(sum(t.reward_loot), 0) into b_gold, b_xp, b_loot
+    from public.talent_nodes t where t.id = any (me.talents);
+  me.xp := me.xp + round((p_waves * 10 + p_kills) * (1 + b_xp));
+  me.gold := me.gold + round(p_waves * 5 * (1 + b_gold));
   while me.xp >= 50 + me.level * 50 loop
     me.xp := me.xp - (50 + me.level * 50);
     me.level := me.level + 1;
@@ -495,12 +473,16 @@ begin
          frontier_wave = case when frontier and p_won then 0 when frontier then greatest(frontier_wave, p_waves) else frontier_wave end
    where id = auth.uid()
    returning * into me;
-  if random() < (case when p_won then 1 else 0.5 * p_waves::numeric / cap end)
-     and (select count(*) from public.player_items where user_id = auth.uid()) < 200 then
+  chance := (case when p_won then 1 else 0.5 * p_waves::numeric / cap end) * (1 + b_loot);
+  n := floor(chance)::int + (case when random() < chance - floor(chance) then 1 else 0 end);
+  for i in 1 .. n loop
+    exit when (select count(*) from public.player_items where user_id = auth.uid()) >= 200;
     select id into dropped from public.item_types where droppable order by random() limit 1;
-    if dropped is not null then insert into public.player_items (user_id, item_type) values (auth.uid(), dropped); end if;
-  end if;
-  return jsonb_build_object('profile', to_jsonb(me), 'drop', dropped);
+    exit when dropped is null;
+    insert into public.player_items (user_id, item_type) values (auth.uid(), dropped);
+    drops := drops || dropped;
+  end loop;
+  return jsonb_build_object('profile', to_jsonb(me), 'drop', drops[1], 'drops', to_jsonb(drops));
 end;
 $$;
 

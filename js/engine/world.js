@@ -17,7 +17,7 @@ import { attackMult, gainEnergy } from './ultimates.js';
 import { gainXp } from './levels.js';
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
-export const ENGINE_VERSION = 10;     /* bump when a rule change would make old command logs play out differently */
+export const ENGINE_VERSION = 11;     /* bump when a rule change would make old command logs play out differently */
 
 function genPath(rng) {
   let x = 0, y = 1 + rng.int(ROWS - 2); const p = [[x, y]];
@@ -42,7 +42,7 @@ export function cleanLineup(lineup) {
 export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, items = {}, record = true } = {}) {
   const def = STAGES[stage - 1];
   if (!def) throw new Error('Unknown stage ' + stage);
-  const root = createRng(seed), rng = { path: root.fork('path'), relic: root.fork('relic'), combat: root.fork('combat') };
+  const root = createRng(seed), rng = { path: root.fork('path'), relic: root.fork('relic'), combat: root.fork('combat'), gold: root.fork('gold') };
   const team = cleanLineup(lineup), equipped = {};
   for (const id of team) if (items && items[id]) equipped[id] = items[id];
   const path = genPath(rng.path), mods = [...talentMods(talents), ...itemMods(equipped)];
@@ -62,19 +62,31 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
   w.gainEnergy = (h, amount) => gainEnergy(h, amount);
   /* Gold for a hero's next evolution, or null when it has none left. */
   w.evolveCost = h => { const e = (h.base || h.def).evolutions[h.tier]; return e ? Math.round(e.cost * w.gs.evolveCost) : null; };
-  w.relicCost = () => Math.round(0.6 * (80 + 40 * w.relicsBought));
-  w.pickCost = () => Math.max(1, Math.round(0.25 * w.pick.paid * Math.pow(1.05, w.pick.uses)));
+  /* Each relic costs 12 more than the one before (60% of 80 + 20 per relic bought). */
+  w.relicCost = () => Math.round(0.6 * (80 + 20 * w.relicsBought));
   w.previewRange = i => resolve(HEROES[i].stats.range, 'range', w.mods, HEROES[i].tags);
   w.meter = createMeter(w.ev);
   w.ev.on('kill', ({ enemy }) => {
-    w.gold += Math.round(w.gs.bounty * enemy.def.bounty); w.kills++;
+    w.gold += Math.round(w.gs.bounty * enemy.def.bounty) + bonusGold(w); w.kills++;
     for (const h of w.heroes) gainXp(w, h, enemy.def.xp || 0);   /* every hero on the field learns from every kill */
   });
   w.statsFor = h => statsFor(w, h);
   w.addBuff = (h, id, name, mods, seconds) => addBuff(w, h, id, name, mods, seconds);
   w.ev.on('escape', ({ enemy }) => { w.lives = Math.max(0, w.lives - enemy.def.leak); if (w.lives <= 0) endRun(w, false); });
   recalc(w);
+  /* Free relic rerolls and banishes for this match: they come only from talents. */
+  w.rerolls = Math.round(resolve(0, 'rerolls', mods)); w.banishes = Math.round(resolve(0, 'banishes', mods));
   return w;
+}
+
+/* Prospector: each copy is a 25% (Common) to 100% (Epic) chance of +2 gold per kill. Copies add up; every full 100% is a
+   sure +2, and the rest is a chance of 2 more. Uses its own random stream so it never changes combat rolls. */
+export const BONUS_GOLD = 2;
+function bonusGold(w) {
+  const c = w.gs.bountyChance;
+  if (!(c > 0)) return 0;
+  const sure = Math.floor(c);
+  return BONUS_GOLD * (sure + (w.rng.gold.next() < c - sure ? 1 : 0));
 }
 
 /* Central damage function: all damage ends here (already reduced by armor and resistances, see combat.js), so the meter,
@@ -108,7 +120,8 @@ export function recalc(w) {
   w.gs = {
     bounty: resolve(5, 'bounty', w.mods), evolveCost: Math.max(0.25, resolve(1, 'evolveCost', w.mods)),
     waveGold: resolve(1, 'waveGold', w.mods), interest: resolve(0, 'interest', w.mods), interestCap: resolve(0, 'interestCap', w.mods),
-    relicLuck: resolve(0, 'relicLuck', w.mods)
+    relicLuck: resolve(0, 'relicLuck', w.mods), bountyChance: resolve(0, 'bountyChance', w.mods),
+    heroXp: Math.max(0, resolve(1, 'heroXp', w.mods)), speed3x: resolve(0, 'speed3x', w.mods) > 0
   };
   for (const h of w.heroes) statsFor(w, h);
 }
@@ -127,7 +140,7 @@ export function startWave(w) {
 }
 
 function waveCleared(w) {
-  const interest = Math.min(w.gs.interestCap, Math.floor(w.gold * w.gs.interest));
+  const interest = Math.min(Math.floor(w.gs.interestCap + 1e-9), Math.floor(w.gold * w.gs.interest + 1e-9));   /* 1e-9: float noise */
   w.gold += Math.round((15 + w.wave * 3) * w.gs.waveGold) + interest;
   w.ev.emit('waveClear', { wave: w.wave });
   if (w.wave >= w.maxWave) { endRun(w, true); return; }
@@ -147,7 +160,7 @@ export function step(w) {
   if (w.phase === 'over' || w.picking) return false;
   if (w.phase === 'build' && w.auto && (w.autoT -= STEP) <= 0) startWave(w);
   if (w.phase === 'wave' && w.spawnLeft > 0 && (w.spawnT -= STEP) <= 0) {
-    spawnEnemy(w, waveEnemyType(w.wave, w.spawnLeft)); w.spawnLeft--; w.spawnT = spawnDelay(w.wave);
+    spawnEnemy(w, waveEnemyType(w.wave, w.spawnLeft, w.stage)); w.spawnLeft--; w.spawnT = spawnDelay(w.wave);
   }
   updateEnemies(w, STEP);
   for (const h of w.heroes) {
