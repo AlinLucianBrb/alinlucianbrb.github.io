@@ -17,7 +17,7 @@ import { attackMult, gainEnergy } from './ultimates.js';
 import { gainXp } from './levels.js';
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
-export const ENGINE_VERSION = 13;     /* bump when a rule change would make old command logs play out differently */
+export const ENGINE_VERSION = 14;     /* bump when a rule change would make old command logs play out differently */
 
 function genPath(rng) {
   let x = 0, y = 1 + rng.int(ROWS - 2); const p = [[x, y]];
@@ -63,8 +63,10 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
   w.gainEnergy = (h, amount) => gainEnergy(h, amount);
   /* Gold for a hero's next evolution, or null when it has none left. */
   w.evolveCost = h => { const e = (h.base || h.def).evolutions[h.tier]; return e ? Math.round(e.cost * w.gs.evolveCost) : null; };
+  /* The level a hero needs for its next evolution: the step's level, lowered by Training talents (never below 1). */
+  w.evolveLevel = h => { const e = (h.base || h.def).evolutions[h.tier]; return e ? Math.max(1, (e.level || 1) + w.gs.evolveLevel) : null; };
   /* Each relic costs 12 more than the one before (60% of 80 + 20 per relic bought). */
-  w.relicCost = () => Math.round(0.6 * (80 + 20 * w.relicsBought));
+  w.relicCost = () => Math.max(1, Math.round(0.6 * (80 + 20 * w.relicsBought) * w.gs.relicCost));   /* Merchant talents make it cheaper */
   w.previewRange = i => resolve(HEROES[i].stats.range, 'range', w.mods, HEROES[i].tags);
   w.meter = createMeter(w.ev);
   w.ev.on('kill', ({ enemy }) => {
@@ -127,7 +129,9 @@ export function recalc(w) {
     bounty: resolve(5, 'bounty', w.mods), evolveCost: Math.max(0.25, resolve(1, 'evolveCost', w.mods)),
     waveGold: resolve(1, 'waveGold', w.mods), interest: resolve(0, 'interest', w.mods), interestCap: resolve(0, 'interestCap', w.mods),
     relicLuck: resolve(0, 'relicLuck', w.mods), bountyChance: resolve(0, 'bountyChance', w.mods),
-    heroXp: Math.max(0, resolve(1, 'heroXp', w.mods)), speed3x: resolve(0, 'speed3x', w.mods) > 0
+    heroXp: Math.max(0, resolve(1, 'heroXp', w.mods)), speed3x: resolve(0, 'speed3x', w.mods) > 0,
+    relicCost: Math.max(0.25, resolve(1, 'relicCost', w.mods)), relicOffers: Math.max(0, resolve(0, 'relicOffers', w.mods)),
+    heroStartLevel: Math.max(0, Math.round(resolve(0, 'heroStartLevel', w.mods))), evolveLevel: Math.min(0, Math.round(resolve(0, 'evolveLevel', w.mods)))
   };
   for (const h of w.heroes) statsFor(w, h);
 }

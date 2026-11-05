@@ -190,23 +190,24 @@ test('hero panel: a hint on moving comes first, bonuses from the same source are
 
 test('talent bonuses are stacked into one "Talents" line per stat', async () => {
   stopGame();
-  /* The path node into the Damage cluster (+1 to all attributes), then three Sharpened nodes (+3% damage each). */
+  /* Two path nodes to the Might cluster (the path from the origin and the anchor on the circle, +1 to all attributes each),
+     its beginning (+2% damage), then two Sharpened (+3% each). */
   const { pathTo } = await import('../js/content/talents.js');
-  startGame({ ...hooks, talents: pathTo(new Set(), 't2_damage_2') }); dom.frames(2);
+  startGame({ ...hooks, talents: pathTo(new Set(), 't4_might_a2') }); dom.frames(2);
   const [t] = freeTiles(1);
   dom.heroButton(0).onclick(); click(...t); click(...t); dom.frames(1);
   const lines = dom.made.filter(e => e.className === 'buff' && / · Talents/.test(e._text)).map(e => e._text);
-  assert.ok(lines.includes('+9% · Talents ×3'), 'one line: ' + lines.join(' | '));
-  assert.ok(Math.abs(world().heroes[0].s.damage - 28 * 1.2) < 1e-9, 'talents +9% and 11 strength +11%');
-  assert.ok(dom.made.some(e => e.className === 'buff' && e._text === '+11% · Strength (attribute)'), 'the attribute bonus is listed');
+  assert.ok(lines.includes('+8% · Talents ×3'), 'one line: ' + lines.join(' | '));
+  assert.ok(Math.abs(world().heroes[0].s.damage - 28 * 1.20) < 1e-9, 'talents +8% and 12 strength +12%');
+  assert.ok(dom.made.some(e => e.className === 'buff' && e._text === '+12% · Strength (attribute)'), 'the attribute bonus is listed');
   /* Level the Warrior up twice: +6 strength, shown on the Strength chip and explained in its tooltip. */
   const { gainXp } = await import('../js/engine/levels.js');
   gainXp(world(), world().heroes[0], 22); dom.frames(20);
   const str = byId.inspect.children[2].children[0];
-  assert.equal(str.children[1]._text, '17');
+  assert.equal(str.children[1]._text, '18');
   str.fire('pointerenter', { clientX: 5, clientY: 5 });
   const tip = dom.made.filter(e => e.className === 'tip').at(-1).children.map(c => c._text);
-  assert.deepEqual(tip, ['Strength (main attribute)', '+17% damage (+1% per point)', '+1 · Talents', '+6 · Hero level']);
+  assert.deepEqual(tip, ['Strength (main attribute)', '+18% damage (+1% per point)', '+2 · Talents ×2', '+6 · Hero level']);
   stopGame(); startGame(hooks); dom.frames(2);
 });
 

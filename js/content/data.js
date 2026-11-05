@@ -153,7 +153,8 @@ export const STAT_LABELS = {
   energyMax: 'Energy needed', energyPerAttack: 'Energy per attack', energyPerSecond: 'Energy per second',
   ...COMBAT_LABELS, relicLuck: 'Relic luck',
   bounty: 'Gold per kill', bountyChance: 'Chance for +2 gold per kill', rerolls: 'Free relic rerolls per match', banishes: 'Free relic banishes per match',
-  speed3x: '3x game speed', heroXp: 'Hero XP', rewardGold: 'Gold at the end of a match', rewardXp: 'XP at the end of a match', rewardLoot: 'Item find', startGold: 'Starting gold', startLives: 'Starting lives', waveGold: 'Wave clear gold', evolveCost: 'Evolution cost', interest: 'Interest', interestCap: 'Interest limit'
+  speed3x: '3x game speed', heroXp: 'Hero XP', relicCost: 'Relic price', relicOffers: 'Chance of one more relic offer',
+  itemRarity: 'Item rarity luck', itemBonusChance: 'Chance of an extra item bonus', heroStartLevel: 'Starting hero level', evolveLevel: 'Level needed to evolve', rewardGold: 'Gold at the end of a match', rewardXp: 'XP at the end of a match', rewardLoot: 'Item find', startGold: 'Starting gold', startLives: 'Starting lives', waveGold: 'Wave clear gold', evolveCost: 'Evolution cost', interest: 'Interest', interestCap: 'Interest limit'
 };
 
 export const RARITIES = [

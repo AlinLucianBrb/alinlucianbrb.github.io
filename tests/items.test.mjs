@@ -54,9 +54,10 @@ test('items add up across slots, and Reinforced gate gives starting lives', () =
 
 test('the server rolls items with the same rules (finish_run), and knows every bonus', () => {
   const sql = readFileSync(new URL('../supabase-update.sql', import.meta.url), 'utf8');
-  assert.match(sql, /rar := case when roll < 55 then 0 when roll < 83 then 1 when roll < 96 then 2 else 3 end;/, 'rarity weights 55/28/13/4');
+  assert.match(sql, /w1 := 28 \* \(1 \+ b_rar\); w2 := 13 \* power\(1 \+ b_rar, 2\); w3 := 4 \* power\(1 \+ b_rar, 3\);/, 'rarity weights 55/28/13/4, with talent luck');
+  assert.match(sql, /rar := case when roll < 55 then 0 when roll < 55 \+ w1 then 1 when roll < 55 \+ w1 \+ w2 then 2 else 3 end;/);
   assert.deepEqual(RARITIES.map(r => r.weight), [55, 28, 13, 4]);
-  assert.match(sql, /nb := rar \+ 1;\n\s+while nb < 4 and random\(\) < 0\.3 loop nb := nb \+ 1; end loop;/, 'rarity + 1 bonuses, then 30% each, up to 4');
+  assert.match(sql, /nb := rar \+ 1;\n\s+while nb < 4 and random\(\) < 0\.3 \+ b_extra loop nb := nb \+ 1; end loop;/, 'rarity + 1 bonuses, then 30% (plus talents) each, up to 4');
   assert.match(sql, /from public\.item_bonuses order by random\(\) limit nb/, 'different bonuses');
   for (const b of ITEM_BONUSES) assert.ok(sql.includes("('" + b.replace(/'/g, "''") + "')"), 'item bonus ' + b);
   for (const id in ITEMS) assert.ok(sql.includes("('" + id + "', '" + ITEMS[id].slot + "', true)"), 'item type ' + id);

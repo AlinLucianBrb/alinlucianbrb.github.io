@@ -20,19 +20,21 @@ export const STRATEGIES = {
 
 /* Talents for a player of the given level: whole clusters in order of usefulness for the lineup (damage and crits first,
    then the lineup's own clusters, then the rest), each reached by the shortest path from what is already taken. */
-const HERO_CLUSTERS = { warrior: ['melee', 'armorpen'], ranger: ['projectile'], mage: ['spell', 'cast'], rogue: ['melee', 'crit'] };
+const HERO_CLUSTERS = { warrior: ['martial', 'sunder'], ranger: ['marksman'], mage: ['sorcery'], rogue: ['martial', 'precision'] };
 export function talentsFor(level, strategy = 'trio') {
   const points = pointsFor(level), picked = new Set();
-  const order = [...new Set(['damage', 'speed', ...STRATEGIES[strategy].flatMap(h => HERO_CLUSTERS[h] || []), 'crit', 'energy', 'gate', 'elements', 'gold', 'fire', 'lightning', 'cold', 'respen', 'relics', 'tempo', 'rewards'])];
+  const order = [...new Set(['might', ...STRATEGIES[strategy].flatMap(h => HERO_CLUSTERS[h] || []), 'precision', 'energy', 'gate', 'toxins', 'wealth', 'lightning', 'fire', 'cold', 'relics', 'tempo', 'fortune'])];
   const clusters = TREES[TREE_ID].clusters;
   for (const key of order) {
     const cl = clusters.find(c => c.key === key); if (!cl) continue;
-    for (const node of [...cl.ring, cl.notable]) {
+    for (const node of cl.nodes) {
       const way = pathTo(picked, node.id);
-      if (!way || picked.size + way.length > points) return [...picked];
+      if (!way || picked.size + way.length > points) continue;
       for (const id of way) picked.add(id);
     }
   }
+  /* Spend anything left over on whatever is next to what is taken. */
+  for (const n of TREES[TREE_ID].nodes) if (picked.size < points && !n.root && !picked.has(n.id) && pathTo(picked, n.id).length === 1) picked.add(n.id);
   return [...picked];
 }
 

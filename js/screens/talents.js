@@ -101,10 +101,9 @@ function build() {
     const na = NODES.get(a), nb = NODES.get(b), line = svg('line', { x1: na.x, y1: na.y, x2: nb.x, y2: nb.y, class: 'tlink' });
     root.append(line); view.links.push({ a, b, line });
   });
-  /* Cluster names, above the clusters in the top half of the tree and below the ones in the bottom half, clear of the ring. */
+  /* Cluster names, just beyond each cluster's notable (cl.label, from the layout). */
   for (const cl of tree.clusters || []) {
-    const below = cl.y > 0 || (cl.y === 0 && cl.x !== 0), y = below ? cl.y + 62 + 44 : cl.y - 62 - 24;
-    const t = svg('text', { x: cl.x, y, class: 'tbranch', 'text-anchor': 'middle', style: 'fill:' + cl.color });
+    const t = svg('text', { x: cl.label.x, y: cl.label.y + 9, class: 'tbranch', 'text-anchor': cl.label.anchor || 'middle', style: 'fill:' + cl.color });
     t.textContent = cl.title; root.append(t);
   }
   tree.nodes.forEach(n => {

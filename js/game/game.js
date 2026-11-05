@@ -264,7 +264,7 @@ const closeInspector = () => { v.selected = v.moving = null; ui.renderInspector(
    the game like the relic picker. Choosing a form spends the gold and evolves the hero; Cancel or Esc closes it. */
 function openEvolve(h) {
   const step = h && h.base.evolutions[h.tier];
-  if (!step || h.level < (step.level || 1) || w.phase === 'over' || w.picking) return;
+  if (!step || h.level < w.evolveLevel(h) || w.phase === 'over' || w.picking) return;
   v.evo = h; v.selected = h; v.sel = h.type; ui.renderInspector(w, v); ui.showEvoPick(w, h);
 }
 const closeEvolve = () => { v.evo = null; ui.hideEvoPick(); };
@@ -277,7 +277,8 @@ ui.initUI({
   heroInfo: i => {
     const def = HEROES[i], unit = w && unitOf(i), tier = unit ? unit.tier : 0, evo = def.evolutions[tier];   /* a step: { level, cost, choices } */
     const evoCost = evo && w ? Math.round(evo.cost * w.gs.evolveCost) : evo ? evo.cost : null;
-    return { stats: unit ? unit.s : heroStats(def, w ? w.mods : []), unit, evo, evoCost, gold: w ? w.gold : 0 };
+    const evoLevel = evo && w ? Math.max(1, evo.level + w.gs.evolveLevel) : evo ? evo.level : null;
+    return { stats: unit ? unit.s : heroStats(def, w ? w.mods : []), unit, evo, evoCost, evoLevel, gold: w ? w.gold : 0 };
   },
   onLayoutChange: () => { if (!v.cam.touched) v.needFit = true; },
   luck: () => (w ? w.gs.relicLuck : 0)

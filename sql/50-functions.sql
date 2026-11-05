@@ -155,8 +155,9 @@ drop function if exists public.finish_run(int, int);
 drop function if exists public.finish_run(int, int, int, boolean);
 -- Returns { "profile": the updated profile, "drop": the first item type found or null,
 --           "drops": every item found, as [{ "item_type", "rarity", "bonuses" }] }.
--- Each item gets a rarity (Common 55%, Uncommon 28%, Rare 13%, Epic 4%), at least rarity + 1 bonuses, then a 30% chance for
--- each further one, up to 4, all different (the same rules as ROLL in js/content/items.js).
+-- Each item gets a rarity (weights Common 55, Uncommon 28, Rare 13, Epic 4; Treasure Hunter talents multiply each rarer step's
+-- weight by 1 + rarity luck, like relic luck), at least rarity + 1 bonuses, then a 30% chance (plus talents) for each further
+-- one, up to 4, all different (the same rules as ROLL in js/content/items.js).
 -- A win always drops an item; a loss has a chance that grows with the waves survived (up to 50%). Item find from talents raises
 -- that: every full 100% is an item, and the rest is the chance of one more. Players can hold at most 200 items.
 -- Talents can also raise the gold and XP the match gives (reward_gold, reward_xp in talent_nodes).
@@ -168,7 +169,7 @@ create function public.finish_run(p_run uuid, p_waves int, p_kills int, p_won bo
 language plpgsql security definer set search_path = public as $$
 declare me public.profiles; r public.runs; cap int; frontier boolean; elapsed numeric; done_waves int; dropped text := null;
         drops jsonb := '[]'; b_gold numeric; b_xp numeric; b_loot numeric; chance numeric; n int; boss_cap int;
-        roll numeric; rar int; nb int; bon text[];
+        roll numeric; rar int; nb int; bon text[]; b_rar numeric; b_extra numeric; w1 numeric; w2 numeric; w3 numeric;
 begin
   if auth.uid() is null then raise exception 'not signed in'; end if;
   select * into r from public.runs where id = p_run and user_id = auth.uid() and finished_at is null for update;
@@ -190,8 +191,10 @@ begin
   select * into me from public.profiles where id = auth.uid() for update;
   if r.stage > me.levels_cleared + 1 then raise exception 'stage locked'; end if;
   frontier := (r.stage = me.levels_cleared + 1);
-  select coalesce(sum(t.reward_gold), 0), coalesce(sum(t.reward_xp), 0), coalesce(sum(t.reward_loot), 0) into b_gold, b_xp, b_loot
+  select coalesce(sum(t.reward_gold), 0), coalesce(sum(t.reward_xp), 0), coalesce(sum(t.reward_loot), 0),
+         coalesce(sum(t.reward_rarity), 0), coalesce(sum(t.reward_extra), 0) into b_gold, b_xp, b_loot, b_rar, b_extra
     from public.talent_nodes t where t.id = any (me.talents);
+  w1 := 28 * (1 + b_rar); w2 := 13 * power(1 + b_rar, 2); w3 := 4 * power(1 + b_rar, 3);
   me.xp := me.xp + round((p_waves * 10 + p_kills) * (1 + b_xp));
   me.gold := me.gold + round(p_waves * 5 * (1 + b_gold));
   while me.xp >= 50 + me.level * 50 loop
@@ -213,10 +216,10 @@ begin
     dropped := null;
     select id into dropped from public.item_types where droppable order by random() limit 1;
     exit when dropped is null;
-    roll := random() * 100;
-    rar := case when roll < 55 then 0 when roll < 83 then 1 when roll < 96 then 2 else 3 end;
+    roll := random() * (55 + w1 + w2 + w3);
+    rar := case when roll < 55 then 0 when roll < 55 + w1 then 1 when roll < 55 + w1 + w2 then 2 else 3 end;
     nb := rar + 1;
-    while nb < 4 and random() < 0.3 loop nb := nb + 1; end loop;
+    while nb < 4 and random() < 0.3 + b_extra loop nb := nb + 1; end loop;
     select coalesce(array_agg(b.id), '{}') into bon from (select id from public.item_bonuses order by random() limit nb) b;
     insert into public.player_items (user_id, item_type, rarity, bonuses) values (auth.uid(), dropped, rar, bon);
     drops := drops || jsonb_build_array(jsonb_build_object('item_type', dropped, 'rarity', rar, 'bonuses', to_jsonb(bon)));

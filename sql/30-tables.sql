@@ -13,6 +13,9 @@ create table if not exists public.talent_links (
 alter table public.talent_nodes add column if not exists reward_gold numeric not null default 0;
 alter table public.talent_nodes add column if not exists reward_xp numeric not null default 0;
 alter table public.talent_nodes add column if not exists reward_loot numeric not null default 0;
+-- Treasure Hunter talents: item rarity luck (like relic luck) and the extra chance of each further item bonus.
+alter table public.talent_nodes add column if not exists reward_rarity numeric not null default 0;
+alter table public.talent_nodes add column if not exists reward_extra numeric not null default 0;
 alter table public.talent_nodes enable row level security;
 alter table public.talent_links enable row level security;
 

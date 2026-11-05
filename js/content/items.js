@@ -20,8 +20,9 @@ export const ITEMS = {
 };
 
 /* How items are rolled (the server's finish_run does the same; a test keeps them in step):
-   rarity by the relic weights (Common 55, Uncommon 28, Rare 13, Epic 4); a Common item has at least 1 bonus, an Uncommon 2,
-   a Rare 3 and an Epic 4; then each further bonus has a 30% chance, up to 4. */
+   rarity by the relic weights (Common 55, Uncommon 28, Rare 13, Epic 4; Treasure Hunter's item rarity luck multiplies each rarer
+   step's weight by 1 + luck, like relic luck); a Common item has at least 1 bonus, an Uncommon 2, a Rare 3 and an Epic 4; then
+   each further bonus has a 30% chance (plus Treasure Hunter's extra bonus chance), up to 4. */
 export const ROLL = { maxBonuses: 4, extraChance: 0.3, guaranteed: r => r + 1 };
 
 /* Relics that can be item bonuses: every relic with modifiers. Reinforced gate (lives when you pick it) gives starting lives instead. */

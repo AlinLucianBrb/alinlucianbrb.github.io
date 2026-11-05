@@ -12,7 +12,7 @@ export function contentSeedSql() {
   const reward = (n, stat) => n.mods.filter(m => m.stat === stat).reduce((a, m) => a + m.value, 0);
   const nodeRows = ids.map(id => {
     const n = NODES.get(id);
-    return '  (' + [q(id), q(n.tree), n.root ? 'true' : 'false', reward(n, 'rewardGold'), reward(n, 'rewardXp'), reward(n, 'rewardLoot')].join(', ') + ')';
+    return '  (' + [q(id), q(n.tree), n.root ? 'true' : 'false', reward(n, 'rewardGold'), reward(n, 'rewardXp'), reward(n, 'rewardLoot'), reward(n, 'itemRarity'), reward(n, 'itemBonusChance')].join(', ') + ')';
   });
   const linkRows = [];
   for (const t of TREE_ORDER) for (const [a, b] of TREES[t].links) { linkRows.push('  (' + q(a) + ', ' + q(b) + ')'); linkRows.push('  (' + q(b) + ', ' + q(a) + ')'); }
@@ -21,8 +21,9 @@ export function contentSeedSql() {
     '-- ===== Game content (generated from js/content by tools/build-sql.mjs; do not edit by hand) =====',
     '-- Talent trees. Links are stored in both directions.',
     'delete from public.talent_links;',
-    'insert into public.talent_nodes (id, tree, is_root, reward_gold, reward_xp, reward_loot) values\n' + nodeRows.join(',\n') +
-      '\non conflict (id) do update set tree = excluded.tree, is_root = excluded.is_root, reward_gold = excluded.reward_gold, reward_xp = excluded.reward_xp, reward_loot = excluded.reward_loot;',
+    'insert into public.talent_nodes (id, tree, is_root, reward_gold, reward_xp, reward_loot, reward_rarity, reward_extra) values\n' + nodeRows.join(',\n') +
+      '\non conflict (id) do update set tree = excluded.tree, is_root = excluded.is_root, reward_gold = excluded.reward_gold, reward_xp = excluded.reward_xp,' +
+      ' reward_loot = excluded.reward_loot, reward_rarity = excluded.reward_rarity, reward_extra = excluded.reward_extra;',
     'delete from public.talent_nodes where id <> all (' + list(ids) + ');',
     'insert into public.talent_links (a, b) values\n' + linkRows.join(',\n') + ';',
     '-- Playable heroes.',

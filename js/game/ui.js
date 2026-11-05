@@ -45,7 +45,8 @@ export function initUI(callbacks) {
       if (info.unit) lines.push({ text: 'Level ' + info.unit.level + ': heroes gain XP from every kill while on the field.', color: '#8fd3ff' });
       if (info.evo) {
         const names = info.evo.choices.map(c => c.name), list = names.length > 1 ? names.slice(0, -1).join(', ') + ' or ' + names.at(-1) : names[0];
-        lines.push({ text: 'At level ' + info.evo.level + ' it can evolve into ' + list + ' for ' + info.evoCost + ' gold.', color: info.unit && info.unit.level >= info.evo.level && info.gold >= info.evoCost ? '#f2b84b' : '#9db3a3' });
+        const need = info.evoLevel || info.evo.level;
+        lines.push({ text: 'At level ' + need + ' it can evolve into ' + list + ' for ' + info.evoCost + ' gold.', color: info.unit && info.unit.level >= need && info.gold >= info.evoCost ? '#f2b84b' : '#9db3a3' });
       }
       return { title: d.name + ' · ' + cap(d.archetype), color: d.color, lines };
     });
@@ -112,7 +113,7 @@ export function renderHUD(g, v) {
     if (b.hidden !== done) { b.hidden = b._wrap.hidden = done; layout = true; }
     if (done) { b._up.hidden = true; return; }
     /* Evolve button above the card: shown once the hero has the level, with the cost; dimmed until you have the gold. */
-    const step = unit && unit.base.evolutions[unit.tier], due = !!step && unit.level >= (step.level || 1) && g.phase !== 'over';
+    const step = unit && unit.base.evolutions[unit.tier], due = !!step && unit.level >= g.evolveLevel(unit) && g.phase !== 'over';
     if (b._up.hidden === due) b._up.hidden = !due;
     if (due) {
       const cost = g.evolveCost(unit), short = g.gold < cost;
@@ -204,7 +205,7 @@ function describe(m, key) {
   return v + ' · ' + m.source + (m.n > 1 ? ' ×' + m.n : '') + ' (' + (m.ri >= 0 ? 'Relic' : SOURCE[m.ri] || 'Talent') + ')';
 }
 /* Whether a hero can evolve right now: it has a next step, has reached its level and you have the gold. */
-export const canEvolve = (g, h) => { const s = h.base.evolutions[h.tier]; return !!s && h.level >= (s.level || 1) && g.gold >= g.evolveCost(h) && g.phase !== 'over'; };
+export const canEvolve = (g, h) => { const s = h.base.evolutions[h.tier]; return !!s && h.level >= g.evolveLevel(h) && g.gold >= g.evolveCost(h) && g.phase !== 'over'; };
 
 /* The inspector is rebuilt only when the selection, the modifiers or the move state change, so buttons never vanish under a click.
    There are no Move or Evolve buttons: click and hold a hero on the map to move it, and the evolution choices appear here

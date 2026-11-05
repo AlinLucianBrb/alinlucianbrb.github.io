@@ -1,7 +1,8 @@
 /* Everything a player can do is a command: { type, ...fields }. Commands: place, move, evolve, wave, auto, buyRelic, reroll, banish, choose. apply() checks it, changes the world and, if it worked, records it
    in world.log with the tick it happened on. A failed command changes nothing and is not recorded.
    To add an action, add an entry to COMMANDS. */
-import { HEROES, RARITIES, RELICS, rollRarity, COLS, ROWS, T, evolvedDef } from '../content/data.js';
+import { HEROES, RARITIES, RELICS, rollRarity, COLS, ROWS, T, evolvedDef, HERO_LEVELS } from '../content/data.js';
+import { levelMods } from './levels.js';
 import { recalc, startWave, statsFor } from './world.js';
 
 const OK = { ok: true };
@@ -16,6 +17,14 @@ function drawRelics(w, n, taken) {
   return out;
 }
 
+/* How many relics to offer: 3, plus Merchant talents (each full 1 is one more; the rest is a chance of one more), at most 5.
+   Rolls only when there is a fraction, so matches without Merchant talents use no extra random numbers. */
+export const MAX_OFFERS = 5;
+function offerCount(w) {
+  const x = w.gs.relicOffers || 0, whole = Math.floor(x + 1e-9), rest = x - whole;
+  return Math.min(MAX_OFFERS, 3 + whole + (rest > 1e-9 && w.rng.relic.next() < rest ? 1 : 0));
+}
+
 export const COMMANDS = {
   /* Heroes are free to place, one of each, and only those in the match lineup. */
   place(w, c) {
@@ -25,8 +34,9 @@ export const COMMANDS = {
     if (!w.lineup.includes(def.id)) return fail('not in lineup');
     if (w.heroes.some(h => h.type === type)) return fail('already placed');
     if (!isFree(w, c.cx, c.cy)) return fail('blocked');
+    const level = Math.min(HERO_LEVELS.max, 1 + w.gs.heroStartLevel);   /* Training talents: heroes start at a higher level */
     const h = { id: w.nextHeroId++, type, def, base: def, path: [], cx: c.cx, cy: c.cy, x: (c.cx + 0.5) * T, y: (c.cy + 0.5) * T,
-      cd: 0, ramp: 0, lock: null, proj: null, dealt: 0, kills: 0, energy: 0, ults: 0, tier: 0, mods: [], level: 1, xp: 0, lvlMods: [], s: null };
+      cd: 0, ramp: 0, lock: null, proj: null, dealt: 0, kills: 0, energy: 0, ults: 0, tier: 0, mods: [], level, xp: 0, lvlMods: levelMods(level), s: null };
     statsFor(w, h);
     w.heroes.push(h);
     return { ok: true, id: h.id };
@@ -41,7 +51,7 @@ export const COMMANDS = {
     if (!step) return fail('fully evolved');
     const i = c.choice ?? (step.choices.length === 1 ? 0 : -1), choice = step.choices[i];
     if (!choice) return fail('choose an evolution');
-    if (h.level < (step.level || 1)) return fail('level');
+    if (h.level < w.evolveLevel(h)) return fail('level');
     if (w.gold < cost) return fail('gold');
     w.gold -= cost;
     h.mods.push(...choice.mods.map(m => ({ ...m, source: choice.name, ri: -3 })));
@@ -71,14 +81,14 @@ export const COMMANDS = {
     const cost = w.relicCost();
     if (w.gold < cost) return fail('gold');
     w.gold -= cost; w.relicsBought++;
-    w.pick = { offers: drawRelics(w, 3, []), paid: cost, uses: 0 };
+    w.pick = { offers: drawRelics(w, offerCount(w), []), paid: cost, uses: 0 };
     w.picking = true;
     return OK;
   },
   reroll(w) {
     if (!w.pick) return fail('no relic choice open');
     if (!(w.rerolls > 0)) return fail('no rerolls');
-    w.rerolls--; w.pick.uses++; w.pick.offers = drawRelics(w, 3, []);
+    w.rerolls--; w.pick.uses++; w.pick.offers = drawRelics(w, w.pick.offers.length, []);
     return OK;
   },
   banish(w, c) {
