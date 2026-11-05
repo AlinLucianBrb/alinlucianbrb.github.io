@@ -179,8 +179,7 @@ export const RELICS = [
   { name: 'Four-leaf clover',  desc: m => '+' + f(P(50) * m) + '% relic luck: rarer relics turn up more often', label: 'Relic luck', mods: m => [glob('relicLuck', 'flat', P(0.5) * m)] },
   { name: 'Battle focus',      desc: m => '+' + f(P(25) * m) + '% energy from attacks, so ultimates come sooner', mods: m => [hero('energyPerAttack', 'inc', P(0.25) * m, ['all'])] },
   { name: 'Prospector',        desc: m => prospect(25 * m), label: 'Economy', mods: m => [glob('bountyChance', 'flat', 0.25 * m)] },
-  { name: 'Reinforced gate',   desc: m => '+' + lives(m) + ' li' + (lives(m) > 1 ? 'ves' : 'fe'), label: 'Your gate', onPick: (g, m) => { g.lives += lives(m); },
-    itemMods: m => [glob('startLives', 'flat', lives(m))] },   /* as an item bonus: starting lives */
+  { name: 'Reinforced gate',   desc: m => '+' + lives(m) + ' li' + (lives(m) > 1 ? 'ves' : 'fe'), label: 'Your gate', onPick: (g, m) => { g.lives += lives(m); } },
   { name: 'Bulk order',        desc: m => 'Evolutions cost ' + f(P(15) * m) + '% less', label: 'Economy', mods: m => [glob('evolveCost', 'more', -P(0.15) * m)] },
   { name: 'Split bolt',        desc: m => 'Spell attacks: ' + f(P(100) * m) + '% chance to hit 1 more target', mods: m => [hero('targets', 'flat', P(1) * m, ['spell'])] },
   { name: 'Tax collector',     desc: m => '+' + f(25 * m) + '% gold for clearing a wave', label: 'Economy', mods: m => [glob('waveGold', 'inc', 0.25 * m)] },

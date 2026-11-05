@@ -68,7 +68,7 @@ export async function finishRun(runId, waves, kills, won, bosses = 0) {
 /* The player's items: [{ id, item_type, created_at }], newest first. */
 export async function getItems() {
   if (!sb) return { items: [], ...OFFLINE };
-  const { data, error } = await sb.from('player_items').select('id,item_type,rarity,bonuses,created_at').order('created_at', { ascending: false });
+  const { data, error } = await sb.from('player_items').select('id,item_type,created_at').order('created_at', { ascending: false });
   return { items: data || [], error: error && error.message };
 }
 export async function saveLoadout(lineup, equipment) {

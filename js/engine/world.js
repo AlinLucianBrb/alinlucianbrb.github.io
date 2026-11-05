@@ -2,7 +2,7 @@
    Nothing in js/engine touches the page, the clock or Math.random, so a world can run in a browser, in Node (tests, the balance bot)
    or on a server, and the same seed plus the same commands always gives the same result. */
 import { HEROES, STAGES, COLS, ROWS, LINEUP_SIZE } from '../content/data.js';
-import { itemMods, asItem } from '../content/items.js';
+import { itemMods } from '../content/items.js';
 import { createBus } from '../core/bus.js';
 import { talentMods } from '../content/talents.js';
 import { resolve, heroStats } from './stats.js';
@@ -38,14 +38,13 @@ export function cleanLineup(lineup) {
   return out.length ? out : HEROES.slice(0, LINEUP_SIZE).map(h => h.id);
 }
 
-/* lineup: the hero ids brought into the match. items: { heroId: [{ type, rarity, bonuses }] } equipped before the match
-   (see js/content/items.js; a plain item type id also works, as a Common item with no bonuses). */
+/* lineup: the hero ids brought into the match. items: { heroId: itemType } equipped before the match. */
 export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, items = {}, record = true } = {}) {
   const def = STAGES[stage - 1];
   if (!def) throw new Error('Unknown stage ' + stage);
   const root = createRng(seed), rng = { path: root.fork('path'), relic: root.fork('relic'), combat: root.fork('combat'), gold: root.fork('gold') };
   const team = cleanLineup(lineup), equipped = {};
-  for (const id of team) if (items && items[id]) { const list = (Array.isArray(items[id]) ? items[id] : [items[id]]).filter(Boolean).map(asItem); if (list.length) equipped[id] = list; }
+  for (const id of team) if (items && items[id]) equipped[id] = items[id];
   const path = genPath(rng.path), mods = [...talentMods(talents), ...itemMods(equipped)];
   const w = {
     seed: seed >>> 0, stageN: stage, stage: def, maxWave: def.waves, rng, path, pathSet: new Set(path.map(c => c.join(','))),
@@ -54,7 +53,7 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
     wave: 0, spawnLeft: 0, spawnT: 0, kills: 0, bossKills: 0, nextHeroId: 1,
     heroes: [], enemies: [], projs: [], zones: [], mods, relics: [], relicsBought: 0, banned: new Set(),
     ev: createBus(), fx: null, gs: null, talents: [...talents], lineup: team, items: equipped,
-    log: record ? { v: 1, ver: ENGINE_VERSION, seed: seed >>> 0, stage, talents: [...talents], lineup: [...team], items: JSON.parse(JSON.stringify(equipped)), commands: [], ticks: 0 } : null
+    log: record ? { v: 1, ver: ENGINE_VERSION, seed: seed >>> 0, stage, talents: [...talents], lineup: [...team], items: { ...equipped }, commands: [], ticks: 0 } : null
   };
   w.hit = (hero, e, amount, type) => hit(w, hero, e, amount, type);
   w.attack = (hero, e, scale, rate) => attack(w, hero, e, scale, rate);

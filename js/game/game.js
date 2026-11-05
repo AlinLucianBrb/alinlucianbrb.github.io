@@ -30,7 +30,7 @@ function newRun() {
   w = createWorld({ seed, stage: stageN, talents: hooks.talents || [], lineup: hooks.lineup, items: hooks.items || {} });
   const world = w;
   w.ev.on('end', ({ won }) => finish(world, won));
-  v.selected = v.moving = v.evo = null; ui.hideEvoPick(); if (v.speed > 2) v.speed = 1; v.vfx.beams.length = 0; v.vfx.slashes.length = 0; v.needFit = true;
+  v.selected = v.moving = null; if (v.speed > 2) v.speed = 1; v.vfx.beams.length = 0; v.vfx.slashes.length = 0; v.needFit = true;
   v.sel = heroIndex(w.lineup[0]);
   ui.setLineup(w);
   setPaused(false);
@@ -71,7 +71,7 @@ function frame(now) {
   if (!active) return;
   if (last < 0) last = now;
   const real = Math.min(MAX_CATCHUP, Math.max(0, (now - last) / 1000)); last = now;
-  const hidden = !!document.hidden, running = !v.paused && !v.evo && w.phase !== 'over' && !w.picking;   /* the evolve picker pauses too */
+  const hidden = !!document.hidden, running = !v.paused && w.phase !== 'over' && !w.picking;
   w.fx = hidden ? null : v.fx;
   acc = running ? acc + real * v.speed : 0;
   const deadline = performance.now() + (hidden ? 150 : 8);
@@ -259,19 +259,16 @@ const selectType = i => {
 /* Selecting a hero on the map (also what the Evolve button above its card does: the hero panel then shows the choices). */
 const selectHero = h => { v.moving = null; v.selected = h; v.sel = h.type; ui.renderInspector(w, v); };
 const closeInspector = () => { v.selected = v.moving = null; ui.renderInspector(w, v); };
-/* Evolving: the Evolve button above a hero's card (or key E on the selected hero) opens the evolution picker, which pauses
-   the game like the relic picker. Choosing a form spends the gold and evolves the hero; Cancel or Esc closes it. */
-function openEvolve(h) {
-  const step = h && h.base.evolutions[h.tier];
-  if (!step || h.level < (step.level || 1) || w.phase === 'over' || w.picking) return;
-  v.evo = h; v.selected = h; v.sel = h.type; ui.renderInspector(w, v); ui.showEvoPick(w, h);
-}
-const closeEvolve = () => { v.evo = null; ui.hideEvoPick(); };
-const evolveSelected = () => openEvolve(v.selected);
-const chooseEvolution = i => { const h = v.evo; if (h && act({ type: 'evolve', id: h.id, choice: i }).ok) { closeEvolve(); ui.renderInspector(w, v); } };
+/* Key E: a hero with a single form evolves straight away; with several, the choices are already in the hero panel. */
+const evolveSelected = () => {
+  const h = v.selected; if (!h) return;
+  const step = h.base.evolutions[h.tier];
+  if (step && step.choices.length === 1) act({ type: 'evolve', id: h.id, choice: 0 });
+};
+const chooseEvolution = i => { if (v.selected && act({ type: 'evolve', id: v.selected.id, choice: i }).ok) ui.renderInspector(w, v); };
 const toggleMove = () => { if (v.selected && w.phase !== 'over') { v.moving = v.moving === v.selected ? null : v.selected; ui.renderInspector(w, v); } };
 ui.initUI({
-  onSelectType: selectType, onEvolveHero: i => openEvolve(unitOf(i)), onCloseInspector: closeInspector, onEvolveChoice: chooseEvolution, speed3x: () => !!(w && w.gs.speed3x),
+  onSelectType: selectType, onEvolveHero: i => { const h = unitOf(i); if (h) selectHero(h); }, onCloseInspector: closeInspector, onEvolveChoice: chooseEvolution, speed3x: () => !!(w && w.gs.speed3x),
   onChoose: i => act({ type: 'choose', index: i }), onReroll: () => act({ type: 'reroll' }), onBanish: i => act({ type: 'banish', index: i }),
   heroInfo: i => {
     const def = HEROES[i], unit = w && unitOf(i), tier = unit ? unit.tier : 0, evo = def.evolutions[tier];   /* a step: { level, cost, choices } */
@@ -287,7 +284,6 @@ $('auto').onclick = () => act({ type: 'auto', on: !w.auto });
 /* 1x, 2x, and 3x once the Overdrive talent unlocks it. */
 $('spd').onclick = () => { v.speed = v.speed === 1 ? 2 : v.speed === 2 && w.gs.speed3x ? 3 : 1; };
 $('menuBtn').onclick = onMenu;
-$('evoCancel').onclick = closeEvolve;
 $('quitYes').onclick = () => hooks.onExit();
 $('resumeBtn').onclick = () => setPaused(false);
 $('camIn').onclick = () => zoomBy(1.25);
@@ -305,7 +301,7 @@ addEventListener('keydown', e => {
   else if (k === 'm') toggleMove();
   else if (k === 'e') evolveSelected();
   else if (k === 'p') { if (w.phase !== 'over') setPaused(!v.paused); }
-  else if (k === 'escape') { if (v.evo) closeEvolve(); else if (v.paused) setPaused(false); else closeInspector(); }
+  else if (k === 'escape') { if (v.paused) setPaused(false); else closeInspector(); }
   else if (k === 'f') fitToScreen();
   else if (k === '+' || k === '=') zoomBy(1.25);
   else if (k === '-') zoomBy(0.8);

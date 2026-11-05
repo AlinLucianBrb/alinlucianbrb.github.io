@@ -8,10 +8,7 @@ const dom = installFakeDom();
 const saves = [], navs = [];
 let failNext = false;
 mock.module(new URL('../js/services/api.js', import.meta.url).href, { namedExports: {
-  getItems: async () => ({ items: [
-    { id: 'i1', item_type: 'power_charm', rarity: 0, bonuses: [] },
-    { id: 'i2', item_type: 'helm', rarity: 2, bonuses: ['Sharpened rounds', 'Whetstone', 'Prospector'] },
-    { id: 'i3', item_type: 'helm', rarity: 0, bonuses: ['Long barrels'] }] }),
+  getItems: async () => ({ items: [{ id: 'i1', item_type: 'power_charm' }, { id: 'i2', item_type: 'power_charm' }] }),
   saveLoadout: async (lineup, equipment) => { saves.push({ lineup, equipment }); if (failNext) { failNext = false; return { error: 'boom' }; } return { profile: { lineup, equipment } }; }
 } });
 const { state } = await import('../js/core/state.js');
@@ -48,30 +45,18 @@ test('Heroes: one card per playable hero; clicking opens its page on the Informa
   assert.ok(st.includes('+10% from Strength'));
 });
 
-/* The gear column: one box per slot, in SLOTS order. */
-const slotBox = slot => byId.hrBody.children[0].children[1 + ['helm', 'body', 'legs', 'boots', 'trinket'].indexOf(slot)];
-const iconBtns = box => findAll(box, e => e.className === 'iconbtn');
-
-test('Information: five gear slots; an empty slot offers the free items that fit, best first; equipping shows its bonuses and stats', async () => {
-  assert.deepEqual(byId.hrBody.children[0].children.slice(1).map(b => b.children[0]._text), ['Helm', 'Body armour', 'Legs', 'Boots', 'Trinket']);
-  assert.equal(iconBtns(slotBox('helm')).length, 2, 'two helms to choose from');
-  assert.equal(iconBtns(slotBox('body')).length, 0); assert.ok(texts(slotBox('body')).includes('Empty: no free item for this slot'));
-  iconBtns(slotBox('helm'))[0].onclick();                /* the Rare helm comes first */
-  assert.deepEqual(state.profile.equipment, { warrior: { helm: 'i2' } });
-  const helm = slotBox('helm');
-  assert.ok(texts(helm).includes('Rare Helm')); assert.ok(btn(helm, /^Remove$/));
-  assert.ok(texts(helm).includes('+11.25% damage (all heroes)') && texts(helm).includes('+13.5% damage to melee heroes'), 'its bonuses, at Rare strength');
-  assert.ok(texts(byId.hrBody).includes('Stats (with gear)'));
-  assert.ok(texts(byId.hrBody).includes(String(+(28 * (1 + 0.1 + 0.1125 + 0.135)).toFixed(2))), 'strength, Sharpened rounds and Whetstone add up');
-  iconBtns(slotBox('trinket'))[0].onclick();
-  assert.deepEqual(state.profile.equipment, { warrior: { helm: 'i2', trinket: 'i1' } });
+test('Information: equipping uses a free item, shows it in the slot and in the stats; saved after a short pause', async () => {
+  btn(byId.hrBody, /^Equip Power Charm \(2\)$/).onclick();
+  assert.equal(state.profile.equipment.warrior, 'i1');
+  assert.ok(texts(byId.hrBody).includes('Power Charm')); assert.ok(btn(byId.hrBody, /^Remove$/));
+  assert.ok(texts(byId.hrBody).includes('36.3'), '(28 + 5) x 1.1 with the charm');
   await wait(700);
-  assert.deepEqual(saves.at(-1), { lineup: ['warrior', 'ranger', 'mage'], equipment: { warrior: { helm: 'i2', trinket: 'i1' } } });
+  assert.deepEqual(saves.at(-1), { lineup: ['warrior', 'ranger', 'mage'], equipment: { warrior: 'i1' } });
   byId.hrBack.onclick();                                 /* back to the list */
   assert.equal(byId.hrPage.hidden, true);
-  assert.ok(texts(byId.hrGrid.children[0]).includes('Gear 2 / 5'));
+  assert.ok(texts(byId.hrGrid.children[0]).includes('Wearing Power Charm'));
   byId.hrGrid.children[1].onclick();
-  assert.equal(iconBtns(slotBox('helm')).length, 1, 'one helm left for the Ranger'); assert.equal(iconBtns(slotBox('trinket')).length, 0);
+  assert.ok(btn(byId.hrBody, /^Equip Power Charm \(1\)$/), 'only one charm left for the Ranger');
 });
 
 test('Evolutions tab: the base hero, then its three forms', () => {
@@ -87,28 +72,27 @@ test('Evolutions tab: the base hero, then its three forms', () => {
 test('a failed save puts back the last saved equipment and says why', async () => {
   byId.hrTabs.children[0].onclick();
   failNext = true;
-  iconBtns(slotBox('helm'))[0].onclick();
+  btn(byId.hrBody, /^Equip Power Charm/).onclick();
   await wait(700);
-  assert.deepEqual(state.profile.equipment, { warrior: { helm: 'i2', trinket: 'i1' } });
+  assert.deepEqual(state.profile.equipment, { warrior: 'i1' });
   assert.match(byId.hrMsg._text, /^Could not save: boom/);
   heroes.unmount();
 });
 
 test('Inventory: every item as an icon on a grid, with a tooltip saying what it does and who wears it', async () => {
   await inventory.mount();
-  assert.equal(byId.invCount._text, '3 / 200');
+  assert.equal(byId.invCount._text, '2 / 200');
   assert.equal(byId.invGrid.children.length, 40, 'an 8 x 5 grid, empty cells included');
   const full = byId.invGrid.children.filter(c => c.className.includes('full'));
-  assert.equal(full.length, 3);
-  assert.equal(full[0].children[0].className, 'itemicon'); assert.equal(full[0].children[0]._text, 'H', 'placeholder icon: initials');
-  assert.equal(full[0].children[0].style['--rc'], '#5aa9ff', 'framed in the rarity colour (Rare)');
-  assert.ok(full[0]._cls.has('worn') && full[1]._cls.has('worn') && !full[2]._cls.has('worn'), 'worn items first, marked');
+  assert.equal(full.length, 2);
+  assert.equal(full[0].children[0].className, 'itemicon'); assert.equal(full[0].children[0]._text, 'PC', 'placeholder icon: initials');
+  assert.ok(full[0]._cls.has('worn'), 'the worn one comes first and is marked');
   full[0].fire('pointerenter', { clientX: 5, clientY: 5 });
   let tip = dom.made.filter(e => e.className === 'tip').at(-1);
-  assert.deepEqual(tip.children.map(c => c._text), ['Rare Helm', 'Helm', '+11.25% damage (all heroes)', '+13.5% damage to melee heroes', '75% chance of +2 gold per kill', 'Equipped on the Warrior']);
-  full[2].fire('pointerenter', { clientX: 5, clientY: 5 });
+  assert.deepEqual(tip.children.map(c => c._text), ['Power Charm', '+5 damage', 'Trinket slot', 'Equipped on the Warrior']);
+  full[1].fire('pointerenter', { clientX: 5, clientY: 5 });
   tip = dom.made.filter(e => e.className === 'tip').at(-1);
-  assert.equal(tip.children.at(-1)._text, 'Not equipped');
+  assert.match(tip.children.at(-1)._text, /^Not equipped/);
   assert.equal(byId.invEmpty.hidden, true);
 });
 
@@ -143,11 +127,4 @@ test('Levels: "Next level" after a win comes straight to choosing heroes; Back r
   byId.lvList.children[0].onclick(); await byId.lvStart.onclick();
   assert.match(byId.lvMsg._text, /^Could not save your lineup: boom/, 'a refused save does not start the match');
   assert.deepEqual(navs, []);
-});
-
-test('an older profile ({ hero: itemId }) still works: the item becomes that hero\'s trinket', async () => {
-  const { equipment, wornItems } = await import('../js/screens/loadout.js');
-  state.profile.equipment = { mage: 'i1' };
-  assert.deepEqual(equipment(), { mage: { trinket: 'i1' } });
-  assert.deepEqual(wornItems(), { mage: [{ type: 'power_charm', rarity: 0, bonuses: [] }] });
 });

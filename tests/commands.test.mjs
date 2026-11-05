@@ -30,8 +30,7 @@ test('items apply to the hero wearing them, only if that hero is in the lineup',
   const w = createWorld({ seed: 1, items: { warrior: 'power_charm', mage: 'nope' } }), t = tilesNearPath(w, 2);
   const war = place(w, 'warrior', ...t[0]), ran = place(w, 'ranger', ...t[1]);
   assert.ok(Math.abs(war.s.damage - (28 + 5) * 1.1) < 1e-9, 'flat damage first, then +10% from strength'); assert.ok(Math.abs(ran.s.damage - 16 * 1.1) < 1e-9);
-  assert.deepEqual(w.items, { warrior: [{ type: 'power_charm', rarity: 0, bonuses: [] }], mage: [{ type: 'nope', rarity: 0, bonuses: [] }] },
-    'a plain type id is a Common item with no bonuses; unknown items are kept in the log but do nothing');
+  assert.deepEqual(w.items, { warrior: 'power_charm', mage: 'nope' }, 'unknown items are kept in the log but do nothing');
   assert.deepEqual(createWorld({ seed: 1, lineup: ['ranger'], items: { warrior: 'power_charm' } }).items, {}, 'items on heroes left at home are ignored');
 });
 

@@ -1,8 +1,7 @@
 /* Stat resolution, Path of Exile style:  (base + flat) x (1 + sum of "inc") x every "more". */
 import { ATTRIBUTE_DAMAGE } from '../content/data.js';
 export const matches = (scope, tags) => scope.includes('all') || scope.some(s => tags.includes(s));
-/* need: a hero id the modifier is limited to (item bonuses only help the hero wearing the item). Hero tags include its id. */
-const applies = (m, stat, tags) => m.stat === stat && (tags ? Array.isArray(m.scope) && matches(m.scope, tags) && (!m.need || tags.includes(m.need)) : m.scope === 'global');
+const applies = (m, stat, tags) => m.stat === stat && (tags ? Array.isArray(m.scope) && matches(m.scope, tags) : m.scope === 'global');
 
 export function resolve(base, stat, mods, tags, extraInc = 0) {
   let flat = 0, inc = extraInc, more = 1;

@@ -3,8 +3,8 @@
 import { bus } from '../core/bus.js';
 import { state } from '../core/state.js';
 import { STAGES, HEROES, LINEUP_SIZE, STAT_LABELS } from '../content/data.js';
-import { SLOTS } from '../content/items.js';
-import { el, cap, currentLineup, gearCount, ensureItems, saveNow, sqlHint } from './loadout.js';
+import { ITEMS } from '../content/items.js';
+import { el, cap, currentLineup, typeOf, equipment, ensureItems, saveNow, sqlHint } from './loadout.js';
 
 const $ = id => document.getElementById(id);
 let bound = false, stage = null, lineup = [];
@@ -37,7 +37,8 @@ function renderPick() {
     const on = lineup.includes(h.id), card = el('button', 'hcard pick' + (on ? ' picked' : '')), head = el('div', 'hhead');
     card.style.setProperty('--hc', h.color);
     head.append(el('b', '', h.name), el('small', 'muted', cap(h.archetype) + ' · ' + STAT_LABELS[h.attribute]));
-    card.append(head, el('p', 'hdesc', h.short), el('small', 'muted', 'Gear ' + gearCount(h.id) + ' / ' + SLOTS.length),
+    const worn = typeOf(equipment()[h.id]);
+    card.append(head, el('p', 'hdesc', h.short), el('small', 'muted', worn && ITEMS[worn] ? 'Wearing ' + ITEMS[worn].name : 'No item'),
       el('span', 'pickmark', on ? '✓ ' + (lineup.indexOf(h.id) + 1) : 'Add'));
     card.onclick = () => toggle(h.id);
     grid.append(card);
