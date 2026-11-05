@@ -56,7 +56,48 @@ button:focus-visible,input:focus-visible{outline:3px solid #fff;outline-offset:2
 .hslot{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px;border:1px dashed var(--line);border-radius:6px;margin-top:auto}
 .hslot small{width:100%}
 .itemname{font-weight:700}
-.hinv{width:min(900px,100%);display:flex;flex-direction:column;gap:6px}
+.hcard{font:inherit;color:inherit;text-align:left;cursor:pointer}
+.hcard:hover{border-color:var(--accent)}
+.hcard.pick .pickmark{margin-top:auto;align-self:flex-end;font-weight:700;color:var(--muted)}
+.hcard.pick.picked .pickmark{color:var(--accent)}
+#screen-levels{overflow:auto}
+.lvstep{display:flex;flex-direction:column;align-items:center;gap:12px;width:100%}
+.lvstep[hidden]{display:none}
+.warn{color:#ffb4a8}
+/* Hero page: Information (gear | picture | stats) and Evolutions (a tree). */
+.hpage{width:min(980px,100%);display:flex;flex-direction:column;gap:10px;min-height:0}
+.hpage[hidden],#hrList[hidden]{display:none}
+#hrList{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%}
+.hbody{--hc:var(--line);background:var(--panel);border:2px solid var(--line);border-top:6px solid var(--hc);border-radius:8px;padding:14px}
+.hbody.info{display:grid;grid-template-columns:minmax(180px,1fr) minmax(200px,1.2fr) minmax(220px,1.2fr);gap:16px;align-items:start}
+.hbody h3{margin:0 0 6px;font-size:1em;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.hgear{display:flex;flex-direction:column;gap:8px}
+.slotitem{display:flex;align-items:center;gap:8px;width:100%}
+.hpic{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
+.hart{--hc:#888;width:min(220px,100%);aspect-ratio:3/4;border-radius:12px;display:grid;place-items:center;background:radial-gradient(circle at 50% 35%,color-mix(in srgb,var(--hc) 45%,transparent),#101813 75%);border:2px solid color-mix(in srgb,var(--hc) 60%,var(--line))}
+.hart span{font-size:5em;font-weight:800;color:var(--hc);opacity:.85}
+.hstatbox .srow{display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid var(--line)}
+.hstatbox .srow.main b,.hstatbox .srow.main span{color:#e8c9a0}
+.hstatbox .buff{color:#9db3a3;font-size:.85em;padding:2px 0 4px 10px}
+.evotree{display:flex;flex-direction:column;align-items:center;gap:0}
+.evonode{--hc:var(--line);display:flex;flex-direction:column;gap:4px;background:#101813;border:2px solid var(--hc);border-radius:8px;padding:10px 12px;width:min(300px,100%)}
+.evonode p{margin:0}
+.evonode.root{width:min(360px,100%)}
+.evolink{position:relative;padding:22px 0 18px;color:var(--muted);font-size:.85em}
+.evolink::before,.evolink::after{content:'';position:absolute;left:50%;width:2px;height:16px;background:var(--line)}
+.evolink::before{top:0}.evolink::after{bottom:0}
+.evorow{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;width:100%;padding-top:12px;border-top:2px solid var(--line)}
+.evorow .evonode{width:auto}
+@media (max-width:760px){.hbody.info{grid-template-columns:1fr}}
+/* Inventory: a grid of item icons. */
+#screen-inventory{justify-content:flex-start;overflow:auto}
+.invgrid{display:grid;grid-template-columns:repeat(8,minmax(0,64px));gap:6px;padding:10px;background:var(--panel);border:2px solid var(--line);border-radius:8px}
+.invcell{position:relative;aspect-ratio:1;border:1px solid var(--line);border-radius:6px;background:#101813;display:grid;place-items:center}
+.invcell.full{cursor:help}
+.invcell.full:hover,.invcell.full:focus{border-color:var(--accent)}
+.invcell .wornmark{position:absolute;top:2px;right:5px;font-size:.7em;color:#8be28b}
+.itemicon{--ic:#9db3a3;display:inline-grid;place-items:center;width:40px;height:40px;border-radius:8px;font-weight:800;font-size:.9em;color:#101813;background:var(--ic);box-shadow:inset 0 -3px 0 rgba(0,0,0,.25)}
+.slotitem .itemicon{width:32px;height:32px;font-size:.75em}
 /* Talent tree: the SVG scales to whatever space is left. */
 #screen-talents{justify-content:flex-start}
 .tabs{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
@@ -80,12 +121,14 @@ button:focus-visible,input:focus-visible{outline:3px solid #fff;outline-offset:2
 #c.holding{cursor:move}
 .hud-layer{position:absolute;inset:0;pointer-events:none}
 .hud-layer>*{position:absolute;pointer-events:auto}
-/* Evolve prompts: a button rises over each hero that can evolve right now. */
-#evoFloat{inset:0;pointer-events:none!important;overflow:hidden}
-.evofloat{position:absolute;left:0;top:0;pointer-events:auto;padding:.2em .6em;font-size:.82em;font-weight:700;border-radius:999px;border:2px solid #ffd84a;background:#3a3214;color:#ffe9a0;white-space:nowrap;box-shadow:0 0 12px rgba(255,216,74,.45);animation:evorise .5s ease-out both,evobob 1.4s ease-in-out .5s infinite}
-.evofloat:hover{background:#56491a}
-@keyframes evorise{from{opacity:0;margin-top:14px}to{opacity:1;margin-top:0}}
-@keyframes evobob{50%{margin-top:-4px}}
+/* Evolve prompt: a button pops up above a hero's card when that hero can evolve right now. */
+.hwrap{position:relative;display:flex}
+.hwrap[hidden]{display:none}
+.evoup{position:absolute;left:50%;bottom:100%;transform:translateX(-50%);margin-bottom:6px;z-index:2;pointer-events:auto;padding:.2em .6em;font-size:.82em;font-weight:700;border-radius:999px;border:2px solid #ffd84a;background:#3a3214;color:#ffe9a0;white-space:nowrap;box-shadow:0 0 12px rgba(255,216,74,.45);animation:evorise .5s ease-out both,evobob 1.4s ease-in-out .5s infinite}
+.evoup:hover{background:#56491a}
+.evoup[hidden]{display:none}
+@keyframes evorise{from{opacity:0;margin-bottom:-6px}to{opacity:1;margin-bottom:6px}}
+@keyframes evobob{50%{margin-bottom:10px}}
 .evohead{color:#ffd84a;font-weight:700;margin:.4em 0 .2em}
 .glass{background:rgba(16,24,20,.9);border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.35)}
 .panel{background:var(--panel);border:2px solid var(--line);border-radius:6px;padding:8px 10px}
@@ -212,6 +255,7 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
   <div class="menuBtns">
     <button class="go" data-nav="levels">Play</button>
     <button data-nav="heroes">Heroes</button>
+    <button data-nav="inventory">Inventory</button>
     <button data-nav="talents" id="talentsBtn">Talents</button>
     <button data-nav="leaderboard">Leaderboard</button>
     <button data-nav="settings">Settings</button>
@@ -220,17 +264,39 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
 </section>
 
 <section id="screen-levels" class="screen" hidden>
-  <h1>Choose a level</h1>
-  <div class="levels" id="lvList"></div>
+  <div id="lvChoose" class="lvstep">
+    <h1>Choose a level</h1>
+    <div class="levels" id="lvList"></div>
+  </div>
+  <div id="lvPick" class="lvstep" hidden>
+    <h1 id="lvPickTitle">Choose your heroes</h1>
+    <p class="muted">Bring up to three heroes (<b id="lvCount"></b>). Each one is placed once, for free.</p>
+    <div class="hgrid" id="lvHeroes"></div>
+    <button class="go big" id="lvStart">Start</button>
+  </div>
+  <p class="msg" id="lvMsg"></p>
   <button id="lvBack">Back</button>
 </section>
 
 <section id="screen-heroes" class="screen" hidden>
-  <div class="topbar"><button id="hrBack">Back</button><div>Lineup <b id="hrCount"></b> <span class="muted" id="hrMsg"></span></div><span></span></div>
-  <h1>Heroes</h1>
-  <p class="muted">Choose up to three heroes to bring into each match, and equip one item on each. Heroes are free to place, one of each.</p>
-  <div class="hgrid" id="hrGrid"></div>
-  <div class="hinv"><small class="muted">Your items</small><div id="hrInv"></div></div>
+  <div class="topbar"><button id="hrBack">Back</button><span class="muted" id="hrMsg"></span><span></span></div>
+  <h1 id="hrTitle">Heroes</h1>
+  <div id="hrList">
+    <p class="muted">Click a hero to see its stats, gear and evolutions. You choose who to bring after picking a level.</p>
+    <div class="hgrid" id="hrGrid"></div>
+  </div>
+  <div id="hrPage" class="hpage" hidden>
+    <div class="tabs" id="hrTabs"><button data-tab="info">Information</button><button data-tab="evo">Evolutions</button></div>
+    <div id="hrBody" class="hbody"></div>
+  </div>
+</section>
+
+<section id="screen-inventory" class="screen" hidden>
+  <div class="topbar"><button id="invBack">Back</button><div>Items <b id="invCount"></b></div><span class="muted" id="invMsg"></span></div>
+  <h1>Inventory</h1>
+  <p class="muted" id="invEmpty">No items yet. Every win drops one, every boss you defeat drops one, and losses can too.</p>
+  <div class="invgrid" id="invGrid"></div>
+  <small class="muted">Hover an item to see what it does. Equip items on each hero's page (Heroes).</small>
 </section>
 
 <section id="screen-leaderboard" class="screen" hidden>
@@ -272,7 +338,6 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
       <span id="menuConfirm" class="glass" hidden><span class="q">Quit this match?</span><button id="quitYes" class="danger">Quit</button><button id="resumeBtn" class="go">Resume</button></span>
     </div>
     <div id="heroPanel" class="glass" hidden><div id="inspect"></div></div>
-    <div id="evoFloat"></div>
     <!-- Bottom right: the damage meter. -->
     <div id="meterPanel" class="glass"><button class="ph" id="meterToggle" aria-expanded="true">Damage meter</button><div id="meter"></div></div>
     <div id="hudCam">

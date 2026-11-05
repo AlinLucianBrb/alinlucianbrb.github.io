@@ -62,3 +62,35 @@ test('a boss is big, tough, slow and costly to let through', () => {
   const lives = w.lives; e.d = (w.path.length - 1.01) * 40; step(w);
   assert.equal(w.lives, lives - b.leak);
 });
+
+test('the final boss must die: if it gets through on the last wave, the level is lost even with lives left', () => {
+  const w = createWorld({ seed: 2 }), ends = [];
+  w.ev.on('end', e => ends.push(e));
+  w.wave = 14; apply(w, { type: 'wave' }); w.spawnLeft = 1; w.spawnT = 0; step(w);
+  const boss = w.enemies.find(e => e.def.boss);
+  assert.ok(boss); assert.ok(w.lives > ENEMIES.boss.leak, 'plenty of lives');
+  boss.d = (w.path.length - 1.01) * 40; step(w);
+  assert.equal(w.phase, 'over'); assert.equal(w.won, false); assert.ok(w.lives > 0);
+  assert.deepEqual(ends, [{ won: false }]);
+});
+
+test('a boss that gets through on a middle wave only costs lives', () => {
+  const w = createWorld({ seed: 2, stage: 3 });
+  w.wave = 12; apply(w, { type: 'wave' }); w.spawnLeft = 1; w.spawnT = 0; step(w);
+  const boss = w.enemies.find(e => e.def.boss), lives = w.lives;
+  boss.d = (w.path.length - 1.01) * 40; step(w);
+  assert.notEqual(w.phase, 'over', 'the run goes on'); assert.equal(w.lives, lives - ENEMIES.boss.leak);
+});
+
+test('boss kills are counted (each guarantees an item), and the server caps them at the boss waves reached', async () => {
+  const { bossWavesUpTo } = await import('../js/engine/enemies.js');
+  const w = createWorld({ seed: 2 });
+  w.wave = 14; apply(w, { type: 'wave' }); w.spawnLeft = 1; w.spawnT = 0; step(w);
+  const boss = w.enemies.find(e => e.def.boss);
+  w.hit(null, boss, 1e9);
+  assert.equal(w.bossKills, 1);
+  assert.deepEqual([bossWavesUpTo(STAGES[0], 14), bossWavesUpTo(STAGES[0], 15), bossWavesUpTo(STAGES[2], 13), bossWavesUpTo(STAGES[2], 25), bossWavesUpTo(STAGES[4], 17)], [0, 1, 1, 2, 0]);
+  /* The SQL rule, written out: the last wave, plus the middle wave (rounded half up) from level 3 on. */
+  const sqlCap = (stage, waves) => { const cap = 10 + 5 * stage; return (waves >= cap ? 1 : 0) + (stage >= 3 && waves >= Math.round(cap / 2) ? 1 : 0); };
+  for (const s of STAGES) for (let n = 1; n <= s.waves; n++) assert.equal(sqlCap(s.n, n), bossWavesUpTo(s, n), 'level ' + s.n + ' wave ' + n);
+});

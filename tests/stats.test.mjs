@@ -28,8 +28,8 @@ test('scope: tags, "all" and global are kept apart', () => {
 
 test('hero stats apply only matching modifiers and only to stats the hero has', () => {
   const mods = asMods([...R('Sharpened rounds').mods(1.5), ...R('Fine arrows').mods(1), ...R('Quick hands').mods(1)]);
-  assert.ok(Math.abs(heroStats(H('ranger'), mods).damage - 16 * (1 + 0.05625 + 0.045)) < 1e-9);
-  assert.ok(Math.abs(heroStats(H('warrior'), mods).damage - 28 * 1.05625) < 1e-9, 'Fine arrows (projectile) skips the warrior');
+  assert.ok(Math.abs(heroStats(H('ranger'), mods).damage - 16 * (1 + 0.05625 + 0.045 + 0.1)) < 1e-9, 'relics add to the +10% from dexterity');
+  assert.ok(Math.abs(heroStats(H('warrior'), mods).damage - 28 * 1.15625) < 1e-9, 'Fine arrows (projectile) skips the warrior');
   assert.equal('arc' in heroStats(H('ranger'), mods), false, 'only the warrior has a swing arc');
   assert.equal(touches(H('ranger'), R('Wide swing').mods(1)[0]), false);
   assert.equal(touches(H('ranger'), R('Quick hands').mods(1)[0]), true);
@@ -54,8 +54,9 @@ test('rarities are whole multiples of Common: 1x, 2x, 3x, 4x, and relics are 15%
   assert.deepEqual(RARITIES.map(r => r.mult), [1, 2, 3, 4]);
   assert.deepEqual(RARITIES.map(r => R('Sharpened rounds').desc(r.mult)), ['+3.75% damage (all heroes)', '+7.5% damage (all heroes)', '+11.25% damage (all heroes)', '+15% damage (all heroes)']);
   assert.deepEqual(RARITIES.map(r => R('Reinforced gate').desc(r.mult)), ['+1 life', '+2 lives', '+2 lives', '+3 lives'], 'whole lives, at least 1');
-  assert.deepEqual(RARITIES.map(r => +R('Compound interest').mods(r.mult)[1].value.toFixed(6)), [9, 18, 27, 36]);
-  assert.deepEqual(RARITIES.map(r => R('Prospector').desc(r.mult)), ['25% chance of +2 gold per kill', '50% chance of +2 gold per kill', '75% chance of +2 gold per kill', '100% chance of +2 gold per kill (always)']);
+  assert.deepEqual(RARITIES.map(r => R('Compound interest').mods(r.mult)[1].value), [60, 120, 180, 240], 'Compound interest keeps its full strength');
+  assert.deepEqual(RARITIES.map(r => R('Prospector').desc(r.mult)), ['25% chance of +2 gold per kill', '50% chance of +2 gold per kill', '75% chance of +2 gold per kill', '+2 gold per kill (100%)']);
+  assert.equal(R('Prospector').desc(10), '+4 gold per kill, and a 50% chance of +2 more (250%)', 'past 100% it rolls again');
   assert.deepEqual(RARITIES.map(r => R('Tax collector').mods(r.mult)[0].value), [0.25, 0.5, 0.75, 1], 'half the old wave gold');
 });
 

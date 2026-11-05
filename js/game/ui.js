@@ -2,7 +2,7 @@
 import { HEROES, RARITIES, RELICS, STAT_LABELS, rarityOdds, HERO_LEVELS } from '../content/data.js';
 import { ULTIMATES } from '../engine/ultimates.js';
 import { DAMAGE_LABEL } from '../content/combat.js';
-import { explain, affected } from '../engine/stats.js';
+import { explain, affected, attributeDamage } from '../engine/stats.js';
 import { bindTip } from '../core/tooltip.js';
 import { isBossWave } from '../engine/enemies.js';
 
@@ -27,7 +27,10 @@ function statLine(d, s) {
 export function initUI(callbacks) {
   cb = callbacks;
   HEROES.forEach((d, i) => {
+    /* Each card sits in a wrapper with its Evolve button, which pops up above the card when the hero can evolve. */
+    const wrap = el('div', 'hwrap'), up = el('button', 'evoup', '▲ Evolve');
     const b = el('button', 'herocard'); b.id = 't' + i; b.onclick = () => cb.onSelectType(i);
+    up.hidden = true; up.onclick = () => cb.onEvolveHero(i); b._wrap = wrap; b._up = up;
     b.style.setProperty?.('--hc', d.color);
     const key = el('span', 'key'), name = el('span', 'nm'), nmText = el('span', '', d.name), lv = el('small'), status = el('span', 'cost');
     name.append(nmText, lv); b.append(key, name, status); b._status = status; b._key = key; b._nm = nmText; b._lv = lv;
@@ -43,7 +46,7 @@ export function initUI(callbacks) {
       }
       return { title: d.name + ' · ' + cap(d.archetype), color: d.color, lines };
     });
-    $('tbtns').append(b); btns.push(b);
+    wrap.append(up, b); $('tbtns').append(wrap); btns.push(b);
   });
   bindTip($('relic'), () => ({ title: 'Relic', color: '#dcc6ff', lines: [
     'Spend gold to choose 1 of 3 random relics: permanent bonuses for the rest of this run.',
@@ -103,8 +106,10 @@ export function renderHUD(g, v) {
     const unit = g.heroes.find(h => h.type === i);
     /* A hero with no evolution left has nothing more to do from its button, so the button goes away. */
     const done = !!unit && !unit.base.evolutions[unit.tier];
-    if (b.hidden !== done) { b.hidden = done; layout = true; }
-    if (done) return;
+    if (b.hidden !== done) { b.hidden = b._wrap.hidden = done; layout = true; }
+    if (done) { b._up.hidden = true; return; }
+    const ready = !!unit && canEvolve(g, unit);
+    if (b._up.hidden === ready) { b._up.hidden = !ready; b._up.title = ready ? 'Choose an evolution for ' + unit.def.name : ''; }
     setText(b._nm, unit ? (unit.tier ? '★ ' : '') + unit.def.name : d.name);
     setText(b._lv, unit ? 'Lv ' + unit.level : '');
     setText(b._status, unit ? '' : 'Free · place it');
@@ -138,7 +143,7 @@ export function renderHUD(g, v) {
 
 /* Shows only the heroes in this match's lineup, keyed 1..n in lineup order. */
 export function setLineup(g) {
-  HEROES.forEach((d, i) => { const pos = g.lineup.indexOf(d.id); btns[i]._inLineup = pos >= 0; btns[i].hidden = pos < 0; if (pos >= 0) setText(btns[i]._key, pos + 1); });
+  HEROES.forEach((d, i) => { const pos = g.lineup.indexOf(d.id), b = btns[i]; b._inLineup = pos >= 0; b.hidden = b._wrap.hidden = pos < 0; b._up.hidden = true; if (pos >= 0) setText(b._key, pos + 1); });
 }
 
 export function renderMeter(g) {
@@ -193,7 +198,7 @@ export const canEvolve = (g, h) => { const s = h.base.evolutions[h.tier]; return
 
 /* The inspector is rebuilt only when the selection, the modifiers or the move state change, so buttons never vanish under a click.
    There are no Move or Evolve buttons: click and hold a hero on the map to move it, and the evolution choices appear here
-   (with a button rising over the hero on the map) once the hero has reached the evolution's level. */
+   (with an Evolve button popping up above the hero's card) once the hero has reached the evolution's level. */
 export function renderInspector(g, v) {
   const box = $('inspect'), t = v.selected;
   $('heroPanel').hidden = !t;
@@ -248,7 +253,11 @@ export function renderInspector(g, v) {
       const show = x => (isChance(key) ? pct(x) : f(x));
       const row = el('div', 'srow'); row.append(el('span', '', label), el('span', '', show(value) + (f(value) !== f(base) ? '  (base ' + show(base) + ')' : '')));
       box.append(row);
-      for (const m of stackMods(explain(d, key, all))) { const line = el('div', 'buff', describe(m, key)); line.style.color = m.ri >= 0 ? RARITIES[m.ri].color : SOURCE_COLOR[m.ri] || '#f2b84b'; box.append(line); }
+      if (key === 'damage' && attributeDamage(d, t.s) > 0) {   /* the hero's own attribute: +1% damage per point */
+        const line = el('div', 'buff', '+' + pct(attributeDamage(d, t.s)) + ' · ' + STAT_LABELS[d.attribute] + ' (attribute)'); line.style.color = '#e8c9a0'; box.append(line);
+      }
+      const shown = key === d.attribute ? explain(d, key, all).concat(explain(d, 'mainAttribute', all)) : explain(d, key, all);
+      for (const m of stackMods(shown)) { const line = el('div', 'buff', describe(m, key)); line.style.color = m.ri >= 0 ? RARITIES[m.ri].color : SOURCE_COLOR[m.ri] || '#f2b84b'; box.append(line); }
     }
     box._dealt = el('p', 'muted'); box.append(box._dealt);
   }
@@ -267,25 +276,7 @@ export function renderInspector(g, v) {
   }
 }
 
-/* Evolve prompts over the map: one button rises over each hero that can evolve now (level reached, gold in hand).
-   toScreen turns map coordinates into screen pixels. Buttons are created once per hero and only moved afterwards. */
-const floats = new Map();
-export function renderEvoFloats(g, toScreen, onClick) {
-  const box = $('evoFloat'); if (!box) return;
-  for (const [h, b] of floats) if (!g.heroes.includes(h) || !canEvolve(g, h)) { b.remove(); floats.delete(h); }
-  for (const h of g.heroes) {
-    if (!canEvolve(g, h)) continue;
-    let b = floats.get(h);
-    if (!b) {
-      b = el('button', 'evofloat', '▲ Evolve'); b.title = 'Choose an evolution for ' + h.def.name;
-      b.onclick = e => { e.stopPropagation && e.stopPropagation(); onClick(h); };
-      box.append(b); floats.set(h, b);
-    }
-    const [x, y] = toScreen(h.x, h.y - 26), pos = 'translate(' + Math.round(x) + 'px,' + Math.round(y) + 'px) translate(-50%,-100%)';
-    if (b._pos !== pos) { b._pos = pos; b.style.transform = pos; }
-  }
-}
-export function clearEvoFloats() { for (const b of floats.values()) b.remove(); floats.clear(); }
+
 
 function indicator(g, r, m) {
   const a = affected(r, m, g.heroes), d = el('small', 'aff');

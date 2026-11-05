@@ -29,7 +29,7 @@ test('the lineup is cleaned: unknown, duplicate and extra heroes are dropped, an
 test('items apply to the hero wearing them, only if that hero is in the lineup', () => {
   const w = createWorld({ seed: 1, items: { warrior: 'power_charm', mage: 'nope' } }), t = tilesNearPath(w, 2);
   const war = place(w, 'warrior', ...t[0]), ran = place(w, 'ranger', ...t[1]);
-  assert.equal(war.s.damage, 28 + 5); assert.equal(ran.s.damage, 16);
+  assert.ok(Math.abs(war.s.damage - (28 + 5) * 1.1) < 1e-9, 'flat damage first, then +10% from strength'); assert.ok(Math.abs(ran.s.damage - 16 * 1.1) < 1e-9);
   assert.deepEqual(w.items, { warrior: 'power_charm', mage: 'nope' }, 'unknown items are kept in the log but do nothing');
   assert.deepEqual(createWorld({ seed: 1, lineup: ['ranger'], items: { warrior: 'power_charm' } }).items, {}, 'items on heroes left at home are ignored');
 });
@@ -58,7 +58,7 @@ test('evolution stacks with relics and Bulk order makes it cheaper', () => {
   recalc(w);
   assert.equal(w.evolveCost(h), Math.round(150 * (1 - 0.0225 * 2)), 'Uncommon Bulk order: -4.5%');
   apply(w, { type: 'evolve', id: h.id, choice: 2 });
-  assert.ok(Math.abs(h.s.damage - 28 * (1 + 0.0375 + 0.03 * 9) * 1.5) < 1e-9, 'relic and level bonuses add up, then evolution multiplies');
+  assert.ok(Math.abs(h.s.damage - 28 * (1 + 0.0375 + 0.10 + 0.03 * 9) * 1.5) < 1e-9, 'relic, strength and level bonuses add up, then evolution multiplies');
 });
 
 test('moving needs a free tile and briefly delays the next attack', () => {

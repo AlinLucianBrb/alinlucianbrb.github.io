@@ -37,6 +37,15 @@ test('the minimum-time check matches the real spawn timings', () => {
   for (const [f, sql] of sqlFiles) assert.match(sql, /0\.25 \* \(4 \+ 2 \* w\) \* greatest\(0\.35, 0\.85 - 0\.02 \* w\)/, f + ': same formula as waveCount and spawnDelay');
 });
 
+test('finish_run takes the boss count: one guaranteed item each, never more than the boss waves reached, and a win needs the final boss', () => {
+  for (const [f, sql] of sqlFiles) {
+    assert.match(sql, /create function public\.finish_run\(p_run uuid, p_waves int, p_kills int, p_won boolean, p_bosses int default 0\)/, f);
+    assert.match(sql, /boss_cap := \(case when p_waves >= cap then 1 else 0 end\) \+ \(case when r\.stage >= 3 and p_waves >= round\(cap \/ 2\.0\) then 1 else 0 end\);/, f);
+    assert.match(sql, /if p_won and p_bosses < 1 then raise exception/, f);
+    assert.match(sql, /n := p_bosses \+ floor\(chance\)::int/, f);
+  }
+});
+
 test('the SQL files are up to date with sql/ and js/content (run: npm run sql)', () => {
   assert.equal(sqlFiles[0][1], buildSetup(), 'supabase-setup.sql is out of date');
   assert.equal(sqlFiles[1][1], buildUpdate(), 'supabase-update.sql is out of date');

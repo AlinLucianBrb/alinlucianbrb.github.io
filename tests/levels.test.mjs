@@ -24,13 +24,14 @@ test('every hero on the field gains the XP of each kill, whoever landed it', () 
   assert.ok(e.dead); assert.equal(r.xp, 3); assert.equal(m.xp, 3, 'the Mage learns from the Ranger\'s kill');
 });
 
-test('level-ups: XP carries over, each level adds +3% damage, and an event is sent', () => {
+test('level-ups: XP carries over, each level adds +3 to the hero\'s own attribute (+3% damage), and an event is sent', () => {
   const w = richWorld(), h = place(w, 'warrior', ...tilesNearPath(w, 1)[0]);
   const ups = []; w.ev.on('levelUp', e => ups.push(e.level));
   for (let i = 0; i < 25; i++) { const e = enemyAt(w, h.x + 30, h.y, 10, 1); w.attack(h, e); }
   assert.equal(h.level, 3); assert.equal(h.xp, 25 - 10 - 12); assert.deepEqual(ups, [2, 3]);
-  assert.ok(Math.abs(h.s.damage - 28 * 1.06) < 1e-9, 'level 3 = +6% damage');
-  assert.deepEqual(levelMods(1), []); assert.equal(levelMods(5)[0].value, 0.12);
+  assert.equal(h.s.strength, 16, 'level 3: 10 strength + 6');
+  assert.ok(Math.abs(h.s.damage - 28 * 1.16) < 1e-9, '16 strength = +16% damage');
+  assert.deepEqual(levelMods(1), []); assert.equal(levelMods(5)[0].value, 12); assert.equal(levelMods(5)[0].stat, 'mainAttribute');
 });
 
 test('levels stop at the maximum', () => {

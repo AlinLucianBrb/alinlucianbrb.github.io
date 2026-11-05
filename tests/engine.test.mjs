@@ -99,11 +99,11 @@ test('wave clear pays gold, plus Compound interest: % and limit both stack with 
     return w.gold - gold;
   };
   assert.equal(clearWaveOne([], 1000), 15 + 3, 'no relic: just the wave reward');
-  /* 15% of the old values: Common 0.75% up to 9 gold. */
-  assert.equal(clearWaveOne([1], 800), 18 + 6, 'common: 0.75% of 800');
-  assert.equal(clearWaveOne([1], 5000), 18 + 9, 'common: limited to 9');
-  assert.equal(clearWaveOne([1, 1], 5000), 18 + 18, 'two copies: the limits add up');
-  assert.equal(clearWaveOne([1, 1], 800), 18 + 12, 'two copies: the percentages add up');
-  assert.equal(clearWaveOne([4], 5000), 18 + 36, 'epic: 3% up to 36');
-  assert.equal(clearWaveOne([4], 800), 18 + 24, 'epic: 3% of 800');
+  /* Full strength (not cut to 15% like the other relics): Common 5% up to 60 gold. */
+  assert.equal(clearWaveOne([1], 400), 18 + 20, 'common: 5% of 400');
+  assert.equal(clearWaveOne([1], 5000), 18 + 60, 'common: limited to 60');
+  assert.equal(clearWaveOne([1, 1], 5000), 18 + 120, 'two copies: the limits add up');
+  assert.equal(clearWaveOne([1, 1], 400), 18 + 40, 'two copies: the percentages add up');
+  assert.equal(clearWaveOne([4], 5000), 18 + 240, 'epic: 20% up to 240');
+  assert.equal(clearWaveOne([4], 400), 18 + 80, 'epic: 20% of 400');
 });

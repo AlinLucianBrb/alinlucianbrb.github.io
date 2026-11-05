@@ -6,7 +6,7 @@ import { apply } from '../engine/commands.js';
 import { exportLog } from '../engine/replay.js';
 import { heroStats } from '../engine/stats.js';
 import { draw, addBeam, tickBeams, addSlash, tickSlashes } from './render.js';
-import { createCamera, fitCamera, clampCamera, zoomAt, panBy, toWorld, toScreen } from './camera.js';
+import { createCamera, fitCamera, clampCamera, zoomAt, panBy, toWorld } from './camera.js';
 import * as ui from './ui.js';
 
 const $ = id => document.getElementById(id);
@@ -30,7 +30,7 @@ function newRun() {
   w = createWorld({ seed, stage: stageN, talents: hooks.talents || [], lineup: hooks.lineup, items: hooks.items || {} });
   const world = w;
   w.ev.on('end', ({ won }) => finish(world, won));
-  v.selected = v.moving = null; ui.clearEvoFloats(); if (v.speed > 2) v.speed = 1; v.vfx.beams.length = 0; v.vfx.slashes.length = 0; v.needFit = true;
+  v.selected = v.moving = null; if (v.speed > 2) v.speed = 1; v.vfx.beams.length = 0; v.vfx.slashes.length = 0; v.needFit = true;
   v.sel = heroIndex(w.lineup[0]);
   ui.setLineup(w);
   setPaused(false);
@@ -41,9 +41,9 @@ function newRun() {
 async function finish(world, won) {
   v.moving = null; setPaused(false);
   ui.showOver(won ? 'Level cleared!' : 'The gate has fallen',
-    won ? 'You beat all ' + world.maxWave + ' waves.' : 'You reached wave ' + world.wave + ' of ' + world.maxWave + '.', 'Saving your run…', won && stageN < STAGES.length);
+    won ? 'You beat all ' + world.maxWave + ' waves.' : world.lives > 0 && world.wave >= world.maxWave ? 'The final boss got through.' : 'You reached wave ' + world.wave + ' of ' + world.maxWave + '.', 'Saving your run…', won && stageN < STAGES.length);
   let msg = '';
-  try { msg = await hooks.onRunEnd({ waves: world.wave, kills: world.kills, stage: stageN, won, log: exportLog(world) }); } catch (e) { msg = 'Could not save your run.'; }
+  try { msg = await hooks.onRunEnd({ waves: world.wave, kills: world.kills, bosses: world.bossKills, stage: stageN, won, log: exportLog(world) }); } catch (e) { msg = 'Could not save your run.'; }
   if (world === w) ui.setOverMsg(msg || '');
 }
 
@@ -89,7 +89,6 @@ function render(dt) {
   tickBeams(v.vfx, dt); tickSlashes(v.vfx, dt);
   draw(ctx, w, v);
   ui.renderHUD(w, v);
-  ui.renderEvoFloats(w, (x, y) => toScreen(v.cam, x, y), selectHero);
   if (v.needFit) { v.needFit = false; fitToScreen(); }
   if (w.picking) ui.updatePick(w);
   if ((uiT += 1 / 60) >= 0.25) { uiT = 0; ui.renderMeter(w); if (v.selected) ui.renderInspector(w, v); }
@@ -257,7 +256,7 @@ const selectType = i => {
   if (unit) { v.selected = unit; v.sel = i; } else { v.sel = i; v.selected = null; }
   ui.renderInspector(w, v);
 };
-/* Selecting a hero on the map (also what the rising Evolve button does: the hero panel then shows the choices). */
+/* Selecting a hero on the map (also what the Evolve button above its card does: the hero panel then shows the choices). */
 const selectHero = h => { v.moving = null; v.selected = h; v.sel = h.type; ui.renderInspector(w, v); };
 const closeInspector = () => { v.selected = v.moving = null; ui.renderInspector(w, v); };
 /* Key E: a hero with a single form evolves straight away; with several, the choices are already in the hero panel. */
@@ -269,7 +268,7 @@ const evolveSelected = () => {
 const chooseEvolution = i => { if (v.selected && act({ type: 'evolve', id: v.selected.id, choice: i }).ok) ui.renderInspector(w, v); };
 const toggleMove = () => { if (v.selected && w.phase !== 'over') { v.moving = v.moving === v.selected ? null : v.selected; ui.renderInspector(w, v); } };
 ui.initUI({
-  onSelectType: selectType, onCloseInspector: closeInspector, onEvolveChoice: chooseEvolution, speed3x: () => !!(w && w.gs.speed3x),
+  onSelectType: selectType, onEvolveHero: i => { const h = unitOf(i); if (h) selectHero(h); }, onCloseInspector: closeInspector, onEvolveChoice: chooseEvolution, speed3x: () => !!(w && w.gs.speed3x),
   onChoose: i => act({ type: 'choose', index: i }), onReroll: () => act({ type: 'reroll' }), onBanish: i => act({ type: 'banish', index: i }),
   heroInfo: i => {
     const def = HEROES[i], unit = w && unitOf(i), tier = unit ? unit.tier : 0, evo = def.evolutions[tier];   /* a step: { level, cost, choices } */

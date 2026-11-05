@@ -31,16 +31,16 @@ test('ranger shoots an arrow at the enemy furthest along the path, within range 
   assert.equal(w.projs.length, 1); assert.equal(w.projs[0].look, 'arrow'); assert.equal(w.projs[0].target, ahead);
   assert.equal(dealt(ahead), 0, 'still in the air');
   land(w);
-  assert.equal(dealt(ahead), 16); assert.equal(dealt(near), 0); assert.equal(dealt(far), 0);
-  tickHero(w, h, 10); land(w); assert.equal(dealt(ahead), 16, 'cooldown');
-  tickHero(w, h, 25); land(w); assert.equal(dealt(ahead), 32, 'fires again after 0.5 s');
+  assert.equal(dealt(ahead), 17.6, '16 damage, +10% from 10 dexterity'); assert.equal(dealt(near), 0); assert.equal(dealt(far), 0);
+  tickHero(w, h, 10); land(w); assert.equal(dealt(ahead), 17.6, 'cooldown');
+  tickHero(w, h, 25); land(w); assert.equal(dealt(ahead), 35.2, 'fires again after 0.5 s');
 });
 
 test('warrior swing hits everything inside the arc and range, nothing behind it', () => {
   const { w, h } = setup('warrior');
   const target = enemyAt(w, h.x + 40, h.y, 100), side = enemyAt(w, h.x + 30, h.y + 25, 1), behind = enemyAt(w, h.x - 40, h.y, 2), out = enemyAt(w, h.x + 90, h.y, 3);
   tickHero(w, h);
-  assert.equal(dealt(target), 28); assert.equal(dealt(side), 28, 'within 60 degrees of the swing');
+  assert.equal(dealt(target), 30.8, '28 damage, +10% from 10 strength'); assert.equal(dealt(side), 30.8, 'within 60 degrees of the swing');
   assert.equal(dealt(behind), 0); assert.equal(dealt(out), 0);
 });
 
@@ -51,13 +51,13 @@ test('mage fires a bolt that flies to the lead enemy and hits on arrival; Split 
   assert.equal(w.projs.length, 1); assert.equal(w.projs[0].target, a, 'aimed at the enemy furthest along the path');
   assert.equal(dealt(a), 0, 'nothing yet: the bolt is in the air');
   for (let i = 0; i < 20; i++) updateProjectiles(w, 1 / 60);
-  assert.equal(dealt(a), 26); assert.equal(w.projs.length, 0);
+  assert.equal(dealt(a), 28.6, '26 damage, +10% from 10 intellect'); assert.equal(w.projs.length, 0);
   assert.equal(a.fx, null, 'the plain Mage has no on-hit effect');
   h.mods.push({ stat: 'targets', type: 'flat', value: 2, scope: ['spell'], source: 'test', ri: -2 }); w.statsFor(h);
   h.cd = 0; tickHero(w, h);
   assert.equal(w.projs.length, 3, '+2 targets: one bolt each');
   for (let i = 0; i < 30; i++) updateProjectiles(w, 1 / 60);
-  assert.deepEqual([dealt(a), dealt(b), dealt(c)], [52, 26, 26]);
+  assert.deepEqual([dealt(a), dealt(b), dealt(c)], [57.2, 28.6, 28.6]);
 });
 
 test('Split bolt is a chance of one more target: 15% per Common copy, rolled on the seeded combat stream', () => {
@@ -82,8 +82,8 @@ test('energy fills by 20 per attack; the 6th attack is the ultimate (2x damage) 
   const { w, h } = setup('ranger');
   const e = enemyAt(w, h.x + 30, h.y, 10);
   const hits = [];
-  for (let i = 0; i < 7; i++) { const before = dealt(e); h.cd = 0; tickHero(w, h); land(w); hits.push(dealt(e) - before); if (i < 5) assert.equal(h.energy, 20 * (i + 1)); }
-  assert.deepEqual(hits, [16, 16, 16, 16, 16, 32, 16]);
+  for (let i = 0; i < 7; i++) { const before = dealt(e); h.cd = 0; tickHero(w, h); land(w); hits.push(Math.round((dealt(e) - before) * 1000) / 1000); if (i < 5) assert.equal(h.energy, 20 * (i + 1)); }
+  assert.deepEqual(hits, [17.6, 17.6, 17.6, 17.6, 17.6, 35.2, 17.6]);
   assert.equal(h.ults, 1);
   assert.equal(h.energy, 20, 'the ultimate empties the bar, and the attack after it starts filling again');
 });
@@ -100,7 +100,7 @@ test('ultimates hit every enemy in the swing for double damage', () => {
   const { w, h } = setup('warrior');
   const a = enemyAt(w, h.x + 40, h.y, 10), b = enemyAt(w, h.x + 30, h.y + 20, 9);
   h.energy = h.s.energyMax; tickHero(w, h);
-  assert.deepEqual([dealt(a), dealt(b)], [56, 56]); assert.equal(h.energy, 0);
+  assert.deepEqual([dealt(a), dealt(b)], [61.6, 61.6]); assert.equal(h.energy, 0);
 });
 
 test('the archived Frost Mage still chills enemies (kept for later)', () => {

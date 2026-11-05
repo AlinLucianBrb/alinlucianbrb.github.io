@@ -189,12 +189,13 @@ test('talent bonuses are stacked into one "Talents" line per stat', async () => 
   dom.heroButton(0).onclick(); click(...t); click(...t); dom.frames(1);
   const lines = dom.made.filter(e => e.className === 'buff' && / · Talents/.test(e._text)).map(e => e._text);
   assert.ok(lines.includes('+16% · Talents ×3'), 'one line: ' + lines.join(' | '));
-  assert.equal(world().heroes[0].s.damage, 28 * 1.16);
-  /* Level the Warrior up twice: its +6% shows as one "Hero level" line. */
+  assert.ok(Math.abs(world().heroes[0].s.damage - 28 * 1.26) < 1e-9, 'talents +16% and strength +10%');
+  assert.ok(dom.made.some(e => e.className === 'buff' && e._text === '+10% · Strength (attribute)'), 'the attribute bonus is listed');
+  /* Level the Warrior up twice: its +6 strength shows as one "Hero level" line under Strength. */
   const { gainXp } = await import('../js/engine/levels.js');
   gainXp(world(), world().heroes[0], 22); dom.frames(20);
   const lv = dom.made.filter(e => e.className === 'buff' && / · Hero level$/.test(e._text)).map(e => e._text);
-  assert.ok(lv.includes('+6% · Hero level'), 'level bonus listed: ' + lv.join(' | '));
+  assert.ok(lv.includes('+6 · Hero level'), 'level bonus listed: ' + lv.join(' | '));
   stopGame(); startGame(hooks); dom.frames(2);
 });
 
@@ -207,12 +208,12 @@ test('the gold box shows Compound interest: what the next wave pays and the gold
   world().mods.push(...ci.mods(1).map(m => ({ ...m, source: ci.name, ri: 0 }))); recalc(world());
   dom.frames(1);
   assert.equal(byId.interest.hidden, false);
-  assert.equal(byId.interest._v, 'Interest +0 · full at 1,200', '0.75% of 100 gold rounds down; full at 9 / 0.75% = 1,200');
+  assert.equal(byId.interest._v, 'Interest +5 · full at 1,200', '5% of 100 gold, full at 60 / 5% = 1,200');
   world().gold = 1500; dom.frames(1);
-  assert.equal(byId.interest._v, 'Interest +9 (full)');
+  assert.equal(byId.interest._v, 'Interest +60 (full)');
 });
 
-test('evolving the Mage: an Evolve button rises over it, the panel shows the three forms, and a choice evolves it', async () => {
+test('evolving the Mage: an Evolve button pops up above its card, the panel shows the three forms, and a choice evolves it', async () => {
   const { levelMods } = await import('../js/engine/levels.js');
   byId.newRun.onclick(); dom.frames(2);
   const [t] = freeTiles(1);
@@ -220,9 +221,11 @@ test('evolving the Mage: an Evolve button rises over it, the panel shows the thr
   const m = world().heroes[0];
   m.level = 10; m.lvlMods = levelMods(10); world().statsFor(m); world().gold = 500;   /* test only */
   dom.frames(20);
-  const rise = dom.made.find(e => e.className === 'evofloat' && !e.removed);
-  assert.ok(rise, 'a button rises over the hero once it can evolve'); assert.match(rise.style.transform, /^translate\(/);
-  closeAll(); rise.onclick({}); dom.frames(1);
+  const rise = dom.heroButton(2)._up;
+  assert.equal(dom.heroButton(0)._up.hidden, true, 'only heroes that can evolve show it');
+  assert.equal(rise.hidden, false, 'the Evolve button is up, above the hero card'); assert.equal(rise._text, '▲ Evolve');
+  assert.ok(dom.heroButton(2)._wrap.children.includes(rise), 'it sits with the card, not on the map');
+  closeAll(); rise.onclick(); dom.frames(1);
   assert.equal(byId.heroPanel.hidden, false, 'it opens the hero panel');
   const choices = dom.made.filter(e => e.className === 'evochoice' && byId.inspect.children.some(c => c.children.includes(e)));
   assert.deepEqual(choices.map(c => c.children[0]._text), ['Fire Mage', 'Cold Mage', 'Lightning Mage']);
@@ -230,7 +233,7 @@ test('evolving the Mage: an Evolve button rises over it, the panel shows the thr
   choices[2].onclick(); dom.frames(1);
   assert.equal(m.def.name, 'Lightning Mage'); assert.equal(world().gold, 350);
   assert.ok(dom.made.some(e => e.tag === 'b' && e._text === '★ Lightning Mage · Lv 10'), 'the panel title shows the new form');
-  assert.equal(rise.removed, true, 'the rising button goes away');
+  assert.equal(rise.hidden, true, 'the Evolve button goes away');
   assert.equal(dom.heroButton(2).hidden, true, 'a fully evolved hero has no button any more');
 });
 
@@ -242,7 +245,7 @@ test('the match uses the lineup and items from the Play screen', () => {
   assert.equal(dom.heroButton(2).children[0]._v, '1', 'keys follow the lineup order'); assert.equal(dom.heroButton(0).children[0]._v, '2');
   const [t] = freeTiles(1);
   dom.heroButton(0).onclick(); click(...t); dom.frames(1);
-  assert.equal(world().heroes[0].s.damage, 28 + 5, 'the Power Charm is equipped');
+  assert.ok(Math.abs(world().heroes[0].s.damage - 33 * 1.1) < 1e-9, 'the Power Charm is equipped');
   stopGame(); startGame(hooks); dom.frames(2);
 });
 

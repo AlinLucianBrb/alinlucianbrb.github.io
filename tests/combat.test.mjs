@@ -11,9 +11,11 @@ import { richWorld, place, enemyAt, dealt } from './helpers.mjs';
 
 const near = 1e-6;
 const mod = (stat, value, type = 'flat', scope = ['all']) => ({ stat, type, value, scope, source: 'test', ri: 0 });
+/* Heroes here deal their base damage: -10 to their own attribute cancels its +10% (attributes are tested in attributes.test.mjs). */
+const NO_ATTRIBUTE = { stat: 'mainAttribute', type: 'flat', value: -10, scope: ['all'], source: 'test', ri: 0 };
 function setup(heroId, mods = [], seed = 31) {
   const w = richWorld({ seed });
-  for (const m of mods) w.mods.push(m);
+  for (const m of [NO_ATTRIBUTE, ...mods]) w.mods.push(m);
   recalc(w);
   let tile; for (let cx = 4; !tile && cx < 12; cx++) for (let cy = 2; cy < 8; cy++) if (!w.pathSet.has(cx + ',' + cy)) { tile = [cx, cy]; break; }
   return { w, h: place(w, heroId, ...tile) };

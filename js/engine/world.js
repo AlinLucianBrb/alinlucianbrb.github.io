@@ -17,7 +17,7 @@ import { attackMult, gainEnergy } from './ultimates.js';
 import { gainXp } from './levels.js';
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
-export const ENGINE_VERSION = 11;     /* bump when a rule change would make old command logs play out differently */
+export const ENGINE_VERSION = 12;     /* bump when a rule change would make old command logs play out differently */
 
 function genPath(rng) {
   let x = 0, y = 1 + rng.int(ROWS - 2); const p = [[x, y]];
@@ -50,7 +50,7 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
     seed: seed >>> 0, stageN: stage, stage: def, maxWave: def.waves, rng, path, pathSet: new Set(path.map(c => c.join(','))),
     tick: 0, phase: 'build', won: false, auto: false, autoT: 3, picking: false, pick: null,
     gold: 100 + resolve(0, 'startGold', mods), lives: 20 + resolve(0, 'startLives', mods),
-    wave: 0, spawnLeft: 0, spawnT: 0, kills: 0, nextHeroId: 1,
+    wave: 0, spawnLeft: 0, spawnT: 0, kills: 0, bossKills: 0, nextHeroId: 1,
     heroes: [], enemies: [], projs: [], zones: [], mods, relics: [], relicsBought: 0, banned: new Set(),
     ev: createBus(), fx: null, gs: null, talents: [...talents], lineup: team, items: equipped,
     log: record ? { v: 1, ver: ENGINE_VERSION, seed: seed >>> 0, stage, talents: [...talents], lineup: [...team], items: { ...equipped }, commands: [], ticks: 0 } : null
@@ -68,11 +68,16 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
   w.meter = createMeter(w.ev);
   w.ev.on('kill', ({ enemy }) => {
     w.gold += Math.round(w.gs.bounty * enemy.def.bounty) + bonusGold(w); w.kills++;
+    if (enemy.def.boss) w.bossKills++;   /* each boss defeated guarantees an item at the end of the match (finish_run) */
     for (const h of w.heroes) gainXp(w, h, enemy.def.xp || 0);   /* every hero on the field learns from every kill */
   });
   w.statsFor = h => statsFor(w, h);
   w.addBuff = (h, id, name, mods, seconds) => addBuff(w, h, id, name, mods, seconds);
-  w.ev.on('escape', ({ enemy }) => { w.lives = Math.max(0, w.lives - enemy.def.leak); if (w.lives <= 0) endRun(w, false); });
+  /* A boss that gets through on the last wave ends the run: a level is only won by beating its final boss. */
+  w.ev.on('escape', ({ enemy }) => {
+    w.lives = Math.max(0, w.lives - enemy.def.leak);
+    if (w.lives <= 0 || (enemy.def.boss && w.wave >= w.maxWave)) endRun(w, false);
+  });
   recalc(w);
   /* Free relic rerolls and banishes for this match: they come only from talents. */
   w.rerolls = Math.round(resolve(0, 'rerolls', mods)); w.banishes = Math.round(resolve(0, 'banishes', mods));
@@ -177,4 +182,4 @@ export function step(w) {
   return true;
 }
 
-export const summary = w => ({ waves: w.wave, kills: w.kills, won: w.won, over: w.phase === 'over', lives: w.lives, gold: w.gold, ticks: w.tick });
+export const summary = w => ({ waves: w.wave, kills: w.kills, bosses: w.bossKills, won: w.won, over: w.phase === 'over', lives: w.lives, gold: w.gold, ticks: w.tick });

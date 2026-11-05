@@ -57,9 +57,9 @@ export async function startRun(stage) {
   return { id: data || null, error: error && error.message };
 }
 /* Returns { profile, drop, drops, error }: drops are the item types found at the end of the match (drop is the first, or null). */
-export async function finishRun(runId, waves, kills, won) {
+export async function finishRun(runId, waves, kills, won, bosses = 0) {
   if (!sb) return { profile: null, ...OFFLINE };
-  const { data: res, error } = await sb.rpc('finish_run', { p_run: runId, p_waves: waves, p_kills: kills, p_won: won });
+  const { data: res, error } = await sb.rpc('finish_run', { p_run: runId, p_waves: waves, p_kills: kills, p_won: won, p_bosses: bosses });
   const data = res && res.profile ? res.profile : res;   /* older databases return the profile itself */
   if (data) fill(data);
   if (res && 'drop' in res) return { profile: data, drop: res.drop || null, drops: res.drops || (res.drop ? [res.drop] : []), error: error && error.message };

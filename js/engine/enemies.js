@@ -27,6 +27,8 @@ export const waveCount = w => 5 + w * 2;
 export const spawnDelay = w => Math.max(0.35, 0.85 - w * 0.02);
 /* Boss waves: the last wave of every level, plus the middle wave from level 3 on. The boss is the wave's last enemy. */
 export const isBossWave = (wave, stage) => wave === stage.waves || (stage.n >= 3 && wave === Math.round(stage.waves / 2));
+/* How many boss waves a run that reached `waves` has seen (the server uses the same rule to check boss kills). */
+export const bossWavesUpTo = (stage, waves) => { let n = 0; for (let i = 1; i <= Math.min(waves, stage.waves); i++) if (isBossWave(i, stage)) n++; return n; };
 /* i counts down from the wave size to 1, so the mix is the same every time. */
 export function waveEnemyType(w, i, stage) {
   if (i === 1 && stage && isBossWave(w, stage)) return 'boss';

@@ -1,62 +1,130 @@
-/* The Heroes screen against a fake page and a fake server: lineup rules, equipping items, saving and undoing a failed save. */
+/* The Heroes, Inventory and level screens against a fake page and a fake server: hero pages with Information and
+   Evolutions tabs, equipping items, the inventory grid, and choosing heroes after picking a level. */
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { installFakeDom } from './fake-dom.mjs';
 
 const dom = installFakeDom();
-const saves = [];
+const saves = [], navs = [];
 let failNext = false;
 mock.module(new URL('../js/services/api.js', import.meta.url).href, { namedExports: {
   getItems: async () => ({ items: [{ id: 'i1', item_type: 'power_charm' }, { id: 'i2', item_type: 'power_charm' }] }),
   saveLoadout: async (lineup, equipment) => { saves.push({ lineup, equipment }); if (failNext) { failNext = false; return { error: 'boom' }; } return { profile: { lineup, equipment } }; }
 } });
 const { state } = await import('../js/core/state.js');
-const screen = (await import('../js/screens/heroes.js')).default;
+const { bus } = await import('../js/core/bus.js');
+bus.on('nav', n => navs.push(n));
+const heroes = (await import('../js/screens/heroes.js')).default;
+const inventory = (await import('../js/screens/inventory.js')).default;
+const levels = (await import('../js/screens/levels.js')).default;
 const { byId } = dom;
-const cards = () => byId.hrGrid.children;
-const btn = (card, re) => { const find = e => (e.tag === 'button' && re.test(e._text)) ? e : e.children.map(find).find(Boolean); return find(card); };
+/* The fake page has no markup, so give the two tab buttons the screen expects. */
+const tabBtn = id => Object.assign(document.createElement('button'), { dataset: { tab: id } });
+document.getElementById('hrTabs').children.push(tabBtn('info'), tabBtn('evo'));
+const find = (root, pred) => (pred(root) ? root : root.children.map(c => find(c, pred)).find(Boolean));
+const findAll = (root, pred, out = []) => { if (pred(root)) out.push(root); root.children.forEach(c => findAll(c, pred, out)); return out; };
+const btn = (root, re) => find(root, e => e.tag === 'button' && re.test(e._text));
+const texts = root => findAll(root, e => !!e._text).map(e => e._text);
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
-test('shows every playable hero with its lineup state and an item slot', async () => {
+test('Heroes: one card per playable hero; clicking opens its page on the Information tab', async () => {
   state.profile = { level: 2, lineup: ['warrior', 'ranger', 'mage'], equipment: {} };
   state.items = null;
-  await screen.mount();
-  assert.equal(cards().length, 3);
-  assert.equal(byId.hrCount._text, '3 / 3');
-  assert.ok(btn(cards()[0], /^✓ In lineup$/));
-  assert.ok(btn(cards()[0], /^Equip Power Charm \(2\)$/), 'two unworn charms to choose from');
+  await heroes.mount(null, {});
+  assert.equal(byId.hrGrid.children.length, 3);
+  assert.equal(byId.hrPage.hidden, true);
+  assert.ok(texts(byId.hrGrid.children[0]).includes('Melee · Strength'));
+  byId.hrGrid.children[0].onclick();
+  assert.equal(byId.hrPage.hidden, false); assert.equal(byId.hrList.hidden, true); assert.equal(byId.hrTitle._text, 'Warrior');
+  assert.equal(byId.hrTabs.children[0]._cls.has('on'), true);
+  const [gear, pic, stats] = byId.hrBody.children;
+  assert.equal(gear.children[0]._text, 'Gear'); assert.ok(texts(pic).includes('Hero art coming soon')); assert.equal(stats.children[0]._text, 'Stats');
+  const st = texts(stats);
+  assert.ok(st.includes('Strength (main)') && st.includes('Dexterity') && st.includes('Intellect'), 'the three attributes');
+  assert.ok(st.includes('30.8'), 'damage 28 +10% from 10 strength');
+  assert.ok(st.includes('+10% from Strength'));
 });
 
-test('lineup: at most three, at least one, saved after a short pause', async () => {
-  btn(cards()[2], /In lineup/).onclick();              /* take the Mage out */
-  assert.equal(byId.hrCount._text, '2 / 3');
-  btn(cards()[1], /In lineup/).onclick();
-  btn(cards()[0], /In lineup/).onclick();              /* would leave nobody */
-  assert.equal(byId.hrMsg._text, 'Bring at least one hero.');
-  assert.deepEqual(state.profile.lineup, ['warrior']);
-  await wait(700);
-  assert.deepEqual(saves.at(-1).lineup, ['warrior']);
-  btn(cards()[1], /Add to lineup/).onclick(); btn(cards()[2], /Add to lineup/).onclick();
-  assert.deepEqual(state.profile.lineup, ['warrior', 'ranger', 'mage']);
-});
-
-test('equipping uses a free item each time, and the same item is never worn twice', async () => {
-  btn(cards()[0], /^Equip Power Charm/).onclick();
+test('Information: equipping uses a free item, shows it in the slot and in the stats; saved after a short pause', async () => {
+  btn(byId.hrBody, /^Equip Power Charm \(2\)$/).onclick();
   assert.equal(state.profile.equipment.warrior, 'i1');
-  btn(cards()[1], /^Equip Power Charm \(1\)$/).onclick();
-  assert.equal(state.profile.equipment.ranger, 'i2');
-  assert.equal(btn(cards()[2], /^Equip/), undefined, 'no charms left for the Mage');
-  btn(cards()[0], /^Remove$/).onclick();
-  assert.equal(state.profile.equipment.warrior, undefined);
+  assert.ok(texts(byId.hrBody).includes('Power Charm')); assert.ok(btn(byId.hrBody, /^Remove$/));
+  assert.ok(texts(byId.hrBody).includes('36.3'), '(28 + 5) x 1.1 with the charm');
   await wait(700);
-  assert.deepEqual(saves.at(-1).equipment, { ranger: 'i2' });
+  assert.deepEqual(saves.at(-1), { lineup: ['warrior', 'ranger', 'mage'], equipment: { warrior: 'i1' } });
+  byId.hrBack.onclick();                                 /* back to the list */
+  assert.equal(byId.hrPage.hidden, true);
+  assert.ok(texts(byId.hrGrid.children[0]).includes('Wearing Power Charm'));
+  byId.hrGrid.children[1].onclick();
+  assert.ok(btn(byId.hrBody, /^Equip Power Charm \(1\)$/), 'only one charm left for the Ranger');
 });
 
-test('a failed save puts back the last saved loadout and says why', async () => {
+test('Evolutions tab: the base hero, then its three forms', () => {
+  byId.hrTabs.children[1].onclick();
+  const tree = byId.hrBody.children[0];
+  assert.equal(tree.className, 'evotree');
+  assert.equal(tree.children[0].children[0]._text, 'Ranger');
+  assert.equal(tree.children[1]._text, 'Level 10 · 150 gold · choose one');
+  assert.deepEqual(tree.children[2].children.map(n => n.children[0]._text), ['Marksman', 'Boomerang Ranger', 'Hunter']);
+  assert.ok(texts(tree).some(t => /^Ultimate: /.test(t)));
+});
+
+test('a failed save puts back the last saved equipment and says why', async () => {
+  byId.hrTabs.children[0].onclick();
   failNext = true;
-  btn(cards()[0], /^Equip Power Charm/).onclick();
+  btn(byId.hrBody, /^Equip Power Charm/).onclick();
   await wait(700);
-  assert.deepEqual(state.profile.equipment, { ranger: 'i2' });
+  assert.deepEqual(state.profile.equipment, { warrior: 'i1' });
   assert.match(byId.hrMsg._text, /^Could not save: boom/);
-  screen.unmount();
+  heroes.unmount();
+});
+
+test('Inventory: every item as an icon on a grid, with a tooltip saying what it does and who wears it', async () => {
+  await inventory.mount();
+  assert.equal(byId.invCount._text, '2 / 200');
+  assert.equal(byId.invGrid.children.length, 40, 'an 8 x 5 grid, empty cells included');
+  const full = byId.invGrid.children.filter(c => c.className.includes('full'));
+  assert.equal(full.length, 2);
+  assert.equal(full[0].children[0].className, 'itemicon'); assert.equal(full[0].children[0]._text, 'PC', 'placeholder icon: initials');
+  assert.ok(full[0]._cls.has('worn'), 'the worn one comes first and is marked');
+  full[0].fire('pointerenter', { clientX: 5, clientY: 5 });
+  let tip = dom.made.filter(e => e.className === 'tip').at(-1);
+  assert.deepEqual(tip.children.map(c => c._text), ['Power Charm', '+5 damage', 'Trinket slot', 'Equipped on the Warrior']);
+  full[1].fire('pointerenter', { clientX: 5, clientY: 5 });
+  tip = dom.made.filter(e => e.className === 'tip').at(-1);
+  assert.match(tip.children.at(-1)._text, /^Not equipped/);
+  assert.equal(byId.invEmpty.hidden, true);
+});
+
+test('Levels: picking a level asks for the heroes (1 to 3), then Start saves the lineup and opens the match', async () => {
+  state.profile = { ...state.profile, levels_cleared: 1, frontier_wave: 0, lineup: ['warrior', 'ranger', 'mage'] };
+  await levels.mount(null, {});
+  assert.equal(byId.lvChoose.hidden, false); assert.equal(byId.lvPick.hidden, true);
+  assert.equal(byId.lvList.children[2].disabled, true, 'level 3 is locked');
+  byId.lvList.children[1].onclick();
+  assert.equal(byId.lvPick.hidden, false); assert.equal(byId.lvPickTitle._text, 'Level 2: choose your heroes');
+  assert.equal(byId.lvCount._text, '3 / 3');
+  const cards = () => byId.lvHeroes.children;
+  cards()[2].onclick(); cards()[1].onclick();            /* leave the Mage and the Ranger home */
+  cards()[0].onclick();                                   /* would leave nobody */
+  assert.equal(byId.lvMsg._text, 'Bring at least one hero.');
+  cards()[2].onclick();                                   /* bring the Mage back */
+  assert.equal(byId.lvCount._text, '2 / 3');
+  assert.equal(find(cards()[2], e => e.className === 'pickmark')._text, '✓ 2', 'shows the order they were picked in');
+  navs.length = 0;
+  await byId.lvStart.onclick();
+  assert.deepEqual(saves.at(-1).lineup, ['warrior', 'mage']);
+  assert.deepEqual(navs, [{ to: 'play', params: { stage: 2 } }]);
+  assert.deepEqual(state.profile.lineup, ['warrior', 'mage']);
+});
+
+test('Levels: "Next level" after a win comes straight to choosing heroes; Back returns to the level list', async () => {
+  await levels.mount(null, { stage: 2 });
+  assert.equal(byId.lvPick.hidden, false); assert.equal(byId.lvPickTitle._text, 'Level 2: choose your heroes');
+  byId.lvBack.onclick();
+  assert.equal(byId.lvChoose.hidden, false);
+  failNext = true; navs.length = 0;
+  byId.lvList.children[0].onclick(); await byId.lvStart.onclick();
+  assert.match(byId.lvMsg._text, /^Could not save your lineup: boom/, 'a refused save does not start the match');
+  assert.deepEqual(navs, []);
 });

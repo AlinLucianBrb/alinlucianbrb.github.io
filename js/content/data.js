@@ -9,15 +9,22 @@ export const COLS = 16, ROWS = 10, T = 40;
    ultimate (see js/engine/ultimates.js). These are the defaults; a hero can override them, and talents, relics and items
    can change them like any other stat. */
 export const ENERGY = { energyMax: 100, energyPerAttack: 20, energyPerSecond: 0 };
-/* Every hero gets the energy stats and the combat stats (added damage by type, ailment chances), so anything can raise them. */
-const withEnergy = (stats, own = {}) => ({ ...stats, ...ENERGY, ...COMBAT_STATS, ...own });
+/* Attributes: strength, dexterity and intellect. Every hero has all three, and one of them is its own (attribute on the hero:
+   Warrior strength, Ranger dexterity, Mage intellect). For now each point of a hero's own attribute gives +1% increased damage
+   (ATTRIBUTE_DAMAGE); the other two do nothing yet. Hero levels raise the hero's own attribute (stat mainAttribute, see
+   HERO_LEVELS). Talents, relics and items can raise any of them like any other stat. */
+export const ATTRIBUTES = ['strength', 'dexterity', 'intellect'];
+export const ATTRIBUTE_DAMAGE = 0.01;
+const ATTRS = { strength: 0, dexterity: 0, intellect: 0 };
+/* Every hero gets the energy stats, the attributes and the combat stats (added damage by type, ailment chances), so anything can raise them. */
+const withEnergy = (stats, own = {}) => ({ ...stats, ...ENERGY, ...ATTRS, ...COMBAT_STATS, ...own });
 
 /* Hero levels during a match: every hero on the field gains XP from each enemy killed (the enemy's xp value, see enemies.js),
    whoever landed the blow. Each level adds perLevel (scaled by levels gained); xpToNext(L) is the XP from level L to L + 1. */
 export const HERO_LEVELS = {
   max: 30,
   xpToNext: L => 10 + 2 * (L - 1),
-  perLevel: [{ stat: 'damage', type: 'inc', value: 0.03 }]
+  perLevel: [{ stat: 'mainAttribute', type: 'flat', value: 3 }]   /* +3 to the hero's own attribute, so +3% damage, per level */
 };
 
 /* Evolution: heroes can evolve during a match by spending gold, once they reach the step's level.
@@ -32,8 +39,8 @@ const always = stat => ({ stat, type: 'flat', value: 1, scope: ['all'] });   /* 
    To add a hero: add an entry here and a talent tree in talents.js. A new "kind" also needs a behavior in behaviors.js. */
 export const LINEUP_SIZE = 3;
 export const HEROES = [
-  { id: 'warrior', name: 'Warrior', archetype: 'melee', kind: 'swing', damageType: 'physical', color: '#c7ced6', shape: [5, -Math.PI / 2], tags: ['melee', 'physical'],
-    stats: withEnergy({ damage: 28, range: 60, cooldown: 0.8, speed: 1, arc: 120 }), ultimate: 'empowered',
+  { id: 'warrior', name: 'Warrior', archetype: 'melee', attribute: 'strength', kind: 'swing', damageType: 'physical', color: '#c7ced6', shape: [5, -Math.PI / 2], tags: ['melee', 'physical'],
+    stats: withEnergy({ damage: 28, range: 60, cooldown: 0.8, speed: 1, arc: 120 }, { strength: 10, dexterity: 4, intellect: 2 }), ultimate: 'empowered',
     evolutions: [{ level: 10, cost: 150, choices: [
       { id: 'berserker', name: 'Berserker', color: '#e5645a', kind: 'doubleswing', ultimate: 'frenzy', mods: [...plus50, always('bleedChance')],
         short: 'Swings twice in quick succession, and every hit makes enemies bleed.', ultShort: 'Frenzy: +50% damage and attack speed for 5 seconds.' },
@@ -44,9 +51,9 @@ export const HEROES = [
     ] }],
     desc: 'Warrior (melee): swings at close range, hitting every enemy in the arc. Evolves into a Berserker, Commander or Sentinel.',
     short: 'Swings a blade at close range, hitting every enemy in front of him. At level 10, choose a path.' },
-  { id: 'ranger', name: 'Ranger', archetype: 'range', kind: 'bolt', projLook: 'arrow', projSpeed: 620, damageType: 'physical', color: '#f2b84b', shape: [0, 0],
+  { id: 'ranger', name: 'Ranger', archetype: 'range', attribute: 'dexterity', kind: 'bolt', projLook: 'arrow', projSpeed: 620, damageType: 'physical', color: '#f2b84b', shape: [0, 0],
     tags: ['range', 'projectile', 'physical'],
-    stats: withEnergy({ damage: 16, range: 120, cooldown: 0.5, speed: 1 }), ultimate: 'empowered',
+    stats: withEnergy({ damage: 16, range: 120, cooldown: 0.5, speed: 1 }, { strength: 4, dexterity: 10, intellect: 3 }), ultimate: 'empowered',
     evolutions: [{ level: 10, cost: 150, choices: [
       { id: 'marksman', name: 'Marksman', color: '#ffd76a', ultimate: 'piercing', mods: plus50,
         short: 'Same arrows, more of them.', ultShort: 'Charges a powerful arrow that pierces every enemy in its path.' },
@@ -57,8 +64,8 @@ export const HEROES = [
     ] }],
     desc: 'Ranger (range): fast arrows at the enemy closest to your gate. Evolves into a Marksman, Boomerang Ranger or Hunter.',
     short: 'Long range and fast. Shoots arrows at the enemy closest to your gate. At level 10, choose a path.' },
-  { id: 'mage', name: 'Mage', archetype: 'spell', kind: 'bolt', damageType: 'spell', color: '#c39bf2', shape: [4, -Math.PI / 2], tags: ['spell', 'arcane'],
-    stats: withEnergy({ damage: 26, range: 110, cooldown: 1, speed: 1, targets: 1 }), ultimate: 'empowered',
+  { id: 'mage', name: 'Mage', archetype: 'spell', attribute: 'intellect', kind: 'bolt', damageType: 'spell', color: '#c39bf2', shape: [4, -Math.PI / 2], tags: ['spell', 'arcane'],
+    stats: withEnergy({ damage: 26, range: 110, cooldown: 1, speed: 1, targets: 1 }, { strength: 2, dexterity: 4, intellect: 10 }), ultimate: 'empowered',
     /* At level 10 the Mage picks an element. The slow is the Frost Mage's old chill effect, kept for exactly this. */
     evolutions: [{ level: 10, cost: 150, choices: [
       { id: 'firemage', name: 'Fire Mage', color: '#ff7a45', damageType: 'fire', ultimate: 'inferno', tags: ['fire'],
@@ -118,6 +125,7 @@ export const STAGES = [
 export const STAT_LABELS = {
   damage: 'Damage', range: 'Range', speed: 'Attacks per second', chillTime: 'Chill duration (s)', jumps: 'Chain jumps',
   rampRate: 'Beam ramp speed', arc: 'Swing arc (°)', targets: 'Targets per attack',
+  strength: 'Strength', dexterity: 'Dexterity', intellect: 'Intellect', mainAttribute: 'Main attribute',
   energyMax: 'Energy needed', energyPerAttack: 'Energy per attack', energyPerSecond: 'Energy per second',
   ...COMBAT_LABELS, relicLuck: 'Relic luck',
   bounty: 'Gold per kill', bountyChance: 'Chance for +2 gold per kill', rerolls: 'Free relic rerolls per match', banishes: 'Free relic banishes per match',
@@ -150,12 +158,19 @@ export function rollRarity(r01, luck = 0) {
    scope is a list of hero tags (or ['all']) for hero stats, or 'global' for economy stats.
    Relics are defined at Common strength; m is the rarity multiplier: Common 1, Uncommon 2, Rare 3, Epic 4 (always a whole number).
    Relics are cheap and you buy many in a run, so each one is small: these are 15% of the earlier values (RELIC_POWER), except
-   Prospector (a 25% chance of +2 gold per kill per Common) and Tax collector (half its earlier value). */
+   Prospector (a 25% chance of +2 gold per kill per Common; past 100% it rolls again), Tax collector (half its earlier value)
+   and Compound interest (full strength). */
 export const RELIC_POWER = 0.15;
 const f = x => +x.toFixed(2);
 const P = x => x * RELIC_POWER;
 const hero = (stat, type, value, scope) => ({ stat, type, value, scope });
 const glob = (stat, type, value) => ({ stat, type, value, scope: 'global' });
+/* Prospector: every full 100% is a sure +2 gold per kill, and the rest is a chance of 2 more (200% = +4, 250% = +4 and a 50% chance of +2). */
+const prospect = pct => {
+  const sure = Math.floor(pct / 100 + 1e-9), rest = f(pct - sure * 100);
+  if (!sure) return f(pct) + '% chance of +2 gold per kill';
+  return '+' + 2 * sure + ' gold per kill' + (rest > 0 ? ', and a ' + rest + '% chance of +2 more' : '') + ' (' + f(pct) + '%)';
+};
 const lives = m => Math.max(1, Math.round(P(5) * m));
 export const RELICS = [
   { name: 'Sharpened rounds',  desc: m => '+' + f(P(25) * m) + '% damage (all heroes)',  mods: m => [hero('damage', 'inc', P(0.25) * m, ['all'])] },
@@ -163,13 +178,13 @@ export const RELICS = [
   { name: 'Quick hands',       desc: m => '+' + f(P(20) * m) + '% attack speed',        mods: m => [hero('speed', 'inc', P(0.2) * m, ['all'])] },
   { name: 'Four-leaf clover',  desc: m => '+' + f(P(50) * m) + '% relic luck: rarer relics turn up more often', label: 'Relic luck', mods: m => [glob('relicLuck', 'flat', P(0.5) * m)] },
   { name: 'Battle focus',      desc: m => '+' + f(P(25) * m) + '% energy from attacks, so ultimates come sooner', mods: m => [hero('energyPerAttack', 'inc', P(0.25) * m, ['all'])] },
-  { name: 'Prospector',        desc: m => f(25 * m) + '% chance of +2 gold per kill' + (m * 0.25 >= 1 ? ' (always)' : ''), label: 'Economy', mods: m => [glob('bountyChance', 'flat', 0.25 * m)] },
+  { name: 'Prospector',        desc: m => prospect(25 * m), label: 'Economy', mods: m => [glob('bountyChance', 'flat', 0.25 * m)] },
   { name: 'Reinforced gate',   desc: m => '+' + lives(m) + ' li' + (lives(m) > 1 ? 'ves' : 'fe'), label: 'Your gate', onPick: (g, m) => { g.lives += lives(m); } },
   { name: 'Bulk order',        desc: m => 'Evolutions cost ' + f(P(15) * m) + '% less', label: 'Economy', mods: m => [glob('evolveCost', 'more', -P(0.15) * m)] },
   { name: 'Split bolt',        desc: m => 'Spell attacks: ' + f(P(100) * m) + '% chance to hit 1 more target', mods: m => [hero('targets', 'flat', P(1) * m, ['spell'])] },
   { name: 'Tax collector',     desc: m => '+' + f(25 * m) + '% gold for clearing a wave', label: 'Economy', mods: m => [glob('waveGold', 'inc', 0.25 * m)] },
-  { name: 'Compound interest', desc: m => 'After each wave, earn ' + f(P(5) * m) + '% of your unspent gold as interest, up to ' + f(P(60) * m) + ' gold. More copies stack: their % and limits add up.',
-    label: 'Economy', mods: m => [glob('interest', 'flat', P(0.05) * m), glob('interestCap', 'flat', P(60) * m)] },
+  { name: 'Compound interest', desc: m => 'After each wave, earn ' + f(5 * m) + '% of your unspent gold as interest, up to ' + 60 * m + ' gold. More copies stack: their % and limits add up.',
+    label: 'Economy', mods: m => [glob('interest', 'flat', 0.05 * m), glob('interestCap', 'flat', 60 * m)] },
   { name: 'Fine arrows',       desc: m => '+' + f(P(30) * m) + '% damage to projectile heroes', mods: m => [hero('damage', 'inc', P(0.3) * m, ['projectile'])] },
   { name: 'Whetstone',         desc: m => '+' + f(P(30) * m) + '% damage to melee heroes',      mods: m => [hero('damage', 'inc', P(0.3) * m, ['melee'])] },
   { name: 'Arcane focus',      desc: m => '+' + f(P(30) * m) + '% damage to spell heroes',      mods: m => [hero('damage', 'inc', P(0.3) * m, ['spell'])] },

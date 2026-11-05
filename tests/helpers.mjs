@@ -42,7 +42,8 @@ export function enemyAt(w, x, y, d = 0, hp = 1e6, type = 'grunt') {
   w.enemies.push(e);
   return e;
 }
-export const dealt = e => e.max - e.hp;
+/* Damage taken so far, rounded to 6 decimals so float noise never matters (hero damage includes +1% per attribute point). */
+export const dealt = e => Math.round((e.max - e.hp) * 1e6) / 1e6;
 
 /* Runs fn with a temporary change to an object, then puts it back. */
 export function withTemp(obj, changes, fn) {

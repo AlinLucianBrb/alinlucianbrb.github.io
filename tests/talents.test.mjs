@@ -30,7 +30,7 @@ test('talents target tags, not heroes: the Elements branch reaches the Hunter an
   const mods = talentMods(['main_5_0']), ranger = HEROES.find(h => h.id === 'ranger');
   const hunter = evolvedDef(ranger, ranger.evolutions[0].choices.find(c => c.id === 'hunter'));
   assert.ok(heroStats(hunter, mods).damage > heroStats(ranger, mods).damage);
-  assert.equal(heroStats(ranger, mods).damage, 16);
+  assert.ok(Math.abs(heroStats(ranger, mods).damage - 16 * 1.1) < 1e-9, 'only its dexterity bonus');
 });
 
 test('allocation and removal follow the connection rules', () => {
@@ -53,8 +53,8 @@ test('talents become modifiers that only hit the intended heroes', () => {
   const mods = talentMods(['main_2_0', 'main_0_0', 'main_7_0', 'nope', 'main_root']);
   assert.deepEqual(mods.map(m => m.stat).sort(), ['damage', 'damage', 'startGold']);
   const warrior = HEROES.find(h => h.id === 'warrior'), ranger = HEROES.find(h => h.id === 'ranger');
-  assert.ok(Math.abs(heroStats(warrior, mods).damage - 28 * 1.10) < 1e-9, 'melee +6% and all +4%');
-  assert.ok(Math.abs(heroStats(ranger, mods).damage - 16 * 1.04) < 1e-9, 'only the general damage reaches the ranger');
+  assert.ok(Math.abs(heroStats(warrior, mods).damage - 28 * 1.20) < 1e-9, 'melee +6%, all +4% and strength +10%');
+  assert.ok(Math.abs(heroStats(ranger, mods).damage - 16 * 1.14) < 1e-9, 'only the general damage reaches the ranger');
 });
 
 test('non-damage talents: rewards, relic rerolls and banishes, hero XP and 3x speed', async () => {

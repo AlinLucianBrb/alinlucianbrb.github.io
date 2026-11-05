@@ -34,12 +34,12 @@ export default {
         runId = r.id; return r;
       } catch (e) { runId = null; return { error: 'no connection to the server' }; }   /* the game still plays; only saving is affected */
     }
-    async function onRunEnd({ waves, kills, won }) {
+    async function onRunEnd({ waves, kills, won, bosses = 0 }) {
       const s = await starting;
       if (!runId) return 'Could not save your run: ' + (s.error || 'it was not started') + hint(s.error);
       const id = runId; runId = null;
       const before = state.profile;
-      const { profile, drop, drops = drop ? [drop] : [], error } = await finishRun(id, waves, kills, won);
+      const { profile, drop, drops = drop ? [drop] : [], error } = await finishRun(id, waves, kills, won, bosses);
       if (error || !profile) return 'Could not save your run: ' + (error || 'unknown error') + hint(error);
       state.profile = profile;
       if (drops.length) state.items = null;   /* reload the inventory next time it is needed */
@@ -53,7 +53,7 @@ export default {
       stage, talents: state.profile.talents || [], lineup: state.profile.lineup, items: equipped, onRunEnd,
       onRunStart: () => { runId = null; starting = register(); },
       onExit: () => bus.emit('nav', { to: 'menu' }),
-      onNext: () => bus.emit('nav', { to: 'play', params: { stage: stage + 1 } })
+      onNext: () => bus.emit('nav', { to: 'levels', params: { stage: stage + 1 } })   /* choose heroes for the next level */
     });
   },
   unmount() { stopGame(); }

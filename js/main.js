@@ -10,9 +10,10 @@ import play from './screens/play.js';
 import talents from './screens/talents.js';
 import levels from './screens/levels.js';
 import heroes from './screens/heroes.js';
+import inventory from './screens/inventory.js';
 
 register('login', login); register('menu', menu); register('leaderboard', leaderboard);
-register('settings', settings); register('play', play); register('talents', talents); register('levels', levels); register('heroes', heroes);
+register('settings', settings); register('play', play); register('talents', talents); register('levels', levels); register('heroes', heroes); register('inventory', inventory);
 bus.on('nav', ({ to, params }) => show(to, params));
 
 (async () => {

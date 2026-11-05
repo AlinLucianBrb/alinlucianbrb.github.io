@@ -1,125 +1,138 @@
-/* Heroes screen: choose which heroes to bring into matches (the lineup) and which item each one wears. Saved automatically. */
+/* Heroes screen: every playable hero as a card; click one to open its page, with two tabs.
+   - Information: gear slots on the left, the hero's picture in the middle (a placeholder until there is art), stats on the right.
+   - Evolutions: the hero's evolution tree, from the base hero to each form it can become.
+   Equipment changes are saved automatically. (The lineup is chosen after picking a level.) */
 import { bus } from '../core/bus.js';
 import { state } from '../core/state.js';
-import { getItems, saveLoadout } from '../services/api.js';
 import { bindTip } from '../core/tooltip.js';
-import { HEROES, LINEUP_SIZE } from '../content/data.js';
-import { ITEMS } from '../content/items.js';
+import { HEROES, STAT_LABELS, ATTRIBUTES, evolvedDef } from '../content/data.js';
+import { ITEMS, SLOTS, itemMods } from '../content/items.js';
+import { DAMAGE_LABEL } from '../content/combat.js';
+import { ULTIMATES } from '../engine/ultimates.js';
+import { heroStats, attributeDamage } from '../engine/stats.js';
+import { el, cap, items, typeOf, equipment, freeOfType, ensureItems, saveNow, sqlHint, itemIcon } from './loadout.js';
 
 const $ = id => document.getElementById(id);
-const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-const cap = s => s[0].toUpperCase() + s.slice(1);
-let bound = false, lineup = [], equipment = {}, saved = null, timer = 0;
+const f = x => +x.toFixed(2);
+let bound = false, hero = null, tab = 'info', saved = {}, timer = 0;
 
 const say = (t, bad) => { $('hrMsg').textContent = t || ''; $('hrMsg').classList.toggle('warn', !!bad); };
-const items = () => state.items || [];
-const typeOf = id => (items().find(i => i.id === id) || {}).item_type;
-const isWorn = id => Object.values(equipment).includes(id);
-/* Unworn items of a type, so equipping always picks one that is free. */
-const freeOfType = type => items().filter(i => i.item_type === type && !isWorn(i.id));
-
-function statLine(h) {
-  const s = h.stats, parts = ['Damage ' + s.damage, 'Range ' + s.range];
-  if (s.cooldown) parts.push(+(s.speed / s.cooldown).toFixed(2) + ' attacks/s');
-  if (s.targets > 1) parts.push(s.targets + ' targets');
-  if (s.arc) parts.push(s.arc + '° swing');
-  return parts.join(' · ');
-}
+const itemTip = type => () => ({ title: ITEMS[type].name, color: ITEMS[type].color, lines: [ITEMS[type].desc, { text: cap(ITEMS[type].slot) + ' slot', color: '#9db3a3' }] });
 
 function changed() {
-  state.profile.lineup = [...lineup]; state.profile.equipment = { ...equipment };
   say('Saving…'); clearTimeout(timer); timer = setTimeout(flush, 600);
   render();
 }
 async function flush() {
   clearTimeout(timer); timer = 0;
-  const { profile, error } = await saveLoadout([...lineup], { ...equipment });
-  if (error || !profile) {
-    lineup = [...saved.lineup]; equipment = { ...saved.equipment };
-    state.profile.lineup = [...lineup]; state.profile.equipment = { ...equipment };
-    say('Could not save: ' + (error || 'unknown error') + (/function|schema|column/i.test(error || '') ? ' (did you run the latest SQL update?)' : ''), true);
-    render(); return;
+  const { error } = await saveNow();
+  if (error) {
+    state.profile.equipment = { ...saved };
+    say('Could not save: ' + error + sqlHint(error), true); render(); return;
   }
-  saved = { lineup: [...lineup], equipment: { ...equipment } };
-  say('Saved');
+  saved = { ...equipment() }; say('Saved');
 }
 
-function toggleLineup(id) {
-  if (lineup.includes(id)) {
-    if (lineup.length === 1) return say('Bring at least one hero.', true);
-    lineup = lineup.filter(x => x !== id);
-  } else {
-    if (lineup.length >= LINEUP_SIZE) return say('You can bring up to ' + LINEUP_SIZE + ' heroes. Remove one first.', true);
-    lineup = [...lineup, id];
+/* The list of heroes. */
+function renderList() {
+  const grid = $('hrGrid'); grid.textContent = '';
+  for (const h of HEROES) {
+    const card = el('button', 'hcard'), head = el('div', 'hhead');
+    card.style.setProperty('--hc', h.color);
+    head.append(el('b', '', h.name), el('small', 'muted', cap(h.archetype) + ' · ' + STAT_LABELS[h.attribute]));
+    const worn = typeOf(equipment()[h.id]);
+    card.append(head, el('p', 'hdesc', h.short), el('small', 'muted', worn && ITEMS[worn] ? 'Wearing ' + ITEMS[worn].name : 'No item equipped'));
+    card.onclick = () => { hero = h; tab = 'info'; render(); };
+    grid.append(card);
   }
-  changed();
+}
+
+/* Information tab: gear | picture | stats. */
+function renderInfo(box, h) {
+  const gear = el('div', 'hgear'), pic = el('div', 'hpic'), stats = el('div', 'hstatbox');
+  gear.append(el('h3', '', 'Gear'));
+  for (const slot of SLOTS) {
+    const s = el('div', 'hslot'), worn = equipment()[h.id], type = worn && typeOf(worn);
+    s.append(el('small', 'muted', cap(slot)));
+    if (type && ITEMS[type] && ITEMS[type].slot === slot) {
+      const row = el('div', 'slotitem'), off = el('button', 'linkbtn', 'Remove'), icon = itemIcon(type), name = el('span', 'itemname', ITEMS[type].name);
+      name.style.color = ITEMS[type].color; bindTip(icon, itemTip(type)); bindTip(name, itemTip(type));
+      off.onclick = () => { delete equipment()[h.id]; changed(); };
+      row.append(icon, name, off); s.append(row);
+    } else {
+      const types = Object.keys(ITEMS).filter(t => ITEMS[t].slot === slot && freeOfType(t).length);
+      if (!types.length) s.append(el('span', 'muted', items().length ? 'No free item for this slot' : 'Empty: items drop at the end of matches'));
+      for (const t of types) {
+        const b = el('button', '', 'Equip ' + ITEMS[t].name + ' (' + freeOfType(t).length + ')');
+        bindTip(b, itemTip(t));
+        b.onclick = () => { equipment()[h.id] = freeOfType(t)[0].id; changed(); };
+        s.append(b);
+      }
+    }
+    gear.append(s);
+  }
+  /* The picture: a placeholder in the hero's colour until there is art. */
+  const art = el('div', 'hart'); art.style.setProperty('--hc', h.color); art.append(el('span', '', h.name[0]));
+  pic.append(art, el('small', 'muted', 'Hero art coming soon'), el('p', 'hdesc', h.short));
+  /* Stats, with the equipped item included. */
+  const type = typeOf(equipment()[h.id]), s = heroStats(h, itemMods(type ? { [h.id]: type } : {}));
+  stats.append(el('h3', '', 'Stats'));
+  const row = (label, value, note, cls) => { const r = el('div', 'srow' + (cls ? ' ' + cls : '')); r.append(el('span', '', label), el('b', '', value)); stats.append(r); if (note) stats.append(el('div', 'buff', note)); };
+  for (const a of ATTRIBUTES) row(STAT_LABELS[a] + (a === h.attribute ? ' (main)' : ''), f(s[a]), null, a === h.attribute ? 'main' : '');
+  row('Damage (' + DAMAGE_LABEL[h.damageType] + ')', f(s.damage), '+' + f(attributeDamage(h, s) * 100) + '% from ' + STAT_LABELS[h.attribute] + (type ? ' · ' + ITEMS[type].desc + ' from ' + ITEMS[type].name : ''));
+  row('Range', f(s.range));
+  if (s.cooldown) row('Attacks per second', f(s.speed / s.cooldown));
+  if (s.arc) row('Swing arc (°)', f(s.arc));
+  row('Energy per attack', f(s.energyPerAttack) + ' / ' + f(s.energyMax));
+  const u = ULTIMATES[h.ultimate];
+  if (u) { stats.append(el('h3', '', 'Ultimate')); stats.append(el('p', 'hdesc', u.name + ': ' + u.desc)); }
+  box.append(gear, pic, stats);
+}
+
+/* Evolutions tab: the base hero on top, then each evolution step with its forms side by side. */
+function renderEvolutions(box, h) {
+  const tree = el('div', 'evotree'), root = el('div', 'evonode root'), u = ULTIMATES[h.ultimate];
+  root.style.setProperty('--hc', h.color);
+  root.append(el('b', '', h.name), el('small', 'muted', 'Level 1 · ' + DAMAGE_LABEL[h.damageType] + ' damage'), el('p', '', h.short));
+  if (u) root.append(el('small', '', 'Ultimate: ' + u.name));
+  tree.append(root);
+  for (const step of h.evolutions) {
+    tree.append(el('div', 'evolink', 'Level ' + step.level + ' · ' + step.cost + ' gold · choose one'));
+    const row = el('div', 'evorow');
+    for (const c of step.choices) {
+      const d = evolvedDef(h, c), cu = ULTIMATES[d.ultimate], n = el('div', 'evonode');
+      n.style.setProperty('--hc', d.color);
+      const nm = el('b', '', c.name); nm.style.color = d.color;
+      n.append(nm, el('small', 'muted', DAMAGE_LABEL[d.damageType] + ' damage · +50% damage, range and attack speed'), el('p', '', c.short));
+      if (cu) n.append(el('small', '', 'Ultimate: ' + (c.ultShort || cu.name + ': ' + cu.desc)));
+      row.append(n);
+    }
+    tree.append(row);
+  }
+  box.append(tree);
 }
 
 function render() {
-  $('hrCount').textContent = lineup.length + ' / ' + LINEUP_SIZE;
-  const grid = $('hrGrid'); grid.textContent = '';
-  for (const h of HEROES) {
-    const inLineup = lineup.includes(h.id), card = el('div', 'hcard' + (inLineup ? ' picked' : ''));
-    card.style.setProperty('--hc', h.color);
-    const head = el('div', 'hhead'), title = el('b', '', h.name), arch = el('small', 'muted', cap(h.archetype));
-    head.append(title, arch);
-    const pick = el('button', inLineup ? 'go' : '', inLineup ? '✓ In lineup' : 'Add to lineup');
-    pick.onclick = () => toggleLineup(h.id);
-    const evo = h.evolutions[0];
-    card.append(head, el('p', 'hdesc', h.short), el('p', 'muted hstats', statLine(h)));
-    if (evo) card.append(el('p', 'muted hstats', 'Evolves at level ' + evo.level + ' into ' + evo.choices.map(c => c.name).join(', ').replace(/, ([^,]*)$/, ' or $1') + '.'));
-    /* The item slot. */
-    const slot = el('div', 'hslot'), worn = equipment[h.id], type = worn && typeOf(worn);
-    slot.append(el('small', 'muted', 'Item slot'));
-    if (type && ITEMS[type]) {
-      const it = ITEMS[type], name = el('span', 'itemname', it.name), off = el('button', 'linkbtn', 'Remove');
-      name.style.color = it.color; bindTip(name, () => ({ title: it.name, color: it.color, lines: [it.desc] }));
-      off.onclick = () => { delete equipment[h.id]; changed(); };
-      slot.append(name, off);
-    } else {
-      const types = Object.keys(ITEMS).filter(t => freeOfType(t).length);
-      if (!types.length) slot.append(el('span', 'muted', items().length ? 'All your items are in use' : 'Empty: items drop at the end of matches'));
-      else for (const t of types) {
-        const b = el('button', '', 'Equip ' + ITEMS[t].name + ' (' + freeOfType(t).length + ')');
-        bindTip(b, () => ({ title: ITEMS[t].name, color: ITEMS[t].color, lines: [ITEMS[t].desc] }));
-        b.onclick = () => { equipment[h.id] = freeOfType(t)[0].id; changed(); };
-        slot.append(b);
-      }
-    }
-    card.append(slot, pick);
-    grid.append(card);
-  }
-  /* Inventory summary. */
-  const inv = $('hrInv'); inv.textContent = '';
-  if (!items().length) { inv.append(el('span', 'muted', 'No items yet. Every win drops one, and losses can too.')); return; }
-  for (const t of Object.keys(ITEMS)) {
-    const all = items().filter(i => i.item_type === t);
-    if (!all.length) continue;
-    const used = all.filter(i => isWorn(i.id)).length, chip = el('span', 'relicchip', ITEMS[t].name + ' ×' + all.length + (used ? ' (' + used + ' equipped)' : ''));
-    chip.style.color = chip.style.borderColor = ITEMS[t].color;
-    bindTip(chip, () => ({ title: ITEMS[t].name, color: ITEMS[t].color, lines: [ITEMS[t].desc] }));
-    inv.append(chip);
-  }
+  $('hrList').hidden = !!hero; $('hrPage').hidden = !hero;
+  $('hrTitle').textContent = hero ? hero.name : 'Heroes';
+  if (!hero) { renderList(); return; }
+  for (const b of $('hrTabs').children) b.classList.toggle('on', b.dataset.tab === tab);
+  const box = $('hrBody'); box.textContent = ''; box.className = 'hbody ' + tab;
+  box.style.setProperty('--hc', hero.color);
+  if (tab === 'info') renderInfo(box, hero); else renderEvolutions(box, hero);
 }
 
 export default {
-  async mount() {
-    if (!bound) { $('hrBack').onclick = () => bus.emit('nav', { to: 'menu' }); bound = true; }
-    lineup = [...(state.profile.lineup || [])].filter(id => HEROES.some(h => h.id === id)).slice(0, LINEUP_SIZE);
-    if (!lineup.length) lineup = HEROES.slice(0, LINEUP_SIZE).map(h => h.id);
-    equipment = { ...(state.profile.equipment || {}) };
-    saved = { lineup: [...lineup], equipment: { ...equipment } };
-    say('');
-    render();
-    if (!state.items) {
-      say('Loading your items…');
-      const { items: list, error } = await getItems();
-      state.items = error ? null : list;
-      say(error ? 'Could not load your items.' : '', !!error);
+  async mount(_el, params = {}) {
+    if (!bound) {
+      $('hrBack').onclick = () => { if (hero) { hero = null; render(); } else bus.emit('nav', { to: 'menu' }); };
+      for (const b of $('hrTabs').children) b.onclick = () => { tab = b.dataset.tab; render(); };
+      bound = true;
     }
-    /* Drop equipment that points at items the player no longer has. */
-    for (const h in equipment) if (state.items && !typeOf(equipment[h])) delete equipment[h];
+    hero = params.hero ? HEROES.find(h => h.id === params.hero) || null : null; tab = 'info';
+    saved = { ...equipment() }; say('');
     render();
+    if (!state.items) { say('Loading your items…'); const err = await ensureItems(); say(err, !!err); saved = { ...equipment() }; render(); }
   },
   unmount() { if (timer) flush(); }
 };

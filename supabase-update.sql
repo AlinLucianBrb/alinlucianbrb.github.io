@@ -421,11 +421,14 @@ drop function if exists public.finish_run(int, int, int, boolean);
 -- A win always drops an item; a loss has a chance that grows with the waves survived (up to 50%). Item find from talents raises
 -- that: every full 100% is an item, and the rest is the chance of one more. Players can hold at most 200 items.
 -- Talents can also raise the gold and XP the match gives (reward_gold, reward_xp in talent_nodes).
+-- Every boss defeated (p_bosses) adds one guaranteed item. Bosses come on the last wave of a level and, from level 3 on, the
+-- middle wave too, so a run cannot claim more bosses than the boss waves it reached.
 drop function if exists public.finish_run(uuid, int, int, boolean);
-create function public.finish_run(p_run uuid, p_waves int, p_kills int, p_won boolean) returns jsonb
+drop function if exists public.finish_run(uuid, int, int, boolean, int);
+create function public.finish_run(p_run uuid, p_waves int, p_kills int, p_won boolean, p_bosses int default 0) returns jsonb
 language plpgsql security definer set search_path = public as $$
 declare me public.profiles; r public.runs; cap int; frontier boolean; elapsed numeric; done_waves int; dropped text := null;
-        drops text[] := '{}'; b_gold numeric; b_xp numeric; b_loot numeric; chance numeric; n int;
+        drops text[] := '{}'; b_gold numeric; b_xp numeric; b_loot numeric; chance numeric; n int; boss_cap int;
 begin
   if auth.uid() is null then raise exception 'not signed in'; end if;
   select * into r from public.runs where id = p_run and user_id = auth.uid() and finished_at is null for update;
@@ -433,6 +436,9 @@ begin
   cap := 10 + 5 * r.stage;
   if p_waves < 1 or p_waves > cap or p_kills < 0 or p_kills > p_waves * (p_waves + 6) then raise exception 'invalid run'; end if;
   if p_won and p_waves <> cap then raise exception 'invalid win'; end if;
+  boss_cap := (case when p_waves >= cap then 1 else 0 end) + (case when r.stage >= 3 and p_waves >= round(cap / 2.0) then 1 else 0 end);
+  if p_bosses is null or p_bosses < 0 or p_bosses > boss_cap then raise exception 'invalid boss count'; end if;
+  if p_won and p_bosses < 1 then raise exception 'a level is won by beating its final boss'; end if;
   if r.started_at < now() - interval '24 hours' then raise exception 'run expired'; end if;
   if (select count(*) from public.runs where user_id = auth.uid() and finished_at > now() - interval '1 hour') >= 30 then
     raise exception 'too many runs, try again later';
@@ -461,7 +467,7 @@ begin
    where id = auth.uid()
    returning * into me;
   chance := (case when p_won then 1 else 0.5 * p_waves::numeric / cap end) * (1 + b_loot);
-  n := floor(chance)::int + (case when random() < chance - floor(chance) then 1 else 0 end);
+  n := p_bosses + floor(chance)::int + (case when random() < chance - floor(chance) then 1 else 0 end);
   for i in 1 .. n loop
     exit when (select count(*) from public.player_items where user_id = auth.uid()) >= 200;
     select id into dropped from public.item_types where droppable order by random() limit 1;
