@@ -13,12 +13,14 @@ export const STRATEGIES = {
   trio: ['warrior', 'ranger', 'mage'],
   warrior: ['warrior'],
   ranger: ['ranger'],
-  mage: ['mage']
+  mage: ['mage'],
+  rogue: ['rogue'],
+  rogue3: ['rogue', 'ranger', 'mage']
 };
 
 /* Talents for a player of the given level, branch by branch in the single tree: damage and speed first, then the branches
    for the lineup's heroes (melee, projectiles, spells), then energy, elements, gold, the gate and the rest. */
-const HERO_BRANCH = { warrior: 2, ranger: 3, mage: 4 };
+const HERO_BRANCH = { warrior: 2, ranger: 3, mage: 4, rogue: 2 };
 export function talentsFor(level, strategy = 'trio') {
   const points = pointsFor(level), picked = new Set(), order = [];
   const branches = [0, 1, ...STRATEGIES[strategy].map(h => HERO_BRANCH[h]), 6, 5, 7, 10, 2, 3, 4, 8, 9, 11];

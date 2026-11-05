@@ -20,11 +20,23 @@ export function mitigate(e, type, amount, isHit = true) {
 
 const raw = Object.fromEntries(DAMAGE_TYPES.map(t => [t, 0]));   /* reused for every hit: no garbage */
 
+/* Critical hits: the hero's critChance, plus a Rogue's Mark on the enemy (more chance and more crit damage against it).
+   Rolled once per hit on the seeded combat stream, and only when there is a chance, so heroes without crits use no rolls.
+   rate < 1 (a beam's sliver per frame) scales the chance, like ailments. Returns the multiplier for this hit (1 or the crit's). */
+export function critMult(w, hero, e, rate = 1) {
+  const s = hero.s, mark = e.fx && e.fx.mark, chance = (s.critChance || 0) + (mark ? mark.chance : 0);
+  if (!(chance > 0) || w.rng.combat.next() >= Math.min(1, chance) * rate) return 1;
+  w.ev.emit('crit', { hero, enemy: e });
+  return (s.critDamage || 1.5) + (mark ? mark.dmg : 0);
+}
+
 /* scale: multiplies the whole hit (ultimates, beam ramp, chain falloff). rate: how much of a "full hit" this is for ailment
-   chances (a beam deals a sliver of damage every frame, so its rate is the frame time: its chances work per second). */
-export function attack(w, hero, e, scale = 1, rate = 1) {
+   chances (a beam deals a sliver of damage every frame, so its rate is the frame time: its chances work per second).
+   as: a damage type for this hit instead of the hero's own (the Alchemist's two concoctions: one fire, one toxic). */
+export function attack(w, hero, e, scale = 1, rate = 1, as = null) {
   if (e.dead) return;
-  const s = hero.s, own = hero.def.damageType || 'physical';
+  const s = hero.s, own = as || hero.def.damageType || 'physical';
+  scale *= critMult(w, hero, e, rate);
   for (const t of DAMAGE_TYPES) raw[t] = (s[t + 'Damage'] || 0) * scale;
   raw[own] += s.damage * scale;
   let total = 0;

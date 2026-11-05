@@ -1,3 +1,4 @@
+import { POISON_POOL } from './ultimates.js';
 /* Projectile types. A projectile has update(g, p, dt) -> false when finished, and optional onEnd(g, p). How it looks is decided by the renderer. */
 export const BOLT_SPEED = 380;   /* pixels per second */
 export const PROJECTILES = {
@@ -8,7 +9,7 @@ export const PROJECTILES = {
       if (!e || e.dead) return false;
       const dx = e.x - p.x, dy = e.y - p.y, len = Math.hypot(dx, dy), step = (p.speed || BOLT_SPEED) * dt;
       if (len) { p.dx = dx / len; p.dy = dy / len; }
-      if (len <= step + 6) { g.attack(p.owner, e, p.scale); return false; }
+      if (len <= step + 6) { g.attack(p.owner, e, p.scale, 1, p.as || null); return false; }
       p.x += p.dx * step; p.y += p.dy * step;
       return true;
     }
@@ -82,6 +83,22 @@ export const PROJECTILES = {
     onEnd(g, p) { p.owner.proj = null; p.owner.cd = p.owner.s.cooldown / p.owner.s.speed; }
   }
 };
+/* A thrown bottle (Toxicologist's poison flask): flies in an arc to a spot on the ground (not to an enemy), then leaves a
+   zone there (p.land is the zone type). How high it arcs is up to the renderer (p.t / p.dur). */
+PROJECTILES.flask = {
+  update(g, p, dt) {
+    p.t += dt;
+    const k = Math.min(1, p.t / p.dur);
+    p.x = p.sx + (p.tx - p.sx) * k; p.y = p.sy + (p.ty - p.sy) * k;
+    if (k < 1) return true;
+    g.zones.push(newZone(p.land, p.owner, p.tx, p.ty));
+    return false;
+  }
+};
+const newZone = (type, owner, x, y) => (type === 'poisonpool'
+  ? { type, owner, x, y, r: POISON_POOL.radius, t: POISON_POOL.seconds, next: 0, every: POISON_POOL.every }
+  : { type, owner, x, y, r: 30, t: 5 });
+
 export function updateProjectiles(g, dt) {
   const list = g.projs; let j = 0;
   for (let i = 0; i < list.length; i++) {

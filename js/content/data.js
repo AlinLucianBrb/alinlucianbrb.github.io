@@ -16,8 +16,11 @@ export const ENERGY = { energyMax: 100, energyPerAttack: 20, energyPerSecond: 0 
 export const ATTRIBUTES = ['strength', 'dexterity', 'intellect'];
 export const ATTRIBUTE_DAMAGE = 0.01;
 const ATTRS = { strength: 0, dexterity: 0, intellect: 0 };
-/* Every hero gets the energy stats, the attributes and the combat stats (added damage by type, ailment chances), so anything can raise them. */
-const withEnergy = (stats, own = {}) => ({ ...stats, ...ENERGY, ...ATTRS, ...COMBAT_STATS, ...own });
+/* Critical hits: critChance (0 to 1) is the chance a hit is critical, critDamage what a critical hit is multiplied by.
+   Most heroes start with no crit chance (the Rogue has some); relics, items and the Rogue's Mark add more. */
+const CRIT = { critChance: 0, critDamage: 1.5 };
+/* Every hero gets the energy stats, the attributes, crits and the combat stats (added damage by type, ailment chances), so anything can raise them. */
+const withEnergy = (stats, own = {}) => ({ ...stats, ...ENERGY, ...ATTRS, ...CRIT, ...COMBAT_STATS, ...own });
 
 /* Hero levels during a match: every hero on the field gains XP from each enemy killed (the enemy's xp value, see enemies.js),
    whoever landed the blow. Each level adds perLevel (scaled by levels gained); xpToNext(L) is the XP from level L to L + 1. */
@@ -32,6 +35,8 @@ export const HERO_LEVELS = {
    player picks one. A choice is a new form of the hero: it can change the name, colour, damage type, ultimate, on-hit effects
    (applies), add base stats and tags, and gives its modifiers. For now every form also gets +50% to the main stats. */
 const plus50 = ['damage', 'range', 'speed'].map(stat => ({ stat, type: 'more', value: 0.5, scope: ['all'] }));
+/* Spell casters attack at their cast speed (castSpeed), not attack speed, so their evolutions raise that instead. */
+const plus50cast = ['damage', 'range', 'castSpeed'].map(stat => ({ stat, type: 'more', value: 0.5, scope: ['all'] }));
 const always = stat => ({ stat, type: 'flat', value: 1, scope: ['all'] });   /* a 100% chance */
 
 /* The playable heroes. A player brings up to LINEUP_SIZE of them into a match, one of each, free to place.
@@ -65,21 +70,39 @@ export const HEROES = [
     desc: 'Ranger (range): fast arrows at the enemy closest to your gate. Evolves into a Marksman, Boomerang Ranger or Hunter.',
     short: 'Long range and fast. Shoots arrows at the enemy closest to your gate. At level 10, choose a path.' },
   { id: 'mage', name: 'Mage', archetype: 'spell', attribute: 'intellect', kind: 'bolt', damageType: 'spell', color: '#c39bf2', shape: [4, -Math.PI / 2], tags: ['spell', 'arcane'],
-    stats: withEnergy({ damage: 26, range: 110, cooldown: 1, speed: 1, targets: 1 }, { strength: 2, dexterity: 4, intellect: 10 }), ultimate: 'empowered',
+    rate: 'castSpeed', stats: withEnergy({ damage: 26, range: 110, cooldown: 1, castSpeed: 1, targets: 1 }, { strength: 2, dexterity: 4, intellect: 10 }), ultimate: 'empowered',
     /* At level 10 the Mage picks an element. The slow is the Frost Mage's old chill effect, kept for exactly this. */
     evolutions: [{ level: 10, cost: 150, choices: [
       { id: 'firemage', name: 'Fire Mage', color: '#ff7a45', damageType: 'fire', ultimate: 'inferno', tags: ['fire'],
-        mods: [...plus50, always('burnChance')],
+        mods: [...plus50cast, always('burnChance')],
         short: 'Bolts deal fire damage and set enemies on fire.', ultShort: 'Sets every enemy on the map on fire.' },
       { id: 'coldmage', name: 'Cold Mage', color: '#72c8f0', damageType: 'cold', ultimate: 'blizzard', tags: ['cold'],
-        applies: { chill: 'chillTime' }, stats: { chillTime: 1.5 }, mods: plus50,
+        applies: { chill: 'chillTime' }, stats: { chillTime: 1.5 }, mods: plus50cast,
         short: 'Bolts deal cold damage and slow enemies to half speed.', ultShort: 'Freezes every enemy in place.' },
       { id: 'lightningmage', name: 'Lightning Mage', color: '#d6a2ff', damageType: 'lightning', ultimate: 'storm', tags: ['lightning'],
-        mods: [...plus50, always('shockChance')],
+        mods: [...plus50cast, always('shockChance')],
         short: 'Bolts deal lightning damage and shock enemies, lowering their defenses.', ultShort: 'Calls a storm that strikes and shocks enemies around the Mage.' }
     ] }],
     desc: 'Mage (spell): fires a magic bolt at the enemy closest to your gate. Evolves into a Fire, Cold or Lightning Mage.',
-    short: 'Fires a magic bolt at the enemy closest to your gate. At level 10, choose an element.' }
+    short: 'Fires a magic bolt at the enemy closest to your gate. At level 10, choose an element.' },
+  /* The Rogue: two quick strikes and a higher crit chance; its ultimate marks every enemy, making them easier to crit.
+     Its evolutions go for "the strongest, toughest enemy": the one in range with the most life left. */
+  { id: 'rogue', name: 'Rogue', archetype: 'melee', attribute: 'dexterity', kind: 'doubleswing', damageType: 'physical', color: '#4fb3a9', shape: [3, -Math.PI / 2],
+    tags: ['melee', 'physical'],
+    stats: withEnergy({ damage: 17, range: 60, cooldown: 0.75, speed: 1, arc: 100 }, { strength: 4, dexterity: 10, intellect: 3, critChance: 0.1 }), ultimate: 'mark',
+    evolutions: [{ level: 10, cost: 150, choices: [
+      { id: 'assassin', name: 'Assassin', color: '#9b6bd6', kind: 'assassin', ultimate: 'clones', stats: { range: 130 },
+        mods: [...plus50, { stat: 'damage', type: 'more', value: 1, scope: ['all'] }],
+        short: 'Teleports behind the strongest, toughest enemy in range and strikes once, for double damage.', ultShort: 'Clones appear behind every enemy on the map and strike each one twice.' },
+      { id: 'toxicologist', name: 'Toxicologist', color: '#a6d94a', kind: 'daggers', damageType: 'toxic', ultimate: 'poisonflask', tags: ['projectile', 'toxic'],
+        stats: { range: 120 }, mods: [...plus50, always('poisonChance')],
+        short: 'Throws two toxic daggers at the strongest, toughest enemy in range; each one poisons.', ultShort: 'A bottle of poison leaves a puddle that poisons every enemy walking through it.' },
+      { id: 'alchemist', name: 'Alchemist', color: '#ff9f43', kind: 'concoctions', damageType: 'fire', ultimate: 'oil', tags: ['projectile', 'fire', 'toxic'],
+        stats: { range: 120 }, mods: [...plus50, always('burnChance'), always('poisonChance')],
+        short: 'Throws two concoctions at the strongest, toughest enemy in range: fire that burns, then toxic that poisons.', ultShort: 'Flammable puddles slow enemies; a burning enemy on one makes it explode.' }
+    ] }],
+    desc: 'Rogue (melee): two quick strikes, with a higher chance of critical hits. Evolves into an Assassin, Toxicologist or Alchemist.',
+    short: 'Strikes twice in quick succession, with a knack for critical hits. At level 10, choose a path.' }
 ];
 HEROES.forEach(h => h.tags.push(h.id));
 
@@ -126,6 +149,7 @@ export const STAT_LABELS = {
   damage: 'Damage', range: 'Range', speed: 'Attacks per second', chillTime: 'Chill duration (s)', jumps: 'Chain jumps',
   rampRate: 'Beam ramp speed', arc: 'Swing arc (°)', targets: 'Targets per attack',
   strength: 'Strength', dexterity: 'Dexterity', intellect: 'Intellect', mainAttribute: 'Main attribute',
+  castSpeed: 'Casts per second', critChance: 'Crit chance', critDamage: 'Crit damage (multiplier)',
   energyMax: 'Energy needed', energyPerAttack: 'Energy per attack', energyPerSecond: 'Energy per second',
   ...COMBAT_LABELS, relicLuck: 'Relic luck',
   bounty: 'Gold per kill', bountyChance: 'Chance for +2 gold per kill', rerolls: 'Free relic rerolls per match', banishes: 'Free relic banishes per match',
@@ -184,12 +208,15 @@ export const RELICS = [
   { name: 'Bulk order',        desc: m => 'Evolutions cost ' + f(P(15) * m) + '% less', label: 'Economy', mods: m => [glob('evolveCost', 'more', -P(0.15) * m)] },
   { name: 'Split bolt',        desc: m => 'Spell attacks: ' + f(P(100) * m) + '% chance to hit 1 more target', mods: m => [hero('targets', 'flat', P(1) * m, ['spell'])] },
   { name: 'Tax collector',     desc: m => '+' + f(25 * m) + '% gold for clearing a wave', label: 'Economy', mods: m => [glob('waveGold', 'inc', 0.25 * m)] },
-  { name: 'Compound interest', desc: m => 'After each wave, earn ' + f(5 * m) + '% of your unspent gold as interest, up to ' + 60 * m + ' gold. More copies stack: their % and limits add up.',
+  { name: 'Compound interest', desc: m => 'After each wave, get ' + f(5 * m) + '% of your gold (max ' + 60 * m + '). Copies add up.',
     label: 'Economy', mods: m => [glob('interest', 'flat', 0.05 * m), glob('interestCap', 'flat', 60 * m)] },
   { name: 'Fine arrows',       desc: m => '+' + f(P(30) * m) + '% damage to projectile heroes', mods: m => [hero('damage', 'inc', P(0.3) * m, ['projectile'])] },
   { name: 'Whetstone',         desc: m => '+' + f(P(30) * m) + '% damage to melee heroes',      mods: m => [hero('damage', 'inc', P(0.3) * m, ['melee'])] },
   { name: 'Arcane focus',      desc: m => '+' + f(P(30) * m) + '% damage to spell heroes',      mods: m => [hero('damage', 'inc', P(0.3) * m, ['spell'])] },
-  { name: 'Wide swing',        desc: m => '+' + f(P(20) * m) + '° swing arc',                    mods: m => [hero('arc', 'flat', P(20) * m, ['melee'])] }
+  { name: 'Wide swing',        desc: m => '+' + f(P(20) * m) + '° swing arc',                    mods: m => [hero('arc', 'flat', P(20) * m, ['melee'])] },
+  { name: 'Keen edge',         desc: m => '+' + f(P(20) * m) + '% crit chance',                  mods: m => [hero('critChance', 'flat', P(0.2) * m, ['all'])] },
+  { name: 'Cruelty',           desc: m => '+' + f(P(50) * m) + '% crit damage',                  mods: m => [hero('critDamage', 'flat', P(0.5) * m, ['all'])] },
+  { name: 'Quick incantation', desc: m => '+' + f(P(20) * m) + '% cast speed (spell heroes)',    mods: m => [hero('castSpeed', 'inc', P(0.2) * m, ['spell'])] }
 ];
 /* Kept for later: relics for the archived heroes and the Frost Mage's slow. Not offered while those heroes are not playable. */
 export const RELIC_ARCHIVE = [

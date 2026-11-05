@@ -17,7 +17,7 @@ import { attackMult, gainEnergy } from './ultimates.js';
 import { gainXp } from './levels.js';
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
-export const ENGINE_VERSION = 12;     /* bump when a rule change would make old command logs play out differently */
+export const ENGINE_VERSION = 13;     /* bump when a rule change would make old command logs play out differently */
 
 function genPath(rng) {
   let x = 0, y = 1 + rng.int(ROWS - 2); const p = [[x, y]];
@@ -57,7 +57,7 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
     log: record ? { v: 1, ver: ENGINE_VERSION, seed: seed >>> 0, stage, talents: [...talents], lineup: [...team], items: JSON.parse(JSON.stringify(equipped)), commands: [], ticks: 0 } : null
   };
   w.hit = (hero, e, amount, type) => hit(w, hero, e, amount, type);
-  w.attack = (hero, e, scale, rate) => attack(w, hero, e, scale, rate);
+  w.attack = (hero, e, scale, rate, as) => attack(w, hero, e, scale, rate, as);
   w.dot = (src, e, amount, type) => dotDamage(w, src, e, amount, type);
   w.attackMult = (h, target) => attackMult(w, h, target);
   w.gainEnergy = (h, amount) => gainEnergy(h, amount);

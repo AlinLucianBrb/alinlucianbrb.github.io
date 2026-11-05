@@ -24,7 +24,7 @@ let meterEmpty, cb = {}, banishBtns = [];
 function statLine(d, s) {
   const dmg = f(s.damage), range = Math.round(s.range);
   if (d.dps) return 'Damage ' + dmg + '/s, up to ' + f(s.damage * 4) + '/s · Range ' + range;
-  return 'Damage ' + dmg + ' · Range ' + range + ' · ' + f(s.speed / s.cooldown) + ' attacks/s';
+  return 'Damage ' + dmg + ' · Range ' + range + ' · ' + f((s[d.rate || 'speed'] || 1) / s.cooldown) + (d.rate === 'castSpeed' ? ' casts/s' : ' attacks/s');
 }
 
 export function initUI(callbacks) {
@@ -55,7 +55,7 @@ export function initUI(callbacks) {
     'Spend gold to choose 1 of 3 random relics: permanent bonuses for the rest of this run.',
     'Rarer relics are stronger. Relic talents give free rerolls and banishes for the offers.',
     ...oddsLines(cb.luck ? cb.luck() : 0),
-    { text: 'The price goes up with each relic you buy. Key: R', color: '#9db3a3' }] }));
+    { text: 'The price goes up with each relic you buy. Key: Space (then 1, 2 or 3 to pick)', color: '#9db3a3' }] }));
   bindTip($('auto'), () => ({ title: 'Auto-start', lines: ['Starts the next wave by itself 3 seconds after a wave is cleared. Lit up when on.', { text: 'Turned off again when you retry a level.', color: '#9db3a3' }] }));
   bindTip($('spd'), () => ({ title: 'Game speed', lines: ['Switch between normal (1x) and double (2x) speed.',
     cb.speed3x && cb.speed3x() ? { text: 'Overdrive: 3x speed unlocked.', color: '#8be28b' } : { text: 'The Overdrive talent unlocks 3x.', color: '#9db3a3' }] }));
@@ -152,7 +152,8 @@ export function renderHUD(g, v) {
 
 /* Shows only the heroes in this match's lineup, keyed 1..n in lineup order. */
 export function setLineup(g) {
-  HEROES.forEach((d, i) => { const pos = g.lineup.indexOf(d.id), b = btns[i]; b._inLineup = pos >= 0; b.hidden = b._wrap.hidden = pos < 0; b._up.hidden = true; if (pos >= 0) setText(b._key, pos + 1); });
+  /* Cards follow the lineup order, so the card for key 1 comes first. */
+  HEROES.forEach((d, i) => { const pos = g.lineup.indexOf(d.id), b = btns[i]; b._inLineup = pos >= 0; b.hidden = b._wrap.hidden = pos < 0; b._up.hidden = true; b._wrap.style.order = String(Math.max(0, pos)); if (pos >= 0) setText(b._key, pos + 1); });
 }
 
 export function renderMeter(g) {
@@ -241,10 +242,12 @@ export function renderInspector(g, v) {
     for (const key in d.stats) {
       if (key === 'cooldown' || key === 'energyMax' || ATTRIBUTES.includes(key)) continue;
       if (!t.s[key] && !d.stats[key]) continue;          /* unused stats (most combat stats for now) stay hidden */
-      const isRate = key === 'speed';
+      if (key === 'critDamage' && !(t.s.critChance > 0)) continue;   /* crit damage only matters with some crit chance */
+      if (key === 'arc' && !/swing/.test(d.kind)) continue;              /* forms that throw (Alchemist...) have no swing */
+      const isRate = key === 'speed' || key === 'castSpeed';
       const label = key === 'damage' ? (d.dps ? 'Damage per second' : 'Damage') + ' (' + DAMAGE_LABEL[d.damageType || 'physical'] + ')' : STAT_LABELS[key] || key;
-      const value = isRate ? t.s.speed / t.s.cooldown : t.s[key];
-      const base = isRate ? d.stats.speed / d.stats.cooldown : d.stats[key];
+      const value = isRate ? t.s[key] / t.s.cooldown : t.s[key];
+      const base = isRate ? d.stats[key] / d.stats.cooldown : d.stats[key];
       const show = x => (isChance(key) ? pct(x) : f(x));
       const row = el('div', 'srow'); row.append(el('span', '', label), el('span', '', show(value) + (f(value) !== f(base) ? '  (base ' + show(base) + ')' : '')));
       box.append(row);
@@ -301,7 +304,7 @@ export function showPick(g) {
   g.pick.offers.forEach((o, i) => {
     const rar = RARITIES[o.ri], card = el('div', 'card'), b = el('button', 'choose'), tag = el('small', 'rar', rar.name), ban = el('button', 'linkbtn');
     tag.style.color = rar.color; b.style.borderColor = rar.color;
-    b.append(el('b', '', o.relic.name), tag, el('small', '', o.relic.desc(rar.mult)), indicator(g, o.relic, rar.mult));
+    b.append(el('small', 'pickkey', 'Key ' + (i + 1)), el('b', '', o.relic.name), tag, el('small', '', o.relic.desc(rar.mult)), indicator(g, o.relic, rar.mult));
     b.onclick = () => cb.onChoose(i); ban.onclick = () => cb.onBanish(i);
     ban.title = 'Remove this relic from your pool for the rest of the run, and draw another';
     card.append(b, ban); box.append(card); banishBtns.push(ban);

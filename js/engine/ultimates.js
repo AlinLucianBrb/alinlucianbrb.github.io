@@ -50,26 +50,33 @@ registerUltimate('piercing', { name: 'Piercing shot', desc: 'Charges a powerful 
     w.projs.push({ type: 'pierce', owner: h, x: h.x, y: h.y, dx: (tx - h.x) / len, dy: (ty - h.y) / len, charge: 0.35, dist: 0, max: 1000, hit: new Set(), scale: 3 });
   } });
 
-/* Boomerang Ranger: a boomerang spins around the Ranger for 6 seconds, hitting every enemy it touches (each one at most
-   every 0.4 s). Several at once are spread evenly around the circle (see the orbit projectile). */
-registerUltimate('orbit', { name: 'Spinning blade', desc: 'A boomerang spins around the Ranger for 6 seconds, hitting everything it touches.', damageMult: 1,
-  onFire(w, h) { w.projs.push({ type: 'orbit', owner: h, x: h.x, y: h.y, t: 6, rot: 0, hitT: new Map(), scale: 1 }); } });
+/* Boomerang Ranger: a boomerang spins around the Ranger for 6 seconds, hitting every enemy it touches for 3x (each one at
+   most every 0.4 s). Several at once are spread evenly around the circle (see the orbit projectile). */
+export const ORBIT_SCALE = 3;   /* each touch hits for 3x */
+registerUltimate('orbit', { name: 'Spinning blade', desc: 'A boomerang spins around the Ranger for 6 seconds, hitting everything it touches for triple damage.', damageMult: 1,
+  onFire(w, h) { w.projs.push({ type: 'orbit', owner: h, x: h.x, y: h.y, t: 6, rot: 0, hitT: new Map(), scale: ORBIT_SCALE }); } });
 
-/* Hunter: lays up to 3 traps on path tiles within range, spread out along the path. A trap bursts when an enemy steps on it,
-   dealing 4x a hit of toxic damage to everything close by. At most 6 of a Hunter's traps are out at once (the oldest goes). */
+/* Where ground effects go (Hunter's traps, Alchemist's puddles): path tiles within the hero's range, first under the
+   enemies in range (the ones furthest along first), then the tiles closest to the entrance. Returns up to n of
+   { i (path index), x, y }, skipping the path indices in `taken`. */
+export function groundSpots(w, h, n, taken = new Set()) {
+  const r2 = h.s.range * h.s.range, out = [], used = new Set(taken);
+  const spot = i => { const [cx, cy] = w.path[i]; return { i, x: (cx + 0.5) * T, y: (cy + 0.5) * T, ok: cx >= 0 && cx < COLS && cy >= 0 && cy < ROWS }; };
+  const add = i => { if (out.length >= n || used.has(i)) return; const c = spot(i); if (!c.ok || (c.x - h.x) ** 2 + (c.y - h.y) ** 2 > r2) return; used.add(i); out.push(c); };
+  const near = w.enemies.filter(e => !e.dead && (e.x - h.x) ** 2 + (e.y - h.y) ** 2 <= r2).sort((a, b) => b.d - a.d);
+  for (const e of near) add(Math.max(0, Math.min(w.path.length - 1, Math.round(e.d / T))));
+  for (let i = 0; i < w.path.length && out.length < n; i++) add(i);
+  return out;
+}
+
+/* Hunter: lays up to 3 traps on path tiles within range: under the enemies in range first, then toward the entrance
+   (groundSpots). A trap bursts when an enemy steps on it, dealing 4x a hit of toxic damage to everything close by.
+   At most 6 of a Hunter's traps are out at once (the oldest goes). */
 export const TRAP = { count: 3, max: 6, scale: 4, radius: 34, trigger: 14, life: 20 };
-registerUltimate('traps', { name: 'Toxic traps', desc: 'Lays 3 traps on the path that burst with heavy toxic damage when an enemy steps on one.', damageMult: 1,
+registerUltimate('traps', { name: 'Toxic traps', desc: 'Lays 3 traps under enemies or toward the entrance that burst with heavy toxic damage when stepped on.', damageMult: 1,
   onFire(w, h) {
-    const r2 = h.s.range * h.s.range, taken = new Set(w.zones.filter(z => z.type === 'trap').map(z => z.cell));
-    const cells = [];
-    w.path.forEach(([cx, cy], i) => {
-      const x = (cx + 0.5) * T, y = (cy + 0.5) * T;
-      if ((x - h.x) ** 2 + (y - h.y) ** 2 <= r2 && !taken.has(i) && cx >= 0 && cx < COLS && cy >= 0 && cy < ROWS) cells.push({ i, x, y });
-    });
-    if (!cells.length) return;
-    const n = Math.min(TRAP.count, cells.length), picks = [];
-    for (let k = 0; k < n; k++) picks.push(cells[Math.round(k * (cells.length - 1) / Math.max(1, n - 1))]);
-    for (const c of picks) w.zones.push({ type: 'trap', owner: h, cell: c.i, x: c.x, y: c.y, r: TRAP.radius, t: TRAP.life, scale: TRAP.scale });
+    const taken = new Set(w.zones.filter(z => z.type === 'trap').map(z => z.cell));
+    for (const c of groundSpots(w, h, TRAP.count, taken)) w.zones.push({ type: 'trap', owner: h, cell: c.i, x: c.x, y: c.y, r: TRAP.radius, t: TRAP.life, scale: TRAP.scale });
     const mine = w.zones.filter(z => z.type === 'trap' && z.owner === h);
     for (let k = 0; k < mine.length - TRAP.max; k++) mine[k].t = 0;
   } });
@@ -97,4 +104,39 @@ registerUltimate('barricade', { name: 'Barricade', desc: 'Blocks the path in fro
     const a = w.path[k], b = w.path[k + 1] || a;
     w.zones.push({ type: 'barrier', owner: h, d, x: (a[0] + 0.5 + (b[0] - a[0]) * f) * T, y: (a[1] + 0.5 + (b[1] - a[1]) * f) * T,
       r: T / 2, t: BARRICADE.seconds });
+  } });
+
+/* ---- Rogue ---- */
+/* Rogue: marks every enemy on the map for 6 seconds. Hits against a marked enemy have +25% crit chance and +50% crit damage. */
+export const MARK = { seconds: 6, chance: 0.25, dmg: 0.5 };
+registerUltimate('mark', { name: 'Mark', desc: 'Marks every enemy on the map for 6 seconds: +25% crit chance and +50% crit damage against them.', damageMult: 1,
+  onFire(w) { for (const e of w.enemies) if (!e.dead) applyEffect(e, 'mark', { t: MARK.seconds, chance: MARK.chance, dmg: MARK.dmg }); } });
+
+/* Assassin: clones appear behind every enemy on the map and strike each one twice. It replaces the normal strike. */
+registerUltimate('clones', { name: 'Shadow clones', desc: 'Clones appear behind every enemy on the map and strike each one twice.', replaces: true,
+  onFire(w, h) {
+    for (const e of [...w.enemies]) {
+      if (e.dead) continue;
+      w.fx?.slash(e.x, e.y, Math.atan2(e.y - h.y, e.x - h.x) + Math.PI, Math.PI / 3, 24, 0.3, '#c9a6ff');
+      w.attack(h, e, 1); if (!e.dead) w.attack(h, e, 1);
+    }
+  } });
+
+/* Toxicologist: throws a bottle at the strongest, toughest enemy in range; it leaves a puddle of poison for 6 seconds that
+   poisons every enemy in it once a second (each time as if hit by the Toxicologist). The daggers are thrown as usual. */
+export const POISON_POOL = { seconds: 6, radius: 44, every: 1 };
+registerUltimate('poisonflask', { name: 'Poison flask', desc: 'A bottle of poison leaves a puddle that poisons every enemy walking through it.', damageMult: 1,
+  onFire(w, h, target) {
+    if (!target) return;
+    w.projs.push({ type: 'flask', owner: h, x: h.x, y: h.y, sx: h.x, sy: h.y, tx: target.x, ty: target.y, t: 0,
+      dur: Math.max(0.2, Math.hypot(target.x - h.x, target.y - h.y) / 320), land: 'poisonpool' });
+  } });
+
+/* Alchemist: 3 flammable puddles on the path (under enemies in range first, then toward the entrance) for 8 seconds. Enemies
+   in a puddle move at half speed; a burning enemy in one makes it explode: 3x a fire hit to everything within 64 px. */
+export const OIL = { count: 3, seconds: 8, radius: 28, blast: 64, scale: 3 };
+registerUltimate('oil', { name: 'Flammable puddles', desc: 'Flammable puddles slow enemies; a burning enemy in one makes it explode.', damageMult: 1,
+  onFire(w, h) {
+    const taken = new Set(w.zones.filter(z => z.type === 'oil').map(z => z.cell));
+    for (const c of groundSpots(w, h, OIL.count, taken)) w.zones.push({ type: 'oil', owner: h, cell: c.i, x: c.x, y: c.y, r: OIL.radius, t: OIL.seconds });
   } });

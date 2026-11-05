@@ -278,8 +278,8 @@ insert into public.talent_links (a, b) values
   ('main_11_1', 'main_0_1'),
   ('main_0_1', 'main_11_1');
 -- Playable heroes.
-insert into public.hero_classes (id) values ('warrior'), ('ranger'), ('mage') on conflict (id) do nothing;
-delete from public.hero_classes where id <> all (array['warrior', 'ranger', 'mage']::text[]);
+insert into public.hero_classes (id) values ('warrior'), ('ranger'), ('mage'), ('rogue') on conflict (id) do nothing;
+delete from public.hero_classes where id <> all (array['warrior', 'ranger', 'mage', 'rogue']::text[]);
 -- Item types. Removed items stay in the table (players may own them) but stop dropping.
 insert into public.item_types (id, slot, droppable) values
   ('helm', 'helm', true),
@@ -290,8 +290,8 @@ insert into public.item_types (id, slot, droppable) values
 on conflict (id) do update set slot = excluded.slot, droppable = true;
 update public.item_types set droppable = false where id <> all (array['helm', 'body_armour', 'leggings', 'boots', 'power_charm']::text[]);
 -- Item bonuses: the relics an item can roll.
-insert into public.item_bonuses (id) values ('Sharpened rounds'), ('Long barrels'), ('Quick hands'), ('Four-leaf clover'), ('Battle focus'), ('Prospector'), ('Reinforced gate'), ('Bulk order'), ('Split bolt'), ('Tax collector'), ('Compound interest'), ('Fine arrows'), ('Whetstone'), ('Arcane focus'), ('Wide swing') on conflict (id) do nothing;
-delete from public.item_bonuses where id <> all (array['Sharpened rounds', 'Long barrels', 'Quick hands', 'Four-leaf clover', 'Battle focus', 'Prospector', 'Reinforced gate', 'Bulk order', 'Split bolt', 'Tax collector', 'Compound interest', 'Fine arrows', 'Whetstone', 'Arcane focus', 'Wide swing']::text[]);
+insert into public.item_bonuses (id) values ('Sharpened rounds'), ('Long barrels'), ('Quick hands'), ('Four-leaf clover'), ('Battle focus'), ('Prospector'), ('Reinforced gate'), ('Bulk order'), ('Split bolt'), ('Tax collector'), ('Compound interest'), ('Fine arrows'), ('Whetstone'), ('Arcane focus'), ('Wide swing'), ('Keen edge'), ('Cruelty'), ('Quick incantation') on conflict (id) do nothing;
+delete from public.item_bonuses where id <> all (array['Sharpened rounds', 'Long barrels', 'Quick hands', 'Four-leaf clover', 'Battle focus', 'Prospector', 'Reinforced gate', 'Bulk order', 'Split bolt', 'Tax collector', 'Compound interest', 'Fine arrows', 'Whetstone', 'Arcane focus', 'Wide swing', 'Keen edge', 'Cruelty', 'Quick incantation']::text[]);
 
 -- ===== Functions =====
 

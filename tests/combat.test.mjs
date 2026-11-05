@@ -23,7 +23,7 @@ function setup(heroId, mods = [], seed = 31) {
 const tick = (w, e, seconds) => { for (let i = 0; i < seconds * 60; i++) tickEffects(w, e, 1 / 60); };
 
 test('every hero has a damage type and all the combat stats, starting at 0', () => {
-  assert.deepEqual(HEROES.map(h => h.damageType), ['physical', 'physical', 'spell']);
+  assert.deepEqual(HEROES.map(h => h.damageType), ['physical', 'physical', 'spell', 'physical']);
   for (const h of HEROES) for (const k in COMBAT_STATS) assert.equal(h.stats[k], 0, h.id + ' ' + k);
 });
 

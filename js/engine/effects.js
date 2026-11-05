@@ -3,10 +3,16 @@
    To add an effect: add it to AILMENTS (for one heroes can cause) or to EXTRA here (for anything else). */
 import { AILMENTS } from '../content/combat.js';
 
-const EXTRA = { chill: { name: 'Chill', kind: 'slow', speedMult: 0.5, tint: '#8fb4e8' } };
+const EXTRA = {
+  chill: { name: 'Chill', kind: 'slow', speedMult: 0.5, tint: '#8fb4e8' },
+  /* Rogue's Mark: hits against the enemy get +chance crit chance and +dmg crit damage (see critMult in combat.js). */
+  mark: { name: 'Marked', kind: 'mark', tint: '#c77dff' },
+  /* Standing in the Alchemist's flammable puddle: half speed. */
+  oiled: { name: 'Oiled', kind: 'slow', speedMult: 0.5, tint: '#8a6d3b' }
+};
 export const EFFECTS = { ...AILMENTS, ...EXTRA };
 /* Which tint shows when an enemy has several effects. */
-const TINT_ORDER = ['freeze', 'shock', 'burn', 'poison', 'bleed', 'chill'];
+const TINT_ORDER = ['freeze', 'shock', 'burn', 'poison', 'bleed', 'mark', 'oiled', 'chill'];
 
 export function applyEffect(e, id, eff) {
   if (typeof eff === 'number') eff = { t: eff };          /* old style: just a duration */

@@ -30,6 +30,7 @@ function newRun() {
   w = createWorld({ seed, stage: stageN, talents: hooks.talents || [], lineup: hooks.lineup, items: hooks.items || {} });
   const world = w;
   w.ev.on('end', ({ won }) => finish(world, won));
+  w.ev.on('crit', ({ enemy }) => { if (w.fx) addSlash(v.vfx, enemy.x, enemy.y, 0, Math.PI, enemy.def.radius + 7, 0.16, '#ffd84a'); });   /* a gold flash on critical hits */
   v.selected = v.moving = v.evo = null; ui.hideEvoPick(); if (v.speed > 2) v.speed = 1; v.vfx.beams.length = 0; v.vfx.slashes.length = 0; v.needFit = true;
   v.sel = heroIndex(w.lineup[0]);
   ui.setLineup(w);
@@ -300,8 +301,10 @@ const PAN_KEYS = { arrowleft: [1, 0], a: [1, 0], arrowright: [-1, 0], d: [-1, 0]
 addEventListener('keydown', e => {
   if (!active || e.target.tagName === 'INPUT') return;
   const k = e.key.toLowerCase();
-  if (+e.key >= 1 && +e.key <= w.lineup.length) selectType(heroIndex(w.lineup[+e.key - 1]));
-  else if (k === 'r') act({ type: 'buyRelic' });
+  /* While choosing a relic, 1, 2 and 3 pick one; otherwise the number keys choose heroes. */
+  if (w.picking && w.pick && +e.key >= 1 && +e.key <= w.pick.offers.length) act({ type: 'choose', index: +e.key - 1 });
+  else if (+e.key >= 1 && +e.key <= w.lineup.length) selectType(heroIndex(w.lineup[+e.key - 1]));
+  else if (k === ' ' || k === 'r') { e.preventDefault && e.preventDefault(); if (!w.picking && !v.evo) act({ type: 'buyRelic' }); }   /* Space (or R): buy a relic */
   else if (k === 'm') toggleMove();
   else if (k === 'e') evolveSelected();
   else if (k === 'p') { if (w.phase !== 'over') setPaused(!v.paused); }
@@ -310,7 +313,7 @@ addEventListener('keydown', e => {
   else if (k === '+' || k === '=') zoomBy(1.25);
   else if (k === '-') zoomBy(0.8);
   else if (PAN_KEYS[k]) { e.preventDefault && e.preventDefault(); pan(PAN_KEYS[k][0] * 60, PAN_KEYS[k][1] * 60); }
-  else if (e.key === ' ' && w.phase === 'build' && !w.picking) { e.preventDefault(); act({ type: 'wave' }); }
+  else if (k === 'enter' && w.phase === 'build' && !w.picking && !v.evo) { e.preventDefault && e.preventDefault(); act({ type: 'wave' }); }   /* Enter: start the wave */
 });
 
 /* ---- Public API used by the Play screen ---- */

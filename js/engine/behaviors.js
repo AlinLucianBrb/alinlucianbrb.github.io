@@ -37,7 +37,9 @@ export function targetCount(g, t) {
   return Math.max(1, whole + (rest > 1e-9 && g.rng && g.rng.combat.next() < rest ? 1 : 0));
 }
 const ready = (t, dt) => (t.cd -= dt) <= 0;
-const rearm = t => { t.cd = t.s.cooldown / t.s.speed; };
+/* How fast a hero attacks: attack speed, or cast speed for spell casters (def.rate = 'castSpeed'). */
+export const rateOf = t => t.s[t.def.rate || 'speed'] || 1;
+const rearm = t => { t.cd = t.s.cooldown / rateOf(t); };
 /* Damage multiplier for this attack: 1, or the ultimate's when the bar is full (0 when the ultimate replaces the attack).
    Worlds without energy (old tests) give 1. */
 const strike = (g, t, target) => (g.attackMult ? g.attackMult(t, target) : 1);
@@ -193,3 +195,56 @@ registerBehavior('chain', {
     rearm(t); charge(g, t);
   }
 });
+
+/* ---- Rogue forms. "The strongest, toughest enemy" is the one in range with the most life left. ---- */
+export function pickStrongest(g, t, range) {
+  const r2 = range * range; let best = null;
+  for (const e of g.enemies) {
+    if (e.dead) continue;
+    const dx = e.x - t.x, dy = e.y - t.y;
+    if (dx * dx + dy * dy <= r2 && (!best || e.hp > best.hp)) best = e;
+  }
+  return best;
+}
+
+/* Assassin: teleports behind the strongest, toughest enemy in range and strikes once. (The hero stays on its tile; the
+   blink is drawn from t.blink.) */
+registerBehavior('assassin', {
+  update(g, t, dt) {
+    if (t.blink && (t.blink.t -= dt) <= 0) t.blink = null;
+    if (!ready(t, dt)) return;
+    const tg = pickStrongest(g, t, t.s.range);
+    if (!tg) return;
+    const mult = strike(g, t, tg);
+    if (mult === 0) { rearm(t); charge(g, t); return; }
+    const len = Math.hypot(tg.x - t.x, tg.y - t.y) || 1, bx = tg.x + (tg.x - t.x) / len * 16, by = tg.y + (tg.y - t.y) / len * 16;
+    t.blink = { x: bx, y: by, t: 0.22 };
+    g.fx?.beam(t.x, t.y, bx, by, 0.12, 'rgba(155,107,214,.55)', 2);
+    g.fx?.slash(bx, by, Math.atan2(tg.y - by, tg.x - bx), Math.PI / 3, 26, 0.18, look(t, mult));
+    g.attack(t, tg, mult);
+    rearm(t); charge(g, t);
+  }
+});
+
+/* Toxicologist and Alchemist: two thrown projectiles at the strongest, toughest enemy in range, side by side.
+   The Alchemist's are one fire and one toxic concoction (`as`); the Toxicologist's are two toxic daggers. */
+function throwPair(g, t, mult, lookName, speed, types) {
+  const tg = t._tg, len = Math.hypot(tg.x - t.x, tg.y - t.y) || 1, nx = -(tg.y - t.y) / len * 6, ny = (tg.x - t.x) / len * 6;
+  types.forEach((as, k) => g.projs.push({ type: 'bolt', owner: t, target: tg, x: t.x + (k ? -nx : nx), y: t.y + (k ? -ny : ny), scale: mult,
+    color: look(t, mult), size: mult > 1 ? 7 : 5, look: lookName, speed, dx: 1, dy: 0, as }));
+}
+function thrower(lookName, speed, types) {
+  return {
+    update(g, t, dt) {
+      if (!ready(t, dt)) return;
+      const tg = pickStrongest(g, t, t.s.range);
+      if (!tg) return;
+      const mult = strike(g, t, tg);
+      if (mult === 0) { rearm(t); charge(g, t); return; }
+      t._tg = tg; throwPair(g, t, mult, lookName, speed, typeof types === 'function' ? types(t) : types); t._tg = null;
+      rearm(t); charge(g, t);
+    }
+  };
+}
+registerBehavior('daggers', thrower('dagger', 560, [null, null]));
+registerBehavior('concoctions', thrower('flask', 420, ['fire', 'toxic']));

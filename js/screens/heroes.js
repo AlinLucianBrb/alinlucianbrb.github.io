@@ -88,7 +88,8 @@ function renderInfo(box, h) {
   for (const a of ATTRIBUTES) row(STAT_LABELS[a] + (a === h.attribute ? ' (main)' : ''), f(s[a]), null, a === h.attribute ? 'main' : '');
   row('Damage (' + DAMAGE_LABEL[h.damageType] + ')', f(s.damage), '+' + f(attributeDamage(h, s) * 100) + '% from ' + STAT_LABELS[h.attribute] + (worn ? ' · gear included' : ''));
   row('Range', f(s.range));
-  if (s.cooldown) row('Attacks per second', f(s.speed / s.cooldown));
+  if (s.cooldown) row(h.rate === 'castSpeed' ? 'Casts per second' : 'Attacks per second', f((s[h.rate || 'speed'] || 1) / s.cooldown));
+  if (s.critChance > 0) row('Crit chance', f(s.critChance * 100) + '% (×' + f(s.critDamage) + ' damage)');
   if (s.arc) row('Swing arc (°)', f(s.arc));
   row('Energy per attack', f(s.energyPerAttack) + ' / ' + f(s.energyMax));
   const u = ULTIMATES[h.ultimate];

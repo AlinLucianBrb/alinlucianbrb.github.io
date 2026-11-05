@@ -8,9 +8,9 @@ import { levelMods } from '../js/engine/levels.js';
 const H = id => HEROES.find(h => h.id === id);
 const near = (a, b) => Math.abs(a - b) < 1e-9;
 
-test('every hero has all three attributes and one of its own: Warrior strength, Ranger dexterity, Mage intellect', () => {
+test('every hero has all three attributes and one of its own: Warrior strength, Ranger dexterity, Mage intellect, Rogue dexterity', () => {
   assert.deepEqual(ATTRIBUTES, ['strength', 'dexterity', 'intellect']);
-  assert.deepEqual(HEROES.map(h => h.attribute), ['strength', 'dexterity', 'intellect']);
+  assert.deepEqual(HEROES.map(h => h.attribute), ['strength', 'dexterity', 'intellect', 'dexterity']);
   for (const h of HEROES) { for (const a of ATTRIBUTES) assert.ok(a in h.stats, h.id + ' ' + a); assert.equal(h.stats[h.attribute], 10); }
   const hunter = evolvedDef(H('ranger'), H('ranger').evolutions[0].choices[2]);
   assert.equal(hunter.attribute, 'dexterity', 'evolved forms keep the attribute');

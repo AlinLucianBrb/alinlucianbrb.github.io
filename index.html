@@ -195,7 +195,9 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
 /* Start wave and Auto-start are one button: about 80% start, 20% auto. */
 .split{display:flex;flex:1;min-width:150px}
 .split #go{flex:4;border-radius:4px 0 0 4px;font-size:1.05em;padding:.5em .8em;white-space:nowrap}
-.split .autobtn{flex:1;min-width:46px;border-radius:0 4px 4px 0;border-left:1px solid rgba(0,0,0,.35);padding:.2em .3em;font-size:.68em;font-weight:700;letter-spacing:.05em;background:#3b3420;color:#d9c48a;border-color:var(--accent)}
+.split .autobtn{flex:1;min-width:46px;border-radius:0 4px 4px 0;border-left:1px solid rgba(0,0,0,.35);padding:.2em .3em;font-size:.68em;font-weight:700;letter-spacing:.05em;background:#5a1f1c;color:#ffb4a8;border-color:#e5645a}   /* red while off, so it is clear Auto-start is not on */
+.choose .pickkey{position:absolute;top:6px;right:8px;font-size:.75em;color:var(--muted)}
+.choose{position:relative}
 .split .autobtn.on{background:#8be28b;color:#10200f;border-color:#8be28b}
 .spdbtn{min-width:46px;font-weight:700}
 .spdbtn.on{border-color:var(--accent);color:var(--accent)}
@@ -366,7 +368,7 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
         <button id="relic" class="relic">Relic</button>
         <div class="waverow">
           <div class="split">
-            <button id="go" class="go big">Start wave</button>
+            <button id="go" class="go big" title="Start the next wave (Enter)">Start wave</button>
             <button id="auto" class="autobtn" aria-pressed="false" aria-label="Auto-start">AUTO</button>
           </div>
           <button id="spd" class="spdbtn" aria-label="Game speed">1x</button>

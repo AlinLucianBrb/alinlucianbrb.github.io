@@ -45,11 +45,11 @@ test('hero bonuses help only the wearer, and only if it has the tags; economy bo
 test('items add up across slots, and Reinforced gate gives starting lives', () => {
   const gear = [{ type: 'helm', rarity: 0, bonuses: ['Quick hands'] }, { type: 'boots', rarity: 0, bonuses: ['Quick hands'] },
     { type: 'leggings', rarity: 3, bonuses: ['Reinforced gate'] }, { type: 'power_charm', rarity: 0, bonuses: [] }];
-  const w = createWorld({ seed: 1, items: { mage: gear } });
+  const w = createWorld({ seed: 1, items: { ranger: gear } });
   assert.equal(w.lives, 20 + 3, 'Epic Reinforced gate: +3 starting lives');
-  const s = heroStats(H('mage'), itemMods({ mage: gear }));
+  const s = heroStats(H('ranger'), itemMods({ ranger: gear }));
   assert.ok(near(s.speed, 1.06), 'two Quick hands: +3% each');
-  assert.ok(near(s.damage, (26 + 5) * 1.1), 'the charm still adds 5');
+  assert.ok(near(s.damage, (16 + 5) * 1.1), 'the charm still adds 5');
 });
 
 test('the server rolls items with the same rules (finish_run), and knows every bonus', () => {

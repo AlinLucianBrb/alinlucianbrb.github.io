@@ -15,8 +15,29 @@ const PROJ_DRAW = {
       ctx.lineTo(hx - p.dx * 6 + p.dy * 4, hy - p.dy * 6 - p.dx * 4); ctx.closePath(); ctx.fillStyle = p.color; ctx.fill();
       return;
     }
+    if (p.look === 'dagger') {                /* a short blade, pointing where it flies (Toxicologist) */
+      const L = 12, hx = p.x, hy = p.y, tx = hx - p.dx * L, ty = hy - p.dy * L;
+      ctx.strokeStyle = '#d9f2b0'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(hx, hy); ctx.stroke();
+      ctx.strokeStyle = p.color; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(tx - p.dy * 4, ty + p.dx * 4); ctx.lineTo(tx + p.dy * 4, ty - p.dx * 4); ctx.stroke();
+      return;
+    }
+    if (p.look === 'flask') {                 /* a round bottle, orange for fire and green for toxic (Alchemist) */
+      ctx.beginPath(); ctx.arc(p.x, p.y, 5.5, 0, 7); ctx.fillStyle = p.as === 'toxic' ? '#7ad04b' : '#ff8a3d'; ctx.fill();
+      ctx.strokeStyle = '#f4ead2'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = '#c9b37e'; ctx.fillRect(p.x - 1.5, p.y - 9, 3, 4);
+      return;
+    }
     ctx.beginPath(); ctx.arc(p.x, p.y, p.size + 4, 0, 7); ctx.fillStyle = 'rgba(255,255,255,.15)'; ctx.fill();
     ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, 7); ctx.fillStyle = p.color; ctx.fill();
+  },
+  /* Toxicologist's poison bottle, arcing through the air to where it lands. */
+  flask(ctx, p) {
+    const k = Math.min(1, p.t / p.dur), y = p.y - Math.sin(k * Math.PI) * 36;
+    ctx.beginPath(); ctx.ellipse?.(p.x, p.y, 6, 3, 0, 0, 7); ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fill();
+    ctx.beginPath(); ctx.arc(p.x, y, 7, 0, 7); ctx.fillStyle = '#7ad04b'; ctx.fill(); ctx.strokeStyle = '#e8ffd0'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = '#c9b37e'; ctx.fillRect(p.x - 2, y - 11, 4, 5);
   },
   /* Charging: a growing glow on the Marksman; flying: a long bright streak. */
   pierce(ctx, p) {
@@ -86,6 +107,22 @@ const ZONE_DRAW = {
     ctx.fillStyle = '#6b4f2a'; ctx.fillRect(z.x - 16, z.y - 18, 32, 36);
     ctx.strokeStyle = '#c9b37e'; ctx.lineWidth = 2; ctx.strokeRect(z.x - 16, z.y - 18, 32, 36);
     ctx.beginPath(); for (const k of [-6, 6]) { ctx.moveTo(z.x - 16, z.y + k); ctx.lineTo(z.x + 16, z.y + k); } ctx.stroke();
+    ctx.globalAlpha = 1;
+  },
+  /* The Toxicologist's puddle of poison: bubbling green, fading out at the end. */
+  poisonpool(ctx, z) {
+    ctx.globalAlpha = Math.min(1, z.t);
+    ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, 7); ctx.fillStyle = 'rgba(122,208,75,.28)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(122,208,75,.7)'; ctx.lineWidth = 2; ctx.stroke();
+    for (let i = 0; i < 4; i++) { const a = z.t * 2 + i * 1.7; ctx.beginPath(); ctx.arc(z.x + Math.cos(a) * z.r * 0.5, z.y + Math.sin(a * 1.3) * z.r * 0.4, 3, 0, 7); ctx.fillStyle = 'rgba(200,255,150,.6)'; ctx.fill(); }
+    ctx.globalAlpha = 1;
+  },
+  /* The Alchemist's flammable puddle: a dark, glossy slick. */
+  oil(ctx, z) {
+    ctx.globalAlpha = Math.min(1, z.t * 2);
+    ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, 7); ctx.fillStyle = 'rgba(60,40,15,.6)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,159,67,.75)'; ctx.lineWidth = 2; ctx.setLineDash([5, 4]); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.arc(z.x - z.r * 0.3, z.y - z.r * 0.3, z.r * 0.25, 0, 7); ctx.fillStyle = 'rgba(255,220,160,.25)'; ctx.fill();
     ctx.globalAlpha = 1;
   },
   /* The Hunter's trap: a green spiked ring on the path. */
@@ -199,6 +236,11 @@ export function draw(ctx, g, v) {
     });
     if (full) {                            /* ultimate ready: a soft gold glow */
       ctx.beginPath(); ctx.arc(t.x, t.y, 21, 0, 7); ctx.fillStyle = 'rgba(255,216,74,.28)'; ctx.fill();
+    }
+    if (t.blink) {                         /* Assassin: a faded copy behind the enemy it just struck */
+      ctx.globalAlpha = 0.45 * Math.min(1, t.blink.t * 5);
+      if (n) poly(ctx, t.blink.x, t.blink.y, 13, n, rot); else { ctx.beginPath(); ctx.arc(t.blink.x, t.blink.y, 11, 0, 7); }
+      ctx.fillStyle = d.color; ctx.fill(); ctx.globalAlpha = t === v.moving ? 0.4 : 1;
     }
     if (n) poly(ctx, t.x, t.y, 15, n, rot); else { ctx.beginPath(); ctx.arc(t.x, t.y, 13, 0, 7); }
     ctx.fillStyle = d.color; ctx.fill(); ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2; ctx.stroke();
