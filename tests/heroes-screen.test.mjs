@@ -41,7 +41,7 @@ test('Heroes: one card per playable hero; clicking opens its page on the Informa
   assert.equal(byId.hrPage.hidden, false); assert.equal(byId.hrList.hidden, true); assert.equal(byId.hrTitle._text, 'Warrior');
   assert.equal(byId.hrTabs.children[0]._cls.has('on'), true);
   const [gear, pic, stats] = byId.hrBody.children;
-  assert.equal(gear.children[0]._text, 'Gear'); assert.ok(texts(pic).includes('Hero art coming soon')); assert.equal(stats.children[0]._text, 'Stats');
+  assert.equal(gear.children[0]._text, 'Gear'); assert.ok(pic.children[0].children.some(c => c.tag === 'img' && /assets\/hero_\w+\.png$/.test(c.src)), 'the hero\'s sprite'); assert.equal(stats.children[0]._text, 'Stats');
   const st = texts(stats);
   assert.ok(st.includes('Strength (main)') && st.includes('Dexterity') && st.includes('Intellect'), 'the three attributes');
   assert.ok(st.includes('30.8'), 'damage 28 +10% from 10 strength');

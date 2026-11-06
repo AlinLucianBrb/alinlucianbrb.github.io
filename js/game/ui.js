@@ -7,6 +7,7 @@ import { ULTIMATES } from '../engine/ultimates.js';
 import { DAMAGE_LABEL } from '../content/combat.js';
 import { explain, affected, attributeDamage } from '../engine/stats.js';
 import { bindTip } from '../core/tooltip.js';
+import { spriteImg, spriteUrl, heroSprite } from './sprites.js';
 import { isBossWave } from '../engine/enemies.js';
 
 const $ = id => document.getElementById(id);
@@ -36,7 +37,8 @@ export function initUI(callbacks) {
     up.hidden = true; up.onclick = () => cb.onEvolveHero(i); b._wrap = wrap; b._up = up;
     b.style.setProperty?.('--hc', d.color);
     const key = el('span', 'key'), name = el('span', 'nm'), nmText = el('span', '', d.name), lv = el('small'), status = el('span', 'cost');
-    name.append(nmText, lv); b.append(key, name, status); b._status = status; b._key = key; b._nm = nmText; b._lv = lv;
+    const pic = spriteImg(heroSprite(d), 'pix hico');
+    name.append(nmText, lv); b.append(key, name, status, pic);   /* the picture comes last in the DOM; CSS shows it first */ b._status = status; b._key = key; b._nm = nmText; b._lv = lv; b._pic = pic; b._picName = heroSprite(d);
     bindTip(b, () => {
       const info = cb.heroInfo(i), u = ULTIMATES[d.ultimate];
       const lines = [d.short, { text: statLine(d, info.stats), color: '#9db3a3' }];
@@ -123,7 +125,8 @@ export function renderHUD(g, v) {
     setText(b._nm, unit ? (unit.tier ? '★ ' : '') + unit.def.name : d.name);
     setText(b._lv, unit ? 'Lv ' + unit.level : '');
     setText(b._status, unit ? '' : 'Free · place it');
-    const hc = unit ? unit.def.color : d.color;
+    const hc = unit ? unit.def.color : d.color, pn = heroSprite(unit ? unit.def : d);
+    if (b._picName !== pn) { b._picName = pn; b._pic.src = spriteUrl(pn); }   /* evolved: its new form */
     if (b._hc !== hc) { b._hc = hc; b.style.setProperty?.('--hc', hc); }
     b.classList.toggle('on', sel === i && (!unit || v.selected === unit)); b.classList.toggle('placed', !!unit);
   });

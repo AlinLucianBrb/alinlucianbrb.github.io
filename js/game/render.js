@@ -1,12 +1,28 @@
 /* Canvas drawing. The world is drawn through the camera; the board is cheap enough to draw every frame, which keeps it sharp at any zoom. */
 import { COLS, ROWS, T } from '../content/data.js';
 import { tintOf } from '../engine/effects.js';
+import { get as sprite, tiles as tileSheet, drawSprite, heroSprite } from './sprites.js';
 
 const MAP_W = COLS * T, MAP_H = ROWS * T;
+/* Sprite sizes on the map (the art is 64 pixels a tile; the map uses T). Heroes stand on their tile, feet near its bottom. */
+const HERO_S = T * 1.2, HERO_DY = -T * 0.12;
+/* Enemies: drawn size, and where the figure's head starts in its image (for the health bar). */
+const ENEMY_ART = { runner: { s: 44, top: 0.25 }, grunt: { s: 48, top: 0.22 }, brute: { s: 56, top: 0.12 }, boss: { s: 68, top: 0.03 } };
 
 /* How each projectile type looks (the engine only simulates them). */
+/* Which sprite a projectile uses (null: draw the shape). Arrows and bolts point where they fly. */
+function boltSprite(p) {
+  const d = p.owner && p.owner.def, form = d && (d.form || d.id);
+  if (p.look === 'arrow') return form === 'marksman' ? 'proj_arrow_gold' : form === 'hunter' ? 'proj_arrow_toxic' : 'proj_arrow';
+  if (p.look === 'dagger') return 'proj_dagger_toxic';
+  if (p.look === 'flask') return p.as === 'toxic' ? 'proj_flask_toxic' : 'proj_flask_fire';
+  const type = p.as || (d && d.damageType);
+  return type === 'fire' ? 'proj_fireball' : type === 'cold' ? 'proj_ice_shard' : type === 'lightning' ? 'proj_spark' : 'proj_bolt_arcane';
+}
 const PROJ_DRAW = {
   bolt(ctx, p) {
+    const sp = boltSprite(p), big = p.size > 5 ? 1.35 : 1;
+    if (p.look === 'flask' ? drawSprite(ctx, sp, p.x, p.y, 22) : drawSprite(ctx, sp, p.x - p.dx * 6, p.y - p.dy * 6, 26 * big, Math.atan2(p.dy, p.dx))) return;
     if (p.look === 'arrow') {                 /* a shaft with a head, pointing where it flies */
       const L = p.size > 5 ? 20 : 14, hx = p.x, hy = p.y, tx = hx - p.dx * L, ty = hy - p.dy * L;
       ctx.strokeStyle = p.color; ctx.lineWidth = p.size > 5 ? 3.5 : 2; ctx.lineCap = 'round';
@@ -36,6 +52,7 @@ const PROJ_DRAW = {
   flask(ctx, p) {
     const k = Math.min(1, p.t / p.dur), y = p.y - Math.sin(k * Math.PI) * 36;
     ctx.beginPath(); ctx.ellipse?.(p.x, p.y, 6, 3, 0, 0, 7); ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fill();
+    if (drawSprite(ctx, 'proj_flask_toxic', p.x, y, 26)) return;
     ctx.beginPath(); ctx.arc(p.x, y, 7, 0, 7); ctx.fillStyle = '#7ad04b'; ctx.fill(); ctx.strokeStyle = '#e8ffd0'; ctx.lineWidth = 1.5; ctx.stroke();
     ctx.fillStyle = '#c9b37e'; ctx.fillRect(p.x - 2, y - 11, 4, 5);
   },
@@ -46,6 +63,7 @@ const PROJ_DRAW = {
       ctx.beginPath(); ctx.arc(p.x, p.y, 8 + 14 * k, 0, 7); ctx.fillStyle = 'rgba(255,246,200,' + (0.25 + 0.4 * k) + ')'; ctx.fill();
       return;
     }
+    if (drawSprite(ctx, 'proj_piercing', p.x - p.dx * 22, p.y - p.dy * 22, 56, Math.atan2(p.dy, p.dx))) return;
     ctx.strokeStyle = '#fff6c8'; ctx.lineWidth = 5; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(p.x - p.dx * 46, p.y - p.dy * 46); ctx.lineTo(p.x, p.y); ctx.stroke();
     ctx.strokeStyle = 'rgba(255,215,106,.45)'; ctx.lineWidth = 11;
@@ -54,6 +72,7 @@ const PROJ_DRAW = {
   orbit(ctx, p) { PROJ_DRAW.boomerang(ctx, p); },
   /* Commander's sword: a blade with a crossguard, pointing where it flies. */
   sword(ctx, p) {
+    if (drawSprite(ctx, 'proj_sword', p.x - p.dx * 12, p.y - p.dy * 12, 48, Math.atan2(p.dy, p.dx))) return;
     const hx = p.x, hy = p.y, bx = hx - p.dx * 22, by = hy - p.dy * 22;
     ctx.strokeStyle = p.color; ctx.lineWidth = 4; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(hx, hy); ctx.stroke();
@@ -61,6 +80,7 @@ const PROJ_DRAW = {
     ctx.beginPath(); ctx.moveTo(bx - p.dy * 7, by + p.dx * 7); ctx.lineTo(bx + p.dy * 7, by - p.dx * 7); ctx.stroke();
   },
   boomerang(ctx, p) {
+    if (drawSprite(ctx, 'proj_boomerang', p.x, p.y, 28, p.rot || 0.001)) return;
     ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
     ctx.strokeStyle = '#8be28b'; ctx.lineWidth = 5; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(-9, -9); ctx.lineTo(0, 0); ctx.lineTo(9, -9); ctx.stroke();
@@ -92,7 +112,28 @@ export function tickSlashes(vfx, dt) {
   list.length = j;
 }
 
-/* How each zone type looks. */
+/* Sprite animations (hit sparks, explosions): { name, x, y, t, dur, frames, s }. */
+const apool = [];
+export function addAnim(vfx, name, x, y, s, dur, frames) {
+  const a = apool.pop() || {};
+  a.name = name; a.x = x; a.y = y; a.s = s; a.t = 0; a.dur = dur; a.frames = frames;
+  vfx.anims.push(a);
+}
+export function tickAnims(vfx, dt) {
+  const list = vfx.anims; let j = 0;
+  for (let i = 0; i < list.length; i++) { const a = list[i]; if ((a.t += dt) < a.dur) list[j++] = a; else apool.push(a); }
+  list.length = j;
+}
+
+/* How each zone type looks: a sprite when the art has loaded, otherwise a shape. */
+const ZONE_SPRITE = {
+  storm: (ctx, z) => fade(ctx, Math.min(1, z.t) * (0.8 + 0.2 * Math.sin(z.t * 40)), () => drawSprite(ctx, 'zone_storm', z.x, z.y, z.r * 2.1)),
+  barrier: (ctx, z) => fade(ctx, Math.min(1, z.t * 4), () => drawSprite(ctx, 'zone_barrier', z.x, z.y, T * 1.15)),
+  poisonpool: (ctx, z) => fade(ctx, Math.min(1, z.t), () => drawSprite(ctx, 'zone_poison', z.x, z.y, z.r * 2.4)),
+  oil: (ctx, z) => fade(ctx, Math.min(1, z.t * 2), () => drawSprite(ctx, 'zone_oil', z.x, z.y, z.r * 2.4)),
+  trap: (ctx, z) => drawSprite(ctx, 'zone_trap', z.x, z.y, 30)
+};
+function fade(ctx, a, fn) { ctx.globalAlpha = Math.max(0, Math.min(1, a)); const ok = fn(); ctx.globalAlpha = 1; return ok; }
 const ZONE_DRAW = {
   /* The Lightning Mage's storm: a flickering circle that fades as it ends. */
   storm(ctx, z) {
@@ -169,9 +210,97 @@ function scenery(ctx, x, y, r) {
   }
 }
 
+/* ---- The painted board: the map and a margin of forest around it, drawn once per map from the tile sheet ----------------
+   Grass on the map, forest floor outside, the dirt road (autotiled: each road tile picks its mask and edge from which of its
+   8 neighbours are road too) and trees, bushes and rocks in the forest. Drawn at the art's 64 pixels per tile into an
+   offscreen canvas, then scaled to the map with smoothing off. */
+const MARGIN = 8, TS = 64;
+const DECO = [[0.08, 'deco_tree', 1.1], [0.12, 'deco_tree_2', 1.1], [0.17, 'deco_bush', 0.55], [0.2, 'deco_rock', 0.55], [0.24, 'deco_flowers', 0.5], [0.26, 'deco_mushrooms', 0.5]];
+let board = null;
+const mod4 = n => ((n % 4) + 4) % 4;
+function makeCanvas(w, h) {
+  if (typeof OffscreenCanvas === 'function') return new OffscreenCanvas(w, h);
+  if (typeof document === 'undefined' || !document.createElement) return null;
+  const c = document.createElement('canvas'); c.width = w; c.height = h; return c;
+}
+function roadCells(g, x0, x1) {
+  const set = new Set(g.path.map(([x, y]) => x + ',' + y)), start = g.path[0], end = g.path[g.path.length - 1];
+  for (let x = x0; x < 0; x++) set.add(x + ',' + start[1]);
+  for (let x = COLS; x < x1; x++) set.add(x + ',' + end[1]);
+  return set;
+}
+function paintBoard(g) {
+  const sh = tileSheet();
+  if (!sh) return null;
+  const deco = DECO.map(d => sprite(d[1]));
+  if (deco.some(d => !d)) return null;
+  const x0 = -MARGIN, y0 = -MARGIN, w = COLS + 2 * MARGIN, h = ROWS + 2 * MARGIN;
+  const c = makeCanvas(w * TS, h * TS), tmp = makeCanvas(TS, TS);
+  if (!c || !tmp) return null;
+  const cx = c.getContext('2d'), tx = tmp.getContext('2d');
+  cx.imageSmoothingEnabled = false; tx.imageSmoothingEnabled = false;
+  const tile = (ctx, name, dx, dy) => {
+    const i = sh.index[name];
+    if (i === undefined) return;
+    ctx.drawImage(sh.img, (i % sh.columns) * sh.size, Math.floor(i / sh.columns) * sh.size, sh.size, sh.size, dx, dy, TS, TS);
+  };
+  const road = roadCells(g, x0, x0 + w), on = (x, y) => road.has(x + ',' + y), seed = g.seed || 1;
+  const inMap = (x, y) => x >= 0 && y >= 0 && x < COLS && y < ROWS;
+  for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) {
+    const px = (x - x0) * TS, py = (y - y0) * TS, slice = mod4(y) * 4 + mod4(x), ground = (inMap(x, y) ? 'grass_' : 'forest_') + slice;
+    tile(cx, ground, px, py);
+    if (!on(x, y)) continue;
+    const n = { N: on(x, y - 1), E: on(x + 1, y), S: on(x, y + 1), W: on(x - 1, y) };
+    const key = ['N', 'E', 'S', 'W'].filter(k => n[k]).concat(
+      [['NE', 'N', 'E', 1, -1], ['SE', 'S', 'E', 1, 1], ['SW', 'S', 'W', -1, 1], ['NW', 'N', 'W', -1, -1]]
+        .filter(([, a, b, dx, dy]) => n[a] && n[b] && on(x + dx, y + dy)).map(d => d[0])).join('') || 'none';
+    tx.globalCompositeOperation = 'source-over'; tx.clearRect(0, 0, TS, TS);
+    tile(tx, 'dirt_' + slice, 0, 0);
+    tx.globalCompositeOperation = 'destination-in'; tile(tx, 'pathmask_' + key, 0, 0);
+    tx.globalCompositeOperation = 'source-over';
+    cx.drawImage(tmp, px, py);
+    tile(cx, 'pathedge_' + key, px, py);
+  }
+  /* Scenery in the forest around the map (never on the map or the road). */
+  for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) {
+    if (inMap(x, y) || on(x, y) || on(x, y - 1) || on(x, y + 1)) continue;
+    const r = tileHash(seed, x, y), d = DECO.findIndex(e => r < e[0]);
+    if (d < 0) continue;
+    const img = deco[d], s = TS * DECO[d][2], ox = (tileHash(r * 1e9, x, y) - 0.5) * 16, oy = (tileHash(r * 7e8, y, x) - 0.5) * 12;
+    cx.drawImage(img, (x - x0) * TS + (TS - s) / 2 + ox, (y - y0) * TS + TS - s + oy, s, s);
+  }
+  return { c, g, path: g.path, x0, y0, w, h };
+}
+/* The board for this map: painted once (when the tiles have loaded) and kept until the map changes. */
+function boardFor(g) {
+  if (board && board.g === g && board.path === g.path) return board;
+  const b = paintBoard(g);
+  if (b) board = b;
+  return b;
+}
+
 /* The playable map, plus land that carries on past its edges so the world does not stop at a hard line.
    Only the map itself can hold heroes; the land outside is darker, has no grid, and has scenery on it. */
 function drawBoard(ctx, g, v) {
+  const b = boardFor(g);
+  if (b) {
+    const { cam } = v, end = g.path[g.path.length - 1];
+    const x0 = Math.floor(-cam.x / cam.z / T) - 1, y0 = Math.floor(-cam.y / cam.z / T) - 1;
+    const x1 = Math.ceil((v.cw - cam.x) / cam.z / T) + 1, y1 = Math.ceil((v.ch - cam.y) / cam.z / T) + 1;
+    ctx.fillStyle = '#1c3823'; ctx.fillRect(x0 * T, y0 * T, (x1 - x0) * T, (y1 - y0) * T);   /* past the painted margin */
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(b.c, b.x0 * T, b.y0 * T, b.w * T, b.h * T);
+    /* A faint grid on the map, so heroes are easy to place. */
+    ctx.strokeStyle = 'rgba(0,0,0,.08)'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 1; i < COLS; i++) { ctx.moveTo(i * T, 0); ctx.lineTo(i * T, MAP_H); }
+    for (let i = 1; i < ROWS; i++) { ctx.moveTo(0, i * T); ctx.lineTo(MAP_W, i * T); }
+    ctx.stroke();
+    ctx.fillStyle = '#e5645a'; ctx.fillRect(end[0] * T + T - 6, end[1] * T, 6, T);
+    ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 6; ctx.strokeRect(-3, -3, MAP_W + 6, MAP_H + 6);
+    ctx.strokeStyle = 'rgba(255,255,255,.22)'; ctx.lineWidth = 2; ctx.strokeRect(0, 0, MAP_W, MAP_H);
+    return;
+  }
   const { cam } = v, seed = g.seed || 1;
   const x0 = Math.floor(-cam.x / cam.z / T) - 1, y0 = Math.floor(-cam.y / cam.z / T) - 1;
   const x1 = Math.ceil((v.cw - cam.x) / cam.z / T) + 1, y1 = Math.ceil((v.ch - cam.y) / cam.z / T) + 1;
@@ -207,6 +336,7 @@ const hpColor = f => 'hsl(' + Math.round(Math.max(0, Math.min(1, f)) * 120) + ',
 export function draw(ctx, g, v) {
   const { dpr, cam } = v;
   ctx.setTransform(dpr * cam.z, 0, 0, dpr * cam.z, dpr * cam.x, dpr * cam.y);
+  ctx.imageSmoothingEnabled = false;           /* sharp pixel art at any zoom */
   drawBoard(ctx, g, v);
   const h = v.hover, inside = h && h[0] >= 0 && h[1] >= 0 && h[0] < COLS && h[1] < ROWS;
   if (h && !inside) {                    /* outside the map: show that heroes cannot go here */
@@ -219,7 +349,13 @@ export function draw(ctx, g, v) {
     const mv = v.moving, range = mv ? mv.s.range : g.previewRange(v.sel);
     ctx.beginPath(); ctx.arc((h[0] + 0.5) * T, (h[1] + 0.5) * T, range, 0, 7);
     ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fill();
-    if (mv) { ctx.globalAlpha = 0.5; ctx.fillStyle = mv.def.color; ctx.beginPath(); ctx.arc((h[0] + 0.5) * T, (h[1] + 0.5) * T, 13, 0, 7); ctx.fill(); ctx.globalAlpha = 1; }
+    if (mv) {
+      ctx.globalAlpha = 0.5;
+      if (!drawSprite(ctx, heroSprite(mv.def), (h[0] + 0.5) * T, (h[1] + 0.5) * T + HERO_DY, HERO_S)) {
+        ctx.fillStyle = mv.def.color; ctx.beginPath(); ctx.arc((h[0] + 0.5) * T, (h[1] + 0.5) * T, 13, 0, 7); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
   }
   for (const t of g.heroes) {
     const d = t.def, [n, rot] = d.shape;
@@ -239,27 +375,45 @@ export function draw(ctx, g, v) {
     }
     if (t.blink) {                         /* Assassin: a faded copy behind the enemy it just struck */
       ctx.globalAlpha = 0.45 * Math.min(1, t.blink.t * 5);
-      if (n) poly(ctx, t.blink.x, t.blink.y, 13, n, rot); else { ctx.beginPath(); ctx.arc(t.blink.x, t.blink.y, 11, 0, 7); }
-      ctx.fillStyle = d.color; ctx.fill(); ctx.globalAlpha = t === v.moving ? 0.4 : 1;
+      if (!drawSprite(ctx, heroSprite(d), t.blink.x, t.blink.y + HERO_DY, HERO_S)) {
+        if (n) poly(ctx, t.blink.x, t.blink.y, 13, n, rot); else { ctx.beginPath(); ctx.arc(t.blink.x, t.blink.y, 11, 0, 7); }
+        ctx.fillStyle = d.color; ctx.fill();
+      }
+      ctx.globalAlpha = t === v.moving ? 0.4 : 1;
     }
-    if (n) poly(ctx, t.x, t.y, 15, n, rot); else { ctx.beginPath(); ctx.arc(t.x, t.y, 13, 0, 7); }
-    ctx.fillStyle = d.color; ctx.fill(); ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2; ctx.stroke();
-    if (t.tier) {                          /* evolved: a gold ring */
+    const art = drawSprite(ctx, heroSprite(d), t.x, t.y + HERO_DY, HERO_S);
+    if (!art) {
+      if (n) poly(ctx, t.x, t.y, 15, n, rot); else { ctx.beginPath(); ctx.arc(t.x, t.y, 13, 0, 7); }
+      ctx.fillStyle = d.color; ctx.fill(); ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2; ctx.stroke();
+    }
+    if (t.tier && !art) {                  /* evolved: a gold ring (the art shows the evolved form instead) */
       ctx.beginPath(); ctx.arc(t.x, t.y, 18, 0, 7); ctx.strokeStyle = '#f2b84b'; ctx.lineWidth = 2.5; ctx.stroke();
     }
     /* Level badge, top right of the hero. */
-    ctx.beginPath(); ctx.arc(t.x + 13, t.y - 13, 7, 0, 7); ctx.fillStyle = '#10200f'; ctx.fill();
+    const bx = t.x + (art ? 16 : 13), byy = t.y - (art ? 17 : 13);
+    ctx.beginPath(); ctx.arc(bx, byy, 7, 0, 7); ctx.fillStyle = '#10200f'; ctx.fill();
     ctx.strokeStyle = t.level >= 10 ? '#f2b84b' : '#8fd3ff'; ctx.lineWidth = 1.5; ctx.stroke();
     ctx.fillStyle = '#fff'; ctx.font = 'bold 8px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(String(t.level), t.x + 13, t.y - 12.5);
+    ctx.fillText(String(t.level), bx, byy + 0.5);
     /* Energy bar under the hero: blue while filling, gold when the ultimate is ready. */
     const f = Math.max(0, Math.min(1, t.energy / t.s.energyMax));
     ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(t.x - 15, t.y + 19, 30, 5);
     ctx.fillStyle = full ? '#ffd84a' : '#5aa9ff'; ctx.fillRect(t.x - 14, t.y + 20, 28 * f, 3);
     ctx.globalAlpha = 1;
   }
+  const slashArt = sprite('fx_slash');
   for (const s of v.vfx.slashes) {
     const a = Math.max(0, s.t / s.ttl);
+    if (slashArt && s.h < Math.PI - 0.01) {    /* a sword arc, from the sheet: 3 frames, the arc 50 px from its centre */
+      const k = s.r / 50, f = Math.min(2, Math.floor((1 - a) * 3));
+      ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.a);
+      ctx.drawImage(slashArt, f * 64, 0, 64, 64, -12 * k, -32 * k, 64 * k, 64 * k);
+      ctx.restore();
+      ctx.globalAlpha = a * 0.5; ctx.strokeStyle = s.c; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(s.x, s.y, s.r * 0.95, s.a - s.h * 0.8, s.a + s.h * 0.8); ctx.stroke();
+      ctx.globalAlpha = 1;
+      continue;
+    }
     ctx.globalAlpha = a * 0.35;
     ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.arc(s.x, s.y, s.r, s.a - s.h, s.a + s.h); ctx.closePath();
     ctx.fillStyle = s.c; ctx.fill();
@@ -269,8 +423,16 @@ export function draw(ctx, g, v) {
   }
   for (const b of v.vfx.beams) { ctx.strokeStyle = b.c; ctx.lineWidth = b.w; ctx.beginPath(); ctx.moveTo(b.x1, b.y1); ctx.lineTo(b.x2, b.y2); ctx.stroke(); }
   for (const p of g.projs) PROJ_DRAW[p.type](ctx, p);
-  for (const z of g.zones || []) (ZONE_DRAW[z.type] || ZONE_DRAW.storm)(ctx, z);
+  for (const z of g.zones || []) if (!(ZONE_SPRITE[z.type] && ZONE_SPRITE[z.type](ctx, z))) (ZONE_DRAW[z.type] || ZONE_DRAW.storm)(ctx, z);
   for (const e of g.enemies) {
+    const look = ENEMY_ART[e.type], art = look && drawSprite(ctx, 'enemy_' + e.type, e.x, e.y - look.s * 0.2, look.s);
+    if (art) {
+      const top = e.y - look.s * 0.7 + look.s * look.top, f = e.hp / e.max, bw = Math.max(22, e.def.radius * 2.2);
+      ctx.fillStyle = 'rgba(0,0,0,.75)'; ctx.fillRect(e.x - bw / 2 - 1, top - 7, bw + 2, 6);
+      ctx.fillStyle = hpColor(f); ctx.fillRect(e.x - bw / 2, top - 6, bw * Math.max(0, f), 4);
+      ailmentIcons(ctx, e, e.x - bw / 2, top - 18);
+      continue;
+    }
     ctx.beginPath(); ctx.arc(e.x, e.y, e.def.radius, 0, 7); ctx.fillStyle = tintOf(e) || e.def.color; ctx.fill();
     if (e.def.boss) {                      /* bosses: a gold rim and a crown */
       ctx.strokeStyle = '#ffd84a'; ctx.lineWidth = 3; ctx.stroke();
@@ -282,5 +444,19 @@ export function draw(ctx, g, v) {
     const f = e.hp / e.max, bw = e.def.radius * 2.2, by = e.y - e.def.radius - 7;
     ctx.fillStyle = 'rgba(0,0,0,.75)'; ctx.fillRect(e.x - bw / 2 - 1, by - 1, bw + 2, 6);
     ctx.fillStyle = hpColor(f); ctx.fillRect(e.x - bw / 2, by, bw * Math.max(0, f), 4);
+  }
+  for (const a of v.vfx.anims || []) drawSprite(ctx, a.name, a.x, a.y, a.s, 0, Math.floor(a.t / a.dur * a.frames), a.frames);
+}
+
+/* Small icons over an enemy for each ailment it has (bleeding, burning, poisoned, chilled or frozen, shocked). */
+const AIL_ICON = { bleed: 'ail_bleed', burn: 'ail_burn', poison: 'ail_poison', chill: 'ail_chill', freeze: 'ail_chill', shock: 'ail_shock' };
+function ailmentIcons(ctx, e, x, y) {
+  if (!e.fx) return;
+  let i = 0;
+  for (const id in e.fx) {
+    const name = AIL_ICON[id], st = e.fx[id];
+    if (!name || !st || (st.stacks ? !st.stacks.length : !(st.t > 0))) continue;
+    if (drawSprite(ctx, name, x + 5 + i * 11, y + 5, 10)) i++;
+    if (i >= 4) break;
   }
 }

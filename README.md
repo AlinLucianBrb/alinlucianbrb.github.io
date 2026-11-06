@@ -27,9 +27,12 @@ js/engine/                 HOW the game works (no page, no clock, no Math.random
   stats.js, behaviors.js, enemies.js, projectiles.js, effects.js, meter.js
 js/game/                   the browser shell around the engine
   game.js                  input -> commands, the loop, background play
-  render.js                canvas drawing (beams, slashes, projectile looks)
+  render.js                canvas drawing: the painted board, sprites, effects (shapes while the art loads)
+  sprites.js               loads the pixel art from assets/; the list of every sprite the game uses
   ui.js                    HUD, damage meter, hero panel, relic picker
 
+assets/                    the pixel art the game loads (built by python3 art/build.py; do not edit by hand)
+art/                       the scripts that draw the art (Python + Pillow); art/out/ also has preview images
 tests/                     run with: npm test
 tools/bot.mjs              a bot that plays through the same commands as a player
 tools/balance-report.mjs   run with: npm run balance
@@ -143,10 +146,18 @@ Used by the heroes' evolutions and by enemy defenses:
 - With Compound interest, the gold box shows what the next wave clear pays in interest and how much gold earns the full amount.
 
 ## Art
-Pixel art, made by scripts in `art/` (output in `art/out/`, not used by the game yet).
+Pixel art, drawn by scripts in `art/`. Run `python3 art/build.py` (needs Python 3 with Pillow and NumPy) to redraw everything and copy what the game uses into `assets/`; each script also writes a preview image to `art/out/`.
+- **In the game:** `js/game/sprites.js` loads the sprites in the background and lists every file the game uses (a test checks they are all in `assets/`). Until a sprite has loaded, or if it is missing, the game draws its old plain shapes, so it never waits for art. Everything is drawn with smoothing off, so pixels stay sharp at any zoom.
+- **The board** is painted once per map into an offscreen canvas at 64 pixels a tile (grass on the map, forest floor with trees, bushes, rocks and flowers in a margin of 8 tiles around it, and the road autotiled from its neighbours), then scaled to the map (`T` = 40 pixels a tile). A faint grid stays on the map for placing heroes.
+- **On the map:** heroes show their sprite (the evolved form after evolving) with the level badge and energy bar; enemies show theirs with the health bar and an icon per ailment above it (bleed, burn, poison, chill or freeze, shock). Projectiles turn toward where they fly; melee swings use the slash frames; critical hits and kills flash a hit spark; the Alchemist's oil explodes with the explosion frames; zones (storm, poison pool, oil, barricade, trap) use their sprites.
+- **In the menus:** hero cards, the hero page and the evolution tree show the heroes' sprites; the HUD hero buttons show a small one; item icons show the item's picture for its type and rarity, framed in the rarity colour (the initials while it loads).
 - **Sizes:** tiles, items and heroes are 64x64 images; small things are 32x32 or 16x16. Everything is drawn at half resolution (32x32 art pixels in a 64x64 tile) and scaled up 2x with hard edges, so every asset has the same chunky pixel size. Draw new art the same way so the pixel sizes never mix.
 - **Style:** one fixed palette (`PALETTE` in `art/tiles.py`), light from the top left, solid clusters of pixels with no anti-aliasing, a 1-pixel dark outline on sprites and none on ground tiles.
 - **Terrain** (`python3 art/tiles.py`): grass, dirt and forest floor are each a seamless 4x4-tile texture (16 tiles; pick one by the cell's position, x % 4 and y % 4). The path has 47 autotile variants (`pathmask_<sides>`, plus `pathedge_<sides>` drawn on top), named by the path neighbours in N, E, S, W, NE, SE, SW, NW order, with a diagonal counting only when both sides next to it are path. `tiles.json` maps names to sheet positions. Decorations: two trees (64x64), and a bush, a rock, flowers and mushrooms (32x32).
+- **Heroes** (`python3 art/heroes.py`): a 64x64 sprite for every hero and evolution (`hero_<id>.png`). They share one hand-drawn figure (one character per art pixel) and are put together from parts: colours (cloak, torso as leather, plate or robe, the accent in the hero's colour, the eye glow), a head (hood, helm, horned or plumed helm, great helm, mage hood, pelt hood, goggles), a weapon (bow, sword, axe, staff, daggers, boomerang, flask), a back item (quiver) and a left-hand item (shield, dagger). The outline and ground shadow are added automatically. Heroes are tall and heroic, in dark, muted clothing so they stand out on the grass. To add a hero, add an entry to `HEROES`.
+- **Enemies** (`python3 art/enemies.py`): `enemy_<id>.png`, 64x64 each, all armoured demons in one style: skin in the enemy's colour, black spiked armour with ember accents, horns, burning eyes under angry brows. The figure's size follows the enemy's size in the game: the Runner (a winged imp) is smallest, then the Grunt (a footsoldier with a cleaver), the Brute (a hulking demon with two spiked maces) and the Boss (a demon lord with great horns, wings, a cape and a cleaver).
+- **Projectiles and effects** (`python3 art/effects.py`): projectiles point right and are rotated by the game to where they fly (`proj_*`: arrows with red, gold or green fletching, arcane bolt, fireball, ice shard, lightning spark, toxic dagger, fire and toxic flasks, boomerang at 32x32; the Commander's sword and the Marksman's piercing shot at 64x64). Animated effects are horizontal strips of frames (`fx_hit` 4 x 32x32, `fx_slash` 3 x 64x64 pointing right, `fx_explosion` 5 x 64x64). Ailment icons over enemies are 16x16 (`ail_bleed`, `burn`, `poison`, `chill`, `shock`). Zones are one 64x64 tile (`zone_poison`, `oil`, `storm`, `barrier`; `zone_trap` is 32x32). Solid objects get the dark outline; light and magic don't, and use see-through shades.
+- **Items** (`python3 art/items.py`): `item_<type>_<rarity>.png`, 64x64, for every item type in `js/content/items.js` and rarity 0 (Common) to 3 (Epic). Each type is drawn once; the rarity picks the materials: worn iron and leather (Common), steel with bronze trim and a green gem (Uncommon), polished steel with gold trim and a blue gem (Rare), dark steel with gold trim, a purple gem and a glow (Epic). A new item type needs one more drawing in `ITEMS`.
 
 ## Extending the game
 Everything in combat flows through `hit()` in `js/engine/world.js`, which emits `damage` and `kill` events. Pieces react to events instead of calling each other.
@@ -157,7 +168,8 @@ Everything in combat flows through `hit()` in `js/engine/world.js`, which emits 
 - **New evolution step:** add another entry to a hero's `evolutions` list.
 - **New hero behavior:** add `registerBehavior('kind', { update(g, hero, dt) {} })` in `js/engine/behaviors.js`.
 - **New status effect:** add it to `EFFECTS` in `js/engine/effects.js`, then list it in a hero's `applies` field.
-- **New projectile:** add it to `PROJECTILES` in `js/engine/projectiles.js` (and its look to `PROJ_DRAW` in `js/game/render.js`) and spawn it from a behavior.
+- **New projectile:** add it to `PROJECTILES` in `js/engine/projectiles.js` (and its look to `PROJ_DRAW` in `js/game/render.js`: a sprite from `art/effects.py`, added to `SPRITES` in `js/game/sprites.js`, with a shape as fallback) and spawn it from a behavior.
+- **New hero or evolution art:** add an entry to `HEROES` in `art/heroes.py` with the same id, run `python3 art/build.py`; the game picks it up by id.
 - **New enemy:** add it to `ENEMIES` in `js/engine/enemies.js` (with its armor and resistance per point of threat) and return it from `waveEnemyType`.
 - **New talent:** change a cluster in `K` in `talents.js`, or where it goes in `RING` (keep inner and outer alternating so the tree stays symmetrical), then run `npm run sql` and run `supabase-update.sql` in Supabase (a test fails until the SQL files are rebuilt).
 

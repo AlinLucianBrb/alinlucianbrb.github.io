@@ -10,6 +10,7 @@ import { SLOTS, SLOT_LABEL, itemMods, itemName, itemColor, itemLines } from '../
 import { DAMAGE_LABEL } from '../content/combat.js';
 import { ULTIMATES } from '../engine/ultimates.js';
 import { heroStats, attributeDamage } from '../engine/stats.js';
+import { spriteImg } from '../game/sprites.js';
 import { el, cap, items, itemById, equipment, gearOf, setGear, freeFor, wornItems, gearCount, ensureItems, saveNow, sqlHint, itemIcon, itemTip } from './loadout.js';
 
 const $ = id => document.getElementById(id);
@@ -42,7 +43,7 @@ function renderList() {
     card.style.setProperty('--hc', h.color);
     head.append(el('b', '', h.name), el('small', 'muted', cap(h.archetype) + ' · ' + STAT_LABELS[h.attribute]));
     const n = gearCount(h.id);
-    card.append(head, el('p', 'hdesc', h.short), el('small', 'muted', 'Gear ' + n + ' / ' + SLOTS.length));
+    card.append(head, el('p', 'hdesc', h.short), el('small', 'muted', 'Gear ' + n + ' / ' + SLOTS.length), spriteImg('hero_' + h.id, 'pix hcardart'));
     card.onclick = () => { hero = h; tab = 'info'; render(); };
     grid.append(card);
   }
@@ -78,9 +79,11 @@ function renderInfo(box, h) {
     }
     gear.append(box);
   }
-  /* The picture: a placeholder in the hero's colour until there is art. */
-  const art = el('div', 'hart'); art.style.setProperty('--hc', h.color); art.append(el('span', '', h.name[0]));
-  pic.append(art, el('small', 'muted', 'Hero art coming soon'), el('p', 'hdesc', h.short));
+  /* The picture: the hero's sprite on a glow in its colour (its initial if the picture cannot load). */
+  const art = el('div', 'hart art'), img = spriteImg('hero_' + h.id, 'pix');
+  art.style.setProperty('--hc', h.color); art.append(el('span', '', h.name[0]), img);
+  img.onerror = () => { img.remove(); art.classList.remove('art'); };
+  pic.append(art, el('p', 'hdesc', h.short));
   /* Stats, with the equipped item included. */
   const worn = wornItems()[h.id], s = heroStats(h, itemMods(worn ? { [h.id]: worn } : {}));
   stats.append(el('h3', '', 'Stats' + (worn ? ' (with gear)' : '')));
@@ -103,6 +106,7 @@ function renderEvolutions(box, h) {
   root.style.setProperty('--hc', h.color);
   root.append(el('b', '', h.name), el('small', 'muted', 'Level 1 · ' + DAMAGE_LABEL[h.damageType] + ' damage'), el('p', '', h.short));
   if (u) root.append(el('small', '', 'Ultimate: ' + u.name));
+  root.append(spriteImg('hero_' + h.id, 'pix evoart'));   /* last in the DOM; CSS shows it first */
   tree.append(root);
   for (const step of h.evolutions) {
     tree.append(el('div', 'evolink', 'Level ' + step.level + ' · ' + step.cost + ' gold · choose one'));
@@ -113,6 +117,7 @@ function renderEvolutions(box, h) {
       const nm = el('b', '', c.name); nm.style.color = d.color;
       n.append(nm, el('small', 'muted', DAMAGE_LABEL[d.damageType] + ' damage · +50% damage, range and attack speed'), el('p', '', c.short));
       if (cu) n.append(el('small', '', 'Ultimate: ' + (c.ultShort || cu.name + ': ' + cu.desc)));
+      n.append(spriteImg('hero_' + c.id, 'pix evoart'));
       row.append(n);
     }
     tree.append(row);

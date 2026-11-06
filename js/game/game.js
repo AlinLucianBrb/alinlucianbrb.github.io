@@ -5,7 +5,8 @@ import { createWorld, step, STEP } from '../engine/world.js';
 import { apply } from '../engine/commands.js';
 import { exportLog } from '../engine/replay.js';
 import { heroStats } from '../engine/stats.js';
-import { draw, addBeam, tickBeams, addSlash, tickSlashes } from './render.js';
+import { draw, addBeam, tickBeams, addSlash, tickSlashes, addAnim, tickAnims } from './render.js';
+import { preload as preloadArt } from './sprites.js';
 import { createCamera, fitCamera, clampCamera, zoomAt, panBy, toWorld } from './camera.js';
 import * as ui from './ui.js';
 
@@ -19,7 +20,7 @@ let w;                          /* the current world */
 let last = -1, acc = 0, active = false, raf = 0, hooks = {}, uiT = 0, stageN = 1, bgWorker = null, bgTimer = 0, drawErr = false;
 /* Screen-only state: chosen hero button, hover, selection, speed, pause, camera, canvas size and visual effects. */
 const v = { sel: 0, hover: null, selected: null, moving: null, speed: 1, paused: false, needFit: true,
-  cam: createCamera(), dpr: 1, cw: MAP_W, ch: MAP_H, vfx: { beams: [], slashes: [] }, fx: null };
+  cam: createCamera(), dpr: 1, cw: MAP_W, ch: MAP_H, vfx: { beams: [], slashes: [], anims: [] }, fx: null };
 v.fx = { beam: (...a) => addBeam(v.vfx, ...a), slash: (...a) => addSlash(v.vfx, ...a) };
 
 const newSeed = () => (globalThis.crypto && crypto.getRandomValues) ? crypto.getRandomValues(new Uint32Array(1))[0] : Math.floor(Math.random() * 4294967296);
@@ -30,8 +31,10 @@ function newRun() {
   w = createWorld({ seed, stage: stageN, talents: hooks.talents || [], lineup: hooks.lineup, items: hooks.items || {} });
   const world = w;
   w.ev.on('end', ({ won }) => finish(world, won));
-  w.ev.on('crit', ({ enemy }) => { if (w.fx) addSlash(v.vfx, enemy.x, enemy.y, 0, Math.PI, enemy.def.radius + 7, 0.16, '#ffd84a'); });   /* a gold flash on critical hits */
-  v.selected = v.moving = v.evo = null; ui.hideEvoPick(); if (v.speed > 2) v.speed = 1; v.vfx.beams.length = 0; v.vfx.slashes.length = 0; v.needFit = true;
+  w.ev.on('crit', ({ enemy }) => { if (w.fx) { addSlash(v.vfx, enemy.x, enemy.y, 0, Math.PI, enemy.def.radius + 7, 0.16, '#ffd84a'); addAnim(v.vfx, 'fx_hit', enemy.x, enemy.y - 4, 30, 0.2, 4); } });   /* a gold flash on critical hits */
+  w.ev.on('kill', ({ enemy }) => { if (w.fx && !enemy.escaped) addAnim(v.vfx, 'fx_hit', enemy.x, enemy.y - 6, 26 + enemy.def.radius, 0.24, 4); });
+  w.ev.on('explode', ({ zone }) => { if (w.fx) addAnim(v.vfx, 'fx_explosion', zone.x, zone.y, 96, 0.45, 5); });
+  v.selected = v.moving = v.evo = null; ui.hideEvoPick(); if (v.speed > 2) v.speed = 1; v.vfx.beams.length = 0; v.vfx.slashes.length = 0; v.vfx.anims.length = 0; v.needFit = true;
   v.sel = heroIndex(w.lineup[0]);
   ui.setLineup(w);
   setPaused(false);
@@ -87,7 +90,7 @@ function frame(now) {
 function render(dt) {
   if (v.selected && !w.heroes.includes(v.selected)) { v.selected = v.moving = null; ui.renderInspector(w, v); }
   v.placing = canPlace(v.sel);
-  tickBeams(v.vfx, dt); tickSlashes(v.vfx, dt);
+  tickBeams(v.vfx, dt); tickSlashes(v.vfx, dt); tickAnims(v.vfx, dt);
   draw(ctx, w, v);
   ui.renderHUD(w, v);
   if (v.needFit) { v.needFit = false; fitToScreen(); }
@@ -320,6 +323,7 @@ addEventListener('keydown', e => {
 /* ---- Public API used by the Play screen ---- */
 export function startGame(h) {
   hooks = h; stageN = h.stage || 1; active = true; acc = 0; last = -1;
+  preloadArt();
   newRun(); resize();
   cancelAnimationFrame(raf); stopBg();
   if (document.hidden) startBg(); else raf = requestAnimationFrame(loopRaf);

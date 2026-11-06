@@ -189,6 +189,15 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
 .herocard.poor,#relic.poor{opacity:.6}
 .herocard.poor .cost{color:#e5645a}
 .herocard.placed .cost{color:var(--muted)}
+.herocard:has(.hico){padding-left:40px}
+.herocard .hico{position:absolute;left:3px;top:50%;width:34px;height:34px;transform:translateY(-52%)}
+/* Pixel art: sprites from assets/, drawn with hard edges. */
+.pix{image-rendering:pixelated}
+.hcardart,.evoart{order:-1;align-self:center;width:72px;height:72px;margin:-6px 0 -8px}
+.hart.art span{display:none}
+.hart img{width:92%;height:auto}
+.itemicon.art{font-size:0;background:#101813;overflow:hidden}
+.itemicon img{width:100%;height:100%}
 .ebar{display:block;height:4px;width:100%;background:#101813;border-radius:2px;overflow:hidden;margin-top:3px}
 .ebar i{display:block;height:100%;width:0;background:#5aa9ff}
 .ebar.full i{background:#ffd84a}

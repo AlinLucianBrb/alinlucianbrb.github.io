@@ -5,6 +5,7 @@ import { state } from '../core/state.js';
 import { getItems, saveLoadout } from '../services/api.js';
 import { HEROES, LINEUP_SIZE } from '../content/data.js';
 import { ITEMS, SLOT_LABEL, asItem, itemName, itemColor, itemLines } from '../content/items.js';
+import { spriteImg } from '../game/sprites.js';
 
 export const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 export const cap = s => s[0].toUpperCase() + s.slice(1);
@@ -71,11 +72,17 @@ export async function saveNow(lineup = currentLineup(), equip = equipment()) {
 }
 export const sqlHint = e => (/function|schema|column/i.test(e || '') ? ' (did you run the latest SQL update?)' : '');
 
-/* A placeholder item icon until there is art: the type's initials on its colour, framed in the rarity colour. */
+/* An item's icon, framed in its rarity colour: the pixel-art picture for its type and rarity (assets/item_<type>_<rarity>.png),
+   or, for an unknown type or while the picture cannot load, the type's initials on its colour. */
 export function itemIcon(row) {
-  const t = ITEMS[row.item_type] || { name: row.item_type, color: '#9db3a3' };
+  const known = ITEMS[row.item_type], t = known || { name: row.item_type, color: '#9db3a3' };
   const i = el('span', 'itemicon', t.name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase());
   i.style.setProperty('--ic', t.color); i.style.setProperty('--rc', itemColor(row));
+  if (known) {
+    const img = spriteImg('item_' + row.item_type + '_' + asItem(row).rarity);
+    img.onerror = () => { img.remove(); i.classList.remove('art'); };
+    i.classList.add('art'); i.append(img);
+  }
   return i;
 }
 /* Tooltip for an item: name in its rarity colour, slot, bonuses, and who wears it. */
