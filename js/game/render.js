@@ -1,5 +1,5 @@
 /* Canvas drawing. The world is drawn through the camera; the board is cheap enough to draw every frame, which keeps it sharp at any zoom. */
-import { COLS, ROWS, T } from '../content/data.js';
+import { COLS, ROWS, T, HEROES } from '../content/data.js';
 import { tintOf } from '../engine/effects.js';
 import { get as sprite, tiles as tileSheet, drawSprite, heroSprite, frameOf } from './sprites.js';
 
@@ -434,6 +434,15 @@ export function draw(ctx, g, v) {
     ctx.globalAlpha = 1;
   }
   for (const t of g.heroes) if (t.wolf && t.def.kind === 'wolf') drawWolf(ctx, t);
+  /* Co-op guests: heroes placed or moved, still on their way to the host, faded where they will stand. */
+  for (const p of v.pending || []) {
+    const c = p.cmd, d = c.type === 'place' ? HEROES.find(h => h.id === c.hero) : c.type === 'move' ? (g.heroes.find(h => h.id === c.id) || {}).def : null;
+    if (!d) continue;
+    const x = (c.cx + 0.5) * T, y = (c.cy + 0.5) * T;
+    ctx.globalAlpha = 0.5;
+    if (!drawSprite(ctx, heroSprite(d), x, y + HERO_DY, HERO_S)) { ctx.fillStyle = d.color; ctx.beginPath(); ctx.arc(x, y, 13, 0, 7); ctx.fill(); }
+    ctx.globalAlpha = 1;
+  }
   const slashArt = sprite('fx_slash');
   for (const s of v.vfx.slashes) {
     const a = Math.max(0, s.t / s.ttl);

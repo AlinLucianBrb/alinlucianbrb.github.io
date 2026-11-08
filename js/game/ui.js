@@ -134,14 +134,16 @@ export function renderHUD(g, v) {
   if (coop) {
     /* Co-op: the wave starts when everyone is ready (or on Auto-start). */
     const waiting = g.players.filter(p => !p.ready && !p.auto && !p.left).length;
-    $('go').disabled = g.phase !== 'build' || g.picking || g.me.ready;
-    setText($('go'), g.phase !== 'build' ? 'Wave ' + g.wave : g.me.ready ? 'Ready · waiting for ' + waiting : 'Ready');
+    const ready = g.me.ready || !!v.pendWave;   /* a guest's Ready shows at once, before the host has it */
+    $('go').disabled = g.phase !== 'build' || g.picking || ready;
+    setText($('go'), g.phase !== 'build' ? 'Wave ' + g.wave : ready ? 'Ready · waiting for ' + Math.max(1, waiting - (g.me.ready ? 0 : 1)) : 'Ready');
     renderCoopBar(g);
   } else {
     $('go').disabled = g.phase !== 'build' || g.picking;
     setText($('go'), g.phase === 'build' && auto ? 'Start now (' + Math.max(0, Math.ceil(g.autoT)) + 's)' : 'Start wave');
   }
-  setText($('relic'), 'Relic · ' + g.relicCost());
+  setText($('relic'), v.pendRelic ? 'Relic · …' : 'Relic · ' + g.relicCost());
+  $('relic').disabled = !!v.pendRelic;
   $('auto').classList.toggle('on', auto); $('auto').setAttribute('aria-pressed', String(auto));
   setText($('spd'), v.speed + 'x'); $('spd').classList.toggle('on', v.speed > 1);
   let layout = false;

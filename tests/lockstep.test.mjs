@@ -91,12 +91,12 @@ test('the host and two guests play the very same match', () => {
   assert.equal(hashWorld(replay(exportLog(g2w))), hashWorld(hw), 'and it replays');
 });
 
-test('turns are sparing (about 1 a second when nobody acts), and guests still play smoothly a little behind the host', () => {
+test('turns are sparing (3 a second, plus an early one when someone acts), and guests play smoothly about half a second behind the host', () => {
   const { turnsPerSecond, stalls, maxBehind } = run();
   assert.ok(turnsPerSecond <= 1000 / TURN_MS && turnsPerSecond >= 1000 / IDLE_MS * 0.9, 'turns per second: ' + turnsPerSecond.toFixed(2));
-  assert.ok(turnsPerSecond < 1.4, 'mostly idle turns: ' + turnsPerSecond.toFixed(2));
+  assert.ok(turnsPerSecond < 3.6, 'mostly regular turns: ' + turnsPerSecond.toFixed(2));
   assert.ok(stalls < 30, 'guests hardly ever stand still waiting for a turn (frames: ' + stalls + ')');
-  assert.ok(maxBehind < 60 * 2, 'never more than 2 seconds behind (ticks: ' + maxBehind + ')');
+  assert.ok(maxBehind < 45, 'well under a second behind (ticks: ' + maxBehind + ')');
 });
 
 test('a lost turn is asked for again, and the guest catches up in step', () => {
