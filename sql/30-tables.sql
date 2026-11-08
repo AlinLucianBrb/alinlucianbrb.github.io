@@ -70,3 +70,49 @@ alter table public.player_items enable row level security;
 drop policy if exists "read own items" on public.player_items;
 create policy "read own items" on public.player_items
   for select to authenticated using (auth.uid() = user_id);
+
+-- ===== Co-op: lobbies, their members, and records for each number of players =====
+-- A run remembers how many played it (1 solo, 2 to 4 co-op) and the lobby it came from.
+alter table public.runs add column if not exists players int not null default 1;
+alter table public.runs add column if not exists lobby uuid;
+-- A lobby: a 5-character name (letters and numbers), public or private (a password, stored salted and hashed), the level
+-- the host picked, and once the host starts it, the match every member plays (config: seed, level, each player's heroes).
+create table if not exists public.lobbies (
+  id uuid primary key default gen_random_uuid(),
+  name text not null unique check (name ~ '^[A-Z0-9]{5}$'),
+  host uuid not null references auth.users (id) on delete cascade,
+  is_private boolean not null default false,
+  pass_salt text,
+  pass_hash text,
+  stage int not null default 1,
+  status text not null default 'open' check (status in ('open', 'playing', 'closed')),
+  config jsonb,
+  players int,
+  created_at timestamptz not null default now(),
+  started_at timestamptz
+);
+-- Who is in a lobby, in which slot (0 to 3). seen_at is refreshed while their lobby screen is open; members not seen for
+-- 45 seconds are dropped.
+create table if not exists public.lobby_members (
+  lobby uuid not null references public.lobbies (id) on delete cascade,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  slot int not null check (slot >= 0),
+  joined_at timestamptz not null default now(),
+  seen_at timestamptz not null default now(),
+  primary key (lobby, user_id),
+  unique (lobby, slot)
+);
+create index if not exists lobby_members_user_idx on public.lobby_members (user_id);
+-- The leaderboard for each mode (players: 1 solo, 2, 3 or 4): the highest level cleared, and the best wave on the next one.
+create table if not exists public.records (
+  user_id uuid not null references auth.users (id) on delete cascade,
+  players int not null check (players between 1 and 4),
+  levels_cleared int not null default 0,
+  frontier_wave int not null default 0,
+  runs int not null default 0,
+  primary key (user_id, players)
+);
+create index if not exists records_board_idx on public.records (players, levels_cleared desc, frontier_wave desc);
+alter table public.lobbies enable row level security;
+alter table public.lobby_members enable row level security;
+alter table public.records enable row level security;

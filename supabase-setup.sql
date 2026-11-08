@@ -118,6 +118,52 @@ drop policy if exists "read own items" on public.player_items;
 create policy "read own items" on public.player_items
   for select to authenticated using (auth.uid() = user_id);
 
+-- ===== Co-op: lobbies, their members, and records for each number of players =====
+-- A run remembers how many played it (1 solo, 2 to 4 co-op) and the lobby it came from.
+alter table public.runs add column if not exists players int not null default 1;
+alter table public.runs add column if not exists lobby uuid;
+-- A lobby: a 5-character name (letters and numbers), public or private (a password, stored salted and hashed), the level
+-- the host picked, and once the host starts it, the match every member plays (config: seed, level, each player's heroes).
+create table if not exists public.lobbies (
+  id uuid primary key default gen_random_uuid(),
+  name text not null unique check (name ~ '^[A-Z0-9]{5}$'),
+  host uuid not null references auth.users (id) on delete cascade,
+  is_private boolean not null default false,
+  pass_salt text,
+  pass_hash text,
+  stage int not null default 1,
+  status text not null default 'open' check (status in ('open', 'playing', 'closed')),
+  config jsonb,
+  players int,
+  created_at timestamptz not null default now(),
+  started_at timestamptz
+);
+-- Who is in a lobby, in which slot (0 to 3). seen_at is refreshed while their lobby screen is open; members not seen for
+-- 45 seconds are dropped.
+create table if not exists public.lobby_members (
+  lobby uuid not null references public.lobbies (id) on delete cascade,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  slot int not null check (slot >= 0),
+  joined_at timestamptz not null default now(),
+  seen_at timestamptz not null default now(),
+  primary key (lobby, user_id),
+  unique (lobby, slot)
+);
+create index if not exists lobby_members_user_idx on public.lobby_members (user_id);
+-- The leaderboard for each mode (players: 1 solo, 2, 3 or 4): the highest level cleared, and the best wave on the next one.
+create table if not exists public.records (
+  user_id uuid not null references auth.users (id) on delete cascade,
+  players int not null check (players between 1 and 4),
+  levels_cleared int not null default 0,
+  frontier_wave int not null default 0,
+  runs int not null default 0,
+  primary key (user_id, players)
+);
+create index if not exists records_board_idx on public.records (players, levels_cleared desc, frontier_wave desc);
+alter table public.lobbies enable row level security;
+alter table public.lobby_members enable row level security;
+alter table public.records enable row level security;
+
 -- ===== Game content (generated from js/content by tools/build-sql.mjs; do not edit by hand) =====
 -- Talent trees. Links are stored in both directions.
 delete from public.talent_links;
@@ -792,6 +838,68 @@ update public.item_types set droppable = false where id <> all (array['helm', 'b
 insert into public.item_bonuses (id, tags) values ('Sharpened rounds', array[]::text[]), ('Long barrels', array['projectile']::text[]), ('Quick hands', array['melee', 'projectile']::text[]), ('Battle focus', array['spell']::text[]), ('Split bolt', array['spell']::text[]), ('Fine arrows', array['projectile']::text[]), ('Whetstone', array['melee']::text[]), ('Arcane focus', array['spell']::text[]), ('Wide swing', array['melee']::text[]), ('Keen edge', array['projectile']::text[]), ('Cruelty', array['melee']::text[]), ('Quick incantation', array['spell']::text[]), ('Pack leader', array['minion']::text[]), ('Feral haste', array['minion']::text[]), ('Hunting instinct', array['minion']::text[]), ('Savage bite', array['minion']::text[]) on conflict (id) do update set tags = excluded.tags;
 delete from public.item_bonuses where id <> all (array['Sharpened rounds', 'Long barrels', 'Quick hands', 'Battle focus', 'Split bolt', 'Fine arrows', 'Whetstone', 'Arcane focus', 'Wide swing', 'Keen edge', 'Cruelty', 'Quick incantation', 'Pack leader', 'Feral haste', 'Hunting instinct', 'Savage bite']::text[]);
 
+-- ===== Game rules (generated from js/content by tools/rules-sql.mjs; do not edit by hand) =====
+-- How many levels there are.
+create or replace function public.rule_stage_count() returns int
+language sql immutable set search_path = public as $$ select 5 $$;
+-- Waves in a level.
+create or replace function public.rule_stage_waves(p_stage int) returns int
+language sql immutable set search_path = public as $$ select (array[15, 20, 25, 30, 35])[p_stage] $$;
+-- Heroes a player can bring into a match.
+create or replace function public.rule_lineup_max() returns int
+language sql immutable set search_path = public as $$ select 3 $$;
+-- Players in a co-op lobby.
+create or replace function public.rule_max_players() returns int
+language sql immutable set search_path = public as $$ select 4 $$;
+-- Items a player can hold.
+create or replace function public.rule_max_items() returns int
+language sql immutable set search_path = public as $$ select 200 $$;
+-- Account XP from level L to L + 1.
+create or replace function public.rule_xp_need(p_level int) returns int
+language sql immutable set search_path = public as $$ select 50 + p_level * 50 $$;
+-- Account XP a match gives.
+create or replace function public.rule_run_xp(p_waves int, p_kills int, p_bonus numeric) returns int
+language sql immutable set search_path = public as $$ select round((p_waves * 10 + p_kills * 1) * (1 + p_bonus))::int $$;
+-- Account gold a match gives.
+create or replace function public.rule_run_gold(p_waves int, p_bonus numeric) returns int
+language sql immutable set search_path = public as $$ select round(p_waves * 5 * (1 + p_bonus))::int $$;
+-- The most kills a run that reached p_waves can have (every enemy of every wave).
+create or replace function public.rule_kill_cap(p_waves int) returns int
+language sql immutable set search_path = public as $$ select (5 * p_waves + 2 * p_waves * (p_waves + 1) / 2)::int $$;
+-- Boss waves a run that reached p_waves has seen.
+create or replace function public.rule_boss_cap(p_stage int, p_waves int) returns int
+language sql immutable set search_path = public as $$ select (case when p_waves >= public.rule_stage_waves(p_stage) then 1 else 0 end) + (case when p_stage >= 3 and p_waves >= round(public.rule_stage_waves(p_stage) / 2.0) then 1 else 0 end) $$;
+-- Part of the time p_waves waves take to spawn (anti-cheat).
+create or replace function public.min_run_seconds(p_waves int) returns numeric
+language sql immutable set search_path = public as $$ select coalesce(sum(0.25 * (4 + 2 * w) * greatest(0.35, 0.85 - 0.02 * w)), 0) from generate_series(1, greatest(p_waves, 0)) as w $$;
+-- The shortest a finished run can be, in seconds.
+create or replace function public.rule_min_run(p_waves int) returns numeric
+language sql immutable set search_path = public as $$ select greatest(15, public.min_run_seconds(p_waves)) $$;
+-- Items a match drops (before talents and bosses).
+create or replace function public.rule_drop_chance(p_won boolean, p_waves int, p_stage int) returns numeric
+language sql immutable set search_path = public as $$ select case when p_won then 1 else 0.5 * p_waves::numeric / public.rule_stage_waves(p_stage) end $$;
+-- An item rarity from a random number in [0, 1) and rarity luck (weights 55/28/13/4, each rarer step x (1 + luck)).
+create or replace function public.rule_rarity(p_roll numeric, p_luck numeric) returns int
+language sql immutable set search_path = public as $$ with w(i, x) as (values (0, 55 * power(1 + greatest(p_luck, 0), 0)), (1, 28 * power(1 + greatest(p_luck, 0), 1)), (2, 13 * power(1 + greatest(p_luck, 0), 2)), (3, 4 * power(1 + greatest(p_luck, 0), 3))), c as (select i, sum(x) over (order by i) as cum, sum(x) over () as total from w) select coalesce(min(i) filter (where p_roll * total < cum), 3)::int from c $$;
+-- Bonuses an item of this rarity always has.
+create or replace function public.rule_bonus_guaranteed(p_rarity int) returns int
+language sql immutable set search_path = public as $$ select p_rarity + 1 $$;
+-- Bonuses an item can have.
+create or replace function public.rule_max_bonuses() returns int
+language sql immutable set search_path = public as $$ select 4 $$;
+-- Chance of each further bonus (talents add to it).
+create or replace function public.rule_extra_bonus_chance() returns numeric
+language sql immutable set search_path = public as $$ select 0.3 $$;
+-- Chance a bonus on an archetype item comes from its archetype's bonuses.
+create or replace function public.rule_affinity_chance() returns numeric
+language sql immutable set search_path = public as $$ select 0.6 $$;
+-- A bonus rank from a random number in [0, 1), by the item rarity (weights in %: 70/22/7/1, 45/35/15/5, 25/35/28/12, 10/25/35/30).
+create or replace function public.rule_rank(p_rarity int, p_roll numeric) returns int
+language sql immutable set search_path = public as $$ select case when p_roll * 100 < (array[70, 45, 25, 10])[p_rarity + 1] then 1 when p_roll * 100 < (array[92, 80, 60, 35])[p_rarity + 1] then 2 when p_roll * 100 < (array[99, 95, 88, 70])[p_rarity + 1] then 3 else 4 end $$;
+-- What an item sells for: a base by rarity plus gold per bonus rank (a bonus from before ranks counts at the rarity).
+create or replace function public.item_price(p_rarity int, p_bonuses text[], p_ranks int[]) returns int
+language sql immutable set search_path = public as $$ select (array[5, 15, 40, 100])[least(greatest(p_rarity, 0), 3) + 1] + 5 * coalesce((select sum(coalesce(p_ranks[k], least(greatest(p_rarity, 0), 3) + 1)) from generate_subscripts(coalesce(p_bonuses, '{}'), 1) k), 0)::int $$;
+
 -- ===== Functions =====
 
 -- Returns null if the username is fine, otherwise 'format', 'blocked' or 'lookalike'.
@@ -836,14 +944,16 @@ language sql stable security definer set search_path = public as $$
     'username_problem', public.username_problem(p_username));
 $$;
 
--- Public leaderboard: levels cleared, then furthest wave on the level a player is working on.
+-- Public leaderboard for one mode (p_players: 1 solo, 2 to 4 co-op): levels cleared, then the furthest wave on the level a
+-- player is working on, in that mode.
 drop function if exists public.get_leaderboard(int);
-create function public.get_leaderboard(p_limit int default 20)
+drop function if exists public.get_leaderboard(int, int);
+create function public.get_leaderboard(p_limit int default 20, p_players int default 1)
 returns table (username text, level int, levels_cleared int, frontier_wave int)
 language sql stable security definer set search_path = public as $$
-  select p.username, p.level, p.levels_cleared, p.frontier_wave from public.profiles p
-  where p.runs > 0
-  order by p.levels_cleared desc, p.frontier_wave desc, p.level desc, p.created_at
+  select p.username, p.level, r.levels_cleared, r.frontier_wave from public.records r join public.profiles p on p.id = r.user_id
+  where r.players = p_players and r.runs > 0
+  order by r.levels_cleared desc, r.frontier_wave desc, p.level desc, p.created_at
   limit least(greatest(p_limit, 1), 100);
 $$;
 
@@ -875,33 +985,37 @@ begin
 end;
 $$;
 
--- Lower bound on how long a run of this many completed waves takes in real time: enemies spawn one at a time, and the game runs at
--- most 3x speed (with the Overdrive talent), so a wave cannot finish faster than a third of its spawn time. 0.25 leaves a margin.
-create or replace function public.min_run_seconds(p_waves int) returns numeric
-language sql immutable as $$
-  select coalesce(sum(0.25 * (4 + 2 * w) * greatest(0.35, 0.85 - 0.02 * w)), 0)
-  from generate_series(1, greatest(p_waves, 0)) as w;
-$$;
-
 -- Called when a level starts. Only one unfinished run per player: starting a new one cancels the old one.
 -- The run remembers the lineup and equipment it started with.
+-- Co-op (p_lobby): the lobby must have been started by its host, the player must be in it, and the level is the lobby's.
+-- The level only has to be unlocked for the host (create_lobby checks that), so friends can bring someone along.
 drop function if exists public.start_run(int);
-create function public.start_run(p_stage int) returns uuid
+drop function if exists public.start_run(int, uuid);
+create function public.start_run(p_stage int, p_lobby uuid default null) returns uuid
 language plpgsql security definer set search_path = public as $$
-declare me public.profiles; rid uuid;
+declare me public.profiles; rid uuid; lb public.lobbies; n int := 1;
 begin
   if auth.uid() is null then raise exception 'not signed in'; end if;
-  if p_stage < 1 or p_stage > 5 then raise exception 'invalid stage'; end if;
+  if p_stage < 1 or p_stage > public.rule_stage_count() then raise exception 'invalid stage'; end if;
   select * into me from public.profiles where id = auth.uid();
   if not found then raise exception 'no profile'; end if;
-  if p_stage > me.levels_cleared + 1 then raise exception 'stage locked'; end if;
+  if p_lobby is null then
+    if p_stage > me.levels_cleared + 1 then raise exception 'stage locked'; end if;
+  else
+    select * into lb from public.lobbies where id = p_lobby;
+    if not found or lb.status <> 'playing' then raise exception 'that lobby has not started a match'; end if;
+    if not exists (select 1 from public.lobby_members where lobby = p_lobby and user_id = auth.uid()) then raise exception 'not in this lobby'; end if;
+    if lb.started_at < now() - interval '10 minutes' then raise exception 'that match started too long ago'; end if;
+    if p_stage <> lb.stage then raise exception 'wrong level for this lobby'; end if;
+    n := lb.players;
+  end if;
   if exists (select 1 from public.runs where user_id = auth.uid() and finished_at is null and started_at > now() - interval '2 seconds') then
     raise exception 'slow down';
   end if;
   delete from public.runs where user_id = auth.uid() and finished_at is null;
   delete from public.runs where finished_at < now() - interval '30 days';
-  insert into public.runs (user_id, stage, loadout)
-  values (auth.uid(), p_stage, jsonb_build_object('lineup', to_jsonb(me.lineup), 'equipment', me.equipment))
+  insert into public.runs (user_id, stage, loadout, players, lobby)
+  values (auth.uid(), p_stage, jsonb_build_object('lineup', to_jsonb(me.lineup), 'equipment', me.equipment), n, p_lobby)
   returning id into rid;
   return rid;
 end;
@@ -916,7 +1030,7 @@ declare me public.profiles; n int;
 begin
   if auth.uid() is null then raise exception 'not signed in'; end if;
   n := coalesce(array_length(p_lineup, 1), 0);
-  if n < 1 or n > 3 then raise exception 'bring 1 to 3 heroes'; end if;
+  if n < 1 or n > public.rule_lineup_max() then raise exception 'bring 1 to % heroes', public.rule_lineup_max(); end if;
   if (select count(distinct x) from unnest(p_lineup) x) <> n then raise exception 'each hero can only be brought once'; end if;
   if (select count(*) from public.hero_classes h where h.id = any (p_lineup)) <> n then raise exception 'unknown hero'; end if;
   if p_equipment is null or jsonb_typeof(p_equipment) <> 'object' then raise exception 'bad equipment'; end if;
@@ -965,16 +1079,16 @@ create function public.finish_run(p_run uuid, p_waves int, p_kills int, p_won bo
 language plpgsql security definer set search_path = public as $$
 declare me public.profiles; r public.runs; cap int; frontier boolean; elapsed numeric; done_waves int; dropped text := null;
         drops jsonb := '[]'; b_gold numeric; b_xp numeric; b_loot numeric; chance numeric; n int; boss_cap int;
-        roll numeric; rar int; nb int; bon text[]; b_rar numeric; b_extra numeric; w1 numeric; w2 numeric; w3 numeric; rks int[];
+        rar int; nb int; bon text[]; b_rar numeric; b_extra numeric; rks int[];
         aff text; pick text;
 begin
   if auth.uid() is null then raise exception 'not signed in'; end if;
   select * into r from public.runs where id = p_run and user_id = auth.uid() and finished_at is null for update;
   if not found then raise exception 'unknown or already finished run'; end if;
-  cap := 10 + 5 * r.stage;
-  if p_waves < 1 or p_waves > cap or p_kills < 0 or p_kills > p_waves * (p_waves + 6) then raise exception 'invalid run'; end if;
+  cap := public.rule_stage_waves(r.stage);
+  if p_waves < 1 or p_waves > cap or p_kills < 0 or p_kills > public.rule_kill_cap(p_waves) then raise exception 'invalid run'; end if;
   if p_won and p_waves <> cap then raise exception 'invalid win'; end if;
-  boss_cap := (case when p_waves >= cap then 1 else 0 end) + (case when r.stage >= 3 and p_waves >= round(cap / 2.0) then 1 else 0 end);
+  boss_cap := public.rule_boss_cap(r.stage, p_waves);
   if p_bosses is null or p_bosses < 0 or p_bosses > boss_cap then raise exception 'invalid boss count'; end if;
   if p_won and p_bosses < 1 then raise exception 'a level is won by beating its final boss'; end if;
   if r.started_at < now() - interval '24 hours' then raise exception 'run expired'; end if;
@@ -983,59 +1097,60 @@ begin
   end if;
   elapsed := extract(epoch from (now() - r.started_at));
   done_waves := case when p_won then p_waves else p_waves - 1 end;
-  if elapsed < greatest(15, public.min_run_seconds(done_waves)) then raise exception 'run too short'; end if;
+  if elapsed < public.rule_min_run(done_waves) then raise exception 'run too short'; end if;
 
   select * into me from public.profiles where id = auth.uid() for update;
-  if r.stage > me.levels_cleared + 1 then raise exception 'stage locked'; end if;
+  if r.players = 1 and r.stage > me.levels_cleared + 1 then raise exception 'stage locked'; end if;   -- co-op: unlocked for the host
   frontier := (r.stage = me.levels_cleared + 1);
   select coalesce(sum(t.reward_gold), 0), coalesce(sum(t.reward_xp), 0), coalesce(sum(t.reward_loot), 0),
          coalesce(sum(t.reward_rarity), 0), coalesce(sum(t.reward_extra), 0) into b_gold, b_xp, b_loot, b_rar, b_extra
     from public.talent_nodes t where t.id = any (me.talents);
-  w1 := 28 * (1 + b_rar); w2 := 13 * power(1 + b_rar, 2); w3 := 4 * power(1 + b_rar, 3);
-  me.xp := me.xp + round((p_waves * 10 + p_kills) * (1 + b_xp));
-  me.gold := me.gold + round(p_waves * 5 * (1 + b_gold));
-  while me.xp >= 50 + me.level * 50 loop
-    me.xp := me.xp - (50 + me.level * 50);
+  me.xp := me.xp + public.rule_run_xp(p_waves, p_kills, b_xp);
+  me.gold := me.gold + public.rule_run_gold(p_waves, b_gold);
+  while me.xp >= public.rule_xp_need(me.level) loop
+    me.xp := me.xp - public.rule_xp_need(me.level);
     me.level := me.level + 1;
   end loop;
   update public.runs set finished_at = now() where id = r.id;
   update public.profiles
      set xp = me.xp, level = me.level, gold = me.gold, runs = runs + 1,
          best_wave = greatest(best_wave, p_waves),
-         levels_cleared = case when p_won then greatest(levels_cleared, r.stage) else levels_cleared end,
+         levels_cleared = case when p_won and r.stage <= levels_cleared + 1 then greatest(levels_cleared, r.stage) else levels_cleared end,
          frontier_wave = case when frontier and p_won then 0 when frontier then greatest(frontier_wave, p_waves) else frontier_wave end
    where id = auth.uid()
    returning * into me;
-  chance := (case when p_won then 1 else 0.5 * p_waves::numeric / cap end) * (1 + b_loot);
+  -- this mode's record (solo, or co-op with 2, 3 or 4 players)
+  insert into public.records as x (user_id, players, levels_cleared, frontier_wave, runs)
+  values (auth.uid(), r.players, case when p_won then r.stage else 0 end, case when not p_won and r.stage = 1 then p_waves else 0 end, 1)
+  on conflict (user_id, players) do update
+    set runs = x.runs + 1,
+        frontier_wave = case when p_won and r.stage > x.levels_cleared then 0
+                             when r.stage = x.levels_cleared + 1 then greatest(x.frontier_wave, p_waves) else x.frontier_wave end,
+        levels_cleared = case when p_won then greatest(x.levels_cleared, r.stage) else x.levels_cleared end;
+  chance := public.rule_drop_chance(p_won, p_waves, r.stage) * (1 + b_loot);
   n := p_bosses + floor(chance)::int + (case when random() < chance - floor(chance) then 1 else 0 end);
   for i in 1 .. n loop
-    exit when (select count(*) from public.player_items where user_id = auth.uid()) >= 200;
+    exit when (select count(*) from public.player_items where user_id = auth.uid()) >= public.rule_max_items();
     dropped := null;
     select id, affinity into dropped, aff from public.item_types where droppable order by random() limit 1;
     exit when dropped is null;
-    roll := random() * (55 + w1 + w2 + w3);
-    rar := case when roll < 55 then 0 when roll < 55 + w1 then 1 when roll < 55 + w1 + w2 then 2 else 3 end;
-    nb := rar + 1;
-    while nb < 4 and random() < 0.3 + b_extra loop nb := nb + 1; end loop;
+    rar := public.rule_rarity(random()::numeric, b_rar);
+    nb := public.rule_bonus_guaranteed(rar);
+    while nb < public.rule_max_bonuses() and random() < public.rule_extra_bonus_chance() + b_extra loop nb := nb + 1; end loop;
     -- bonuses, all different; on an archetype item each has a 60% chance to come from that archetype's bonuses (if one is left)
     bon := '{}';
     for k in 1 .. nb loop
       pick := null;
-      if aff is not null and random() < 0.6 then
+      if aff is not null and random() < public.rule_affinity_chance() then
         select id into pick from public.item_bonuses where aff = any (tags) and id <> all (bon) order by random() limit 1;
       end if;
       if pick is null then select id into pick from public.item_bonuses where id <> all (bon) order by random() limit 1; end if;
       exit when pick is null;
       bon := bon || pick;
     end loop;
-    -- each bonus's rank: rank weights (in %) by rarity, Common 70/22/7/1, Uncommon 45/35/15/5, Rare 25/35/28/12, Epic 10/25/35/30
+    -- each bonus's rank (rule_rank: rarer items roll higher ranks more often)
     rks := '{}';
-    for k in 1 .. coalesce(array_length(bon, 1), 0) loop
-      roll := random() * 100;
-      rks := rks || (case when roll < (array[70, 45, 25, 10])[rar + 1] then 1
-                          when roll < (array[92, 80, 60, 35])[rar + 1] then 2
-                          when roll < (array[99, 95, 88, 70])[rar + 1] then 3 else 4 end);
-    end loop;
+    for k in 1 .. coalesce(array_length(bon, 1), 0) loop rks := rks || public.rule_rank(rar, random()::numeric); end loop;
     insert into public.player_items (user_id, item_type, rarity, bonuses, bonus_ranks) values (auth.uid(), dropped, rar, bon, rks);
     drops := drops || jsonb_build_array(jsonb_build_object('item_type', dropped, 'rarity', rar, 'bonuses', to_jsonb(bon), 'bonus_ranks', to_jsonb(rks)));
   end loop;
@@ -1043,15 +1158,7 @@ begin
 end;
 $$;
 
--- ===== Selling items for account gold =====
--- The price: a base by rarity (5, 15, 40, 100) plus 5 gold per bonus rank; a bonus from before ranks counts at the item's
--- rarity (the same as sellPrice in js/content/items.js).
-create or replace function public.item_price(p_rarity int, p_bonuses text[], p_ranks int[]) returns int
-language sql immutable set search_path = public as $$
-  select (array[5, 15, 40, 100])[least(greatest(p_rarity, 0), 3) + 1]
-       + 5 * coalesce((select sum(coalesce(p_ranks[k], least(greatest(p_rarity, 0), 3) + 1))
-                         from generate_subscripts(coalesce(p_bonuses, '{}'), 1) k), 0)::int
-$$;
+-- ===== Selling items for account gold (the price is item_price, in the generated rules) =====
 -- Sells one of the player's items: it must not be worn (take it off first). Returns the updated profile.
 create or replace function public.sell_item(p_item uuid) returns public.profiles
 language plpgsql security definer set search_path = public as $$
@@ -1073,6 +1180,201 @@ begin
 end;
 $$;
 
+-- ===== Co-op lobbies =====
+-- A player creates a lobby (public, or private with a password) and gets a 5-character name to share; others join it from
+-- the list or by its name. Up to rule_max_players() per lobby. The host picks the level and starts the match; from then on
+-- the players' games talk to each other directly (Supabase Realtime), and each saves its own run with start_run(stage, lobby)
+-- and finish_run. Members keep their place by calling lobby_ping every few seconds while the lobby screen is open.
+
+-- Solo records: runs before co-op were all solo, so each player's solo record starts from their profile.
+insert into public.records (user_id, players, levels_cleared, frontier_wave, runs)
+select id, 1, levels_cleared, frontier_wave, runs from public.profiles where runs > 0
+on conflict (user_id, players) do nothing;
+
+-- A random lobby name: 5 letters and numbers.
+create or replace function public.lobby_code() returns text
+language sql volatile set search_path = public as $$
+  select string_agg(substr('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 1 + floor(random() * 36)::int, 1), '') from generate_series(1, 5);
+$$;
+
+-- A salted password hash (lobby passwords keep strangers out of a match; they are not account passwords).
+create or replace function public.lobby_hash(p_salt text, p_password text) returns text
+language sql immutable set search_path = public as $$
+  select encode(sha256(convert_to(p_salt || ':' || p_password, 'UTF8')), 'hex');
+$$;
+
+-- What a member's lobby screen shows: the lobby and its members (never the password).
+create or replace function public.lobby_state(p_lobby uuid) returns jsonb
+language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('id', l.id, 'name', l.name, 'host', l.host, 'is_private', l.is_private, 'stage', l.stage,
+           'status', l.status, 'config', l.config, 'max_players', public.rule_max_players(),
+           'members', coalesce((select jsonb_agg(jsonb_build_object('user_id', m.user_id, 'username', p.username, 'level', p.level, 'slot', m.slot) order by m.slot)
+                                  from public.lobby_members m join public.profiles p on p.id = m.user_id where m.lobby = l.id), '[]'))
+    from public.lobbies l where l.id = p_lobby;
+$$;
+
+-- Takes a player out of a lobby (p_lobby), or out of every open lobby (p_lobby null). A host who leaves an open lobby hands
+-- it to the next member; a lobby nobody is in any more is deleted.
+create or replace function public.lobby_drop_member(p_user uuid, p_lobby uuid) returns void
+language plpgsql security definer set search_path = public as $$
+declare l record;
+begin
+  for l in select m.lobby from public.lobby_members m join public.lobbies b on b.id = m.lobby
+            where m.user_id = p_user and (m.lobby = p_lobby or (p_lobby is null and b.status = 'open')) loop
+    delete from public.lobby_members where lobby = l.lobby and user_id = p_user;
+    if not exists (select 1 from public.lobby_members where lobby = l.lobby) then
+      delete from public.lobbies where id = l.lobby;
+    else
+      update public.lobbies set host = (select user_id from public.lobby_members where lobby = l.lobby order by slot limit 1)
+       where id = l.lobby and host = p_user;
+    end if;
+  end loop;
+end;
+$$;
+
+-- Creates a lobby with the player as its host (and takes them out of any other open lobby). p_password: needed for a private
+-- lobby, 1 to 32 characters. p_stage: a level the host has unlocked.
+create or replace function public.create_lobby(p_private boolean, p_password text, p_stage int) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare me public.profiles; lid uuid; salt text; pw text := nullif(trim(coalesce(p_password, '')), '');
+begin
+  if auth.uid() is null then raise exception 'not signed in'; end if;
+  select * into me from public.profiles where id = auth.uid();
+  if not found then raise exception 'no profile'; end if;
+  if p_stage < 1 or p_stage > public.rule_stage_count() then raise exception 'invalid stage'; end if;
+  if p_stage > me.levels_cleared + 1 then raise exception 'stage locked'; end if;
+  if p_private and pw is null then raise exception 'a private lobby needs a password'; end if;
+  if length(pw) > 32 then raise exception 'the password can be at most 32 characters'; end if;
+  if (select count(*) from public.lobbies where host = auth.uid() and created_at > now() - interval '1 minute') >= 5 then
+    raise exception 'slow down';
+  end if;
+  -- tidy up: old lobbies, and open ones everybody has left
+  delete from public.lobbies where created_at < now() - interval '1 day';
+  delete from public.lobbies l where l.status = 'open' and l.created_at < now() - interval '2 minutes'
+     and not exists (select 1 from public.lobby_members m where m.lobby = l.id and m.seen_at > now() - interval '45 seconds');
+  perform public.lobby_drop_member(auth.uid(), null);
+  salt := case when p_private then md5(gen_random_uuid()::text) end;
+  for attempt in 1 .. 20 loop
+    begin
+      insert into public.lobbies (name, host, is_private, pass_salt, pass_hash, stage)
+      values (public.lobby_code(), auth.uid(), p_private, salt, case when p_private then public.lobby_hash(salt, pw) end, p_stage)
+      returning id into lid;
+      exit;
+    exception when unique_violation then lid := null;   -- that name is taken: draw another
+    end;
+  end loop;
+  if lid is null then raise exception 'could not find a free lobby name, try again'; end if;
+  insert into public.lobby_members (lobby, user_id, slot) values (lid, auth.uid(), 0);
+  return public.lobby_state(lid);
+end;
+$$;
+
+-- Open lobbies with room, newest first (private ones too, marked: joining them asks for the password).
+create or replace function public.list_lobbies()
+returns table (name text, host_name text, players int, max_players int, is_private boolean, stage int, created_at timestamptz)
+language sql stable security definer set search_path = public as $$
+  select l.name, p.username, c.n, public.rule_max_players(), l.is_private, l.stage, l.created_at
+    from public.lobbies l
+    join public.profiles p on p.id = l.host
+    cross join lateral (select count(*)::int as n from public.lobby_members m where m.lobby = l.id and m.seen_at > now() - interval '45 seconds') c
+   where l.status = 'open' and c.n between 1 and public.rule_max_players() - 1
+   order by l.created_at desc
+   limit 50;
+$$;
+
+-- Joins a lobby by its name (any case). A private lobby needs its password. Takes the lowest free slot.
+create or replace function public.join_lobby(p_name text, p_password text default null) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare l public.lobbies; free int;
+begin
+  if auth.uid() is null then raise exception 'not signed in'; end if;
+  select * into l from public.lobbies where name = upper(trim(coalesce(p_name, ''))) for update;
+  if not found then raise exception 'no lobby with that name'; end if;
+  if exists (select 1 from public.lobby_members where lobby = l.id and user_id = auth.uid()) then
+    update public.lobby_members set seen_at = now() where lobby = l.id and user_id = auth.uid();
+    return public.lobby_state(l.id);
+  end if;
+  if l.status <> 'open' then raise exception 'that lobby has already started its match'; end if;
+  if l.is_private then
+    if nullif(trim(coalesce(p_password, '')), '') is null then raise exception 'password needed'; end if;
+    if public.lobby_hash(l.pass_salt, trim(p_password)) <> l.pass_hash then raise exception 'wrong password'; end if;
+  end if;
+  delete from public.lobby_members where lobby = l.id and seen_at < now() - interval '45 seconds';
+  if (select count(*) from public.lobby_members where lobby = l.id) >= public.rule_max_players() then raise exception 'that lobby is full'; end if;
+  perform public.lobby_drop_member(auth.uid(), null);
+  -- the lobby may have been emptied by the clean-up above (its host gone for 45 seconds)
+  if not exists (select 1 from public.lobbies where id = l.id) then raise exception 'no lobby with that name'; end if;
+  select min(s) into free from generate_series(0, public.rule_max_players() - 1) s
+   where s not in (select slot from public.lobby_members where lobby = l.id);
+  insert into public.lobby_members (lobby, user_id, slot) values (l.id, auth.uid(), free);
+  if not exists (select 1 from public.lobby_members m where m.lobby = l.id and m.user_id = l.host) then
+    update public.lobbies set host = (select user_id from public.lobby_members where lobby = l.id order by slot limit 1) where id = l.id;
+  end if;
+  return public.lobby_state(l.id);
+end;
+$$;
+
+-- Called every few seconds by each member's lobby screen: keeps their place, drops members who are gone (handing the lobby
+-- on if the host is one of them) and returns the lobby as it is now.
+create or replace function public.lobby_ping(p_lobby uuid) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare l public.lobbies; gone uuid;
+begin
+  if auth.uid() is null then raise exception 'not signed in'; end if;
+  update public.lobby_members set seen_at = now() where lobby = p_lobby and user_id = auth.uid();
+  if not found then raise exception 'not in this lobby'; end if;
+  select * into l from public.lobbies where id = p_lobby for update;
+  if l.status = 'open' then
+    for gone in select user_id from public.lobby_members where lobby = p_lobby and seen_at < now() - interval '45 seconds' loop
+      perform public.lobby_drop_member(gone, p_lobby);
+    end loop;
+  end if;
+  return public.lobby_state(p_lobby);
+end;
+$$;
+
+-- The host changes the level (one they have unlocked).
+create or replace function public.set_lobby_stage(p_lobby uuid, p_stage int) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare me public.profiles;
+begin
+  if auth.uid() is null then raise exception 'not signed in'; end if;
+  select * into me from public.profiles where id = auth.uid();
+  if not exists (select 1 from public.lobbies where id = p_lobby and host = auth.uid() and status = 'open') then raise exception 'only the host can change the level'; end if;
+  if p_stage < 1 or p_stage > public.rule_stage_count() then raise exception 'invalid stage'; end if;
+  if p_stage > me.levels_cleared + 1 then raise exception 'stage locked'; end if;
+  update public.lobbies set stage = p_stage where id = p_lobby;
+  return public.lobby_state(p_lobby);
+end;
+$$;
+
+create or replace function public.leave_lobby(p_lobby uuid) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null then raise exception 'not signed in'; end if;
+  perform public.lobby_drop_member(auth.uid(), p_lobby);
+end;
+$$;
+
+-- The host starts the match: at least 2 players. p_config is the match every member's game builds (seed, level and each
+-- player's heroes, talents and gear), so that a member who missed the start message still gets it from lobby_ping.
+create or replace function public.start_lobby(p_lobby uuid, p_config jsonb) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare l public.lobbies; n int;
+begin
+  if auth.uid() is null then raise exception 'not signed in'; end if;
+  select * into l from public.lobbies where id = p_lobby for update;
+  if not found or l.host <> auth.uid() then raise exception 'only the host can start the match'; end if;
+  if l.status <> 'open' then raise exception 'the match has already started'; end if;
+  if p_config is null or jsonb_typeof(p_config) <> 'object' or octet_length(p_config::text) > 200000 then raise exception 'bad match'; end if;
+  delete from public.lobby_members where lobby = p_lobby and seen_at < now() - interval '45 seconds' and user_id <> auth.uid();
+  select count(*) into n from public.lobby_members where lobby = p_lobby;
+  if n < 2 then raise exception 'a co-op match needs at least 2 players'; end if;
+  update public.lobbies set status = 'playing', config = p_config, players = n, started_at = now() where id = p_lobby;
+  return public.lobby_state(p_lobby);
+end;
+$$;
+
 -- New projects only: create the profile when an account is created.
 create trigger on_auth_user_created after insert on auth.users
   for each row execute function public.handle_new_user();
@@ -1080,25 +1382,64 @@ create trigger on_auth_user_created after insert on auth.users
 -- ===== Permissions: only what the game needs =====
 revoke all on function public.signup_check(text, text) from public, anon, authenticated;
 grant execute on function public.signup_check(text, text) to anon, authenticated;
-revoke all on function public.get_leaderboard(int) from public, anon, authenticated;
-grant execute on function public.get_leaderboard(int) to anon, authenticated;
-revoke all on function public.start_run(int) from public, anon, authenticated;
-grant execute on function public.start_run(int) to authenticated;
+revoke all on function public.get_leaderboard(int, int) from public, anon, authenticated;
+grant execute on function public.get_leaderboard(int, int) to anon, authenticated;
+revoke all on function public.start_run(int, uuid) from public, anon, authenticated;
+grant execute on function public.start_run(int, uuid) to authenticated;
 revoke all on function public.finish_run(uuid, int, int, boolean, int) from public, anon, authenticated;
 grant execute on function public.finish_run(uuid, int, int, boolean, int) to authenticated;
 revoke all on function public.save_loadout(text[], jsonb) from public, anon, authenticated;
 grant execute on function public.save_loadout(text[], jsonb) to authenticated;
 revoke all on function public.sell_item(uuid) from public, anon, authenticated;
 grant execute on function public.sell_item(uuid) to authenticated;
-revoke all on function public.item_price(int, text[], int[]) from public, anon, authenticated;
 revoke all on function public.save_talents(text[]) from public, anon, authenticated;
 grant execute on function public.save_talents(text[]) to authenticated;
 -- Internal helpers: only other database functions use them.
 revoke all on function public.username_problem(text) from public, anon, authenticated;
-revoke all on function public.min_run_seconds(int) from public, anon, authenticated;
+revoke all on function public.lobby_code() from public, anon, authenticated;
+revoke all on function public.lobby_hash(text, text) from public, anon, authenticated;
+revoke all on function public.lobby_state(uuid) from public, anon, authenticated;
+revoke all on function public.lobby_drop_member(uuid, uuid) from public, anon, authenticated;
+-- Co-op lobbies
+revoke all on function public.create_lobby(boolean, text, int) from public, anon, authenticated;
+grant execute on function public.create_lobby(boolean, text, int) to authenticated;
+revoke all on function public.list_lobbies() from public, anon, authenticated;
+grant execute on function public.list_lobbies() to authenticated;
+revoke all on function public.join_lobby(text, text) from public, anon, authenticated;
+grant execute on function public.join_lobby(text, text) to authenticated;
+revoke all on function public.lobby_ping(uuid) from public, anon, authenticated;
+grant execute on function public.lobby_ping(uuid) to authenticated;
+revoke all on function public.set_lobby_stage(uuid, int) from public, anon, authenticated;
+grant execute on function public.set_lobby_stage(uuid, int) to authenticated;
+revoke all on function public.leave_lobby(uuid) from public, anon, authenticated;
+grant execute on function public.leave_lobby(uuid) to authenticated;
+revoke all on function public.start_lobby(uuid, jsonb) from public, anon, authenticated;
+grant execute on function public.start_lobby(uuid, jsonb) to authenticated;
 -- These tables are private. With row security on and no policies, players cannot read or write them directly.
-revoke all on table public.runs, public.talent_nodes, public.talent_links, public.blocked_names, public.hero_classes, public.item_types, public.item_bonuses from anon, authenticated;
+revoke all on table public.runs, public.talent_nodes, public.talent_links, public.blocked_names, public.hero_classes, public.item_types, public.item_bonuses,
+  public.lobbies, public.lobby_members, public.records from anon, authenticated;
 -- Players can read their own items (row security) but never create, change or delete them.
 revoke insert, update, delete on public.player_items from anon, authenticated;
 grant select on public.player_items to authenticated;
 revoke insert, update, delete on public.profiles from anon, authenticated;
+
+revoke all on function public.rule_stage_count() from public, anon, authenticated;
+revoke all on function public.rule_stage_waves(int) from public, anon, authenticated;
+revoke all on function public.rule_lineup_max() from public, anon, authenticated;
+revoke all on function public.rule_max_players() from public, anon, authenticated;
+revoke all on function public.rule_max_items() from public, anon, authenticated;
+revoke all on function public.rule_xp_need(int) from public, anon, authenticated;
+revoke all on function public.rule_run_xp(int, int, numeric) from public, anon, authenticated;
+revoke all on function public.rule_run_gold(int, numeric) from public, anon, authenticated;
+revoke all on function public.rule_kill_cap(int) from public, anon, authenticated;
+revoke all on function public.rule_boss_cap(int, int) from public, anon, authenticated;
+revoke all on function public.min_run_seconds(int) from public, anon, authenticated;
+revoke all on function public.rule_min_run(int) from public, anon, authenticated;
+revoke all on function public.rule_drop_chance(boolean, int, int) from public, anon, authenticated;
+revoke all on function public.rule_rarity(numeric, numeric) from public, anon, authenticated;
+revoke all on function public.rule_bonus_guaranteed(int) from public, anon, authenticated;
+revoke all on function public.rule_max_bonuses() from public, anon, authenticated;
+revoke all on function public.rule_extra_bonus_chance() from public, anon, authenticated;
+revoke all on function public.rule_affinity_chance() from public, anon, authenticated;
+revoke all on function public.rule_rank(int, numeric) from public, anon, authenticated;
+revoke all on function public.item_price(int, text[], int[]) from public, anon, authenticated;

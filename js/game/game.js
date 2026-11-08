@@ -1,14 +1,16 @@
 /* The browser shell around the engine: it turns input into commands, runs the loop, moves the camera, draws and updates the HUD.
    All game rules live in js/engine; nothing in here decides what happens in a game. */
 import { HEROES, COLS, ROWS, T, STAGES, heroIndex } from '../content/data.js';
-import { createWorld, step, STEP } from '../engine/world.js';
+import { createWorld, step, STEP, playerView } from '../engine/world.js';
 import { apply } from '../engine/commands.js';
-import { exportLog } from '../engine/replay.js';
+import { exportLog, resume } from '../engine/replay.js';
 import { heroStats } from '../engine/stats.js';
 import { draw, addBeam, tickBeams, addSlash, tickSlashes, addAnim, tickAnims } from './render.js';
 import { preload as preloadArt, get as sprite } from './sprites.js';
 import { createCamera, fitCamera, clampCamera, zoomAt, panBy, toWorld } from './camera.js';
 import * as ui from './ui.js';
+import { createHost, createGuest, guestSteps } from '../net/lockstep.js';
+import { worldOptions } from '../net/session.js';
 
 const $ = id => document.getElementById(id);
 const cv = $('c'), ctx = cv.getContext('2d');
@@ -16,7 +18,10 @@ const MAP_W = COLS * T, MAP_H = ROWS * T;
 const MAX_CATCHUP = 1800;       /* never simulate more than 30 minutes of missed time */
 const HOLD_MS = 280;            /* click and hold a hero this long to pick it up and move it */
 
-let w;                          /* the current world */
+let world;                      /* the current world (the engine steps and commands use it) */
+let w;                          /* the same world as the local player sees it (their gold, relics, picks: playerView) */
+/* Who acts: in solo, commands go straight into the world; in co-op, through the lockstep host or guest (js/net/lockstep.js). */
+let net = null, coopInfo = null, netDead = false;
 let last = -1, acc = 0, active = false, raf = 0, hooks = {}, uiT = 0, stageN = 1, bgWorker = null, bgTimer = 0, drawErr = false;
 /* Screen-only state: chosen hero button, hover, selection, speed, pause, camera, canvas size and visual effects. */
 const v = { sel: 0, hover: null, selected: null, moving: null, speed: 1, paused: false, needFit: true,
@@ -36,40 +41,85 @@ function setPlayOnPick(on) {
 const newSeed = () => (globalThis.crypto && crypto.getRandomValues) ? crypto.getRandomValues(new Uint32Array(1))[0] : Math.floor(Math.random() * 4294967296);
 
 /* Every run starts fresh: Auto-start off, not paused, camera fitted to the free part of the screen. */
-function newRun() {
-  const seed = newSeed();
-  w = createWorld({ seed, stage: stageN, talents: hooks.talents || [], lineup: hooks.lineup, items: hooks.items || {} });
-  const world = w;
-  w.ev.on('end', ({ won }) => finish(world, won));
+/* A new run, or (resumeLog) the run that was going on before the page was refreshed, played back to where it was. */
+function newRun(resumeLog = null) {
+  const c = hooks.coop;
+  const seed = c ? c.config.seed : resumeLog ? resumeLog.seed : newSeed();
+  world = c ? createWorld(worldOptions(c.config)) : resumeLog ? resume(resumeLog)
+    : createWorld({ seed, stage: stageN, talents: hooks.talents || [], lineup: hooks.lineup, items: hooks.items || {} });
+  const me = c ? c.me : 0, current = world;
+  w = playerView(world, me);
+  net = !c ? null : c.isHost ? createHost({ world, transport: c.transport, me })
+    : createGuest({ world, transport: c.transport, me, onDesync: () => netBanner('Out of step with the host: what you see may differ a little.') });
+  coopInfo = c ? { names: c.config.players.map(p => p.name), me } : null; netDead = false; netBanner('');
+  w.ev.on('end', ({ won }) => finish(current, won));
   w.ev.on('crit', ({ enemy }) => { if (w.fx) { addSlash(v.vfx, enemy.x, enemy.y, 0, Math.PI, enemy.def.radius + 7, 0.16, '#ffd84a'); addAnim(v.vfx, 'fx_hit', enemy.x, enemy.y - 4, 30, 0.2, 4); } });   /* a gold flash on critical hits */
   w.ev.on('kill', ({ enemy }) => { if (w.fx && !enemy.escaped) addAnim(v.vfx, 'fx_hit', enemy.x, enemy.y - 6, 26 + enemy.def.radius, 0.24, 4); });
   w.ev.on('explode', ({ zone }) => { if (w.fx) addAnim(v.vfx, 'fx_explosion', zone.x, zone.y, 96, 0.45, 5); });
   w.ev.on('moonfall', ({ zone }) => { if (w.fx) addAnim(v.vfx, 'fx_moonburst', zone.x, zone.y, zone.r * 2.3, 0.45, 5); });
   v.selected = v.moving = v.evo = null; ui.hideEvoPick(); if (v.speed > 2) v.speed = 1; v.vfx.beams.length = 0; v.vfx.slashes.length = 0; v.vfx.anims.length = 0; v.needFit = true;
-  if (playOnPickSaved()) apply(w, { type: 'playOnPick', on: true });   /* logged, so the replay plays the same way */
+  if (!c && !resumeLog && playOnPickSaved()) apply(world, { type: 'playOnPick', on: true });   /* logged, so the replay plays the same way */
   v.sel = heroIndex(w.lineup[0]);
   ui.setLineup(w);
-  setPaused(false);
-  ui.hidePick(); ui.hideOver(); ui.renderMeter(w); ui.renderInspector(w, v);
-  if (hooks.onRunStart) hooks.onRunStart({ seed, stage: stageN });
+  ui.setCoop(coopInfo);
+  $('newRun').hidden = !!c;                 /* a co-op match is started from its lobby */
+  $('quitQ').textContent = c ? 'Leave this match?' : 'Quit this match?';
+  setPaused(!!resumeLog);   /* a resumed run waits, paused, until the player is ready */
+  v.pickObj = undefined; ui.hidePick(); ui.hideOver(); ui.renderMeter(w); ui.renderInspector(w, v);
+  syncPick();
+  if (c && c.transport.onLeave) c.transport.onLeave(peerLeft);
+  if (!resumeLog && hooks.onRunStart) hooks.onRunStart({ seed, stage: stageN });
 }
+/* Co-op: someone's game closed. The host plays a guest's leaving into the match (their heroes stay); if the host goes, the
+   match cannot go on, and each guest saves what it reached. */
+const LEAVE_GRACE_MS = 5000;     /* a dropped connection that comes back within this is not a leave */
+function peerLeft(uid) {
+  const c = hooks.coop, mine = world;
+  setTimeout(() => { if (world === mine && !(c.transport.members && c.transport.members()[uid])) peerGone(uid); }, LEAVE_GRACE_MS);
+}
+function peerGone(uid) {
+  const c = hooks.coop; if (!c || !net || world.phase === 'over' || netDead) return;
+  const i = c.config.players.findIndex(p => p.uid === uid);
+  if (i < 0 || i === c.me) return;
+  if (net.isHost) { net.guestLeft(i); return; }
+  if (i === c.host) {
+    netDead = true; v.moving = null;
+    ui.hidePick(); closeEvolve();
+    ui.showOver('The host left', 'The match ended at wave ' + world.wave + ' of ' + world.maxWave + '.', 'Saving your run…', false);
+    const mine = world;
+    Promise.resolve(hooks.onRunEnd({ waves: Math.max(1, world.wave), kills: world.kills, bosses: world.bossKills, stage: stageN, won: false, log: exportLog(world) }))
+      .catch(() => 'Could not save your run.').then(msg => { if (mine === world) ui.setOverMsg(msg || ''); });
+  }
+}
+function netBanner(text) { const b = $('netBanner'); if (b) { b.textContent = text; b.hidden = !text; } }
 
-async function finish(world, won) {
+async function finish(done, won) {
+  const world = done;   /* the world that ended (a new run may have started by the time the server answers) */
   v.moving = null; setPaused(false);
   ui.showOver(won ? 'Level cleared!' : 'The gate has fallen',
-    won ? 'You beat all ' + world.maxWave + ' waves.' : world.lives > 0 && world.wave >= world.maxWave ? 'The final boss got through.' : 'You reached wave ' + world.wave + ' of ' + world.maxWave + '.', 'Saving your run…', won && stageN < STAGES.length);
+    won ? 'You beat all ' + world.maxWave + ' waves.' : world.lives > 0 && world.wave >= world.maxWave ? 'The final boss got through.' : 'You reached wave ' + world.wave + ' of ' + world.maxWave + '.', 'Saving your run…', won && stageN < STAGES.length && !hooks.coop);
   let msg = '';
   try { msg = await hooks.onRunEnd({ waves: world.wave, kills: world.kills, bosses: world.bossKills, stage: stageN, won, log: exportLog(world) }); } catch (e) { msg = 'Could not save your run.'; }
-  if (world === w) ui.setOverMsg(msg || '');
+  if (done === currentWorld()) ui.setOverMsg(msg || '');
 }
+const currentWorld = () => world;
 
 /* Sends a command to the world and refreshes whatever it could have changed. */
 function act(cmd) {
-  const r = apply(w, cmd);
+  if (netDead) return { ok: false, reason: 'over' };
+  const r = net ? net.submit(cmd) : apply(world, cmd);
   if (!r.ok) return r;
-  if (w.picking) ui.showPick(w); else ui.hidePick();
+  syncPick();
   ui.renderInspector(w, v);
   return r;
+}
+/* The relic picker follows the player's pick: opened, redrawn after a reroll or banish, closed. In co-op a command takes
+   effect when it comes back from the host, so this also runs every frame. */
+function syncPick() {
+  const p = w.pick, uses = p ? p.uses : -1;
+  if (p === v.pickObj && uses === v.pickUses) return;
+  v.pickObj = p; v.pickUses = uses;
+  if (p) ui.showPick(w); else ui.hidePick();
 }
 
 /* ---- Pause: the Menu button pauses and asks before quitting; P pauses, Esc resumes ---- */
@@ -78,24 +128,41 @@ function setPaused(on) {
   $('pauseBanner').hidden = !on; $('menuConfirm').hidden = !on; $('menuBtn').hidden = on;
 }
 function onMenu() {
-  if (!w || w.phase === 'over') return hooks.onExit();
+  if (!w || w.phase === 'over' || netDead) return hooks.onExit();
+  if (hooks.coop) { $('menuConfirm').hidden = false; $('menuBtn').hidden = true; return; }   /* co-op never pauses: just ask */
   setPaused(true);
 }
+const closeMenu = () => { if (hooks.coop) { $('menuConfirm').hidden = true; $('menuBtn').hidden = false; } else setPaused(false); };
 
 /* ---- Loop: fixed steps, driven by requestAnimationFrame while visible and by a timer while the tab is hidden ---- */
 function frame(now) {
   if (!active) return;
   if (last < 0) last = now;
   const real = Math.min(MAX_CATCHUP, Math.max(0, (now - last) / 1000)); last = now;
-  const hidden = !!document.hidden, running = !v.paused && !v.evo && w.phase !== 'over' && (!w.picking || w.playOnPick);   /* the evolve picker pauses too */
-  w.fx = hidden ? null : v.fx;
-  acc = running ? acc + real * v.speed : 0;
+  const hidden = !!document.hidden;
+  /* Solo: the Menu, the evolve picker and (unless the player chose otherwise) the relic picker pause. Co-op never pauses. */
+  const running = hooks.coop ? world.phase !== 'over' && !netDead : !v.paused && !v.evo && world.phase !== 'over' && (!w.picking || w.playOnPick);
+  world.fx = hidden ? null : v.fx;
+  if (net && !net.isHost) v.speed = net.speed;   /* a guest plays at the host's speed */
+  const speed = v.speed;
+  acc = running ? acc + real * speed : 0;
   const deadline = performance.now() + (hidden ? 150 : 8);
-  while (acc >= STEP) {
-    if (!step(w)) { acc = 0; break; }
-    acc -= STEP;
-    if (performance.now() > deadline) break;
+  if (net && !net.isHost) {
+    let n = guestSteps(net, acc / STEP);
+    if (n === 0 && net.allowed() === 0) acc = Math.min(acc, STEP);   /* waiting for the host: do not bank time */
+    while (n-- > 0) {
+      if (!step(world)) { acc = 0; break; }
+      net.afterStep(); acc = Math.max(0, acc - STEP);
+      if (performance.now() > deadline) break;
+    }
+  } else {
+    while (acc >= STEP) {
+      if (!step(world)) { acc = 0; break; }
+      acc -= STEP;
+      if (performance.now() > deadline) break;
+    }
   }
+  if (net && net.isHost) { net.setSpeed(v.speed); net.flush(); }
   if (hidden) return;
   try { render(running ? real * v.speed : 0); } catch (err) { if (!drawErr) { drawErr = true; console.error('Drawing failed (the game keeps running):', err); } }
 }
@@ -106,6 +173,7 @@ function render(dt) {
   draw(ctx, w, v);
   ui.renderHUD(w, v);
   if (v.needFit) { v.needFit = false; fitToScreen(); }
+  syncPick();
   if (w.picking) ui.updatePick(w);
   if ((uiT += 1 / 60) >= 0.25) { uiT = 0; ui.renderMeter(w); if (v.selected) ui.renderInspector(w, v); }
 }
@@ -181,7 +249,7 @@ cv.addEventListener('pointerdown', e => {
   if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1 }; dragged = true; cancelHold(); }
   /* Click and hold a hero to pick it up; it follows the pointer and is moved where it is released. */
   if (pointers.size === 1 && (e.button ?? 0) === 0 && w.phase !== 'over' && !w.picking) {
-    const [cx, cy] = cellAt(x, y), h = w.heroes.find(t => t.cx === cx && t.cy === cy);
+    const [cx, cy] = cellAt(x, y), h = w.heroes.find(t => t.cx === cx && t.cy === cy && w.mine(t));   /* only your own heroes */
     if (h) holdT = setTimeout(() => {
       holdT = 0;
       const p = pointers.get(id);
@@ -251,7 +319,7 @@ function clickCell(cx, cy) {
     if (act({ type: 'move', id: v.moving.id, cx, cy }).ok) v.moving = null;
     ui.renderInspector(w, v); return;
   }
-  if (existing) { v.selected = existing; ui.renderInspector(w, v); return; }
+  if (existing) { v.selected = existing; ui.renderInspector(w, v); return; }   /* anyone's hero can be looked at */
   if (!inside || !canPlace(v.sel)) { closeInspector(); return; }
   if (act({ type: 'place', hero: HEROES[v.sel].id, cx, cy }).ok) {
     v.selected = null;
@@ -261,7 +329,7 @@ function clickCell(cx, cy) {
   }
 }
 /* A hero can be placed if it is in the lineup and not on the map yet (one of each, free). */
-const unitOf = i => w.heroes.find(h => h.type === i);
+const unitOf = i => w.unitOf(i);   /* your hero of that class (in co-op others may have one too) */
 const canPlace = i => i >= 0 && w.lineup.includes(HEROES[i].id) && !unitOf(i);
 
 /* Clicking a hero card: choose it for placing, or, once it is on the map, select it there. */
@@ -279,13 +347,13 @@ const closeInspector = () => { v.selected = v.moving = null; ui.renderInspector(
    the game like the relic picker. Choosing a form spends the gold and evolves the hero; Cancel or Esc closes it. */
 function openEvolve(h) {
   const step = h && h.base.evolutions[h.tier];
-  if (!step || h.level < w.evolveLevel(h) || w.phase === 'over' || w.picking) return;
+  if (!step || !w.mine(h) || h.level < w.evolveLevel(h) || w.phase === 'over' || w.picking) return;
   v.evo = h; v.selected = h; v.sel = h.type; ui.renderInspector(w, v); ui.showEvoPick(w, h);
 }
 const closeEvolve = () => { v.evo = null; ui.hideEvoPick(); };
 const evolveSelected = () => openEvolve(v.selected);
 const chooseEvolution = i => { const h = v.evo; if (h && act({ type: 'evolve', id: h.id, choice: i }).ok) { closeEvolve(); ui.renderInspector(w, v); } };
-const toggleMove = () => { if (v.selected && w.phase !== 'over') { v.moving = v.moving === v.selected ? null : v.selected; ui.renderInspector(w, v); } };
+const toggleMove = () => { if (v.selected && w.mine(v.selected) && w.phase !== 'over') { v.moving = v.moving === v.selected ? null : v.selected; ui.renderInspector(w, v); } };
 ui.initUI({
   onSelectType: selectType, onEvolveHero: i => openEvolve(unitOf(i)), onCloseInspector: closeInspector, onEvolveChoice: chooseEvolution, speed3x: () => !!(w && w.gs.speed3x),
   onChoose: i => act({ type: 'choose', index: i }), onPlayOnPick: setPlayOnPick, onReroll: () => act({ type: 'reroll' }), onBanish: i => act({ type: 'banish', index: i }),
@@ -296,21 +364,22 @@ ui.initUI({
     return { stats: unit ? unit.s : heroStats(def, w ? w.mods : []), unit, evo, evoCost, evoLevel, gold: w ? w.gold : 0 };
   },
   onLayoutChange: () => { if (!v.cam.touched) v.needFit = true; },
-  luck: () => (w ? w.gs.relicLuck : 0)
+  luck: () => (w ? w.gs.relicLuck : 0),
+  playerName: i => (coopInfo ? coopInfo.names[i] : '')
 });
 $('go').onclick = () => act({ type: 'wave' });
 $('relic').onclick = () => act({ type: 'buyRelic' });
 $('auto').onclick = () => act({ type: 'auto', on: !w.auto });
 /* 1x, 2x, and 3x once the Overdrive talent unlocks it. */
-$('spd').onclick = () => { v.speed = v.speed === 1 ? 2 : v.speed === 2 && w.gs.speed3x ? 3 : 1; };
+$('spd').onclick = () => { if (net && !net.isHost) return; v.speed = v.speed === 1 ? 2 : v.speed === 2 && w.gs.speed3x ? 3 : 1; };
 $('menuBtn').onclick = onMenu;
 $('evoCancel').onclick = closeEvolve;
 $('quitYes').onclick = () => hooks.onExit();
-$('resumeBtn').onclick = () => setPaused(false);
+$('resumeBtn').onclick = closeMenu;
 $('camIn').onclick = () => zoomBy(1.25);
 $('camOut').onclick = () => zoomBy(0.8);
 $('camFit').onclick = fitToScreen;
-$('newRun').onclick = () => { newRun(); acc = 0; };
+$('newRun').onclick = () => { if (!hooks.coop) { newRun(); acc = 0; } };
 $('overNext').onclick = () => hooks.onNext && hooks.onNext();
 $('overMenu').onclick = () => hooks.onExit();
 const PAN_KEYS = { arrowleft: [1, 0], a: [1, 0], arrowright: [-1, 0], d: [-1, 0], arrowup: [0, 1], w: [0, 1], arrowdown: [0, -1], s: [0, -1] };
@@ -323,8 +392,8 @@ addEventListener('keydown', e => {
   else if (k === ' ' || k === 'r') { e.preventDefault && e.preventDefault(); if (!w.picking && !v.evo) act({ type: 'buyRelic' }); }   /* Space (or R): buy a relic */
   else if (k === 'm') toggleMove();
   else if (k === 'e') evolveSelected();
-  else if (k === 'p') { if (w.phase !== 'over') setPaused(!v.paused); }
-  else if (k === 'escape') { if (v.evo) closeEvolve(); else if (v.paused) setPaused(false); else closeInspector(); }
+  else if (k === 'p') { if (w.phase !== 'over' && !hooks.coop) setPaused(!v.paused); }
+  else if (k === 'escape') { if (v.evo) closeEvolve(); else if (!$('menuConfirm').hidden) closeMenu(); else closeInspector(); }
   else if (k === 'f') fitToScreen();
   else if (k === '+' || k === '=') zoomBy(1.25);
   else if (k === '-') zoomBy(0.8);
@@ -336,10 +405,13 @@ addEventListener('keydown', e => {
 export function startGame(h) {
   hooks = h; stageN = h.stage || 1; active = true; acc = 0; last = -1;
   preloadArt();
-  newRun(); resize();
+  newRun(h.resume || null); resize();
   cancelAnimationFrame(raf); stopBg();
   if (document.hidden) startBg(); else raf = requestAnimationFrame(loopRaf);
 }
-export function stopGame() { active = false; setPaused(false); cancelAnimationFrame(raf); stopBg(); }
-/* For tests and debugging in the browser console: the live world and screen state. */
-export const _debug = () => ({ world: w, view: v });
+export function stopGame() { active = false; setPaused(false); cancelAnimationFrame(raf); stopBg(); net = null; }
+/* For tests and debugging in the browser console: the live world (as the local player sees it), the screen state and the net. */
+export const _debug = () => ({ world: w, raw: world, view: v, net });
+/* The current run's log, to save it (so a page refresh does not lose the run), or null when there is no run going on.
+   Co-op matches are not saved: they cannot be picked up again without the others. */
+export const snapshot = () => (world && world.log && world.phase !== 'over' && !hooks.coop ? exportLog(world) : null);

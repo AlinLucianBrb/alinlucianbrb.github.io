@@ -30,6 +30,33 @@ button:focus-visible,input:focus-visible{outline:3px solid #fff;outline-offset:2
 .topbar b{color:var(--text)}
 .menuBtns{display:flex;flex-direction:column;gap:10px;width:min(260px,100%);margin-top:8px}
 .menuBtns button{padding:.7em .9em}
+.menuRow{display:flex;gap:8px}
+.menuRow button{flex:1;padding:.7em .5em}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;justify-content:center}
+.tabs button{padding:.35em .8em}
+.fieldrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+select{font:inherit;background:#101813;color:var(--text);border:2px solid var(--line);border-radius:4px;padding:.4em .6em}
+.joinrow{display:flex;gap:8px;width:min(420px,100%)}
+.joinrow input{flex:1;font:inherit;background:#101813;color:var(--text);border:2px solid var(--line);border-radius:4px;padding:.6em .8em;text-transform:uppercase;letter-spacing:.2em}
+#lbyList{padding-left:0;list-style:none}
+.lobbylist li{align-items:center}
+.lobbylist li button{padding:.3em .8em}
+.lobbycode{font-family:ui-monospace,Menlo,Consolas,monospace;letter-spacing:.18em;color:var(--accent)}
+.slots{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;width:min(760px,100%)}
+.slots li{--pc:var(--line);background:var(--panel);border:2px solid var(--line);border-left:6px solid var(--pc);border-radius:6px;padding:10px;min-height:76px;display:flex;flex-direction:column;gap:3px}
+.slots li.empty{opacity:.55;border-style:dashed}
+.slots li small{color:var(--muted)}
+.lbyhost{display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:center}
+.lbyheroes{display:flex;gap:8px;align-items:baseline}
+#lbyRoom .hgrid{max-height:34vh;overflow:auto}
+#coopBar{position:absolute;top:58px;left:50%;transform:translateX(-50%);display:flex;gap:10px;padding:4px 10px;font-size:.9em;pointer-events:none;white-space:nowrap}
+#coopBar span{display:inline-flex;align-items:center;gap:5px}
+#coopBar i{width:10px;height:10px;border-radius:50%;background:var(--pc);display:inline-block}
+#coopBar .left{opacity:.45;text-decoration:line-through}
+#coopBar .rdy{color:#5fd46f}
+#netBanner{position:absolute;top:96px;left:50%;transform:translateX(-50%);padding:4px 12px;color:#ffb4a8;pointer-events:none}
+.resumebox{display:flex;flex-direction:column;gap:2px;align-items:stretch}
+.resumebox .linkbtn{padding:.2em;font-size:.85em}
 .field{display:flex;flex-direction:column;gap:10px;width:min(300px,100%)}
 .field input{font:inherit;background:#101813;color:var(--text);border:2px solid var(--line);border-radius:4px;padding:.6em .8em}
 .msg{min-height:1.3em;color:#ffb4a8;text-align:center;max-width:34ch}
@@ -296,7 +323,9 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
   </div>
   <h1>Test TBD</h1>
   <div class="menuBtns">
-    <button class="go" data-nav="levels">Play</button>
+    <div id="resumeBox" class="resumebox" hidden><button class="go" id="resumeRunBtn">Resume run</button><button class="linkbtn" id="resumeDrop">Give it up</button></div>
+    <button class="go" data-nav="levels">Play solo</button>
+    <div class="menuRow"><button id="lobbyCreateBtn">Create lobby</button><button id="lobbyJoinBtn">Join lobby</button></div>
     <button data-nav="heroes">Heroes</button>
     <button data-nav="inventory">Inventory</button>
     <button data-nav="talents" id="talentsBtn">Talents</button>
@@ -319,6 +348,43 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
   </div>
   <p class="msg" id="lvMsg"></p>
   <button id="lvBack">Back</button>
+</section>
+
+<section id="screen-lobby" class="screen" hidden>
+  <!-- Create: public or private (with a password), and the level. -->
+  <div id="lbyCreate" class="lvstep" hidden>
+    <h1>Create a lobby</h1>
+    <div class="field">
+      <div class="tabs"><button id="lbyPublic" class="on">Public</button><button id="lbyPrivate">Private</button></div>
+      <input id="lbyPass" type="password" placeholder="Password for your lobby" maxlength="32" autocomplete="new-password" hidden>
+      <label class="fieldrow">Level <select id="lbyStage"></select></label>
+      <button class="go" id="lbyCreateGo">Create lobby</button>
+    </div>
+  </div>
+  <!-- Join: by name, or from the list of open lobbies. -->
+  <div id="lbyJoin" class="lvstep" hidden>
+    <h1>Join a lobby</h1>
+    <div class="joinrow"><input id="lbyName" placeholder="Lobby name" maxlength="5" autocomplete="off" spellcheck="false"><button class="go" id="lbyJoinGo">Join</button></div>
+    <div class="list lobbylist"><ol id="lbyList"></ol></div>
+    <button class="linkbtn" id="lbyRefresh">Refresh</button>
+  </div>
+  <!-- A private lobby asks for its password. -->
+  <div id="lbyAsk" class="lvstep" hidden>
+    <h1 id="lbyAskTitle">Private lobby</h1>
+    <div class="field"><input id="lbyAskPass" type="password" placeholder="Password" maxlength="32" autocomplete="off"><button class="go" id="lbyAskGo">Join</button></div>
+  </div>
+  <!-- In a lobby: the 4 slots, the level, and Start for the host. -->
+  <div id="lbyRoom" class="lvstep" hidden>
+    <h1>Lobby <span id="lbyCode" class="lobbycode"></span> <button class="linkbtn" id="lbyCopy" title="Copy the lobby name">Copy</button></h1>
+    <p class="muted" id="lbyInfo"></p>
+    <ol class="slots" id="lbySlots"></ol>
+    <div class="lbyhost" id="lbyHostCtl" hidden><label class="fieldrow">Level <select id="lbyRoomStage"></select></label><button class="go big" id="lbyStart">Start match</button></div>
+    <p class="muted" id="lbyWait"></p>
+    <div class="lbyheroes"><span class="muted">Your heroes: <b id="lbyMine"></b></span> <button class="linkbtn" id="lbyChange">Change</button></div>
+    <div class="hgrid" id="lbyHeroes" hidden></div>
+  </div>
+  <p class="msg" id="lbyMsg"></p>
+  <button id="lbyBack">Back</button>
 </section>
 
 <section id="screen-heroes" class="screen" hidden>
@@ -345,6 +411,7 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
 
 <section id="screen-leaderboard" class="screen" hidden>
   <h1>Leaderboard</h1>
+  <div class="tabs" id="lbTabs" role="tablist"><button data-players="1" class="on">Solo</button><button data-players="2">2 players</button><button data-players="3">3 players</button><button data-players="4">4 players</button></div>
   <div class="list"><ol id="lbList"></ol></div>
   <button id="lbBack">Back</button>
 </section>
@@ -376,12 +443,15 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
       <span class="stat"><small>Wave</small><b id="wave"></b></span>
       <span class="stat"><small>Lives</small><b id="lives"></b></span>
     </div>
+    <!-- Co-op: everyone in the match, their colour, gold and whether they are ready. -->
+    <div id="coopBar" class="glass" hidden></div>
+    <div id="netBanner" class="glass" hidden></div>
     <!-- Left middle: the relics you own, one under the other. -->
     <div id="relics" class="glass" hidden></div>
     <!-- Top right: Menu (pause), with the selected hero's details under it. -->
     <div id="hudTopRight">
       <button id="menuBtn">Menu</button>
-      <span id="menuConfirm" class="glass" hidden><span class="q">Quit this match?</span><button id="quitYes" class="danger">Quit</button><button id="resumeBtn" class="go">Resume</button></span>
+      <span id="menuConfirm" class="glass" hidden><span class="q" id="quitQ">Quit this match?</span><button id="quitYes" class="danger">Quit</button><button id="resumeBtn" class="go">Resume</button></span>
     </div>
     <div id="heroPanel" class="glass" hidden><div id="inspect"></div></div>
     <!-- Bottom right: the damage meter. -->
@@ -413,7 +483,7 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
     <div class="choices" id="choices"></div>
     <div class="pickbar"><button id="reroll">Reroll all</button><span class="muted" id="pickGold"></span></div>
     <div class="muted" id="pickOdds"></div>
-    <label class="pickopt"><input type="checkbox" id="playOnPick"> Keep playing while choosing</label>
+    <label class="pickopt" id="playOnPickRow"><input type="checkbox" id="playOnPick"> Keep playing while choosing</label>
   </div>
   <div class="overlay" id="evoPick" hidden>
     <h2 id="evoTitle">Evolve</h2>

@@ -1,5 +1,6 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/+esm';
 import { SUPABASE_URL, SUPABASE_KEY, AUTH_DOMAIN } from '../config.js';
+import { openChannel } from '../net/channel.js';
 
 export const isConfigured = !SUPABASE_URL.startsWith('YOUR_');
 const sb = isConfigured ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
@@ -51,9 +52,10 @@ export async function saveTalents(nodes) {
   if (data) fill(data);
   return { profile: data, error: error && error.message };
 }
-export async function startRun(stage) {
+/* lobby: a co-op lobby whose match has started (the run is then saved as a co-op run, in that mode's leaderboard). */
+export async function startRun(stage, lobby = null) {
   if (!sb) return { id: null, ...OFFLINE };
-  const { data, error } = await sb.rpc('start_run', { p_stage: stage });
+  const { data, error } = await sb.rpc('start_run', lobby ? { p_stage: stage, p_lobby: lobby } : { p_stage: stage });
   return { id: data || null, error: error && error.message };
 }
 /* Returns { profile, drop, drops, error }: drops are the item types found at the end of the match (drop is the first, or null). */
@@ -84,8 +86,35 @@ export async function sellItem(itemId) {
   if (data) fill(data);
   return { profile: data, error: error && error.message };
 }
-export async function getLeaderboard() {
+/* players: 1 for solo, 2 to 4 for co-op. */
+export async function getLeaderboard(players = 1) {
   if (!sb) return { rows: [], ...OFFLINE };
-  const { data, error } = await sb.rpc('get_leaderboard', { p_limit: 20 });
+  const { data, error } = await sb.rpc('get_leaderboard', { p_limit: 20, p_players: players });
   return { rows: data || [], error: error && error.message };
 }
+
+/* ---- Co-op lobbies. Each answers { lobby, error }; a lobby is { id, name, host, is_private, stage, status, config,
+   max_players, members: [{ user_id, username, level, slot }] }. ---- */
+const lobbyCall = async (fn, args) => {
+  if (!sb) return { lobby: null, ...OFFLINE };
+  const { data, error } = await sb.rpc(fn, args);
+  return { lobby: data || null, error: error && error.message };
+};
+export const createLobby = ({ isPrivate, password, stage }) => lobbyCall('create_lobby', { p_private: !!isPrivate, p_password: password || null, p_stage: stage });
+export const joinLobby = (name, password) => lobbyCall('join_lobby', { p_name: name, p_password: password || null });
+export const lobbyPing = id => lobbyCall('lobby_ping', { p_lobby: id });
+export const setLobbyStage = (id, stage) => lobbyCall('set_lobby_stage', { p_lobby: id, p_stage: stage });
+export const startLobby = (id, config) => lobbyCall('start_lobby', { p_lobby: id, p_config: config });
+export async function leaveLobby(id) {
+  if (!sb) return OFFLINE;
+  const { error } = await sb.rpc('leave_lobby', { p_lobby: id });
+  return { error: error && error.message };
+}
+/* Open lobbies with room: [{ name, host_name, players, max_players, is_private, stage }]. */
+export async function listLobbies() {
+  if (!sb) return { rows: [], ...OFFLINE };
+  const { data, error } = await sb.rpc('list_lobbies');
+  return { rows: data || [], error: error && error.message };
+}
+/* The lobby's live channel (Supabase Realtime): see js/net/channel.js. Null without a server. */
+export const lobbyChannel = (id, key) => (sb ? openChannel(sb, 'lobby:' + id, key) : null);

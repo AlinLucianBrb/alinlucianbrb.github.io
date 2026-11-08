@@ -9,6 +9,9 @@ export function hashWorld(w) {
     w.heroes.map(h => [h.id, h.type, h.cx, h.cy, r(h.dealt), h.kills, h.tier, r(h.energy), h.ults, h.level, h.xp, h.def.form || '', (h.buffs || []).map(b => b.id + r(b.t)).join('+')].join(':')).join(';'),
     w.enemies.map(e => [e.type, r(e.d), r(e.hp)].join(':')).join(';'),
     (w.zones || []).map(z => [z.type, r(z.t), r(z.x), r(z.y)].join(':')).join(';'),
-    w.projs.map(p => [p.type, r(p.x), r(p.y)].join(':')).join(';')
+    w.projs.map(p => [p.type, r(p.x), r(p.y)].join(':')).join(';'),
+    /* co-op: every other player's gold and relics, and who owns each hero */
+    (w.players || []).slice(1).map(p => [r(p.gold), p.rerolls, p.banishes, p.relics.map(x => x.name + x.r).join(',')].join(':')).join(';'),
+    w.coop ? w.heroes.map(h => h.owner).join(',') : ''
   ].join('|'));
 }

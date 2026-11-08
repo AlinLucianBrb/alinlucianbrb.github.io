@@ -1,8 +1,9 @@
 /* Builds supabase-setup.sql (new projects) and supabase-update.sql (existing projects) from the parts in sql/ plus the
-   game content in js/content. Run after changing any of them:   npm run sql
+   game content and rules in js/content (tools/content-sql.mjs, tools/rules-sql.mjs). Run after changing any of them:   npm run sql
    A test fails if the committed files are out of date. */
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { contentSeedSql } from './content-sql.mjs';
+import { rulesSql, rulesPermissionsSql } from './rules-sql.mjs';
 
 const root = new URL('../', import.meta.url);
 const part = name => readFileSync(new URL('sql/' + name, root), 'utf8').trim() + '\n';
@@ -21,7 +22,8 @@ function build(kind) {
     if (kind === 'setup' && EXISTING_ONLY.includes(n)) continue;
     if (kind === 'update' && NEW_ONLY.includes(n)) continue;
     out.push(part(n));
-    if (n === CONTENT_AFTER) out.push(contentSeedSql());
+    if (n === CONTENT_AFTER) { out.push(contentSeedSql()); out.push(rulesSql()); }
+    if (n === '70-permissions.sql') out.push(rulesPermissionsSql());
   }
   return out.join('\n');
 }

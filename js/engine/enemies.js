@@ -23,10 +23,10 @@ export function defensesFor(def, wave, stage) {
   return { armor: (def.armor || 0) * t, res };
 }
 
-export const waveCount = w => 5 + w * 2;
-export const spawnDelay = w => Math.max(0.35, 0.85 - w * 0.02);
-/* Boss waves: the last wave of every level, plus the middle wave from level 3 on. The boss is the wave's last enemy. */
-export const isBossWave = (wave, stage) => wave === stage.waves || (stage.n >= 3 && wave === Math.round(stage.waves / 2));
+/* Wave size, spawn timing and boss waves are rules the server shares: they live in js/content/rules.js. The boss is the
+   wave's last enemy. */
+export { waveCount, spawnDelay, isBossWave } from '../content/rules.js';
+import { isBossWave } from '../content/rules.js';
 /* How many boss waves a run that reached `waves` has seen (the server uses the same rule to check boss kills). */
 export const bossWavesUpTo = (stage, waves) => { let n = 0; for (let i = 1; i <= Math.min(waves, stage.waves); i++) if (isBossWave(i, stage)) n++; return n; };
 /* i counts down from the wave size to 1, so the mix is the same every time. */
@@ -45,7 +45,7 @@ export function pathPos(path, i, out) {
 }
 export function spawnEnemy(g, type) {
   const def = ENEMIES[type], st = g.stage;
-  const hp = Math.max(1, Math.round(20 * st.hpMult * Math.pow(st.growth, g.wave - 1) * def.hp));
+  const hp = Math.max(1, Math.round(20 * st.hpMult * (g.hpMult || 1) * Math.pow(st.growth, g.wave - 1) * def.hp));   /* co-op: x players */
   const e = { type, def, d: 0, hp, max: hp, speed: Math.min(90, 50 + g.wave * 2) * def.speed, x: 0, y: 0, fx: null, dead: false, escaped: false, last: null,
     ...defensesFor(def, g.wave, st.n) };
   pathPos(g.path, 0, e);

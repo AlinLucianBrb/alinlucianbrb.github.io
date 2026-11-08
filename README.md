@@ -1,6 +1,6 @@
 # Test TBD
 
-HTML/JS tower defense with accounts, a main menu and a leaderboard. No build step.
+HTML/JS tower defense with accounts, a main menu, co-op for up to 4 players and leaderboards. No build step.
 
 ## Structure
 ```
@@ -9,10 +9,11 @@ js/main.js                 boot: registers screens, picks the first one
 js/config.js               your Supabase URL and key (and optional CAPTCHA site key)
 js/core/                   bus.js (events), screens.js, tooltip.js, state.js, rules.js
 js/services/api.js         the only file that talks to Supabase
-js/screens/                login, menu, levels (level, then heroes), heroes, inventory, talents, leaderboard, settings, play;
+js/screens/                login, menu, levels (level, then heroes), lobby (co-op), heroes, inventory, talents, leaderboard, settings, play;
                            loadout.js holds what they share (items, equipment, saving the lineup)
 
 js/content/                WHAT the game contains (plain data, no logic)
+  rules.js                 the rules the server also uses (XP, rewards, waves, spawn timing, bosses, drops, co-op): ONE place
   data.js                  heroes (and archived ones for later), energy defaults, relics, rarities, levels
   items.js                 items that drop after matches (one slot per hero)
   talents.js               the talent tree (clusters and paths) and allocation rules
@@ -30,6 +31,11 @@ js/game/                   the browser shell around the engine
   render.js                canvas drawing: the painted board, sprites, effects (shapes while the art loads)
   sprites.js               loads the pixel art from assets/; the list of every sprite the game uses
   ui.js                    HUD, damage meter, hero panel, relic picker
+  saved-run.js             keeps the run on this browser, so a refresh does not lose it
+js/net/                    co-op
+  lockstep.js              keeps every player's game in step (host and guests)
+  channel.js               a lobby's live channel (Supabase Realtime: messages and who is here)
+  session.js               the lobby this browser is in, shared by the Lobby and Play screens
 
 assets/                    the pixel art the game loads (built by python3 art/build.py; do not edit by hand)
 art/                       the scripts that draw the art (Python + Pillow); art/out/ also has preview images
@@ -37,6 +43,7 @@ tests/                     run with: npm test
 tools/bot.mjs              a bot that plays through the same commands as a player
 tools/balance-report.mjs   run with: npm run balance
 tools/build-sql.mjs        builds the two SQL files from sql/ and js/content: npm run sql
+tools/rules-sql.mjs        writes the database's rule_* functions from js/content/rules.js (used by build-sql)
 sql/                       the database, in parts (tables, functions, permissions); edit these, not the built files
 .github/workflows/test.yml runs the tests on GitHub on every push
 supabase-setup.sql         database setup for a new project (built by npm run sql)
@@ -46,18 +53,36 @@ supabase-cleanup-old-prototypes.sql  optional: deletes tables from the earlier p
 
 ## How the engine works
 - **Engine vs. shell.** `js/engine` holds every game rule and never touches the page, the clock or `Math.random`. `js/game` turns clicks into commands, runs the loop and draws. The same engine runs in the browser, in the tests and in the bot, and could run on a server.
-- **Commands.** The only way to change a game is `apply(world, { type, ... })`: place, move, evolve, wave, auto, buyRelic, reroll, banish, choose. A command is checked, applied and recorded with the tick it happened on; a refused command changes nothing. To add a player action, add an entry to `COMMANDS` in `commands.js`.
+- **Commands.** The only way to change a game is `apply(world, { type, ..., p })`: place, move, evolve, wave, leave (co-op), auto, playOnPick, buyRelic, reroll, banish, choose. A command is checked, applied and recorded with the tick it happened on; a refused command changes nothing. To add a player action, add an entry to `COMMANDS` in `commands.js`.
 - **Seeded randomness.** Each run gets a seed. Separate random streams for the map and for relics mean, for example, that rerolling relics never changes the map.
 - **Command logs.** A seed plus the list of commands replays a run exactly: `replay(log)` gives the same final state, and `verify(log)` checks the result a log claims. The Play screen receives the log when a run ends (`onRunEnd`), ready for a future step where the server re-plays runs to stop cheating.
-- **Engine version.** `ENGINE_VERSION` in `world.js` must go up whenever a rule change would make old logs play out differently; `replay` refuses logs from another version. (Now 2: Compound interest changed.)
+- **Engine version.** `ENGINE_VERSION` in `world.js` must go up whenever a rule change would make old logs play out differently; `replay` refuses logs from another version. (Now 15.)
+- **Players.** A world has one player (solo) or 2 to 4 (co-op). Each player has their own heroes, talents, gear, gold, relics and relic choices; the map, the enemies, the lives and the waves are shared. Commands carry `p`, the player (0 in solo). `playerView(world, i)` is the world as player i sees it (their gold, relics...), which is what the HUD draws.
 - **Golden rule:** game state changes only through commands and `step()`. Setting values directly (like `world.gold = 500`) breaks replays.
+
+## One place for the rules
+The numbers the server has to agree with the game on (account XP per level, match rewards, waves and spawn timing, the kill cap, boss waves, the minimum run time, item drops, co-op sizes) live only in `js/content/rules.js`; item rolls and prices in `js/content/items.js`, levels and rarities in `data.js`. The game imports them, and `npm run sql` writes the database's copy as small `rule_*` functions (`rule_xp_need`, `rule_run_xp`, `rule_kill_cap`, `rule_min_run`, `rule_rarity`, `rule_rank`, `item_price`...) that `start_run`, `finish_run`, `save_loadout` and the lobby functions call. To change a rule: edit `rules.js`, run `npm run sql`, run `supabase-update.sql`. A test fails if the SQL files were not rebuilt.
+
+## Saved runs
+A solo run is kept on this browser every few seconds and when the page is hidden (its seed and commands, a few KB). After a refresh or a closed tab, the menu shows **Resume run · Level N, wave W**: the run is played back to where it was and waits, paused. **Give it up** throws it away. A saved run lasts 24 hours and is per account. Co-op matches are not saved (they cannot go on without the others).
+
+## Co-op
+- **Play solo**, **Create lobby** or **Join lobby** on the menu.
+- **Create lobby:** public, or private with a password; pick a level (one you have unlocked). The lobby gets a 5-character name (letters and numbers) to share.
+- **Join lobby:** type the name, or pick from the list of open lobbies (🔒 = private: it asks for the password).
+- **In the lobby:** 4 slots, each player in their colour, with the heroes they bring (Change picks them, like before a solo match). The host (♛) picks the level and starts once at least 2 players are connected. If the host leaves before the start, the next player becomes host.
+- **The match:** everyone shares the map, the enemies, the lives and the waves; heroes, relics and gold are each player's own. Enemies have ×2 life with 2 players, ×3 with 3, ×4 with 4. Every kill pays every player its bounty. A wave starts when everyone has pressed Ready (or has Auto-start on). Nothing pauses: the relic and evolve pickers stay open while the match goes on. Each player's heroes stand on a ring of their colour; the bar under the wave counter shows everyone's gold and who is ready; the damage meter has a row per player's hero. You can look at anyone's heroes, but only move and evolve your own. The host sets the game speed.
+- **Leaving:** a player who leaves (or whose tab closes) is out after 5 seconds; their heroes stay and keep fighting, and waves stop waiting for them. If the host leaves, the match ends for everyone and each player's run is saved as it stands.
+- **Rewards:** each player saves their own run, with their own talents' bonuses and drops. The level only has to be unlocked for the host, so friends can bring someone along; a level you clear in co-op unlocks the next one for you only if it was your next level.
+- **Leaderboards:** one tab per mode (Solo, 2, 3 and 4 players), each with its own records.
+- **How it stays in step:** every game runs the same deterministic engine, and only commands travel (Supabase Realtime, on the lobby's channel). The host's game is the clock: it applies everyone's commands and five times a second sends them, with the tick each happened on, to the others, who never run ahead of the host. Every few seconds a fingerprint of the world goes along, so a guest notices if it ever falls out of step. A lost message is asked for again. Realtime is on by default in Supabase; nothing to set up.
 
 ## Tests and the balance bot
 - `npm test` runs everything (needs Node 22). Tests cover the random numbers, stat math, talents, every command, each hero's behavior, enemies and waves, winning and losing, replays, the browser shell on a fake page, and checks that the SQL files still match the game rules (wave counts, rewards, timings, talent trees). GitHub runs them on every push.
 - `npm run balance` plays every level with four bot strategies and prints win rates. Options: `--runs 8 --stages 1,2,3 --strategies trio,ranger --level 10 --form lightningmage,hunter` (`--level` is the player level, so talents are included; `--form` picks each hero's evolution, for example `berserker,lightningmage,hunter`). The bot is not clever, so treat results as a yardstick for comparing changes, not as how hard a level feels to a person.
 
 ## Levels
-Five levels: 15 waves, then 5 more each (20, 25, 30, 35). A level unlocks when the previous one is cleared. Levels differ in enemy health and how fast it grows (`STAGES` in `data.js`, easy to tune). The leaderboard shows levels cleared, then the furthest wave on the level a player is working on.
+Five levels: 15 waves, then 5 more each (20, 25, 30, 35). A level unlocks when the previous one is cleared. Levels differ in enemy health and how fast it grows (`STAGES` in `data.js`, easy to tune). The leaderboard shows levels cleared, then the furthest wave on the level a player is working on, with a tab for solo and one for each co-op size.
 
 ## Game screen and controls
 The map fills the window and the HUD floats on top: level, wave and lives in the top middle; your relics down the left; Menu top right, with the selected hero's details under it; the damage meter bottom right (click its title to fold it); gold, the hero cards, Relic, Start wave (its right-hand AUTO part toggles Auto-start) and speed at the bottom. Hover any hero card or button for a tooltip.
@@ -77,7 +102,7 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 | Buy a relic | Relic | Space (or R) |
 | Pick a relic in the relic picker | click it | 1 / 2 / 3 |
 | Start the wave | Start wave (AUTO is red while Auto-start is off, green when on) | Enter |
-| Pause | Menu (asks before quitting) | P (Esc resumes) |
+| Pause | Menu (asks before quitting; in co-op it only asks, the match goes on) | P (Esc resumes; not in co-op) |
 | Game speed | speed button: 1x, 2x, and 3x with the Overdrive talent | |
 
 - The camera fits the map into the space the HUD leaves free whenever a run starts or the window changes size (until you move or zoom it yourself; Fit returns to that view).
@@ -206,6 +231,7 @@ What the server enforces (all in `supabase-setup.sql` / `supabase-update.sql`):
 - **Usernames:** 3-16 letters, numbers or underscores. Reserved names (admin, moderator...), a starter list of offensive words and look-alikes of existing names (0/o, 1/l/i) are rejected, even if someone skips the sign-up form. Add rows to `blocked_names` to block more.
 - **Boss items:** `finish_run` takes the number of bosses defeated and rejects more than the boss waves the run reached (the same rule as `bossWavesUpTo` in `enemies.js`), and a win without the final boss.
 - **Items and lineups:** only the server creates items (in `finish_run`, which also rolls their rarity, bonuses from the `item_bonuses` table and each bonus's rank) and only `sell_item` removes them; players can read their own items but not change them. `save_loadout` only accepts known heroes, at most 3 different ones, and items the player owns, each in the slot its type goes in and worn once. Each run records the lineup and equipment it started with.
+- **Co-op:** lobbies, their members and passwords live in private tables, reached only through the lobby functions (`create_lobby`, `list_lobbies`, `join_lobby`, `lobby_ping`, `set_lobby_stage`, `leave_lobby`, `start_lobby`). Passwords are stored salted and hashed and never sent back. Lobbies hold 4 players; members who stop pinging for 45 seconds are dropped. A co-op run can only be started for a lobby the player is in, whose host started it within the last 10 minutes, on the lobby's level; it records how many played, and goes to that mode's leaderboard.
 - **Permissions:** players can only call the functions the game needs, and cannot read or write the private tables directly.
 
 What it cannot stop: someone who writes a script that plays slowly and sends believable numbers. They would still gain XP at roughly real-time speed, up to the hourly limit. Stopping that means re-playing each run on the server, which is a bigger project.
@@ -222,4 +248,6 @@ The earlier prototypes (Target Rush and the first tower defense) left tables tha
 ## Known limits
 - **The real email is not verified**, because sign-up uses the internal address. Someone could register with an email that isn't theirs, and password reset by email does not work yet. Real email login, verification and recovery are the next step if you want them.
 - If sign-up says the email is invalid, Supabase rejected the internal domain. Change `AUTH_DOMAIN` in `config.js` to a domain you own.
+- **Co-op trusts the players' games:** the host's game decides the order of everyone's commands, and the server checks each player's run like a solo one. A cheating host could only spoil their own match.
+- **No host migration yet:** if the host leaves, the co-op match ends.
 - **Cheating is limited, not impossible.** See "Security" below: runs are checked by the server for plausibility, but the game itself runs in the browser.

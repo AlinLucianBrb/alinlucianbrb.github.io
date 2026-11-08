@@ -42,14 +42,16 @@ language sql stable security definer set search_path = public as $$
     'username_problem', public.username_problem(p_username));
 $$;
 
--- Public leaderboard: levels cleared, then furthest wave on the level a player is working on.
+-- Public leaderboard for one mode (p_players: 1 solo, 2 to 4 co-op): levels cleared, then the furthest wave on the level a
+-- player is working on, in that mode.
 drop function if exists public.get_leaderboard(int);
-create function public.get_leaderboard(p_limit int default 20)
+drop function if exists public.get_leaderboard(int, int);
+create function public.get_leaderboard(p_limit int default 20, p_players int default 1)
 returns table (username text, level int, levels_cleared int, frontier_wave int)
 language sql stable security definer set search_path = public as $$
-  select p.username, p.level, p.levels_cleared, p.frontier_wave from public.profiles p
-  where p.runs > 0
-  order by p.levels_cleared desc, p.frontier_wave desc, p.level desc, p.created_at
+  select p.username, p.level, r.levels_cleared, r.frontier_wave from public.records r join public.profiles p on p.id = r.user_id
+  where r.players = p_players and r.runs > 0
+  order by r.levels_cleared desc, r.frontier_wave desc, p.level desc, p.created_at
   limit least(greatest(p_limit, 1), 100);
 $$;
 
@@ -81,33 +83,37 @@ begin
 end;
 $$;
 
--- Lower bound on how long a run of this many completed waves takes in real time: enemies spawn one at a time, and the game runs at
--- most 3x speed (with the Overdrive talent), so a wave cannot finish faster than a third of its spawn time. 0.25 leaves a margin.
-create or replace function public.min_run_seconds(p_waves int) returns numeric
-language sql immutable as $$
-  select coalesce(sum(0.25 * (4 + 2 * w) * greatest(0.35, 0.85 - 0.02 * w)), 0)
-  from generate_series(1, greatest(p_waves, 0)) as w;
-$$;
-
 -- Called when a level starts. Only one unfinished run per player: starting a new one cancels the old one.
 -- The run remembers the lineup and equipment it started with.
+-- Co-op (p_lobby): the lobby must have been started by its host, the player must be in it, and the level is the lobby's.
+-- The level only has to be unlocked for the host (create_lobby checks that), so friends can bring someone along.
 drop function if exists public.start_run(int);
-create function public.start_run(p_stage int) returns uuid
+drop function if exists public.start_run(int, uuid);
+create function public.start_run(p_stage int, p_lobby uuid default null) returns uuid
 language plpgsql security definer set search_path = public as $$
-declare me public.profiles; rid uuid;
+declare me public.profiles; rid uuid; lb public.lobbies; n int := 1;
 begin
   if auth.uid() is null then raise exception 'not signed in'; end if;
-  if p_stage < 1 or p_stage > 5 then raise exception 'invalid stage'; end if;
+  if p_stage < 1 or p_stage > public.rule_stage_count() then raise exception 'invalid stage'; end if;
   select * into me from public.profiles where id = auth.uid();
   if not found then raise exception 'no profile'; end if;
-  if p_stage > me.levels_cleared + 1 then raise exception 'stage locked'; end if;
+  if p_lobby is null then
+    if p_stage > me.levels_cleared + 1 then raise exception 'stage locked'; end if;
+  else
+    select * into lb from public.lobbies where id = p_lobby;
+    if not found or lb.status <> 'playing' then raise exception 'that lobby has not started a match'; end if;
+    if not exists (select 1 from public.lobby_members where lobby = p_lobby and user_id = auth.uid()) then raise exception 'not in this lobby'; end if;
+    if lb.started_at < now() - interval '10 minutes' then raise exception 'that match started too long ago'; end if;
+    if p_stage <> lb.stage then raise exception 'wrong level for this lobby'; end if;
+    n := lb.players;
+  end if;
   if exists (select 1 from public.runs where user_id = auth.uid() and finished_at is null and started_at > now() - interval '2 seconds') then
     raise exception 'slow down';
   end if;
   delete from public.runs where user_id = auth.uid() and finished_at is null;
   delete from public.runs where finished_at < now() - interval '30 days';
-  insert into public.runs (user_id, stage, loadout)
-  values (auth.uid(), p_stage, jsonb_build_object('lineup', to_jsonb(me.lineup), 'equipment', me.equipment))
+  insert into public.runs (user_id, stage, loadout, players, lobby)
+  values (auth.uid(), p_stage, jsonb_build_object('lineup', to_jsonb(me.lineup), 'equipment', me.equipment), n, p_lobby)
   returning id into rid;
   return rid;
 end;
@@ -122,7 +128,7 @@ declare me public.profiles; n int;
 begin
   if auth.uid() is null then raise exception 'not signed in'; end if;
   n := coalesce(array_length(p_lineup, 1), 0);
-  if n < 1 or n > 3 then raise exception 'bring 1 to 3 heroes'; end if;
+  if n < 1 or n > public.rule_lineup_max() then raise exception 'bring 1 to % heroes', public.rule_lineup_max(); end if;
   if (select count(distinct x) from unnest(p_lineup) x) <> n then raise exception 'each hero can only be brought once'; end if;
   if (select count(*) from public.hero_classes h where h.id = any (p_lineup)) <> n then raise exception 'unknown hero'; end if;
   if p_equipment is null or jsonb_typeof(p_equipment) <> 'object' then raise exception 'bad equipment'; end if;
@@ -171,16 +177,16 @@ create function public.finish_run(p_run uuid, p_waves int, p_kills int, p_won bo
 language plpgsql security definer set search_path = public as $$
 declare me public.profiles; r public.runs; cap int; frontier boolean; elapsed numeric; done_waves int; dropped text := null;
         drops jsonb := '[]'; b_gold numeric; b_xp numeric; b_loot numeric; chance numeric; n int; boss_cap int;
-        roll numeric; rar int; nb int; bon text[]; b_rar numeric; b_extra numeric; w1 numeric; w2 numeric; w3 numeric; rks int[];
+        rar int; nb int; bon text[]; b_rar numeric; b_extra numeric; rks int[];
         aff text; pick text;
 begin
   if auth.uid() is null then raise exception 'not signed in'; end if;
   select * into r from public.runs where id = p_run and user_id = auth.uid() and finished_at is null for update;
   if not found then raise exception 'unknown or already finished run'; end if;
-  cap := 10 + 5 * r.stage;
-  if p_waves < 1 or p_waves > cap or p_kills < 0 or p_kills > p_waves * (p_waves + 6) then raise exception 'invalid run'; end if;
+  cap := public.rule_stage_waves(r.stage);
+  if p_waves < 1 or p_waves > cap or p_kills < 0 or p_kills > public.rule_kill_cap(p_waves) then raise exception 'invalid run'; end if;
   if p_won and p_waves <> cap then raise exception 'invalid win'; end if;
-  boss_cap := (case when p_waves >= cap then 1 else 0 end) + (case when r.stage >= 3 and p_waves >= round(cap / 2.0) then 1 else 0 end);
+  boss_cap := public.rule_boss_cap(r.stage, p_waves);
   if p_bosses is null or p_bosses < 0 or p_bosses > boss_cap then raise exception 'invalid boss count'; end if;
   if p_won and p_bosses < 1 then raise exception 'a level is won by beating its final boss'; end if;
   if r.started_at < now() - interval '24 hours' then raise exception 'run expired'; end if;
@@ -189,59 +195,60 @@ begin
   end if;
   elapsed := extract(epoch from (now() - r.started_at));
   done_waves := case when p_won then p_waves else p_waves - 1 end;
-  if elapsed < greatest(15, public.min_run_seconds(done_waves)) then raise exception 'run too short'; end if;
+  if elapsed < public.rule_min_run(done_waves) then raise exception 'run too short'; end if;
 
   select * into me from public.profiles where id = auth.uid() for update;
-  if r.stage > me.levels_cleared + 1 then raise exception 'stage locked'; end if;
+  if r.players = 1 and r.stage > me.levels_cleared + 1 then raise exception 'stage locked'; end if;   -- co-op: unlocked for the host
   frontier := (r.stage = me.levels_cleared + 1);
   select coalesce(sum(t.reward_gold), 0), coalesce(sum(t.reward_xp), 0), coalesce(sum(t.reward_loot), 0),
          coalesce(sum(t.reward_rarity), 0), coalesce(sum(t.reward_extra), 0) into b_gold, b_xp, b_loot, b_rar, b_extra
     from public.talent_nodes t where t.id = any (me.talents);
-  w1 := 28 * (1 + b_rar); w2 := 13 * power(1 + b_rar, 2); w3 := 4 * power(1 + b_rar, 3);
-  me.xp := me.xp + round((p_waves * 10 + p_kills) * (1 + b_xp));
-  me.gold := me.gold + round(p_waves * 5 * (1 + b_gold));
-  while me.xp >= 50 + me.level * 50 loop
-    me.xp := me.xp - (50 + me.level * 50);
+  me.xp := me.xp + public.rule_run_xp(p_waves, p_kills, b_xp);
+  me.gold := me.gold + public.rule_run_gold(p_waves, b_gold);
+  while me.xp >= public.rule_xp_need(me.level) loop
+    me.xp := me.xp - public.rule_xp_need(me.level);
     me.level := me.level + 1;
   end loop;
   update public.runs set finished_at = now() where id = r.id;
   update public.profiles
      set xp = me.xp, level = me.level, gold = me.gold, runs = runs + 1,
          best_wave = greatest(best_wave, p_waves),
-         levels_cleared = case when p_won then greatest(levels_cleared, r.stage) else levels_cleared end,
+         levels_cleared = case when p_won and r.stage <= levels_cleared + 1 then greatest(levels_cleared, r.stage) else levels_cleared end,
          frontier_wave = case when frontier and p_won then 0 when frontier then greatest(frontier_wave, p_waves) else frontier_wave end
    where id = auth.uid()
    returning * into me;
-  chance := (case when p_won then 1 else 0.5 * p_waves::numeric / cap end) * (1 + b_loot);
+  -- this mode's record (solo, or co-op with 2, 3 or 4 players)
+  insert into public.records as x (user_id, players, levels_cleared, frontier_wave, runs)
+  values (auth.uid(), r.players, case when p_won then r.stage else 0 end, case when not p_won and r.stage = 1 then p_waves else 0 end, 1)
+  on conflict (user_id, players) do update
+    set runs = x.runs + 1,
+        frontier_wave = case when p_won and r.stage > x.levels_cleared then 0
+                             when r.stage = x.levels_cleared + 1 then greatest(x.frontier_wave, p_waves) else x.frontier_wave end,
+        levels_cleared = case when p_won then greatest(x.levels_cleared, r.stage) else x.levels_cleared end;
+  chance := public.rule_drop_chance(p_won, p_waves, r.stage) * (1 + b_loot);
   n := p_bosses + floor(chance)::int + (case when random() < chance - floor(chance) then 1 else 0 end);
   for i in 1 .. n loop
-    exit when (select count(*) from public.player_items where user_id = auth.uid()) >= 200;
+    exit when (select count(*) from public.player_items where user_id = auth.uid()) >= public.rule_max_items();
     dropped := null;
     select id, affinity into dropped, aff from public.item_types where droppable order by random() limit 1;
     exit when dropped is null;
-    roll := random() * (55 + w1 + w2 + w3);
-    rar := case when roll < 55 then 0 when roll < 55 + w1 then 1 when roll < 55 + w1 + w2 then 2 else 3 end;
-    nb := rar + 1;
-    while nb < 4 and random() < 0.3 + b_extra loop nb := nb + 1; end loop;
+    rar := public.rule_rarity(random()::numeric, b_rar);
+    nb := public.rule_bonus_guaranteed(rar);
+    while nb < public.rule_max_bonuses() and random() < public.rule_extra_bonus_chance() + b_extra loop nb := nb + 1; end loop;
     -- bonuses, all different; on an archetype item each has a 60% chance to come from that archetype's bonuses (if one is left)
     bon := '{}';
     for k in 1 .. nb loop
       pick := null;
-      if aff is not null and random() < 0.6 then
+      if aff is not null and random() < public.rule_affinity_chance() then
         select id into pick from public.item_bonuses where aff = any (tags) and id <> all (bon) order by random() limit 1;
       end if;
       if pick is null then select id into pick from public.item_bonuses where id <> all (bon) order by random() limit 1; end if;
       exit when pick is null;
       bon := bon || pick;
     end loop;
-    -- each bonus's rank: rank weights (in %) by rarity, Common 70/22/7/1, Uncommon 45/35/15/5, Rare 25/35/28/12, Epic 10/25/35/30
+    -- each bonus's rank (rule_rank: rarer items roll higher ranks more often)
     rks := '{}';
-    for k in 1 .. coalesce(array_length(bon, 1), 0) loop
-      roll := random() * 100;
-      rks := rks || (case when roll < (array[70, 45, 25, 10])[rar + 1] then 1
-                          when roll < (array[92, 80, 60, 35])[rar + 1] then 2
-                          when roll < (array[99, 95, 88, 70])[rar + 1] then 3 else 4 end);
-    end loop;
+    for k in 1 .. coalesce(array_length(bon, 1), 0) loop rks := rks || public.rule_rank(rar, random()::numeric); end loop;
     insert into public.player_items (user_id, item_type, rarity, bonuses, bonus_ranks) values (auth.uid(), dropped, rar, bon, rks);
     drops := drops || jsonb_build_array(jsonb_build_object('item_type', dropped, 'rarity', rar, 'bonuses', to_jsonb(bon), 'bonus_ranks', to_jsonb(rks)));
   end loop;
@@ -249,15 +256,7 @@ begin
 end;
 $$;
 
--- ===== Selling items for account gold =====
--- The price: a base by rarity (5, 15, 40, 100) plus 5 gold per bonus rank; a bonus from before ranks counts at the item's
--- rarity (the same as sellPrice in js/content/items.js).
-create or replace function public.item_price(p_rarity int, p_bonuses text[], p_ranks int[]) returns int
-language sql immutable set search_path = public as $$
-  select (array[5, 15, 40, 100])[least(greatest(p_rarity, 0), 3) + 1]
-       + 5 * coalesce((select sum(coalesce(p_ranks[k], least(greatest(p_rarity, 0), 3) + 1))
-                         from generate_subscripts(coalesce(p_bonuses, '{}'), 1) k), 0)::int
-$$;
+-- ===== Selling items for account gold (the price is item_price, in the generated rules) =====
 -- Sells one of the player's items: it must not be worn (take it off first). Returns the updated profile.
 create or replace function public.sell_item(p_item uuid) returns public.profiles
 language plpgsql security definer set search_path = public as $$

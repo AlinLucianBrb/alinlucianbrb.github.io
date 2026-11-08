@@ -15,6 +15,7 @@ import { createMeter } from './meter.js';
 import { createRng } from './rng.js';
 import { attackMult, gainEnergy, erupt } from './ultimates.js';
 import { gainXp } from './levels.js';
+import { coopHpMult } from '../content/rules.js';
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
 export const ENGINE_VERSION = 15;     /* bump when a rule change would make old command logs play out differently */
@@ -38,39 +39,60 @@ export function cleanLineup(lineup) {
   return out.length ? out : HEROES.slice(0, LINEUP_SIZE).map(h => h.id);
 }
 
+/* One player's side of a match: its heroes' lineup, talents and items, and its own gold, relics and relic choice.
+   In co-op every player has one (the map, the enemies, the lives and the waves are shared; gold and relics are not). */
+function makePlayer(i, { talents = [], lineup = null, items = {} } = {}) {
+  const team = cleanLineup(lineup), equipped = {};
+  for (const id of team) if (items && items[id]) { const list = (Array.isArray(items[id]) ? items[id] : [items[id]]).filter(Boolean).map(asItem); if (list.length) equipped[id] = list; }
+  const mods = [...talentMods(talents), ...itemMods(equipped)];
+  return {
+    i, talents: [...talents], lineup: team, items: equipped, mods, gold: 100 + resolve(0, 'startGold', mods), gs: null,
+    relics: [], relicsBought: 0, banned: new Set(), picking: false, pick: null, playOnPick: false, auto: false, ready: false,
+    /* Free relic rerolls and banishes for this match: they come only from talents. */
+    rerolls: Math.round(resolve(0, 'rerolls', mods)), banishes: Math.round(resolve(0, 'banishes', mods))
+  };
+}
+/* The fields that belong to a player. On the world they mean player 1's (w.gold, w.relics...), so solo code reads as before. */
+export const PLAYER_FIELDS = ['talents', 'lineup', 'items', 'mods', 'gold', 'gs', 'relics', 'relicsBought', 'banned', 'picking', 'pick', 'playOnPick',
+  'auto', 'ready', 'rerolls', 'banishes'];
+
 /* lineup: the hero ids brought into the match. items: { heroId: [{ type, rarity, bonuses }] } equipped before the match
-   (see js/content/items.js; a plain item type id also works, as a Common item with no bonuses). */
-export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, items = {}, record = true } = {}) {
+   (see js/content/items.js; a plain item type id also works, as a Common item with no bonuses).
+   Co-op: players: [{ talents, lineup, items }, ...] instead, one per player (2 to 4); enemies get that many times the life. */
+export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, items = {}, players = null, record = true } = {}) {
   const def = STAGES[stage - 1];
   if (!def) throw new Error('Unknown stage ' + stage);
   const root = createRng(seed), rng = { path: root.fork('path'), relic: root.fork('relic'), combat: root.fork('combat'), gold: root.fork('gold') };
-  const team = cleanLineup(lineup), equipped = {};
-  for (const id of team) if (items && items[id]) { const list = (Array.isArray(items[id]) ? items[id] : [items[id]]).filter(Boolean).map(asItem); if (list.length) equipped[id] = list; }
-  const path = genPath(rng.path), mods = [...talentMods(talents), ...itemMods(equipped)];
+  const ps = (players && players.length ? players : [{ talents, lineup, items }]).map((p, i) => makePlayer(i, p));
+  const path = genPath(rng.path), coop = ps.length > 1;
   const w = {
     seed: seed >>> 0, stageN: stage, stage: def, maxWave: def.waves, rng, path, pathSet: new Set(path.map(c => c.join(','))),
-    tick: 0, phase: 'build', won: false, auto: false, autoT: 3, picking: false, pick: null, playOnPick: false,
-    gold: 100 + resolve(0, 'startGold', mods), lives: 20 + resolve(0, 'startLives', mods),
+    tick: 0, phase: 'build', won: false, autoT: 3, players: ps, coop, hpMult: coopHpMult(ps.length),
+    lives: 20 + ps.reduce((a, p) => a + resolve(0, 'startLives', p.mods), 0),
     wave: 0, spawnLeft: 0, spawnT: 0, kills: 0, bossKills: 0, nextHeroId: 1,
-    heroes: [], enemies: [], projs: [], zones: [], mods, relics: [], relicsBought: 0, banned: new Set(),
-    ev: createBus(), fx: null, gs: null, talents: [...talents], lineup: team, items: equipped,
-    log: record ? { v: 1, ver: ENGINE_VERSION, seed: seed >>> 0, stage, talents: [...talents], lineup: [...team], items: JSON.parse(JSON.stringify(equipped)), commands: [], ticks: 0 } : null
+    heroes: [], enemies: [], projs: [], zones: [],
+    ev: createBus(), fx: null,
+    log: record ? { v: 1, ver: ENGINE_VERSION, seed: seed >>> 0, stage, talents: [...ps[0].talents], lineup: [...ps[0].lineup], items: JSON.parse(JSON.stringify(ps[0].items)), commands: [], ticks: 0,
+      ...(coop ? { players: ps.map(p => ({ talents: [...p.talents], lineup: [...p.lineup], items: JSON.parse(JSON.stringify(p.items)) })) } : {}) } : null
   };
+  for (const k of PLAYER_FIELDS) Object.defineProperty(w, k, { get: () => ps[0][k], set: v => { ps[0][k] = v; }, enumerable: true });
+  w.ownerOf = h => ps[h.owner || 0];
   w.hit = (hero, e, amount, type) => hit(w, hero, e, amount, type);
   w.attack = (hero, e, scale, rate, as, s) => attack(w, hero, e, scale, rate, as, s);
   w.dot = (src, e, amount, type) => dotDamage(w, src, e, amount, type);
   w.attackMult = (h, target) => attackMult(w, h, target);
   w.gainEnergy = (h, amount) => gainEnergy(h, amount);
-  /* Gold for a hero's next evolution, or null when it has none left. */
-  w.evolveCost = h => { const e = (h.base || h.def).evolutions[h.tier]; return e ? Math.round(e.cost * w.gs.evolveCost) : null; };
+  /* Gold for a hero's next evolution, or null when it has none left (its owner's talents can make it cheaper). */
+  w.evolveCost = h => { const e = (h.base || h.def).evolutions[h.tier]; return e ? Math.round(e.cost * w.ownerOf(h).gs.evolveCost) : null; };
   /* The level a hero needs for its next evolution: the step's level, lowered by Training talents (never below 1). */
-  w.evolveLevel = h => { const e = (h.base || h.def).evolutions[h.tier]; return e ? Math.max(1, (e.level || 1) + w.gs.evolveLevel) : null; };
-  /* Each relic costs 12 more than the one before (60% of 80 + 20 per relic bought). */
-  w.relicCost = () => Math.max(1, Math.round(0.6 * (80 + 20 * w.relicsBought) * w.gs.relicCost));   /* Merchant talents make it cheaper */
-  w.previewRange = i => resolve(HEROES[i].stats.range, 'range', w.mods, HEROES[i].tags);
+  w.evolveLevel = h => { const e = (h.base || h.def).evolutions[h.tier]; return e ? Math.max(1, (e.level || 1) + w.ownerOf(h).gs.evolveLevel) : null; };
+  /* Each relic costs 12 more than the one before (60% of 80 + 20 per relic bought), per player. */
+  w.relicCost = (p = ps[0]) => Math.max(1, Math.round(0.6 * (80 + 20 * p.relicsBought) * p.gs.relicCost));   /* Merchant talents make it cheaper */
+  w.previewRange = (i, p = ps[0]) => resolve(HEROES[i].stats.range, 'range', p.mods, HEROES[i].tags);
   w.meter = createMeter(w.ev);
   w.ev.on('kill', ({ enemy }) => {
-    w.gold += Math.round(w.gs.bounty * enemy.def.bounty) + bonusGold(w); w.kills++;
+    for (const p of ps) p.gold += Math.round(p.gs.bounty * enemy.def.bounty) + bonusGold(w, p);   /* every player is paid for every kill */
+    w.kills++;
     if (enemy.def.boss) w.bossKills++;   /* each boss defeated guarantees an item at the end of the match (finish_run) */
     for (const h of w.heroes) gainXp(w, h, enemy.def.xp || 0);   /* every hero on the field learns from every kill */
   });
@@ -83,16 +105,14 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
     if (w.lives <= 0 || (enemy.def.boss && w.wave >= w.maxWave)) endRun(w, false);
   });
   recalc(w);
-  /* Free relic rerolls and banishes for this match: they come only from talents. */
-  w.rerolls = Math.round(resolve(0, 'rerolls', mods)); w.banishes = Math.round(resolve(0, 'banishes', mods));
   return w;
 }
 
 /* Prospector: each copy is a 25% (Common) to 100% (Epic) chance of +2 gold per kill. Copies add up; every full 100% is a
    sure +2, and the rest is a chance of 2 more. Uses its own random stream so it never changes combat rolls. */
 export const BONUS_GOLD = 2;
-function bonusGold(w) {
-  const c = w.gs.bountyChance;
+function bonusGold(w, p) {
+  const c = p.gs.bountyChance;
   if (!(c > 0)) return 0;
   const sure = Math.floor(c);
   return BONUS_GOLD * (sure + (w.rng.gold.next() < c - sure ? 1 : 0));
@@ -124,23 +144,27 @@ function tickBuffs(w, h, dt) {
   if (changed) statsFor(w, h);
 }
 
-/* Recomputes cached numbers after anything that changes modifiers (relics, talents at start). */
+/* Recomputes cached numbers after anything that changes modifiers (relics, talents at start), for every player. */
 export function recalc(w) {
-  w.gs = {
-    bounty: resolve(5, 'bounty', w.mods), evolveCost: Math.max(0.25, resolve(1, 'evolveCost', w.mods)),
-    waveGold: resolve(1, 'waveGold', w.mods), interest: resolve(0, 'interest', w.mods), interestCap: resolve(0, 'interestCap', w.mods),
-    relicLuck: resolve(0, 'relicLuck', w.mods), bountyChance: resolve(0, 'bountyChance', w.mods),
-    heroXp: Math.max(0, resolve(1, 'heroXp', w.mods)), speed3x: resolve(0, 'speed3x', w.mods) > 0,
-    relicCost: Math.max(0.25, resolve(1, 'relicCost', w.mods)), relicOffers: Math.max(0, resolve(0, 'relicOffers', w.mods)),
-    heroStartLevel: Math.max(0, Math.round(resolve(0, 'heroStartLevel', w.mods))), evolveLevel: Math.min(0, Math.round(resolve(0, 'evolveLevel', w.mods)))
-  };
+  for (const p of w.players) {
+    const m = p.mods;
+    p.gs = {
+      bounty: resolve(5, 'bounty', m), evolveCost: Math.max(0.25, resolve(1, 'evolveCost', m)),
+      waveGold: resolve(1, 'waveGold', m), interest: resolve(0, 'interest', m), interestCap: resolve(0, 'interestCap', m),
+      relicLuck: resolve(0, 'relicLuck', m), bountyChance: resolve(0, 'bountyChance', m),
+      heroXp: Math.max(0, resolve(1, 'heroXp', m)), speed3x: resolve(0, 'speed3x', m) > 0,
+      relicCost: Math.max(0.25, resolve(1, 'relicCost', m)), relicOffers: Math.max(0, resolve(0, 'relicOffers', m)),
+      heroStartLevel: Math.max(0, Math.round(resolve(0, 'heroStartLevel', m))), evolveLevel: Math.min(0, Math.round(resolve(0, 'evolveLevel', m)))
+    };
+  }
   for (const h of w.heroes) statsFor(w, h);
 }
-/* A hero's stats: the shared modifiers (talents, items, relics) plus its own (evolutions, level, timed buffs). */
+/* A hero's stats: its owner's modifiers (talents, items, relics) plus its own (evolutions, level, timed buffs). */
 export function statsFor(w, h) {
+  const shared = w.players[h.owner || 0].mods;
   let own = h.lvlMods && h.lvlMods.length ? h.mods.concat(h.lvlMods) : h.mods;
   if (h.buffs && h.buffs.length) for (const b of h.buffs) own = own.concat(b.mods);
-  h.s = heroStats(h.def, own.length ? w.mods.concat(own) : w.mods);
+  h.s = heroStats(h.def, own.length ? shared.concat(own) : shared);
   h.ms = h.def.tags.includes('minion') ? minionStats(h.s) : null;   /* its minion's stats (the wolf) */
   if (h.energy > h.s.energyMax) h.energy = h.s.energyMax;
   return h.s;
@@ -148,12 +172,15 @@ export function statsFor(w, h) {
 
 export function startWave(w) {
   w.wave++; w.spawnLeft = waveCount(w.wave); w.spawnT = 0; w.phase = 'wave';
+  for (const p of w.players) p.ready = false;
   w.ev.emit('waveStart', { wave: w.wave });
 }
 
 function waveCleared(w) {
-  const interest = Math.min(Math.floor(w.gs.interestCap + 1e-9), Math.floor(w.gold * w.gs.interest + 1e-9));   /* 1e-9: float noise */
-  w.gold += Math.round((15 + w.wave * 3) * w.gs.waveGold) + interest;
+  for (const p of w.players) {   /* each player's own wave gold and interest */
+    const interest = Math.min(Math.floor(p.gs.interestCap + 1e-9), Math.floor(p.gold * p.gs.interest + 1e-9));   /* 1e-9: float noise */
+    p.gold += Math.round((15 + w.wave * 3) * p.gs.waveGold) + interest;
+  }
   w.ev.emit('waveClear', { wave: w.wave });
   if (w.wave >= w.maxWave) { endRun(w, true); return; }
   w.phase = 'build'; w.autoT = 3;
@@ -163,15 +190,17 @@ function waveCleared(w) {
    saves the run on 'end' sees the final tick count, and replaying that log reaches exactly the same ending. */
 export function endRun(w, won) {
   if (w.phase === 'over') return;
-  w.phase = 'over'; w.won = won; w.picking = false; w.pick = null;
+  w.phase = 'over'; w.won = won;
+  for (const p of w.players) { p.picking = false; p.pick = null; }
   w.endPending = { won };
 }
 
-/* Advances the game by one step. Returns false (and does nothing) while the game is over, or waiting on a relic choice
-   (unless the player chose to keep playing while choosing: playOnPick). */
+/* Advances the game by one step. Returns false (and does nothing) while the game is over, or, solo, waiting on a relic
+   choice (unless the player chose to keep playing while choosing: playOnPick). A co-op match never waits for one player.
+   The next wave starts by itself when every player has Auto-start on (after the countdown). */
 export function step(w) {
-  if (w.phase === 'over' || (w.picking && !w.playOnPick)) return false;
-  if (w.phase === 'build' && w.auto && (w.autoT -= STEP) <= 0) startWave(w);
+  if (w.phase === 'over' || (!w.coop && w.picking && !w.playOnPick)) return false;
+  if (w.phase === 'build' && w.players.every(p => p.auto) && (w.autoT -= STEP) <= 0) startWave(w);
   if (w.phase === 'wave' && w.spawnLeft > 0 && (w.spawnT -= STEP) <= 0) {
     spawnEnemy(w, waveEnemyType(w.wave, w.spawnLeft, w.stage)); w.spawnLeft--; w.spawnT = spawnDelay(w.wave);
   }
@@ -191,3 +220,14 @@ export function step(w) {
 }
 
 export const summary = w => ({ waves: w.wave, kills: w.kills, bosses: w.bossKills, won: w.won, over: w.phase === 'over', lives: w.lives, gold: w.gold, ticks: w.tick });
+
+/* A player's view of the world, for the screen: the player's own fields (gold, relics, relic choice...) on top of the shared
+   world (map, heroes, enemies, waves). Solo, player 1's view reads exactly like the world. */
+export function playerView(w, i = 0) {
+  const p = w.players[i] || w.players[0], own = new Set(PLAYER_FIELDS);
+  return new Proxy(w, {
+    get: (t, k) => (own.has(k) ? p[k] : k === 'me' ? p : k === 'relicCost' ? () => w.relicCost(p) : k === 'previewRange' ? hi => w.previewRange(hi, p)
+      : k === 'unitOf' ? type => w.heroes.find(h => h.type === type && (h.owner || 0) === p.i) : k === 'mine' ? h => !!h && (h.owner || 0) === p.i : t[k]),
+    set: (t, k, v) => { if (own.has(k)) p[k] = v; else t[k] = v; return true; }
+  });
+}

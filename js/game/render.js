@@ -365,6 +365,9 @@ function drawBoard(ctx, g, v) {
 /* Health bars go from green (full) through yellow to red (almost dead). */
 const hpColor = f => 'hsl(' + Math.round(Math.max(0, Math.min(1, f)) * 120) + ',72%,50%)';
 
+/* Co-op: each player's colour (their heroes stand on a ring of it; the HUD and lobby use the same colours). */
+export const PLAYER_COLORS = ['#4aa3ff', '#ff9a3c', '#7ad85b', '#e06bff'];
+
 export function draw(ctx, g, v) {
   const { dpr, cam } = v;
   ctx.setTransform(dpr * cam.z, 0, 0, dpr * cam.z, dpr * cam.x, dpr * cam.y);
@@ -404,6 +407,10 @@ export function draw(ctx, g, v) {
       ctx.beginPath(); ctx.arc(t.x, t.y, 24 + i * 4, 0, 7);
       ctx.strokeStyle = b.id === 'frenzy' ? 'rgba(229,100,90,.85)' : b.id === 'grasp' ? 'rgba(143,191,90,.8)' : 'rgba(127,179,255,.5)'; ctx.lineWidth = 2.5; ctx.stroke();
     });
+    if (g.coop) {                          /* whose hero: a ring in the owner's colour, under its feet */
+      ctx.beginPath(); ctx.ellipse?.(t.x, t.y + 15, 17, 6, 0, 0, 7);
+      ctx.strokeStyle = PLAYER_COLORS[t.owner || 0]; ctx.lineWidth = 3; ctx.stroke();
+    }
     if (full) {                            /* ultimate ready: a soft gold glow */
       ctx.beginPath(); ctx.arc(t.x, t.y, 21, 0, 7); ctx.fillStyle = 'rgba(255,216,74,.28)'; ctx.fill();
     }

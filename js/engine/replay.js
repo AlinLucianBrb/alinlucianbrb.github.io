@@ -7,7 +7,7 @@ export const exportLog = w => ({ ...w.log, commands: w.log.commands.map(c => ({ 
 
 export function replay(log, { maxTicks = 10000000 } = {}) {
   if (log.ver !== ENGINE_VERSION) throw new Error('Log was recorded with engine version ' + log.ver + ' but this is version ' + ENGINE_VERSION);
-  const w = createWorld({ seed: log.seed, stage: log.stage, talents: log.talents, lineup: log.lineup, items: log.items, record: false });
+  const w = createWorld({ seed: log.seed, stage: log.stage, talents: log.talents, lineup: log.lineup, items: log.items, players: log.players, record: false });
   const cmds = log.commands; let i = 0;
   for (;;) {
     while (i < cmds.length && cmds[i].t <= w.tick) {
@@ -20,6 +20,20 @@ export function replay(log, { maxTicks = 10000000 } = {}) {
       if (cmds[i].t > w.tick) throw new Error('Log is inconsistent: the game is waiting but the next command is later');
     }
     if (w.tick > maxTicks) throw new Error('Replay ran too long');
+  }
+  return w;
+}
+
+/* Picks a run up again from its log (after a page refresh): plays it back to where it was, recording as it goes, and returns
+   the live world, ready to carry on (its log continues the old one). Throws if the log is from another engine version. */
+export function resume(log) {
+  if (log.ver !== ENGINE_VERSION) throw new Error('Log was recorded with engine version ' + log.ver + ' but this is version ' + ENGINE_VERSION);
+  const w = createWorld({ seed: log.seed, stage: log.stage, talents: log.talents, lineup: log.lineup, items: log.items, players: log.players });
+  const cmds = log.commands; let i = 0;
+  while (w.tick < log.ticks || i < cmds.length) {
+    while (i < cmds.length && cmds[i].t <= w.tick) { const { t, ...cmd } = cmds[i++]; apply(w, cmd); }
+    if (w.tick >= log.ticks) break;
+    if (!step(w) && (i >= cmds.length || cmds[i].t > w.tick)) break;
   }
   return w;
 }

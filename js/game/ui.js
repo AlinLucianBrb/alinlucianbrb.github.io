@@ -10,6 +10,8 @@ import { explain, affected, attributeDamage } from '../engine/stats.js';
 import { bindTip } from '../core/tooltip.js';
 import { spriteImg, spriteUrl, heroSprite, attackIcon, ultimateIcon } from './sprites.js';
 import { isBossWave } from '../engine/enemies.js';
+import { COOP } from '../content/rules.js';
+import { PLAYER_COLORS } from './render.js';
 
 const $ = id => document.getElementById(id);
 const setText = (el, v) => { v = String(v); if (el._v !== v) { el._v = v; el.textContent = v; } };
@@ -99,10 +101,10 @@ export function initUI(callbacks) {
   };
   const m = $('meter'); m.textContent = '';
   meterEmpty = el('p', 'muted', 'No damage dealt yet.'); m.append(meterEmpty);
-  HEROES.forEach(() => {
+  for (let k = 0; k < HEROES.length * COOP.maxPlayers; k++) {
     const root = el('div', 'mrow'), name = el('span'), bar = el('span', 'mbar'), fill = el('i'), val = el('span', '', '0');
     root.hidden = true; bar.append(fill); root.append(name, bar, val); m.append(root); rows.push({ root, name, fill, val, type: -1 });
-  });
+  }
   $('reroll').onclick = () => cb.onReroll();
 }
 
@@ -129,8 +131,16 @@ export function renderHUD(g, v) {
   const boss = g.phase === 'wave' ? isBossWave(g.wave, g.stage) : g.phase === 'build' && isBossWave(g.wave + 1, g.stage);
   setText($('wave'), g.wave + ' / ' + g.maxWave + (boss ? (g.phase === 'wave' ? ' · Boss' : ' · Boss next') : '')); setText($('stage'), g.stage.n);
   $('wave').classList.toggle('boss', !!boss);
-  $('go').disabled = g.phase !== 'build' || g.picking;
-  setText($('go'), g.phase === 'build' && auto ? 'Start now (' + Math.max(0, Math.ceil(g.autoT)) + 's)' : 'Start wave');
+  if (coop) {
+    /* Co-op: the wave starts when everyone is ready (or on Auto-start). */
+    const waiting = g.players.filter(p => !p.ready && !p.auto && !p.left).length;
+    $('go').disabled = g.phase !== 'build' || g.picking || g.me.ready;
+    setText($('go'), g.phase !== 'build' ? 'Wave ' + g.wave : g.me.ready ? 'Ready · waiting for ' + waiting : 'Ready');
+    renderCoopBar(g);
+  } else {
+    $('go').disabled = g.phase !== 'build' || g.picking;
+    setText($('go'), g.phase === 'build' && auto ? 'Start now (' + Math.max(0, Math.ceil(g.autoT)) + 's)' : 'Start wave');
+  }
   setText($('relic'), 'Relic · ' + g.relicCost());
   $('auto').classList.toggle('on', auto); $('auto').setAttribute('aria-pressed', String(auto));
   setText($('spd'), v.speed + 'x'); $('spd').classList.toggle('on', v.speed > 1);
@@ -138,7 +148,7 @@ export function renderHUD(g, v) {
   HEROES.forEach((d, i) => {
     const b = btns[i];
     if (!b._inLineup) return;
-    const unit = g.heroes.find(h => h.type === i);
+    const unit = g.unitOf ? g.unitOf(i) : g.heroes.find(h => h.type === i);   /* your own hero of this class */
     /* Evolve button above the card: shown once the hero has the level, with the cost; dimmed until you have the gold. */
     const step = unit && unit.base.evolutions[unit.tier], due = !!step && unit.level >= g.evolveLevel(unit) && g.phase !== 'over';
     if (b._up.hidden === due) b._up.hidden = !due;
@@ -181,6 +191,28 @@ export function renderHUD(g, v) {
 }
 
 /* Shows only the heroes in this match's lineup, keyed 1..n in lineup order. */
+/* Co-op: the players' names and which one is here (null in solo). The bar at the top lists everyone. */
+let coop = null;
+export function setCoop(info) {
+  coop = info; const bar = $('coopBar');
+  bar.hidden = !info; bar.textContent = ''; bar._k = '';
+  $('playOnPickRow').hidden = !!info;   /* co-op matches never wait for a relic choice */
+  $('spd').title = info && info.me !== undefined ? 'Game speed (the host sets it)' : 'Game speed';
+}
+function renderCoopBar(g) {
+  const bar = $('coopBar'), k = g.players.map(p => [p.gold, p.ready || p.auto, p.left, p.picking].join(':')).join('|') + g.phase;
+  if (bar._k === k) return;
+  bar._k = k; bar.textContent = '';
+  g.players.forEach((p, i) => {
+    const sp = el('span', p.left ? 'left' : ''), dot = el('i');
+    sp.style.setProperty('--pc', PLAYER_COLORS[i]);
+    sp.append(dot, el('b', '', coop.names[i] + (i === coop.me ? ' (you)' : '')), el('small', '', p.gold + 'g'));
+    if (p.left) sp.append(el('small', '', 'left'));
+    else if (g.phase === 'build' && (p.ready || p.auto)) sp.append(el('small', 'rdy', p.auto ? 'auto' : 'ready'));
+    else if (p.picking) sp.append(el('small', '', 'choosing'));
+    bar.append(sp);
+  });
+}
 export function setLineup(g) {
   /* Cards follow the lineup order, so the card for key 1 comes first. */
   HEROES.forEach((d, i) => { const pos = g.lineup.indexOf(d.id), b = btns[i]; b._inLineup = pos >= 0; b.hidden = b._wrap.hidden = pos < 0; b._up.hidden = true; b._wrap.style.order = String(Math.max(0, pos)); if (pos >= 0) setText(b._key, pos + 1); });
@@ -196,7 +228,11 @@ export function renderMeter(g) {
     const type = order[idx];
     if (type === undefined) { if (!r.root.hidden) r.root.hidden = true; return; }
     if (r.root.hidden) r.root.hidden = false;
-    if (r.type !== type) { r.type = type; r.name.textContent = HEROES[type].name; r.name.style.color = HEROES[type].color; r.fill.style.background = HEROES[type].color; }
+    if (r.type !== type) {
+      const d = HEROES[type % HEROES.length], who = (type / HEROES.length) | 0;   /* co-op: whose hero it is, in their colour */
+      r.type = type; r.name.textContent = d.name + (coop ? ' · ' + coop.names[who] : ''); r.name.style.color = d.color;
+      r.fill.style.background = coop ? PLAYER_COLORS[who] : d.color;
+    }
     r.fill.style.width = (totals[type] / sum * 100) + '%';
     setText(r.val, num(totals[type]) + ' · ' + Math.round(totals[type] / sum * 100) + '%');
   });
@@ -244,15 +280,16 @@ export function renderInspector(g, v) {
   $('heroPanel').hidden = !t;
   if (!t) { box._k = 'none'; box._t = null; return; }
   const bk = (t.buffs || []).map(b => b.id).join(',');   /* rebuild when a buff starts or ends */
-  if (box._t !== t || box._m !== g.mods.length || box._tier !== t.tier || box._lv !== t.level || box._bk !== bk) {
-    box._k = 't'; box._t = t; box._m = g.mods.length; box._tier = t.tier; box._lv = t.level; box._bk = bk; box.textContent = '';
-    const d = t.def, head = el('div', 'srow'), title = el('b', '', (t.tier ? '★ ' : '') + d.name + ' · Lv ' + t.level), close = el('button', 'linkbtn', 'Close');
+  const ownerMods = g.players ? g.players[t.owner || 0].mods : g.mods;   /* the modifiers of the hero's owner */
+  if (box._t !== t || box._m !== ownerMods.length || box._tier !== t.tier || box._lv !== t.level || box._bk !== bk) {
+    box._k = 't'; box._t = t; box._m = ownerMods.length; box._tier = t.tier; box._lv = t.level; box._bk = bk; box.textContent = '';
+    const d = t.def, head = el('div', 'srow'), title = el('b', '', (t.tier ? '★ ' : '') + d.name + ' · Lv ' + t.level + (coop && (t.owner || 0) !== coop.me ? ' · ' + coop.names[t.owner || 0] + "'s" : '')), close = el('button', 'linkbtn', 'Close');
     title.style.color = d.color; close.onclick = cb.onCloseInspector; head.append(title, close); box.append(head);
     /* XP, right under the name. */
     const lr = el('div', 'srow'), lv = el('span', 'lvl'), xbar = el('span', 'ebar wide xpbar'), xfill = el('i');
     xbar.append(xfill); lr.append(lv, xbar); box.append(lr); box._lvl = lv; box._xfill = xfill; box._xbar = xbar;
     /* Attributes, right under XP; the hero's own one in its colour. */
-    const all = g.mods.concat(t.mods, t.lvlMods || [], ...(t.buffs || []).map(b => b.mods));
+    const all = ownerMods.concat(t.mods, t.lvlMods || [], ...(t.buffs || []).map(b => b.mods));
     const ar = el('div', 'attrs');
     for (const a of ATTRIBUTES) {
       const own = a === d.attribute, sp = el('span', 'attr' + (own ? ' main' : ''));
@@ -359,7 +396,7 @@ export function updatePick(g) {
   setText($('reroll'), 'Reroll all · ' + g.rerolls + ' left'); $('reroll').disabled = !(g.rerolls > 0);
   $('reroll').title = g.rerolls > 0 ? 'Draw three new offers (free)' : 'Relic talents give free rerolls';
   setText($('pickGold'), 'Gold: ' + g.gold);
-  $('pick').classList.toggle('live', !!g.playOnPick);   /* lighter backdrop, so the match shows through */
+  $('pick').classList.toggle('live', !!g.playOnPick || !!coop);   /* lighter backdrop, so the match shows through */
   banishBtns.forEach(b => { setText(b, 'Banish · ' + g.banishes + ' left'); b.disabled = !(g.banishes > 0); b.hidden = !(g.banishes > 0); });
 }
 /* An ability icon: the picture, a dark sweep over it (--p: the part still to go, 0 to 1) and a countdown. */

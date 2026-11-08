@@ -9,7 +9,8 @@ import { itemName, itemColor, sellPrice } from '../content/items.js';
 import { el, items, wornBy, ensureItems, itemIcon, itemTip, sqlHint } from './loadout.js';
 
 const $ = id => document.getElementById(id);
-export const MAX_ITEMS = 200;             /* the server keeps at most this many (finish_run) */
+import { DROPS } from '../content/rules.js';
+export const MAX_ITEMS = DROPS.maxItems;   /* the server keeps at most this many (finish_run) */
 const COLS = 8, MIN_ROWS = 5;
 let bound = false, picked = null, confirm = false, busy = false;
 
