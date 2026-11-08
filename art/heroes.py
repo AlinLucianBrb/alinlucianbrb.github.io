@@ -286,11 +286,18 @@ def sprite(rows, pal, shadow=(15, 28.5, 10, 2)):
     return img.resize((n * P, n * P), Image.NEAREST)
 
 
+def breathe(rows, split=19):
+    """The idle animation's second frame: everything above the hips (head, cloak, weapon) one art pixel lower."""
+    return ['.' * 32 if y == 0 else rows[y - 1] if y <= split else rows[y] for y in range(32)]
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     imgs = {k: sprite(compose(h), palette(h)) for k, h in HEROES.items()}
     for k, im in imgs.items():
         im.save(os.path.join(OUT, 'hero_' + k + '.png'))
+    for k, h in HEROES.items():                    # the second frame: breathing in (the game alternates the two)
+        sprite(breathe(compose(h)), palette(h)).save(os.path.join(OUT, 'hero_' + k + '_2.png'))
     # Preview: one row per base hero (the hero, then its three evolutions) on grass, at 2x.
     tiles = Image.open(os.path.join(OUT, 'tiles.png'))
     meta = json.load(open(os.path.join(OUT, 'tiles.json')))

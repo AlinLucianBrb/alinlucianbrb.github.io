@@ -166,12 +166,21 @@ def pad(rows, n=32):
     return rows + ['.' * n] * (n - len(rows))
 
 
+def stride(rows):
+    """The walk animation's second frame: the body one art pixel higher, the feet where they were (the game alternates the
+    two as the enemy moves, so it bobs along the path)."""
+    last = max(y for y, r in enumerate(rows) if r.strip('.'))
+    body, feet = rows[:last - 1], rows[last - 1:]
+    return body[1:] + [body[-1]] + feet
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     imgs = {}
     for k, (rows, body, extra, shadow) in ENEMIES.items():
         imgs[k] = sprite(pad(rows), palette(body, extra), shadow)
         imgs[k].save(os.path.join(OUT, 'enemy_' + k + '.png'))
+        sprite(stride(pad(rows)), palette(body, extra), shadow).save(os.path.join(OUT, 'enemy_' + k + '_2.png'))
     # Preview: the four enemies on the path, at 3x.
     tiles = Image.open(os.path.join(OUT, 'tiles.png'))
     meta = json.load(open(os.path.join(OUT, 'tiles.json')))

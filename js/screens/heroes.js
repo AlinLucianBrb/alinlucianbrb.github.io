@@ -6,7 +6,7 @@ import { bus } from '../core/bus.js';
 import { state } from '../core/state.js';
 import { bindTip } from '../core/tooltip.js';
 import { HEROES, STAT_LABELS, ATTRIBUTES, evolvedDef } from '../content/data.js';
-import { SLOTS, SLOT_LABEL, itemMods, itemName, itemColor, itemLines } from '../content/items.js';
+import { SLOTS, SLOT_LABEL, itemMods, itemName, itemColor, itemBonusLines } from '../content/items.js';
 import { DAMAGE_LABEL } from '../content/combat.js';
 import { ULTIMATES } from '../engine/ultimates.js';
 import { heroStats, attributeDamage } from '../engine/stats.js';
@@ -61,7 +61,7 @@ function renderInfo(box, h) {
       name.style.color = itemColor(row); bindTip(icon, () => itemTip(row)); bindTip(name, () => itemTip(row));
       off.onclick = () => { setGear(h.id, slot, null); changed(); };
       line.append(icon, name, off); box.append(line);
-      for (const t of itemLines(row)) box.append(el('div', 'buff', t));
+      for (const l of itemBonusLines(row)) { const d = el('div', 'buff', l.text); d.style.color = l.color; box.append(d); }   /* each bonus in its rank's colour */
     } else {
       const free = freeFor(slot);
       if (!free.length) box.append(el('span', 'muted', items().length ? 'Empty: no free item for this slot' : 'Empty: items drop at the end of matches'));

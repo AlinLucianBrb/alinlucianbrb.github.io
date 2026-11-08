@@ -4,7 +4,7 @@
 import { state } from '../core/state.js';
 import { getItems, saveLoadout } from '../services/api.js';
 import { HEROES, LINEUP_SIZE } from '../content/data.js';
-import { ITEMS, SLOT_LABEL, asItem, itemName, itemColor, itemLines } from '../content/items.js';
+import { ITEMS, SLOT_LABEL, asItem, itemName, itemColor, itemLines, itemBonusLines } from '../content/items.js';
 import { spriteImg } from '../game/sprites.js';
 
 export const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
@@ -85,11 +85,11 @@ export function itemIcon(row) {
   }
   return i;
 }
-/* Tooltip for an item: name in its rarity colour, slot, bonuses, and who wears it. */
+/* Tooltip for an item: name in its rarity colour, slot, bonuses (each in its rank's colour, with its rank), and who wears it. */
 export function itemTip(row) {
   const who = wornBy(row.id), hero = who && HEROES.find(h => h.id === who.hero);
-  const t = ITEMS[row.item_type], lines = [{ text: SLOT_LABEL[t ? t.slot : ''] || 'Unknown slot', color: '#9db3a3' }, ...itemLines(row)];
-  if (!itemLines(row).length) lines.push({ text: 'No bonuses', color: '#9db3a3' });
+  const t = ITEMS[row.item_type], bl = itemBonusLines(row), lines = [{ text: SLOT_LABEL[t ? t.slot : ''] || 'Unknown slot', color: '#9db3a3' }, ...bl.map(l => ({ text: l.text, color: l.color }))];
+  if (!bl.length) lines.push({ text: 'No bonuses', color: '#9db3a3' });
   lines.push(who ? { text: 'Equipped on the ' + (hero ? hero.name : who.hero), color: '#8be28b' } : { text: 'Not equipped', color: '#9db3a3' });
   return { title: itemName(row), color: itemColor(row), lines };
 }

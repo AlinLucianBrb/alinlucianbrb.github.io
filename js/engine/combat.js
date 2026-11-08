@@ -26,8 +26,8 @@ const raw = Object.fromEntries(DAMAGE_TYPES.map(t => [t, 0]));   /* reused for e
 /* Critical hits: the hero's critChance, plus a Rogue's Mark on the enemy (more chance and more crit damage against it).
    Rolled once per hit on the seeded combat stream, and only when there is a chance, so heroes without crits use no rolls.
    rate < 1 (a beam's sliver per frame) scales the chance, like ailments. Returns the multiplier for this hit (1 or the crit's). */
-export function critMult(w, hero, e, rate = 1) {
-  const s = hero.s, mark = e.fx && e.fx.mark, chance = (s.critChance || 0) + (mark ? mark.chance : 0);
+export function critMult(w, hero, e, rate = 1, stats = null) {
+  const s = stats || hero.s, mark = e.fx && e.fx.mark, chance = (s.critChance || 0) + (mark ? mark.chance : 0);
   if (!(chance > 0) || w.rng.combat.next() >= Math.min(1, chance) * rate) return 1;
   w.ev.emit('crit', { hero, enemy: e });
   return (s.critDamage || 1.5) + (mark ? mark.dmg : 0);
@@ -35,11 +35,12 @@ export function critMult(w, hero, e, rate = 1) {
 
 /* scale: multiplies the whole hit (ultimates, beam ramp, chain falloff). rate: how much of a "full hit" this is for ailment
    chances (a beam deals a sliver of damage every frame, so its rate is the frame time: its chances work per second).
-   as: a damage type for this hit instead of the hero's own (the Alchemist's two concoctions: one fire, one toxic). */
-export function attack(w, hero, e, scale = 1, rate = 1, as = null) {
+   as: a damage type for this hit instead of the hero's own (the Alchemist's two concoctions: one fire, one toxic).
+   stats: the attacker's stats if not the hero's own (a minion's, see minionStats). The hit is still credited to the hero. */
+export function attack(w, hero, e, scale = 1, rate = 1, as = null, stats = null) {
   if (e.dead) return;
-  const s = hero.s, own = as || hero.def.damageType || 'physical';
-  scale *= critMult(w, hero, e, rate);
+  const s = stats || hero.s, own = as || hero.def.damageType || 'physical';
+  scale *= critMult(w, hero, e, rate, s);
   for (const t of DAMAGE_TYPES) raw[t] = (s[t + 'Damage'] || 0) * scale;
   raw[own] += s.damage * scale;
   let total = 0;

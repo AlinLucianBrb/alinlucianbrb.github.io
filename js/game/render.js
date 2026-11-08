@@ -1,7 +1,7 @@
 /* Canvas drawing. The world is drawn through the camera; the board is cheap enough to draw every frame, which keeps it sharp at any zoom. */
 import { COLS, ROWS, T } from '../content/data.js';
 import { tintOf } from '../engine/effects.js';
-import { get as sprite, tiles as tileSheet, drawSprite, heroSprite } from './sprites.js';
+import { get as sprite, tiles as tileSheet, drawSprite, heroSprite, frameOf } from './sprites.js';
 
 const MAP_W = COLS * T, MAP_H = ROWS * T;
 /* Sprite sizes on the map (the art is 64 pixels a tile; the map uses T). Heroes stand on their tile, feet near its bottom. */
@@ -415,7 +415,8 @@ export function draw(ctx, g, v) {
       }
       ctx.globalAlpha = t === v.moving ? 0.4 : 1;
     }
-    const art = drawSprite(ctx, heroSprite(d), t.x, t.y + HERO_DY, HERO_S);
+    /* Idle animation: two frames, each hero on its own beat (the game clock, so it pauses with the game). */
+    const art = drawSprite(ctx, frameOf(heroSprite(d), ((g.tick + t.id * 17) / 30 | 0) % 2 === 1), t.x, t.y + HERO_DY, HERO_S);
     if (!art) {
       if (n) poly(ctx, t.x, t.y, 15, n, rot); else { ctx.beginPath(); ctx.arc(t.x, t.y, 13, 0, 7); }
       ctx.fillStyle = d.color; ctx.fill(); ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2; ctx.stroke();
@@ -449,7 +450,8 @@ export function draw(ctx, g, v) {
   for (const b of v.vfx.beams) { ctx.strokeStyle = b.c; ctx.lineWidth = b.w; ctx.beginPath(); ctx.moveTo(b.x1, b.y1); ctx.lineTo(b.x2, b.y2); ctx.stroke(); }
   for (const p of g.projs) PROJ_DRAW[p.type](ctx, p);
   for (const e of g.enemies) {
-    const look = ENEMY_ART[e.type], art = look && drawSprite(ctx, 'enemy_' + e.type, e.x, e.y - look.s * 0.2, look.s);
+    /* Walk animation: the frame changes every 9 px along the path, so faster enemies step faster and held ones stand still. */
+    const look = ENEMY_ART[e.type], art = look && drawSprite(ctx, frameOf('enemy_' + e.type, (e.d / 9 | 0) % 2 === 1), e.x, e.y - look.s * 0.2, look.s);
     if (art) {
       const top = e.y - look.s * 0.7 + look.s * look.top, f = e.hp / e.max, bw = Math.max(22, e.def.radius * 2.2);
       ctx.fillStyle = 'rgba(0,0,0,.75)'; ctx.fillRect(e.x - bw / 2 - 1, top - 7, bw + 2, 6);
@@ -474,7 +476,10 @@ export function draw(ctx, g, v) {
 
 /* The Animalic Druid's wolf: facing where it runs, bigger with a red glow while enraged, a little hop when it bites. */
 function drawWolf(ctx, t) {
-  const w = t.wolf, big = t.rage > 0, s = (big ? 1.45 : 1) * 46, img = sprite('minion_wolf');
+  const w = t.wolf, big = t.rage > 0, s = (big ? 1.45 : 1) * 46;
+  /* running: legs alternate with the distance covered */
+  w.steps = (w.steps || 0) + Math.hypot(w.x - (w.px ?? w.x), w.y - (w.py ?? w.y)); w.px = w.x; w.py = w.y;
+  const img = sprite(frameOf('minion_wolf', (w.steps / 8 | 0) % 2 === 1));
   ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse?.(w.x, w.y + 7, s * 0.3, s * 0.08, 0, 0, 7); ctx.fill();
   if (big) { ctx.beginPath(); ctx.arc(w.x, w.y, s * 0.36, 0, 7); ctx.fillStyle = 'rgba(229,70,60,.22)'; ctx.fill(); }
   const cy = w.y + 7 - 0.16 * s - (w.bite > 0 ? 2 : 0);

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resolve, heroStats, explain, touches, affected, matches } from '../js/engine/stats.js';
 import { fmtMod } from '../js/content/format.js';
-import { HEROES, RELICS, RARITIES } from '../js/content/data.js';
+import { HEROES, RELICS, RARITIES, evolvedDef } from '../js/content/data.js';
 
 const H = id => HEROES.find(h => h.id === id);
 const R = n => RELICS.find(r => r.name === n);
@@ -40,7 +40,8 @@ test('every hero has an energy bar and an ultimate; every relic can affect at le
   for (const h of HEROES) { assert.ok(h.stats.energyMax > 0 && h.stats.energyPerAttack > 0, h.id); assert.ok(ULTIMATES[h.ultimate], h.id); assert.ok(h.evolutions.length >= 1, h.id); }
   for (const r of RELICS) {
     const ms = r.mods ? r.mods(1) : [];
-    assert.ok(r.onPick || ms.some(m => m.scope === 'global' || HEROES.some(h => touches(h, m))), r.name + ' does nothing for any playable hero');
+    const forms = HEROES.flatMap(h => [h, ...h.evolutions.flatMap(st => st.choices.map(c => evolvedDef(h, c)))]);   /* minion relics need the Animalic Druid */
+    assert.ok(r.onPick || ms.some(m => m.scope === 'global' || forms.some(h => touches(h, m))), r.name + ' does nothing for any playable hero');
   }
 });
 

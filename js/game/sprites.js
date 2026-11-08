@@ -23,12 +23,12 @@ export const attackIcon = def => 'ability_' + (ATTACK_ICON[def.form || def.id] |
 export const ultimateIcon = def => 'ability_ult_' + def.ultimate;
 const heroIds = HEROES.flatMap(h => [h.id, ...(h.evolutions || []).flatMap(s => s.choices.map(c => c.id))]);
 export const SPRITES = [...new Set([
-  ...heroIds.map(id => 'hero_' + id),
-  ...Object.keys(ENEMIES).map(id => 'enemy_' + id),
+  ...heroIds.flatMap(id => ['hero_' + id, 'hero_' + id + '_2']),            /* _2: the second animation frame */
+  ...Object.keys(ENEMIES).flatMap(id => ['enemy_' + id, 'enemy_' + id + '_2']),
   ...Object.keys(ITEMS).flatMap(id => [0, 1, 2, 3].map(r => 'item_' + id + '_' + r)),
   ...['arrow', 'arrow_gold', 'arrow_toxic', 'bolt_arcane', 'fireball', 'ice_shard', 'spark', 'dagger_toxic', 'flask_fire', 'flask_toxic',
     'boomerang', 'sword', 'piercing', 'seed'].map(n => 'proj_' + n),
-  'fx_hit', 'fx_slash', 'fx_explosion', 'fx_strike', 'fx_spikes', 'fx_moon', 'fx_moonburst', 'minion_wolf',
+  'fx_hit', 'fx_slash', 'fx_explosion', 'fx_strike', 'fx_spikes', 'fx_moon', 'fx_moonburst', 'minion_wolf', 'minion_wolf_2',
   ...['bleed', 'burn', 'poison', 'slow', 'freeze', 'shock', 'root'].map(n => 'ail_' + n),
   ...['poison', 'oil', 'storm_cloud', 'barrier', 'trap', 'thorns'].map(n => 'zone_' + n),
   ...Object.values(ATTACK_ICON).map(n => 'ability_' + n), ...Object.keys(ULTIMATES).map(n => 'ability_ult_' + n),
@@ -78,6 +78,8 @@ export function drawSprite(ctx, name, x, y, s, a = 0, frame = -1, frames = 1) {
 
 /* The sprite name for a hero (its evolved form if it has one). */
 export const heroSprite = def => 'hero_' + (def.form || def.id);
+/* A sprite's animation frame: frame 1 is the plain name, frame 2 adds _2 (falls back to frame 1 until it has loaded). */
+export const frameOf = (name, two) => (two && get(name + '_2') ? name + '_2' : name);
 /* An <img> of a sprite for the menus, drawn with sharp pixels. It removes itself if the file cannot load. */
 export function spriteImg(name, cls = 'pix') {
   const img = document.createElement('img');

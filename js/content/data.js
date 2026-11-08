@@ -19,8 +19,13 @@ const ATTRS = { strength: 0, dexterity: 0, intellect: 0 };
 /* Critical hits: critChance (0 to 1) is the chance a hit is critical, critDamage what a critical hit is multiplied by.
    Most heroes start with no crit chance (the Rogue has some); relics, items and the Rogue's Mark add more. */
 const CRIT = { critChance: 0, critDamage: 1.5 };
-/* Every hero gets the energy stats, the attributes, crits and the combat stats (added damage by type, ailment chances), so anything can raise them. */
-const withEnergy = (stats, own = {}) => ({ ...stats, ...ENERGY, ...ATTRS, ...CRIT, ...COMBAT_STATS, ...own });
+/* Minions (the Animalic Druid's wolf) fight with their hero's stats, then their own counterparts on top: minionDamage and
+   minionSpeed multiply the hero's damage and attack speed for the minion (1 = no change; "inc" modifiers raise them),
+   minionCritChance and minionCritDamage add to the hero's crit chance and crit damage. Only heroes with minions use them. */
+export const MINION = { minionDamage: 1, minionSpeed: 1, minionCritChance: 0, minionCritDamage: 0 };
+/* Every hero gets the energy stats, the attributes, crits, the combat stats (added damage by type, ailment chances) and the
+   minion stats, so anything can raise them. */
+const withEnergy = (stats, own = {}) => ({ ...stats, ...ENERGY, ...ATTRS, ...CRIT, ...COMBAT_STATS, ...MINION, ...own });
 
 /* Hero levels during a match: every hero on the field gains XP from each enemy killed (the enemy's xp value, see enemies.js),
    whoever landed the blow. Each level adds perLevel (scaled by levels gained); xpToNext(L) is the XP from level L to L + 1. */
@@ -174,6 +179,7 @@ export const STAT_LABELS = {
   castSpeed: 'Casts per second', critChance: 'Crit chance', critDamage: 'Crit damage (multiplier)',
   energyMax: 'Energy needed', energyPerAttack: 'Energy per attack', energyPerSecond: 'Energy per second',
   ...COMBAT_LABELS, relicLuck: 'Relic luck',
+  minionDamage: 'Minion damage (multiplier)', minionSpeed: 'Minion attack speed (multiplier)', minionCritChance: 'Minion crit chance', minionCritDamage: 'Minion crit damage (added)',
   bounty: 'Gold per kill', bountyChance: 'Chance for +2 gold per kill', rerolls: 'Free relic rerolls per match', banishes: 'Free relic banishes per match',
   speed3x: '3x game speed', heroXp: 'Hero XP', relicCost: 'Relic price', relicOffers: 'Chance of one more relic offer',
   itemRarity: 'Item rarity luck', itemBonusChance: 'Chance of an extra item bonus', heroStartLevel: 'Starting hero level', evolveLevel: 'Level needed to evolve', rewardGold: 'Gold at the end of a match', rewardXp: 'XP at the end of a match', rewardLoot: 'Item find', startGold: 'Starting gold', startLives: 'Starting lives', waveGold: 'Wave clear gold', evolveCost: 'Evolution cost', interest: 'Interest', interestCap: 'Interest limit'
@@ -239,7 +245,13 @@ export const RELICS = [
   { name: 'Wide swing',        desc: m => '+' + f(P(20) * m) + '° swing arc',                    mods: m => [hero('arc', 'flat', P(20) * m, ['melee'])] },
   { name: 'Keen edge',         desc: m => '+' + f(P(20) * m) + '% crit chance',                  mods: m => [hero('critChance', 'flat', P(0.2) * m, ['all'])] },
   { name: 'Cruelty',           desc: m => '+' + f(P(50) * m) + '% crit damage',                  mods: m => [hero('critDamage', 'flat', P(0.5) * m, ['all'])] },
-  { name: 'Quick incantation', desc: m => '+' + f(P(20) * m) + '% cast speed (spell heroes)',    mods: m => [hero('castSpeed', 'inc', P(0.2) * m, ['spell'])] }
+  { name: 'Quick incantation', desc: m => '+' + f(P(20) * m) + '% cast speed (spell heroes)',    mods: m => [hero('castSpeed', 'inc', P(0.2) * m, ['spell'])] },
+  /* Minion counterparts of the damage relics (for the Animalic Druid's wolf). lineup: only offered when one of these heroes
+     is in the match. */
+  { name: 'Pack leader',       desc: m => '+' + f(P(30) * m) + '% minion damage',      lineup: ['druid'], mods: m => [hero('minionDamage', 'inc', P(0.3) * m, ['minion'])] },
+  { name: 'Feral haste',       desc: m => '+' + f(P(20) * m) + '% minion attack speed', lineup: ['druid'], mods: m => [hero('minionSpeed', 'inc', P(0.2) * m, ['minion'])] },
+  { name: 'Hunting instinct',  desc: m => '+' + f(P(20) * m) + '% minion crit chance',  lineup: ['druid'], mods: m => [hero('minionCritChance', 'flat', P(0.2) * m, ['minion'])] },
+  { name: 'Savage bite',       desc: m => '+' + f(P(50) * m) + '% minion crit damage',  lineup: ['druid'], mods: m => [hero('minionCritDamage', 'flat', P(0.5) * m, ['minion'])] }
 ];
 /* Kept for later: relics for the archived heroes and the Frost Mage's slow. Not offered while those heroes are not playable. */
 export const RELIC_ARCHIVE = [

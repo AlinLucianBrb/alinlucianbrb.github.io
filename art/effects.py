@@ -238,7 +238,7 @@ def seed():
 
 
 # ---- Druid ---------------------------------------------------------------------------------------------------------------
-def wolf():
+def wolf(frame=1):
     """The Animalic Druid's wolf, facing right (the game mirrors it to face left). 64x64, the wolf about 24 art pixels long."""
     rows = [''] * 9 + [
         '.....................gw',
@@ -253,7 +253,20 @@ def wolf():
         '...GGG.GGGGG..GG.GG',
         '...GG..GG.....GG.GG',
         '...GG...GG....GG..GG',
-        '...KK...KK....KK..KK']
+        '...KK...KK....KK..KK'] if frame == 1 else [''] * 9 + [      # the second frame: legs mid-stride
+        '.....................gw',
+        '....................gGgw',
+        '...................gGEgGw',
+        '...GGGGG..........gGGGgww',
+        '..GgggggGGGGGGGGGgGGGGGGvv',
+        '.GggwwgggggggggggGGGGGGG',
+        'GGgwgggggggggggggGGGuGu',
+        'G.GggggggggggggggGGG',
+        '...GgggggggggggGGG',
+        '...GGGGGGGGG.GGGGG',
+        '....GG.GG.....GGGG',
+        '.....GGG......GGG',
+        '.....KK.......KK']
     rows = ['....' + r for r in rows]
     return render(rows, {'K': '#2a2c34', 'G': '#56606b', 'g': '#8f99a4', 'w': '#d8dee6', 'E': '#ffb347', 'v': '#16181c', 'u': '#ece2c6'},
                   32, outline=True)
@@ -500,6 +513,7 @@ def main():
     made['fx_moon'] = moon()
     made['fx_moonburst'] = moonburst_frames()
     made['minion_wolf'] = wolf()
+    made['minion_wolf_2'] = wolf(2)
     made['zone_thorns'] = thorns()
     for k, (rows, pal) in AILMENTS.items():
         made['ail_' + k] = render(rows, pal, 8, outline=True)

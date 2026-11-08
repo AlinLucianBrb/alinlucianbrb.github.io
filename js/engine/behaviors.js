@@ -255,7 +255,8 @@ registerBehavior('concoctions', thrower('flask', 420, ['fire', 'toxic']));
 /* ---- Druid forms ---- */
 /* Animalic Druid: a wolf fights for the Druid. It runs after the enemy furthest along the path within the Druid's range and
    bites in a cone in front of it (physical; the Animalic Druid's hits bleed). Without a target it trots back to the Druid.
-   The wolf attacks at the Druid's cast speed and its hits are the Druid's (damage, crits, ailments, energy). While enraged
+   The wolf attacks at the Druid's cast speed and its hits are credited to the Druid (ailments, energy, the meter), with the
+   minion stats on top (minionDamage, minionSpeed, minion crits: t.ms, see minionStats). While enraged
    (the ultimate) it is bigger, with twice the reach and twice the damage. State: t.wolf = { x, y, face, bite }. */
 export const WOLF = { speed: 150, reach: 30, arc: 110, rageSpeed: 1.25 };
 registerBehavior('wolf', {
@@ -270,8 +271,8 @@ registerBehavior('wolf', {
     if (Math.abs(dx) > 2) w.face = dx < 0 ? -1 : 1;
     t.cd -= dt;
     if (!tg || t.cd > 0 || dist > reach) return;
-    const mult = strike(g, t, tg);
-    rearm(t);
+    const mult = strike(g, t, tg), ms = t.ms || t.s;
+    t.cd = t.s.cooldown / (rateOf(t) * (t.s.minionSpeed || 1));
     if (mult === 0) { charge(g, t); return; }
     const ang = Math.atan2(tg.y - w.y, tg.x - w.x), half = WOLF.arc * Math.PI / 360, r2 = (reach + 6) ** 2, dmg = mult * (big ? 2 : 1);
     for (const e of g.enemies) {
@@ -280,7 +281,7 @@ registerBehavior('wolf', {
       if (ex * ex + ey * ey > r2) continue;
       let da = Math.abs(Math.atan2(ey, ex) - ang);
       if (da > Math.PI) da = 2 * Math.PI - da;
-      if (da <= half || ex * ex + ey * ey < 100) g.attack(t, e, dmg);
+      if (da <= half || ex * ex + ey * ey < 100) g.attack(t, e, dmg, 1, null, ms);
     }
     w.bite = 0.15;
     g.fx?.slash(w.x, w.y, ang, half, reach + 6, 0.16, look(t, mult));

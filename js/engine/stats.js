@@ -35,3 +35,16 @@ export function affected(relic, m, heroes) {
   for (const t of heroes) if (tm.some(x => touches(t.def, x))) types.set(t.type, (types.get(t.type) || 0) + 1);
   return { global: false, types };
 }
+
+/* A minion's stats (the Animalic Druid's wolf): the hero's, with the minion counterparts on top. Its damage (and added damage
+   of every type) is multiplied by minionDamage, its attack speed by minionSpeed; minion crit chance and crit damage add to
+   the hero's. */
+export function minionStats(s) {
+  const m = { ...s }, k = s.minionDamage ?? 1;
+  m.damage = s.damage * k;
+  for (const key in s) if (key.endsWith('Damage') && key !== 'critDamage' && !key.startsWith('minion')) m[key] = s[key] * k;
+  m.speed = (s.speed || 1) * (s.minionSpeed ?? 1); m.castSpeed = (s.castSpeed || 1) * (s.minionSpeed ?? 1);
+  m.critChance = (s.critChance || 0) + (s.minionCritChance || 0);
+  m.critDamage = (s.critDamage || 1.5) + (s.minionCritDamage || 0);
+  return m;
+}

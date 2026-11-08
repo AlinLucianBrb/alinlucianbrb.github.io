@@ -60,7 +60,7 @@ test('Information: five gear slots; an empty slot offers the free items that fit
   assert.deepEqual(state.profile.equipment, { warrior: { helm: 'i2' } });
   const helm = slotBox('helm');
   assert.ok(texts(helm).includes('Rare Helm')); assert.ok(btn(helm, /^Remove$/));
-  assert.ok(texts(helm).includes('+11.25% damage (all heroes)') && texts(helm).includes('+13.5% damage to melee heroes'), 'its bonuses, at Rare strength');
+  assert.ok(texts(helm).includes('+11.25% damage (all heroes)  · rank 3') && texts(helm).includes('+13.5% damage to melee heroes  · rank 3'), 'its bonuses: an item from before ranks counts them at its rarity (Rare: rank 3)');
   assert.ok(texts(byId.hrBody).includes('Stats (with gear)'));
   assert.ok(texts(byId.hrBody).includes(String(+(28 * (1 + 0.1 + 0.1125 + 0.135)).toFixed(2))), 'strength, Sharpened rounds and Whetstone add up');
   iconBtns(slotBox('trinket'))[0].onclick();
@@ -105,7 +105,9 @@ test('Inventory: every item as an icon on a grid, with a tooltip saying what it 
   assert.ok(full[0]._cls.has('worn') && full[1]._cls.has('worn') && !full[2]._cls.has('worn'), 'worn items first, marked');
   full[0].fire('pointerenter', { clientX: 5, clientY: 5 });
   let tip = dom.made.filter(e => e.className === 'tip').at(-1);
-  assert.deepEqual(tip.children.map(c => c._text), ['Rare Helm', 'Helm', '+11.25% damage (all heroes)', '+13.5% damage to melee heroes', '75% chance of +2 gold per kill', 'Equipped on the Warrior']);
+  assert.deepEqual(tip.children.map(c => c._text), ['Rare Helm', 'Helm', '+11.25% damage (all heroes)  · rank 3', '+13.5% damage to melee heroes  · rank 3',
+    'Prospector: no longer works on gear', 'Equipped on the Warrior'], 'each bonus with its rank; gold bonuses no longer work on gear');
+  assert.equal(tip.children[2].style.color, '#5aa9ff', 'a rank 3 bonus in the rank colour (blue)');
   full[2].fire('pointerenter', { clientX: 5, clientY: 5 });
   tip = dom.made.filter(e => e.className === 'tip').at(-1);
   assert.equal(tip.children.at(-1)._text, 'Not equipped');
@@ -149,5 +151,5 @@ test('an older profile ({ hero: itemId }) still works: the item becomes that her
   const { equipment, wornItems } = await import('../js/screens/loadout.js');
   state.profile.equipment = { mage: 'i1' };
   assert.deepEqual(equipment(), { mage: { trinket: 'i1' } });
-  assert.deepEqual(wornItems(), { mage: [{ type: 'power_charm', rarity: 0, bonuses: [] }] });
+  assert.deepEqual(wornItems(), { mage: [{ type: 'power_charm', rarity: 0, bonuses: [], ranks: [] }] });
 });

@@ -5,7 +5,7 @@ import { HEROES, STAGES, COLS, ROWS, LINEUP_SIZE } from '../content/data.js';
 import { itemMods, asItem } from '../content/items.js';
 import { createBus } from '../core/bus.js';
 import { talentMods } from '../content/talents.js';
-import { resolve, heroStats } from './stats.js';
+import { resolve, heroStats, minionStats } from './stats.js';
 import { attack, dotDamage } from './combat.js';
 import { BEHAVIORS } from './behaviors.js';
 import { spawnEnemy, updateEnemies, sweep, waveCount, spawnDelay, waveEnemyType } from './enemies.js';
@@ -17,7 +17,7 @@ import { attackMult, gainEnergy, erupt } from './ultimates.js';
 import { gainXp } from './levels.js';
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
-export const ENGINE_VERSION = 14;     /* bump when a rule change would make old command logs play out differently */
+export const ENGINE_VERSION = 15;     /* bump when a rule change would make old command logs play out differently */
 
 function genPath(rng) {
   let x = 0, y = 1 + rng.int(ROWS - 2); const p = [[x, y]];
@@ -57,7 +57,7 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
     log: record ? { v: 1, ver: ENGINE_VERSION, seed: seed >>> 0, stage, talents: [...talents], lineup: [...team], items: JSON.parse(JSON.stringify(equipped)), commands: [], ticks: 0 } : null
   };
   w.hit = (hero, e, amount, type) => hit(w, hero, e, amount, type);
-  w.attack = (hero, e, scale, rate, as) => attack(w, hero, e, scale, rate, as);
+  w.attack = (hero, e, scale, rate, as, s) => attack(w, hero, e, scale, rate, as, s);
   w.dot = (src, e, amount, type) => dotDamage(w, src, e, amount, type);
   w.attackMult = (h, target) => attackMult(w, h, target);
   w.gainEnergy = (h, amount) => gainEnergy(h, amount);
@@ -141,6 +141,7 @@ export function statsFor(w, h) {
   let own = h.lvlMods && h.lvlMods.length ? h.mods.concat(h.lvlMods) : h.mods;
   if (h.buffs && h.buffs.length) for (const b of h.buffs) own = own.concat(b.mods);
   h.s = heroStats(h.def, own.length ? w.mods.concat(own) : w.mods);
+  h.ms = h.def.tags.includes('minion') ? minionStats(h.s) : null;   /* its minion's stats (the wolf) */
   if (h.energy > h.s.energyMax) h.energy = h.s.energyMax;
   return h.s;
 }

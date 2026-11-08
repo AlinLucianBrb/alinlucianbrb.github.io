@@ -52,6 +52,9 @@ create index if not exists player_items_user_idx on public.player_items (user_id
 -- Items from before this existed stay Common with no bonuses.
 alter table public.player_items add column if not exists rarity int not null default 0 check (rarity between 0 and 3);
 alter table public.player_items add column if not exists bonuses text[] not null default '{}';
+-- Each bonus's rank (1 to 4), in the same order as bonuses. Items from before ranks have none: each bonus counts at the
+-- item's rarity (rank = rarity + 1).
+alter table public.player_items add column if not exists bonus_ranks int[] not null default '{}';
 -- The relics an item bonus can be (generated from js/content/items.js).
 create table if not exists public.item_bonuses (
   id text primary key

@@ -99,6 +99,9 @@ create index if not exists player_items_user_idx on public.player_items (user_id
 -- Items from before this existed stay Common with no bonuses.
 alter table public.player_items add column if not exists rarity int not null default 0 check (rarity between 0 and 3);
 alter table public.player_items add column if not exists bonuses text[] not null default '{}';
+-- Each bonus's rank (1 to 4), in the same order as bonuses. Items from before ranks have none: each bonus counts at the
+-- item's rarity (rank = rarity + 1).
+alter table public.player_items add column if not exists bonus_ranks int[] not null default '{}';
 -- The relics an item bonus can be (generated from js/content/items.js).
 create table if not exists public.item_bonuses (
   id text primary key
@@ -762,8 +765,8 @@ insert into public.item_types (id, slot, droppable) values
 on conflict (id) do update set slot = excluded.slot, droppable = true;
 update public.item_types set droppable = false where id <> all (array['helm', 'body_armour', 'leggings', 'boots', 'power_charm']::text[]);
 -- Item bonuses: the relics an item can roll.
-insert into public.item_bonuses (id) values ('Sharpened rounds'), ('Long barrels'), ('Quick hands'), ('Four-leaf clover'), ('Battle focus'), ('Prospector'), ('Reinforced gate'), ('Bulk order'), ('Split bolt'), ('Tax collector'), ('Compound interest'), ('Fine arrows'), ('Whetstone'), ('Arcane focus'), ('Wide swing'), ('Keen edge'), ('Cruelty'), ('Quick incantation') on conflict (id) do nothing;
-delete from public.item_bonuses where id <> all (array['Sharpened rounds', 'Long barrels', 'Quick hands', 'Four-leaf clover', 'Battle focus', 'Prospector', 'Reinforced gate', 'Bulk order', 'Split bolt', 'Tax collector', 'Compound interest', 'Fine arrows', 'Whetstone', 'Arcane focus', 'Wide swing', 'Keen edge', 'Cruelty', 'Quick incantation']::text[]);
+insert into public.item_bonuses (id) values ('Sharpened rounds'), ('Long barrels'), ('Quick hands'), ('Battle focus'), ('Split bolt'), ('Fine arrows'), ('Whetstone'), ('Arcane focus'), ('Wide swing'), ('Keen edge'), ('Cruelty'), ('Quick incantation'), ('Pack leader'), ('Feral haste'), ('Hunting instinct'), ('Savage bite') on conflict (id) do nothing;
+delete from public.item_bonuses where id <> all (array['Sharpened rounds', 'Long barrels', 'Quick hands', 'Battle focus', 'Split bolt', 'Fine arrows', 'Whetstone', 'Arcane focus', 'Wide swing', 'Keen edge', 'Cruelty', 'Quick incantation', 'Pack leader', 'Feral haste', 'Hunting instinct', 'Savage bite']::text[]);
 
 -- ===== Functions =====
 
@@ -921,10 +924,11 @@ $$;
 drop function if exists public.finish_run(int, int);
 drop function if exists public.finish_run(int, int, int, boolean);
 -- Returns { "profile": the updated profile, "drop": the first item type found or null,
---           "drops": every item found, as [{ "item_type", "rarity", "bonuses" }] }.
+--           "drops": every item found, as [{ "item_type", "rarity", "bonuses", "bonus_ranks" }] }.
 -- Each item gets a rarity (weights Common 55, Uncommon 28, Rare 13, Epic 4; Treasure Hunter talents multiply each rarer step's
 -- weight by 1 + rarity luck, like relic luck), at least rarity + 1 bonuses, then a 30% chance (plus talents) for each further
--- one, up to 4, all different (the same rules as ROLL in js/content/items.js).
+-- one, up to 4, all different, each with its own rank 1 to 4 (rarer items roll higher ranks more often; the same rules as
+-- ROLL in js/content/items.js).
 -- A win always drops an item; a loss has a chance that grows with the waves survived (up to 50%). Item find from talents raises
 -- that: every full 100% is an item, and the rest is the chance of one more. Players can hold at most 200 items.
 -- Talents can also raise the gold and XP the match gives (reward_gold, reward_xp in talent_nodes).
@@ -936,7 +940,7 @@ create function public.finish_run(p_run uuid, p_waves int, p_kills int, p_won bo
 language plpgsql security definer set search_path = public as $$
 declare me public.profiles; r public.runs; cap int; frontier boolean; elapsed numeric; done_waves int; dropped text := null;
         drops jsonb := '[]'; b_gold numeric; b_xp numeric; b_loot numeric; chance numeric; n int; boss_cap int;
-        roll numeric; rar int; nb int; bon text[]; b_rar numeric; b_extra numeric; w1 numeric; w2 numeric; w3 numeric;
+        roll numeric; rar int; nb int; bon text[]; b_rar numeric; b_extra numeric; w1 numeric; w2 numeric; w3 numeric; rks int[];
 begin
   if auth.uid() is null then raise exception 'not signed in'; end if;
   select * into r from public.runs where id = p_run and user_id = auth.uid() and finished_at is null for update;
@@ -988,8 +992,16 @@ begin
     nb := rar + 1;
     while nb < 4 and random() < 0.3 + b_extra loop nb := nb + 1; end loop;
     select coalesce(array_agg(b.id), '{}') into bon from (select id from public.item_bonuses order by random() limit nb) b;
-    insert into public.player_items (user_id, item_type, rarity, bonuses) values (auth.uid(), dropped, rar, bon);
-    drops := drops || jsonb_build_array(jsonb_build_object('item_type', dropped, 'rarity', rar, 'bonuses', to_jsonb(bon)));
+    -- each bonus's rank: rank weights (in %) by rarity, Common 70/22/7/1, Uncommon 45/35/15/5, Rare 25/35/28/12, Epic 10/25/35/30
+    rks := '{}';
+    for k in 1 .. coalesce(array_length(bon, 1), 0) loop
+      roll := random() * 100;
+      rks := rks || (case when roll < (array[70, 45, 25, 10])[rar + 1] then 1
+                          when roll < (array[92, 80, 60, 35])[rar + 1] then 2
+                          when roll < (array[99, 95, 88, 70])[rar + 1] then 3 else 4 end);
+    end loop;
+    insert into public.player_items (user_id, item_type, rarity, bonuses, bonus_ranks) values (auth.uid(), dropped, rar, bon, rks);
+    drops := drops || jsonb_build_array(jsonb_build_object('item_type', dropped, 'rarity', rar, 'bonuses', to_jsonb(bon), 'bonus_ranks', to_jsonb(rks)));
   end loop;
   return jsonb_build_object('profile', to_jsonb(me), 'drop', drops -> 0 ->> 'item_type', 'drops', drops);
 end;

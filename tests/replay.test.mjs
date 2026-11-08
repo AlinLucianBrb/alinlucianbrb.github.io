@@ -17,7 +17,7 @@ test('a whole bot run replays to the identical final state', () => {
 
 test('replay covers every command type: place, move, evolve, reroll, banish, choose, auto, wave', () => {
   /* Everything goes through commands: gold is earned by playing, never set directly, or the replay could not reproduce it. */
-  const gear = { ranger: [{ type: 'power_charm', rarity: 2, bonuses: ['Quick hands', 'Prospector'] }, { type: 'boots', rarity: 0, bonuses: ['Fine arrows'] }] };
+  const gear = { ranger: [{ type: 'power_charm', rarity: 2, bonuses: ['Quick hands', 'Keen edge'], ranks: [3, 2] }, { type: 'boots', rarity: 0, bonuses: ['Fine arrows'], ranks: [1] }] };
   const w = createWorld({ seed: 21, stage: 1, items: gear, talents: pathTo(new Set(), 't4_relics_s') });   /* a reroll and a banish */
   const t = tilesNearPath(w, 6);
   const a = apply(w, { type: 'place', hero: 'ranger', cx: t[0][0], cy: t[0][1] }).id;

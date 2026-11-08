@@ -160,3 +160,38 @@ test('a match with the Druid in each form replays exactly, and every form uses i
     assert.equal(hashWorld(replay(exportLog(w))), hashWorld(w), form);
   }
 });
+
+test('minion stats: the wolf fights with the Druid\'s stats plus minion damage, attack speed and crits; minion relics come only with a Druid', async () => {
+  const { minionStats } = await import('../js/engine/stats.js');
+  const { RELICS } = await import('../js/content/data.js');
+  const s = minionStats({ damage: 10, fireDamage: 2, speed: 1, castSpeed: 1, critChance: 0.1, critDamage: 1.5, minionDamage: 1.5, minionSpeed: 1.2, minionCritChance: 0.2, minionCritDamage: 0.5 });
+  assert.equal(s.damage, 15); assert.equal(s.fireDamage, 3); assert.ok(Math.abs(s.castSpeed - 1.2) < 1e-9);
+  assert.ok(Math.abs(s.critChance - 0.3) < 1e-9); assert.equal(s.critDamage, 2);
+  /* one bite with and without Pack leader (Epic: x4) */
+  const bite = withLeader => {
+    const r = hero(); evolveTo(r.w, r.h, 'animalic'); noRoot(r.h);
+    r.h.mods.push({ stat: 'bleedChance', type: 'flat', value: -1, scope: ['all'], source: 'test', ri: -2 });
+    if (withLeader) for (const m of RELICS.find(x => x.name === 'Pack leader').mods(4)) r.h.mods.push({ ...m, source: 'test', ri: -2 });
+    r.w.statsFor(r.h);
+    r.h.wolf = { x: r.h.x, y: r.h.y, face: 1, bite: 0 }; r.h.cd = 0;
+    const e = enemyAt(r.w, r.h.x + 20, r.h.y, 5 * T);
+    BEHAVIORS.wolf.update(r.w, r.h, 1 / 60);
+    return { dealt: dealt(e), h: r.h };
+  };
+  const plain = bite(false), led = bite(true);
+  assert.ok(led.h.s.minionDamage > 1 && Math.abs(led.dealt / plain.dealt - led.h.s.minionDamage) < 1e-6, 'Pack leader multiplies the wolf\'s damage');
+  assert.equal(plain.h.ms.damage, plain.h.s.damage, 'with no minion modifiers the wolf hits like the Druid');
+  const mage = hero('mage');
+  assert.equal(mage.h.ms, null, 'heroes without a minion have no minion stats');
+  /* relic offers */
+  const minion = new Set(['Pack leader', 'Feral haste', 'Hunting instinct', 'Savage bite']);
+  const offered = lineup => {
+    const w = richWorld({ seed: 9, lineup }), seen = new Set();
+    let t; for (let cx = 4; !t && cx < 12; cx++) for (let cy = 2; cy < 8; cy++) if (!w.pathSet.has(cx + ',' + cy)) t = [cx, cy];
+    place(w, lineup[0], ...t);
+    for (let i = 0; i < 60; i++) { apply(w, { type: 'buyRelic' }); for (const o of w.pick.offers) seen.add(o.relic.name); apply(w, { type: 'choose', index: 0 }); }
+    return [...seen].filter(n => minion.has(n)).length;
+  };
+  assert.equal(offered(['mage']), 0, 'no minion relics without a Druid');
+  assert.ok(offered(['druid']) > 0, 'with a Druid they can turn up');
+});

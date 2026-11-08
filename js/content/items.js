@@ -1,9 +1,12 @@
 /* Items drop at the end of a match and are equipped on heroes before the next one.
    Every hero has five gear slots (SLOTS). An item has a type (ITEMS: which slot it goes in, and any fixed bonus of its own),
-   a rarity (the same four as relics) and 1 to 4 bonuses. Bonuses are relics: a Rare item with "Sharpened rounds" gives what a
-   Rare Sharpened rounds relic gives. An item never has the same bonus twice.
-   Items are rolled by the server (finish_run), which stores { item_type, rarity, bonuses: [relic names] }; this file only
-   turns them into modifiers, names and descriptions. ROLL describes the same rules for the client (and the tests).
+   a rarity (the same four as relics) and 1 to 4 bonuses. Bonuses are the relics that work on heroes (damage, speed, crits,
+   energy, minions...; no gold, XP or lives: ITEM_BONUSES), and each bonus has its own RANK, 1 to 4, rolled separately: a
+   rank 3 "Sharpened rounds" gives what a Rare Sharpened rounds relic gives. The item's rarity does not set the ranks, but
+   rarer items are more likely to roll higher ones (ROLL.rankWeights). An item never has the same bonus twice.
+   Items are rolled by the server (finish_run), which stores { item_type, rarity, bonuses: [relic names], bonus_ranks: [1-4] };
+   this file only turns them into modifiers, names and descriptions. ROLL describes the same rules for the client (and the
+   tests). Items from before ranks existed count each bonus at the item's rarity (rank = rarity + 1).
    To add an item type: add an entry here, then run `npm run sql` so the database knows it can drop. */
 import { RELICS, RARITIES } from './data.js';
 
@@ -23,30 +26,53 @@ export const ITEMS = {
    rarity by the relic weights (Common 55, Uncommon 28, Rare 13, Epic 4; Treasure Hunter's item rarity luck multiplies each rarer
    step's weight by 1 + luck, like relic luck); a Common item has at least 1 bonus, an Uncommon 2, a Rare 3 and an Epic 4; then
    each further bonus has a 30% chance (plus Treasure Hunter's extra bonus chance), up to 4. */
-export const ROLL = { maxBonuses: 4, extraChance: 0.3, guaranteed: r => r + 1 };
+export const ROLL = { maxBonuses: 4, extraChance: 0.3, guaranteed: r => r + 1,
+  /* The chance of each bonus rank (1 to 4), in %, by the item's rarity (Common, Uncommon, Rare, Epic). */
+  rankWeights: [[70, 22, 7, 1], [45, 35, 15, 5], [25, 35, 28, 12], [10, 25, 35, 30]] };
+export const RANKS = 4;
+/* A rank as words and colour (the rarity colours: rank 1 white, 2 green, 3 blue, 4 purple). */
+export const rankColor = r => RARITIES[Math.max(1, Math.min(RANKS, r)) - 1].color;
 
-/* Relics that can be item bonuses: every relic with modifiers. Reinforced gate (lives when you pick it) gives starting lives instead. */
-const bonusMods = (relic, m) => (relic.itemMods ? relic.itemMods(m) : relic.mods ? relic.mods(m) : null);
-export const ITEM_BONUSES = RELICS.filter(r => bonusMods(r, 1)).map(r => r.name);
+/* Relics that can be item bonuses: those whose modifiers all work on heroes. Gold, XP, lives and relic luck stay off gear. */
+const bonusMods = (relic, m) => (relic.mods ? relic.mods(m) : null);
+export const ITEM_BONUSES = RELICS.filter(r => { const ms = bonusMods(r, 1); return ms && ms.length && ms.every(m => m.scope !== 'global'); }).map(r => r.name);
+const onGear = new Set(ITEM_BONUSES);
 const relicByName = name => RELICS.find(r => r.name === name);
 
 /* Older items (from before rarities) come as a plain type id: they count as Common with no bonuses. */
-export const asItem = it => (typeof it === 'string' ? { type: it, rarity: 0, bonuses: [] }
-  : { type: it.type || it.item_type, rarity: Math.max(0, Math.min(3, it.rarity | 0)), bonuses: [...new Set(it.bonuses || [])].slice(0, ROLL.maxBonuses) });
+export function asItem(it) {
+  if (typeof it === 'string') return { type: it, rarity: 0, bonuses: [], ranks: [] };
+  const rarity = Math.max(0, Math.min(3, it.rarity | 0)), given = it.ranks || it.bonus_ranks || [], seen = new Set(), bonuses = [], ranks = [];
+  (it.bonuses || []).forEach((b, i) => {
+    if (seen.has(b) || bonuses.length >= ROLL.maxBonuses) return;
+    seen.add(b); bonuses.push(b); ranks.push(Math.max(1, Math.min(RANKS, (given[i] | 0) || rarity + 1)));
+  });
+  return { type: it.type || it.item_type, rarity, bonuses, ranks };
+}
 
 export const itemName = it => { const i = asItem(it), t = ITEMS[i.type]; return RARITIES[i.rarity].name + ' ' + (t ? t.name : i.type); };
 export const itemColor = it => RARITIES[asItem(it).rarity].color;
-/* Lines describing an item: its own bonus, then each rolled bonus at the item's rarity. */
+/* Lines describing an item: its own bonus, then each bonus at its rank (bonuses that are no longer allowed on gear are left out). */
 export function itemLines(it) {
-  const i = asItem(it), t = ITEMS[i.type], m = RARITIES[i.rarity].mult, out = [];
-  if (t && t.desc) out.push(t.desc);
-  for (const name of i.bonuses) { const r = relicByName(name); if (r) out.push(r.desc(m)); }
+  return itemBonusLines(it).filter(l => l.works).map(l => l.desc);
+}
+/* The same, for tooltips: { text, color, desc, rank, works }, each bonus in its rank's colour with its rank. */
+export function itemBonusLines(it) {
+  const i = asItem(it), t = ITEMS[i.type], out = [];
+  if (t && t.desc) out.push({ text: t.desc, desc: t.desc, color: '#ecf1e8', rank: 0, works: true });
+  i.bonuses.forEach((name, k) => {
+    const r = relicByName(name), rank = i.ranks[k];
+    if (!r) return;
+    if (!onGear.has(name)) { out.push({ text: name + ': no longer works on gear', desc: name, color: '#6f7d74', rank, works: false }); return; }
+    const desc = r.desc(rank);
+    out.push({ text: desc + '  · rank ' + rank, desc, color: rankColor(rank), rank, works: true });
+  });
   return out;
 }
 
 /* Modifiers for a match from the equipped items: { heroId: [item, ...] } (an item is { type, rarity, bonuses } or a type id).
    Hero bonuses apply to the wearer only, and only if it has the bonus's tags (Whetstone needs a melee hero); "need" holds the
-   wearer's id. Economy bonuses (gold per kill, wave gold...) help the whole match. Unknown types and bonuses are ignored. */
+   wearer's id. Each bonus counts at its own rank. Unknown types and bonuses are ignored. */
 export function itemMods(equipped = {}) {
   const out = [];
   for (const heroId in equipped) {
@@ -57,11 +83,12 @@ export function itemMods(equipped = {}) {
       if (!type) continue;
       const source = itemName(it);
       for (const m of type.mods) out.push({ ...m, scope: [heroId], source, ri: -2 });
-      for (const name of it.bonuses) {
-        const r = relicByName(name), mods = r && bonusMods(r, RARITIES[it.rarity].mult);
+      it.bonuses.forEach((name, k) => {
+        if (!onGear.has(name)) return;   /* gold, XP and lives bonuses no longer work on gear */
+        const r = relicByName(name), mods = r && bonusMods(r, it.ranks[k]);
         const from = source + ': ' + name;   /* each bonus is its own line in the hero panel, e.g. "Epic Helm: Whetstone" */
-        if (mods) for (const m of mods) out.push(m.scope === 'global' ? { ...m, source: from, ri: -2 } : { ...m, need: heroId, source: from, ri: -2 });
-      }
+        if (mods) for (const m of mods) out.push({ ...m, need: heroId, source: from, ri: -2 });
+      });
     }
   }
   return out;

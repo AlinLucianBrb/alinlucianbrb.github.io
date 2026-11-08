@@ -274,6 +274,7 @@ export function renderInspector(g, v) {
       if (!t.s[key] && !d.stats[key]) continue;          /* unused stats (most combat stats for now) stay hidden */
       if (key === 'critDamage' && !(t.s.critChance > 0)) continue;   /* crit damage only matters with some crit chance */
       if (key === 'arc' && !/swing/.test(d.kind)) continue;              /* forms that throw (Alchemist...) have no swing */
+      if (key.startsWith('minion') && !d.tags.includes('minion')) continue;   /* minion stats only for heroes with a minion */
       const isRate = key === 'speed' || key === 'castSpeed';
       const label = key === 'damage' ? (d.dps ? 'Damage per second' : 'Damage') + ' (' + DAMAGE_LABEL[d.damageType || 'physical'] + ')' : STAT_LABELS[key] || key;
       const value = isRate ? t.s[key] / t.s.cooldown : t.s[key];
@@ -382,7 +383,7 @@ function updateAbilities(b, unit, def) {
   const idle = !unit;
   if (b._idle !== idle) { b._idle = idle; b._abil.classList.toggle('idle', idle); }
   if (!unit) { setSweep(b._atk, 0, '', false); setSweep(b._ult, 1, '', false); return; }
-  const full = unit.s.cooldown ? unit.s.cooldown / rateOf(unit) : 0, left = Math.max(0, unit.cd || 0);
+  const full = unit.s.cooldown ? unit.s.cooldown / (rateOf(unit) * (def.kind === 'wolf' ? unit.s.minionSpeed || 1 : 1)) : 0, left = Math.max(0, unit.cd || 0);
   setSweep(b._atk, full > 0 ? left / full : 0, left >= 1 ? String(Math.ceil(left)) : '', false);
   const e = unit.s.energyMax ? unit.energy / unit.s.energyMax : 0;
   setSweep(b._ult, 1 - e, '', e >= 1);
