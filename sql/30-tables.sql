@@ -59,6 +59,10 @@ alter table public.player_items add column if not exists bonus_ranks int[] not n
 create table if not exists public.item_bonuses (
   id text primary key
 );
+-- The archetypes whose items lean toward this bonus (melee, projectile, spell, minion), and the archetype of an item type
+-- (null: no leaning). Generated from js/content/items.js (AFFINITY, ITEMS).
+alter table public.item_bonuses add column if not exists tags text[] not null default '{}';
+alter table public.item_types add column if not exists affinity text;
 alter table public.item_bonuses enable row level security;
 alter table public.hero_classes enable row level security;
 alter table public.item_types enable row level security;

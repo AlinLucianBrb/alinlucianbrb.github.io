@@ -5,13 +5,14 @@ import assert from 'node:assert/strict';
 import { installFakeDom } from './fake-dom.mjs';
 
 const dom = installFakeDom();
-const saves = [], navs = [];
+const saves = [], navs = [], sold = [];
 let failNext = false;
 mock.module(new URL('../js/services/api.js', import.meta.url).href, { namedExports: {
   getItems: async () => ({ items: [
     { id: 'i1', item_type: 'power_charm', rarity: 0, bonuses: [] },
     { id: 'i2', item_type: 'helm', rarity: 2, bonuses: ['Sharpened rounds', 'Whetstone', 'Prospector'] },
     { id: 'i3', item_type: 'helm', rarity: 0, bonuses: ['Long barrels'] }] }),
+  sellItem: async id => { sold.push(id); return { profile: { gold: 500 + sold.length } }; },
   saveLoadout: async (lineup, equipment) => { saves.push({ lineup, equipment }); if (failNext) { failNext = false; return { error: 'boom' }; } return { profile: { lineup, equipment } }; }
 } });
 const { state } = await import('../js/core/state.js');
@@ -106,11 +107,26 @@ test('Inventory: every item as an icon on a grid, with a tooltip saying what it 
   full[0].fire('pointerenter', { clientX: 5, clientY: 5 });
   let tip = dom.made.filter(e => e.className === 'tip').at(-1);
   assert.deepEqual(tip.children.map(c => c._text), ['Rare Helm', 'Helm', '+11.25% damage (all heroes)  · rank 3', '+13.5% damage to melee heroes  · rank 3',
-    'Prospector: no longer works on gear', 'Equipped on the Warrior'], 'each bonus with its rank; gold bonuses no longer work on gear');
+    'Prospector: no longer works on gear', 'Equipped on the Warrior', 'Sells for 85 gold (click to select)'], 'each bonus with its rank; gold bonuses no longer work on gear; the sell price');
   assert.equal(tip.children[2].style.color, '#5aa9ff', 'a rank 3 bonus in the rank colour (blue)');
   full[2].fire('pointerenter', { clientX: 5, clientY: 5 });
   tip = dom.made.filter(e => e.className === 'tip').at(-1);
-  assert.equal(tip.children.at(-1)._text, 'Not equipped');
+  assert.equal(tip.children.at(-2)._text, 'Not equipped');
+  /* selling: click to select, then Sell, then again to confirm; worn items cannot be sold */
+  full[0].onclick();
+  let sellBtn = byId.invSell.children.find(c => c.tag === 'button');
+  assert.equal(sellBtn._text, 'Worn: take it off first'); assert.equal(sellBtn.disabled, true);
+  full[2].onclick();
+  sellBtn = byId.invSell.children.find(c => c.tag === 'button');
+  assert.match(sellBtn._text, /^Sell for \d+ gold$/);
+  const count = state.items.length;
+  sellBtn.onclick();
+  sellBtn = byId.invSell.children.find(c => c.tag === 'button');
+  assert.match(sellBtn._text, /^Click again to sell/, 'asks to confirm');
+  sellBtn.onclick(); await new Promise(r => setTimeout(r, 0));
+  assert.equal(sold.length, 1); assert.equal(state.items.length, count - 1, 'the item is gone');
+  assert.equal(state.profile.gold, 501, 'gold from the server');
+  assert.match(byId.invMsg._text, /^Sold .* for \d+ gold\. Gold: 501$/);
   assert.equal(byId.invEmpty.hidden, true);
 });
 

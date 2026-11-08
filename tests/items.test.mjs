@@ -69,15 +69,21 @@ test('items add up across slots', () => {
   assert.ok(near(s.damage, (16 + 5) * 1.1), 'the charm still adds 5');
 });
 
-test('the server rolls items with the same rules (finish_run), and knows every bonus', () => {
+test('the server rolls items with the same rules (finish_run), and knows every bonus', async () => {
   const sql = readFileSync(new URL('../supabase-update.sql', import.meta.url), 'utf8');
   assert.match(sql, /w1 := 28 \* \(1 \+ b_rar\); w2 := 13 \* power\(1 \+ b_rar, 2\); w3 := 4 \* power\(1 \+ b_rar, 3\);/, 'rarity weights 55/28/13/4, with talent luck');
   assert.match(sql, /rar := case when roll < 55 then 0 when roll < 55 \+ w1 then 1 when roll < 55 \+ w1 \+ w2 then 2 else 3 end;/);
   assert.deepEqual(RARITIES.map(r => r.weight), [55, 28, 13, 4]);
   assert.match(sql, /nb := rar \+ 1;\n\s+while nb < 4 and random\(\) < 0\.3 \+ b_extra loop nb := nb \+ 1; end loop;/, 'rarity + 1 bonuses, then 30% (plus talents) each, up to 4');
-  assert.match(sql, /from public\.item_bonuses order by random\(\) limit nb/, 'different bonuses');
-  for (const b of ITEM_BONUSES) assert.ok(sql.includes("('" + b.replace(/'/g, "''") + "')"), 'item bonus ' + b);
-  for (const id in ITEMS) assert.ok(sql.includes("('" + id + "', '" + ITEMS[id].slot + "', true)"), 'item type ' + id);
+  assert.match(sql, /select id into pick from public\.item_bonuses where id <> all \(bon\) order by random\(\) limit 1/, 'different bonuses');
+  assert.ok(sql.includes('if aff is not null and random() < ' + ROLL.affinityChance + ' then'), 'archetype items: 60% from their bonuses');
+  assert.match(sql, /where aff = any \(tags\) and id <> all \(bon\)/);
+  const { AFFINITY } = await import('../js/content/items.js');
+  for (const b of ITEM_BONUSES) {
+    const tags = Object.keys(AFFINITY).filter(k => AFFINITY[k].includes(b));
+    assert.ok(sql.includes("('" + b.replace(/'/g, "''") + "', array[" + tags.map(t => "'" + t + "'").join(', ') + ']::text[])'), 'item bonus ' + b + ' with its archetypes');
+  }
+  for (const id in ITEMS) assert.ok(sql.includes("('" + id + "', '" + ITEMS[id].slot + "', true, " + (ITEMS[id].affinity ? "'" + ITEMS[id].affinity + "'" : 'null') + ')'), 'item type ' + id);
   assert.match(sql, /where t\.slot <> s\.key\) then\s+raise exception 'that item does not go in that slot'/, 'save_loadout checks slots');
   assert.match(sql, /jsonb_build_object\('trinket', e\.value\)/, 'old equipment becomes a trinket');
 });
@@ -90,4 +96,22 @@ test('the server rolls each bonus\'s rank with the same weights (finish_run) and
   assert.ok(sql.includes('when roll < (array[' + cum(3).join(', ') + '])[rar + 1] then 3 else 4 end'), 'rank 3 thresholds');
   assert.match(sql, /add column if not exists bonus_ranks int\[\]/);
   assert.match(sql, /insert into public\.player_items \(user_id, item_type, rarity, bonuses, bonus_ranks\)/);
+});
+
+test('archetype items: every slot has a melee, projectile, spell and minion item that leans toward its bonuses', async () => {
+  const { AFFINITY, sellPrice, SELL } = await import('../js/content/items.js');
+  for (const slot of SLOTS) for (const a of ['melee', 'projectile', 'spell', 'minion'])
+    assert.ok(Object.values(ITEMS).some(t => t.slot === slot && t.affinity === a), slot + ' ' + a);
+  assert.equal(ROLL.affinityChance, 0.6);
+  for (const a in AFFINITY) { assert.ok(AFFINITY[a].length >= 4, a); for (const b of AFFINITY[a]) assert.ok(ITEM_BONUSES.includes(b), b + ' can roll on items'); }
+  /* selling: the same price on both sides */
+  assert.deepEqual(SELL, { base: [5, 15, 40, 100], perRank: 5 });
+  assert.equal(sellPrice({ item_type: 'helm', rarity: 3, bonuses: ['Keen edge', 'Cruelty'], bonus_ranks: [4, 1] }), 100 + 25);
+  assert.equal(sellPrice({ item_type: 'helm', rarity: 2, bonuses: ['Keen edge', 'Cruelty'] }), 40 + 30, 'old items: ranks at the rarity');
+  assert.equal(sellPrice('power_charm'), 5);
+  const sql = readFileSync(new URL('../supabase-update.sql', import.meta.url), 'utf8');
+  assert.ok(sql.includes('select (array[' + SELL.base.join(', ') + '])[least(greatest(p_rarity, 0), 3) + 1]'));
+  assert.ok(sql.includes('+ ' + SELL.perRank + ' * coalesce((select sum(coalesce(p_ranks[k], least(greatest(p_rarity, 0), 3) + 1))'));
+  assert.match(sql, /raise exception 'take the item off before selling it'/);
+  assert.match(sql, /grant execute on function public\.sell_item\(uuid\) to authenticated;/);
 });

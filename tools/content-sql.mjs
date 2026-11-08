@@ -2,7 +2,7 @@
    the talent tree (to check talent saves, and the reward bonuses its nodes give), the playable heroes (to check lineups) and the item types (to drop and check items). */
 import { TREES, TREE_ORDER, NODES } from '../js/content/talents.js';
 import { HEROES } from '../js/content/data.js';
-import { ITEMS, ITEM_BONUSES } from '../js/content/items.js';
+import { ITEMS, ITEM_BONUSES, AFFINITY } from '../js/content/items.js';
 
 const q = s => "'" + String(s).replace(/'/g, "''") + "'";
 const list = ids => 'array[' + ids.map(q).join(', ') + ']::text[]';
@@ -30,10 +30,12 @@ export function contentSeedSql() {
     'insert into public.hero_classes (id) values ' + heroes.map(h => '(' + q(h) + ')').join(', ') + ' on conflict (id) do nothing;',
     'delete from public.hero_classes where id <> all (' + list(heroes) + ');',
     '-- Item types. Removed items stay in the table (players may own them) but stop dropping.',
-    'insert into public.item_types (id, slot, droppable) values\n' + items.map(id => '  (' + q(id) + ', ' + q(ITEMS[id].slot) + ', true)').join(',\n') + '\non conflict (id) do update set slot = excluded.slot, droppable = true;',
+    'insert into public.item_types (id, slot, droppable, affinity) values\n' + items.map(id => '  (' + q(id) + ', ' + q(ITEMS[id].slot) + ', true, ' + (ITEMS[id].affinity ? q(ITEMS[id].affinity) : 'null') + ')').join(',\n') +
+      '\non conflict (id) do update set slot = excluded.slot, droppable = true, affinity = excluded.affinity;',
     'update public.item_types set droppable = false where id <> all (' + list(items) + ');',
     '-- Item bonuses: the relics an item can roll.',
-    'insert into public.item_bonuses (id) values ' + ITEM_BONUSES.map(b => '(' + q(b) + ')').join(', ') + ' on conflict (id) do nothing;',
+    'insert into public.item_bonuses (id, tags) values ' + ITEM_BONUSES.map(b => '(' + q(b) + ', ' + list(Object.keys(AFFINITY).filter(a => AFFINITY[a].includes(b))) + ')').join(', ') +
+      ' on conflict (id) do update set tags = excluded.tags;',
     'delete from public.item_bonuses where id <> all (' + list(ITEM_BONUSES) + ');'
   ].join('\n') + '\n';
 }

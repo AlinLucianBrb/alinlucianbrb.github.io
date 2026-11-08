@@ -99,6 +99,10 @@ alter table public.player_items add column if not exists bonus_ranks int[] not n
 create table if not exists public.item_bonuses (
   id text primary key
 );
+-- The archetypes whose items lean toward this bonus (melee, projectile, spell, minion), and the archetype of an item type
+-- (null: no leaning). Generated from js/content/items.js (AFFINITY, ITEMS).
+alter table public.item_bonuses add column if not exists tags text[] not null default '{}';
+alter table public.item_types add column if not exists affinity text;
 alter table public.item_bonuses enable row level security;
 alter table public.hero_classes enable row level security;
 alter table public.item_types enable row level security;
@@ -749,16 +753,36 @@ insert into public.talent_links (a, b) values
 insert into public.hero_classes (id) values ('warrior'), ('ranger'), ('mage'), ('rogue'), ('druid') on conflict (id) do nothing;
 delete from public.hero_classes where id <> all (array['warrior', 'ranger', 'mage', 'rogue', 'druid']::text[]);
 -- Item types. Removed items stay in the table (players may own them) but stop dropping.
-insert into public.item_types (id, slot, droppable) values
-  ('helm', 'helm', true),
-  ('body_armour', 'body', true),
-  ('leggings', 'legs', true),
-  ('boots', 'boots', true),
-  ('power_charm', 'trinket', true)
-on conflict (id) do update set slot = excluded.slot, droppable = true;
-update public.item_types set droppable = false where id <> all (array['helm', 'body_armour', 'leggings', 'boots', 'power_charm']::text[]);
+insert into public.item_types (id, slot, droppable, affinity) values
+  ('helm', 'helm', true, null),
+  ('body_armour', 'body', true, null),
+  ('leggings', 'legs', true, null),
+  ('boots', 'boots', true, null),
+  ('power_charm', 'trinket', true, null),
+  ('great_helm', 'helm', true, 'melee'),
+  ('plate_armour', 'body', true, 'melee'),
+  ('plate_greaves', 'legs', true, 'melee'),
+  ('sabatons', 'boots', true, 'melee'),
+  ('bloodstone_ring', 'trinket', true, 'melee'),
+  ('leather_hood', 'helm', true, 'projectile'),
+  ('leather_jerkin', 'body', true, 'projectile'),
+  ('leather_trousers', 'legs', true, 'projectile'),
+  ('ranger_boots', 'boots', true, 'projectile'),
+  ('feather_charm', 'trinket', true, 'projectile'),
+  ('circlet', 'helm', true, 'spell'),
+  ('silk_robe', 'body', true, 'spell'),
+  ('silk_wraps', 'legs', true, 'spell'),
+  ('silk_slippers', 'boots', true, 'spell'),
+  ('arcane_amulet', 'trinket', true, 'spell'),
+  ('beast_mask', 'helm', true, 'minion'),
+  ('hide_armour', 'body', true, 'minion'),
+  ('fur_leggings', 'legs', true, 'minion'),
+  ('fur_boots', 'boots', true, 'minion'),
+  ('fang_necklace', 'trinket', true, 'minion')
+on conflict (id) do update set slot = excluded.slot, droppable = true, affinity = excluded.affinity;
+update public.item_types set droppable = false where id <> all (array['helm', 'body_armour', 'leggings', 'boots', 'power_charm', 'great_helm', 'plate_armour', 'plate_greaves', 'sabatons', 'bloodstone_ring', 'leather_hood', 'leather_jerkin', 'leather_trousers', 'ranger_boots', 'feather_charm', 'circlet', 'silk_robe', 'silk_wraps', 'silk_slippers', 'arcane_amulet', 'beast_mask', 'hide_armour', 'fur_leggings', 'fur_boots', 'fang_necklace']::text[]);
 -- Item bonuses: the relics an item can roll.
-insert into public.item_bonuses (id) values ('Sharpened rounds'), ('Long barrels'), ('Quick hands'), ('Battle focus'), ('Split bolt'), ('Fine arrows'), ('Whetstone'), ('Arcane focus'), ('Wide swing'), ('Keen edge'), ('Cruelty'), ('Quick incantation'), ('Pack leader'), ('Feral haste'), ('Hunting instinct'), ('Savage bite') on conflict (id) do nothing;
+insert into public.item_bonuses (id, tags) values ('Sharpened rounds', array[]::text[]), ('Long barrels', array['projectile']::text[]), ('Quick hands', array['melee', 'projectile']::text[]), ('Battle focus', array['spell']::text[]), ('Split bolt', array['spell']::text[]), ('Fine arrows', array['projectile']::text[]), ('Whetstone', array['melee']::text[]), ('Arcane focus', array['spell']::text[]), ('Wide swing', array['melee']::text[]), ('Keen edge', array['projectile']::text[]), ('Cruelty', array['melee']::text[]), ('Quick incantation', array['spell']::text[]), ('Pack leader', array['minion']::text[]), ('Feral haste', array['minion']::text[]), ('Hunting instinct', array['minion']::text[]), ('Savage bite', array['minion']::text[]) on conflict (id) do update set tags = excluded.tags;
 delete from public.item_bonuses where id <> all (array['Sharpened rounds', 'Long barrels', 'Quick hands', 'Battle focus', 'Split bolt', 'Fine arrows', 'Whetstone', 'Arcane focus', 'Wide swing', 'Keen edge', 'Cruelty', 'Quick incantation', 'Pack leader', 'Feral haste', 'Hunting instinct', 'Savage bite']::text[]);
 
 -- ===== Functions =====
@@ -920,8 +944,9 @@ drop function if exists public.finish_run(int, int, int, boolean);
 --           "drops": every item found, as [{ "item_type", "rarity", "bonuses", "bonus_ranks" }] }.
 -- Each item gets a rarity (weights Common 55, Uncommon 28, Rare 13, Epic 4; Treasure Hunter talents multiply each rarer step's
 -- weight by 1 + rarity luck, like relic luck), at least rarity + 1 bonuses, then a 30% chance (plus talents) for each further
--- one, up to 4, all different, each with its own rank 1 to 4 (rarer items roll higher ranks more often; the same rules as
--- ROLL in js/content/items.js).
+-- one, up to 4, all different, each with its own rank 1 to 4 (rarer items roll higher ranks more often). On an archetype item
+-- (melee, projectile, spell, minion) each bonus has a 60% chance to come from that archetype's bonuses. The same rules as
+-- ROLL in js/content/items.js.
 -- A win always drops an item; a loss has a chance that grows with the waves survived (up to 50%). Item find from talents raises
 -- that: every full 100% is an item, and the rest is the chance of one more. Players can hold at most 200 items.
 -- Talents can also raise the gold and XP the match gives (reward_gold, reward_xp in talent_nodes).
@@ -934,6 +959,7 @@ language plpgsql security definer set search_path = public as $$
 declare me public.profiles; r public.runs; cap int; frontier boolean; elapsed numeric; done_waves int; dropped text := null;
         drops jsonb := '[]'; b_gold numeric; b_xp numeric; b_loot numeric; chance numeric; n int; boss_cap int;
         roll numeric; rar int; nb int; bon text[]; b_rar numeric; b_extra numeric; w1 numeric; w2 numeric; w3 numeric; rks int[];
+        aff text; pick text;
 begin
   if auth.uid() is null then raise exception 'not signed in'; end if;
   select * into r from public.runs where id = p_run and user_id = auth.uid() and finished_at is null for update;
@@ -978,13 +1004,23 @@ begin
   for i in 1 .. n loop
     exit when (select count(*) from public.player_items where user_id = auth.uid()) >= 200;
     dropped := null;
-    select id into dropped from public.item_types where droppable order by random() limit 1;
+    select id, affinity into dropped, aff from public.item_types where droppable order by random() limit 1;
     exit when dropped is null;
     roll := random() * (55 + w1 + w2 + w3);
     rar := case when roll < 55 then 0 when roll < 55 + w1 then 1 when roll < 55 + w1 + w2 then 2 else 3 end;
     nb := rar + 1;
     while nb < 4 and random() < 0.3 + b_extra loop nb := nb + 1; end loop;
-    select coalesce(array_agg(b.id), '{}') into bon from (select id from public.item_bonuses order by random() limit nb) b;
+    -- bonuses, all different; on an archetype item each has a 60% chance to come from that archetype's bonuses (if one is left)
+    bon := '{}';
+    for k in 1 .. nb loop
+      pick := null;
+      if aff is not null and random() < 0.6 then
+        select id into pick from public.item_bonuses where aff = any (tags) and id <> all (bon) order by random() limit 1;
+      end if;
+      if pick is null then select id into pick from public.item_bonuses where id <> all (bon) order by random() limit 1; end if;
+      exit when pick is null;
+      bon := bon || pick;
+    end loop;
     -- each bonus's rank: rank weights (in %) by rarity, Common 70/22/7/1, Uncommon 45/35/15/5, Rare 25/35/28/12, Epic 10/25/35/30
     rks := '{}';
     for k in 1 .. coalesce(array_length(bon, 1), 0) loop
@@ -1000,6 +1036,36 @@ begin
 end;
 $$;
 
+-- ===== Selling items for account gold =====
+-- The price: a base by rarity (5, 15, 40, 100) plus 5 gold per bonus rank; a bonus from before ranks counts at the item's
+-- rarity (the same as sellPrice in js/content/items.js).
+create or replace function public.item_price(p_rarity int, p_bonuses text[], p_ranks int[]) returns int
+language sql immutable set search_path = public as $$
+  select (array[5, 15, 40, 100])[least(greatest(p_rarity, 0), 3) + 1]
+       + 5 * coalesce((select sum(coalesce(p_ranks[k], least(greatest(p_rarity, 0), 3) + 1))
+                         from generate_subscripts(coalesce(p_bonuses, '{}'), 1) k), 0)::int
+$$;
+-- Sells one of the player's items: it must not be worn (take it off first). Returns the updated profile.
+create or replace function public.sell_item(p_item uuid) returns public.profiles
+language plpgsql security definer set search_path = public as $$
+declare me public.profiles; it public.player_items; price int;
+begin
+  if auth.uid() is null then raise exception 'not signed in'; end if;
+  select * into it from public.player_items where id = p_item and user_id = auth.uid() for update;
+  if not found then raise exception 'unknown item'; end if;
+  select * into me from public.profiles where id = auth.uid() for update;
+  if exists (select 1 from jsonb_each(coalesce(me.equipment, '{}'::jsonb)) h,
+                  jsonb_each_text(case when jsonb_typeof(h.value) = 'object' then h.value else jsonb_build_object('trinket', h.value) end) s
+              where s.value = p_item::text) then
+    raise exception 'take the item off before selling it';
+  end if;
+  price := public.item_price(it.rarity, it.bonuses, it.bonus_ranks);
+  delete from public.player_items where id = it.id;
+  update public.profiles set gold = gold + price where id = auth.uid() returning * into me;
+  return me;
+end;
+$$;
+
 -- ===== Permissions: only what the game needs =====
 revoke all on function public.signup_check(text, text) from public, anon, authenticated;
 grant execute on function public.signup_check(text, text) to anon, authenticated;
@@ -1011,6 +1077,9 @@ revoke all on function public.finish_run(uuid, int, int, boolean, int) from publ
 grant execute on function public.finish_run(uuid, int, int, boolean, int) to authenticated;
 revoke all on function public.save_loadout(text[], jsonb) from public, anon, authenticated;
 grant execute on function public.save_loadout(text[], jsonb) to authenticated;
+revoke all on function public.sell_item(uuid) from public, anon, authenticated;
+grant execute on function public.sell_item(uuid) to authenticated;
+revoke all on function public.item_price(int, text[], int[]) from public, anon, authenticated;
 revoke all on function public.save_talents(text[]) from public, anon, authenticated;
 grant execute on function public.save_talents(text[]) to authenticated;
 -- Internal helpers: only other database functions use them.

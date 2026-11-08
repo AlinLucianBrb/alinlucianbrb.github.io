@@ -93,7 +93,10 @@ button:focus-visible,input:focus-visible{outline:3px solid #fff;outline-offset:2
 #screen-inventory{justify-content:flex-start;overflow:auto}
 .invgrid{display:grid;grid-template-columns:repeat(8,minmax(0,64px));gap:6px;padding:10px;background:var(--panel);border:2px solid var(--line);border-radius:8px}
 .invcell{position:relative;aspect-ratio:1;border:1px solid var(--line);border-radius:6px;background:#101813;display:grid;place-items:center}
-.invcell.full{cursor:help}
+.invcell.full{cursor:pointer}
+.invcell.picked{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.invsell{display:flex;gap:12px;align-items:center;justify-content:center;min-height:38px}
+.sellbtn.confirm{border-color:#f2b84b;color:#f2b84b}
 .invcell.full:hover,.invcell.full:focus{border-color:var(--accent)}
 .invcell .wornmark{position:absolute;top:2px;right:5px;font-size:.7em;color:#8be28b}
 .itemicon{--ic:#9db3a3;--rc:#ecf1e8;display:inline-grid;place-items:center;width:40px;height:40px;border-radius:8px;font-weight:800;font-size:.9em;color:#101813;background:var(--ic);border:3px solid var(--rc);box-shadow:inset 0 -3px 0 rgba(0,0,0,.25)}
@@ -336,7 +339,8 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
   <h1>Inventory</h1>
   <p class="muted" id="invEmpty">No items yet. Every win drops one, every boss you defeat drops one, and losses can too.</p>
   <div class="invgrid" id="invGrid"></div>
-  <small class="muted">Hover an item to see what it does. Equip items on each hero's page (Heroes).</small>
+  <div class="invsell" id="invSell"></div>
+  <small class="muted">Hover an item to see what it does. Equip items on each hero's page (Heroes). Click one to sell it for gold.</small>
 </section>
 
 <section id="screen-leaderboard" class="screen" hidden>

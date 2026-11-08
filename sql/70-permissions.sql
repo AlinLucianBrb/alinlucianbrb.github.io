@@ -9,6 +9,9 @@ revoke all on function public.finish_run(uuid, int, int, boolean, int) from publ
 grant execute on function public.finish_run(uuid, int, int, boolean, int) to authenticated;
 revoke all on function public.save_loadout(text[], jsonb) from public, anon, authenticated;
 grant execute on function public.save_loadout(text[], jsonb) to authenticated;
+revoke all on function public.sell_item(uuid) from public, anon, authenticated;
+grant execute on function public.sell_item(uuid) to authenticated;
+revoke all on function public.item_price(int, text[], int[]) from public, anon, authenticated;
 revoke all on function public.save_talents(text[]) from public, anon, authenticated;
 grant execute on function public.save_talents(text[]) to authenticated;
 -- Internal helpers: only other database functions use them.

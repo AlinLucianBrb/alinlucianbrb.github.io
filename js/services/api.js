@@ -77,6 +77,13 @@ export async function saveLoadout(lineup, equipment) {
   if (data) fill(data);
   return { profile: data, error: error && error.message };
 }
+/* Sells one of the player's items for account gold (the server sets the price and refuses worn items). */
+export async function sellItem(itemId) {
+  if (!sb) return { profile: null, ...OFFLINE };
+  const { data, error } = await sb.rpc('sell_item', { p_item: itemId });
+  if (data) fill(data);
+  return { profile: data, error: error && error.message };
+}
 export async function getLeaderboard() {
   if (!sb) return { rows: [], ...OFFLINE };
   const { data, error } = await sb.rpc('get_leaderboard', { p_limit: 20 });

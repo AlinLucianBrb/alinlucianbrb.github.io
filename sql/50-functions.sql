@@ -157,8 +157,9 @@ drop function if exists public.finish_run(int, int, int, boolean);
 --           "drops": every item found, as [{ "item_type", "rarity", "bonuses", "bonus_ranks" }] }.
 -- Each item gets a rarity (weights Common 55, Uncommon 28, Rare 13, Epic 4; Treasure Hunter talents multiply each rarer step's
 -- weight by 1 + rarity luck, like relic luck), at least rarity + 1 bonuses, then a 30% chance (plus talents) for each further
--- one, up to 4, all different, each with its own rank 1 to 4 (rarer items roll higher ranks more often; the same rules as
--- ROLL in js/content/items.js).
+-- one, up to 4, all different, each with its own rank 1 to 4 (rarer items roll higher ranks more often). On an archetype item
+-- (melee, projectile, spell, minion) each bonus has a 60% chance to come from that archetype's bonuses. The same rules as
+-- ROLL in js/content/items.js.
 -- A win always drops an item; a loss has a chance that grows with the waves survived (up to 50%). Item find from talents raises
 -- that: every full 100% is an item, and the rest is the chance of one more. Players can hold at most 200 items.
 -- Talents can also raise the gold and XP the match gives (reward_gold, reward_xp in talent_nodes).
@@ -171,6 +172,7 @@ language plpgsql security definer set search_path = public as $$
 declare me public.profiles; r public.runs; cap int; frontier boolean; elapsed numeric; done_waves int; dropped text := null;
         drops jsonb := '[]'; b_gold numeric; b_xp numeric; b_loot numeric; chance numeric; n int; boss_cap int;
         roll numeric; rar int; nb int; bon text[]; b_rar numeric; b_extra numeric; w1 numeric; w2 numeric; w3 numeric; rks int[];
+        aff text; pick text;
 begin
   if auth.uid() is null then raise exception 'not signed in'; end if;
   select * into r from public.runs where id = p_run and user_id = auth.uid() and finished_at is null for update;
@@ -215,13 +217,23 @@ begin
   for i in 1 .. n loop
     exit when (select count(*) from public.player_items where user_id = auth.uid()) >= 200;
     dropped := null;
-    select id into dropped from public.item_types where droppable order by random() limit 1;
+    select id, affinity into dropped, aff from public.item_types where droppable order by random() limit 1;
     exit when dropped is null;
     roll := random() * (55 + w1 + w2 + w3);
     rar := case when roll < 55 then 0 when roll < 55 + w1 then 1 when roll < 55 + w1 + w2 then 2 else 3 end;
     nb := rar + 1;
     while nb < 4 and random() < 0.3 + b_extra loop nb := nb + 1; end loop;
-    select coalesce(array_agg(b.id), '{}') into bon from (select id from public.item_bonuses order by random() limit nb) b;
+    -- bonuses, all different; on an archetype item each has a 60% chance to come from that archetype's bonuses (if one is left)
+    bon := '{}';
+    for k in 1 .. nb loop
+      pick := null;
+      if aff is not null and random() < 0.6 then
+        select id into pick from public.item_bonuses where aff = any (tags) and id <> all (bon) order by random() limit 1;
+      end if;
+      if pick is null then select id into pick from public.item_bonuses where id <> all (bon) order by random() limit 1; end if;
+      exit when pick is null;
+      bon := bon || pick;
+    end loop;
     -- each bonus's rank: rank weights (in %) by rarity, Common 70/22/7/1, Uncommon 45/35/15/5, Rare 25/35/28/12, Epic 10/25/35/30
     rks := '{}';
     for k in 1 .. coalesce(array_length(bon, 1), 0) loop
@@ -234,5 +246,35 @@ begin
     drops := drops || jsonb_build_array(jsonb_build_object('item_type', dropped, 'rarity', rar, 'bonuses', to_jsonb(bon), 'bonus_ranks', to_jsonb(rks)));
   end loop;
   return jsonb_build_object('profile', to_jsonb(me), 'drop', drops -> 0 ->> 'item_type', 'drops', drops);
+end;
+$$;
+
+-- ===== Selling items for account gold =====
+-- The price: a base by rarity (5, 15, 40, 100) plus 5 gold per bonus rank; a bonus from before ranks counts at the item's
+-- rarity (the same as sellPrice in js/content/items.js).
+create or replace function public.item_price(p_rarity int, p_bonuses text[], p_ranks int[]) returns int
+language sql immutable set search_path = public as $$
+  select (array[5, 15, 40, 100])[least(greatest(p_rarity, 0), 3) + 1]
+       + 5 * coalesce((select sum(coalesce(p_ranks[k], least(greatest(p_rarity, 0), 3) + 1))
+                         from generate_subscripts(coalesce(p_bonuses, '{}'), 1) k), 0)::int
+$$;
+-- Sells one of the player's items: it must not be worn (take it off first). Returns the updated profile.
+create or replace function public.sell_item(p_item uuid) returns public.profiles
+language plpgsql security definer set search_path = public as $$
+declare me public.profiles; it public.player_items; price int;
+begin
+  if auth.uid() is null then raise exception 'not signed in'; end if;
+  select * into it from public.player_items where id = p_item and user_id = auth.uid() for update;
+  if not found then raise exception 'unknown item'; end if;
+  select * into me from public.profiles where id = auth.uid() for update;
+  if exists (select 1 from jsonb_each(coalesce(me.equipment, '{}'::jsonb)) h,
+                  jsonb_each_text(case when jsonb_typeof(h.value) = 'object' then h.value else jsonb_build_object('trinket', h.value) end) s
+              where s.value = p_item::text) then
+    raise exception 'take the item off before selling it';
+  end if;
+  price := public.item_price(it.rarity, it.bonuses, it.bonus_ranks);
+  delete from public.player_items where id = it.id;
+  update public.profiles set gold = gold + price where id = auth.uid() returning * into me;
+  return me;
 end;
 $$;

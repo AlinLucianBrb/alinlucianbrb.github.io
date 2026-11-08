@@ -19,14 +19,45 @@ export const ITEMS = {
   body_armour: { name: 'Body Armour', slot: 'body',    color: '#b9a27a', desc: '', mods: [] },
   leggings:    { name: 'Leggings',    slot: 'legs',    color: '#8fa889', desc: '', mods: [] },
   boots:       { name: 'Boots',       slot: 'boots',   color: '#a48b74', desc: '', mods: [] },
-  power_charm: { name: 'Power Charm', slot: 'trinket', color: '#f2b84b', desc: '+5 damage', mods: [{ stat: 'damage', type: 'flat', value: 5 }] }
+  power_charm: { name: 'Power Charm', slot: 'trinket', color: '#f2b84b', desc: '+5 damage', mods: [{ stat: 'damage', type: 'flat', value: 5 }] },
+  /* Archetype items: each bonus has a 60% chance to come from its archetype's bonuses (AFFINITY), see ROLL.affinityChance. */
+  great_helm:       { name: 'Great Helm',       slot: 'helm',    affinity: 'melee',      color: '#b0b8c2', desc: '', mods: [] },
+  plate_armour:     { name: 'Plate Armour',     slot: 'body',    affinity: 'melee',      color: '#b0b8c2', desc: '', mods: [] },
+  plate_greaves:    { name: 'Plate Greaves',    slot: 'legs',    affinity: 'melee',      color: '#b0b8c2', desc: '', mods: [] },
+  sabatons:         { name: 'Sabatons',         slot: 'boots',   affinity: 'melee',      color: '#b0b8c2', desc: '', mods: [] },
+  bloodstone_ring:  { name: 'Bloodstone Ring',  slot: 'trinket', affinity: 'melee',      color: '#c23a3a', desc: '', mods: [] },
+  leather_hood:     { name: 'Leather Hood',     slot: 'helm',    affinity: 'projectile', color: '#4c7a3a', desc: '', mods: [] },
+  leather_jerkin:   { name: 'Leather Jerkin',   slot: 'body',    affinity: 'projectile', color: '#82552f', desc: '', mods: [] },
+  leather_trousers: { name: 'Leather Trousers', slot: 'legs',    affinity: 'projectile', color: '#82552f', desc: '', mods: [] },
+  ranger_boots:     { name: 'Ranger Boots',     slot: 'boots',   affinity: 'projectile', color: '#82552f', desc: '', mods: [] },
+  feather_charm:    { name: 'Feather Charm',    slot: 'trinket', affinity: 'projectile', color: '#4c7a3a', desc: '', mods: [] },
+  circlet:          { name: 'Circlet',          slot: 'helm',    affinity: 'spell',      color: '#e8a940', desc: '', mods: [] },
+  silk_robe:        { name: 'Silk Robe',        slot: 'body',    affinity: 'spell',      color: '#5a64b8', desc: '', mods: [] },
+  silk_wraps:       { name: 'Silk Wraps',       slot: 'legs',    affinity: 'spell',      color: '#5a64b8', desc: '', mods: [] },
+  silk_slippers:    { name: 'Silk Slippers',    slot: 'boots',   affinity: 'spell',      color: '#5a64b8', desc: '', mods: [] },
+  arcane_amulet:    { name: 'Arcane Amulet',    slot: 'trinket', affinity: 'spell',      color: '#c39bf2', desc: '', mods: [] },
+  beast_mask:       { name: 'Beast Mask',       slot: 'helm',    affinity: 'minion',     color: '#ece2c6', desc: '', mods: [] },
+  hide_armour:      { name: 'Hide Armour',      slot: 'body',    affinity: 'minion',     color: '#8a6a4a', desc: '', mods: [] },
+  fur_leggings:     { name: 'Fur Leggings',     slot: 'legs',    affinity: 'minion',     color: '#8a6a4a', desc: '', mods: [] },
+  fur_boots:        { name: 'Fur Boots',        slot: 'boots',   affinity: 'minion',     color: '#8a6a4a', desc: '', mods: [] },
+  fang_necklace:    { name: 'Fang Necklace',    slot: 'trinket', affinity: 'minion',     color: '#ece2c6', desc: '', mods: [] }
 };
+/* The bonuses each archetype's items lean toward (all of them can be item bonuses). */
+export const AFFINITY = {
+  melee:      ['Whetstone', 'Wide swing', 'Quick hands', 'Cruelty'],
+  projectile: ['Fine arrows', 'Long barrels', 'Quick hands', 'Keen edge'],
+  spell:      ['Arcane focus', 'Split bolt', 'Quick incantation', 'Battle focus'],
+  minion:     ['Pack leader', 'Feral haste', 'Hunting instinct', 'Savage bite']
+};
+export const AFFINITY_LABEL = { melee: 'Melee', projectile: 'Projectile', spell: 'Spell', minion: 'Minion' };
 
 /* How items are rolled (the server's finish_run does the same; a test keeps them in step):
    rarity by the relic weights (Common 55, Uncommon 28, Rare 13, Epic 4; Treasure Hunter's item rarity luck multiplies each rarer
    step's weight by 1 + luck, like relic luck); a Common item has at least 1 bonus, an Uncommon 2, a Rare 3 and an Epic 4; then
    each further bonus has a 30% chance (plus Treasure Hunter's extra bonus chance), up to 4. */
 export const ROLL = { maxBonuses: 4, extraChance: 0.3, guaranteed: r => r + 1,
+  /* An archetype item's bonuses: each one has this chance to come from its AFFINITY list (if one is left), else from all. */
+  affinityChance: 0.6,
   /* The chance of each bonus rank (1 to 4), in %, by the item's rarity (Common, Uncommon, Rare, Epic). */
   rankWeights: [[70, 22, 7, 1], [45, 35, 15, 5], [25, 35, 28, 12], [10, 25, 35, 30]] };
 export const RANKS = 4;
@@ -92,4 +123,12 @@ export function itemMods(equipped = {}) {
     }
   }
   return out;
+}
+
+/* Selling an item for account gold (Inventory). The server's sell_item uses the same price (a test keeps them in step):
+   a base by rarity plus 5 gold per bonus rank (a bonus from before ranks counts at the item's rarity). */
+export const SELL = { base: [5, 15, 40, 100], perRank: 5 };
+export function sellPrice(row) {
+  const i = asItem(row);
+  return SELL.base[i.rarity] + SELL.perRank * i.ranks.reduce((a, r) => a + r, 0);
 }

@@ -69,7 +69,7 @@ test('the database knows every playable hero and item, and the lineup default ma
   const { HEROES, LINEUP_SIZE } = await import('../js/content/data.js'), { ITEMS } = await import('../js/content/items.js');
   for (const [f, sql] of sqlFiles) {
     for (const h of HEROES) assert.ok(sql.includes("('" + h.id + "')"), f + ' is missing hero ' + h.id);
-    for (const id in ITEMS) assert.ok(sql.includes("('" + id + "', '" + ITEMS[id].slot + "', true)"), f + ' is missing item ' + id);
+    for (const id in ITEMS) assert.ok(sql.includes("('" + id + "', '" + ITEMS[id].slot + "', true, " + (ITEMS[id].affinity ? "'" + ITEMS[id].affinity + "'" : 'null') + ')'), f + ' is missing item ' + id);
     assert.ok(sql.includes("'{" + HEROES.slice(0, LINEUP_SIZE).map(h => h.id).join(',') + "}'"), f + ': default lineup');
     assert.match(sql, /if n < 1 or n > 3 then raise exception 'bring 1 to 3 heroes'/, f + ': lineup size matches LINEUP_SIZE');
   }

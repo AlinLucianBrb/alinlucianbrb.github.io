@@ -109,7 +109,66 @@ CHARM = [
     '............Y',
 ]
 
-ITEMS = {'helm': HELM, 'body_armour': BODY, 'leggings': LEGS, 'boots': BOOTS, 'power_charm': CHARM}
+# ---- Archetype items: heavy plate (melee), leather (projectile), silk (spell), fur and bone (minion) ----------------------
+# Extra letters: c / C cloth (light / dark, set per item), f / F fur (light / dark), b bone.
+GREAT_HELM = ['.......cC......', '......cCC......', '.....KgggG.....', '...KgwwgggGK...', '..KgwgggggGGK..', '..gwyyyzyyyGK..',
+              '..gwgggggggGK..', '..gwKKKKKKKGK..', '..gwgggKgggGK..', '..gwgggKgggGK..', '..gwgggKgggGK..', '..KgggggggGGK..', '...KKKKKKKKK...']
+PLATE = ['..wwgG.......wgGG..', '.wwgggGKKKKKKggGGK.', '.wggggGgwwwgGgggGK.', '..wgGKgwcccgGKgGK..', '....KgwcCcCgGK.....',
+         '....KgwcaAcgGK.....', '....KgwcCcCgGK.....', '....KgwcccCgGK.....', '....KyyyzyyyyY.....', '....KgwcCccgGK.....',
+         '.....KwcccCgK......', '......KKKKKK.......']
+GREAVES = ['...yyyyyyzyyyyyyY', '...wggggggggggGGK', '...wgggGK.wgggGGK', '..wggggGK.wggggGK', '.wGwwggGKwGwwgggK', '.wgaAgGK..wgaAgK.',
+           '..wgggGK..wgggGK.', '..wgggGK..wgggGK.', '..wgggGK..wgggGK.', '..wGGGGK..wGGGGK.', '...KKKK....KKKK..']
+SABATONS = ['..wwgG.......wwgG', '..wggGK......wggGK', '.yyyyyY.....yyyyyY', '..wgaGK......wgaGK', '..wggGK......wggGK',
+            '..wgggGK.....wgggGK', '..wggggGGK...wggggGGK', '..wgggggGGGK.wgggggGGGK', '..KKKKKKKKKK.KKKKKKKKKK']
+RING_RED = ['....nnnnn....', '..nn.....nn..', '.n.........n.', 'n...........n', 'n...........n', '.n.........n.', '..nnyyyyynn..',
+            '...yzRRRyY...', '..yzRWRRRyY..', '..yRRRRRRyY..', '...yRRRRyY...', '....yyyyY....']
+HOOD = ['.....cccC.....', '....ccccCC....', '...ccCccCCC...', '..cccDDDDCCC..', '..ccDddddDCC..', '.cccDdddddDCC.', '.ccCDdddddDCC.',
+        '.ccCDDdddDDCC.', '.cccCDDDDDCCC.', 'ccccyCCCCyCCCC', '.cccCyyzyCCC..', '..cccccCCCC...']
+JERKIN = ['...iiI.......iiI...', '..iiiiIDDDDDDiiiID.', '.iiiiiIdiiidIiiiiD.', '..iiDdIdiyidIdDiD..', '....DdIdiiidIdD....',
+          '....DcIdiiidIcD....', '....DcIdiyidIcD....', '....DcIdiiidIcD....', '....DDDDzDDDDDD....', '....DciiiiiiicD....',
+          '.....DiiiiiiiD.....', '......DDDDDDD......']
+TROUSERS = ['....DDDDDDzDDDDDD', '....DiiiiiiiiiiID', '....DiiiiDKDiiiID', '....DiiiID.DiiiID', '...DiiiiD..DiiiiD', '...DicciD..DicciD',
+            '...DiiiiD..DiiiiD', '...DiiiiD..DiiiiD', '...DiiiiD..DiiiiD', '...DDDDDD..DDDDDD']
+RBOOTS = ['..iiI........iiI', '.iiiiI......iiiiI', '.DdddD......DdddD', '.yiiiD......yiiiD', '.DiiiD......DiiiD', '.DiiiD......DiiiD',
+          '.DiiiiD.....DiiiiD', '.DiiiiiDD...DiiiiiDD', '.DDDDDDDD...DDDDDDDD']
+FEATHER = ['......n.......', '.....n.n......', '....n...n.....', '....n...n.....', '.....n.n......', '......y.......', '.....cWc......',
+           '....cWcC......', '...cWcCC......', '...cWcC.......', '..cWcCC.......', '..cWcC........', '.cWCC.........', '.c.C.........', 'D.............']
+CIRCLET = ['', '..............', '.....yyyY.....', '..yyyzaAyyyY..', '.yzyyaoWAyyyY.', 'yzY..aAAa..yyY', 'yY...aaaa...yY', 'yY..........yY',
+           '.yY........yY.', '..yyyyyyyyyY..']
+ROBE = ['..ccC.......cCC..', '.ccccCyyyyyycCCC.', '.cccccyCcCcyCCCC.', '..ccCyCcaAcCyCC..', '...cyCcCcCcCyC...', '...cyCcCaCcCyC...',
+        '...cyCcCcCcCyC...', '..ccyCcCcCcCyCC..', '..ccyCcCcCcCyCC..', '.cccyCcCcCcCyCCC.', '.cyyyyyyzyyyyyyC.', '..CCCCCCCCCCCCC..']
+WRAPS = ['...yyyyyyzyyyyyyY', '...ccccccccccCCCC', '...cccCyCC.ccCCCC', '...cccCyC..ccCyCC', '...ccCyC...cCyCCC', '...cCyCC...CyCCCC',
+         '...cyCCC...yCCCCC', '...ccCCC...cCCCC.', '....cCC.....cCC..', '....yyy.....yyy..']
+SLIPPERS = ['', '', '..cccC......cccC', '.ccccCC....ccccCC', '.cyyyCC....cyyyCC', '.ccccCCC...ccccCCC', '.ccccCCCC..ccccCCCC',
+            '..cccCCCCyy.cccCCCCyy', '...CCCCCCC...CCCCCCC']
+AMULET = ['.......n......n.......', '........n....n........', '.........n..n.........', '..........nn..........', '.........yzzY.........',
+          '........yaAAoY........', '.......yaAoWAAY.......', '.......yaAAAAAY.......', '.......YaaAAAaY.......', '........YaaaaY........',
+          '.........YYYY.........']
+MASK = ['.b..........b.', '.bb........bb.', '.bBb......bBb.', '.bBBbbbbbbBBb.', 'bbbbbbbbbbbbbb', 'bbKKbbbbbbKKbb', 'bbKabbbbbbaKbb',
+        'bbbbbbbbbbbbbb', '.bbbbbKKbbbbb.', '..bbbbKKbbbb..', '..bbuubbbbuub.', '...bbBBBBbb...']
+HIDE = ['..ffF.......ffF..', '.fffffFFfFfFfffF.', '.ffffFFffFFfFfffF', '..fiiDdiiiidDiiF.', '...DiDdiiiiddiD..', '...DiDbiiiibdiD..',
+        '...DiDdiiiiddiD..', '...DiDdiiyiidiD..', '...DDDDDDzDDDDD..', '...DiiiiiiiiiiD..', '....DiiiiiiiiD...', '.....DDDDDDDD....']
+FURLEGS = ['....DDDDDDzDDDDDD', '....DiiiiiiiiiiID', '....DiiiiDKDiiiID', '...ffFiiD.DiiffFF', '..ffffFD..DffffFF', '...DiiiiD..DiiiiD',
+           '...DiiiiD..DiiiiD', '...DiiiiD..DiiiiD', '...ffffFF.ffffFF.', '...DDDDDD..DDDDDD']
+FURBOOTS = ['.ffFfF......ffFfF', 'ffffFFF....ffffFFF', '.DiiiiD.....DiiiiD', '.DiiiiD.....DiiiiD', '.DiiiiiD....DiiiiiD',
+            '.DiiiiiiDD..DiiiiiiDD', '.DDDDDDDDD..DDDDDDDDD']
+FANGS = ['n..................n', '.n................n.', '..n..............n..', '...nn..........nn...', '.....nnnnnnnnnn.....',
+         '.....b.b.yzY.b.b....', '.....b.b.aAo.b.b....', '.....b.b..A..b.b....', '.......b.....b......', '....................']
+
+CLOTH = {'melee': {'c': '#a83a3a', 'C': '#6e2222'}, 'projectile': {'c': '#4c7a3a', 'C': '#2f4a24'},
+         'spell': {'c': '#5a64b8', 'C': '#363c7a'}, 'minion': {'c': '#8a6a4a', 'C': '#5a4430'}}
+FUR = {'f': '#b8a088', 'F': '#7a6450', 'b': '#ece2c6', 'B': '#b8ac90', 'u': '#ffffff', 'R': '#c23a3a'}
+
+#   id: (rows, archetype or None) - the ids are the item types in js/content/items.js
+ITEMS = {'helm': (HELM, None), 'body_armour': (BODY, None), 'leggings': (LEGS, None), 'boots': (BOOTS, None), 'power_charm': (CHARM, None),
+         'great_helm': (GREAT_HELM, 'melee'), 'plate_armour': (PLATE, 'melee'), 'plate_greaves': (GREAVES, 'melee'),
+         'sabatons': (SABATONS, 'melee'), 'bloodstone_ring': (RING_RED, 'melee'),
+         'leather_hood': (HOOD, 'projectile'), 'leather_jerkin': (JERKIN, 'projectile'), 'leather_trousers': (TROUSERS, 'projectile'),
+         'ranger_boots': (RBOOTS, 'projectile'), 'feather_charm': (FEATHER, 'projectile'),
+         'circlet': (CIRCLET, 'spell'), 'silk_robe': (ROBE, 'spell'), 'silk_wraps': (WRAPS, 'spell'), 'silk_slippers': (SLIPPERS, 'spell'),
+         'arcane_amulet': (AMULET, 'spell'),
+         'beast_mask': (MASK, 'minion'), 'hide_armour': (HIDE, 'minion'), 'fur_leggings': (FURLEGS, 'minion'), 'fur_boots': (FURBOOTS, 'minion'),
+         'fang_necklace': (FANGS, 'minion')}
 
 # Materials by rarity (0 Common .. 3 Epic). The charm keeps a gem at every rarity (a red one when Common).
 RARITY_MATS = [
@@ -133,6 +192,9 @@ def palette(rarity, item):
     pal.update(dict(zip('aAo', gem)))
     if not m['gem'] and item != 'power_charm':
         pal['W'] = m['g']
+    aff = ITEMS[item][1]
+    pal.update(FUR)
+    pal.update(CLOTH.get(aff, CLOTH['melee']))
     return pal
 
 
@@ -169,7 +231,7 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     rarity_colors = ['#ecf1e8', '#5fd46f', '#5aa9ff', '#c084fc']
     made = {}
-    for item, rows in ITEMS.items():
+    for item, (rows, aff) in ITEMS.items():
         for r in range(4):
             im = icon(rows, palette(r, item), glow=rarity_colors[3] if r == 3 else None)
             im.save(os.path.join(OUT, 'item_%s_%d.png' % (item, r)))
