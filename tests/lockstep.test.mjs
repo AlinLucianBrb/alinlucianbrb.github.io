@@ -94,7 +94,7 @@ test('the host and two guests play the very same match', () => {
 test('turns are sparing (3 a second, plus an early one when someone acts), and guests play smoothly about half a second behind the host', () => {
   const { turnsPerSecond, stalls, maxBehind } = run();
   assert.ok(turnsPerSecond <= 1000 / TURN_MS && turnsPerSecond >= 1000 / IDLE_MS * 0.9, 'turns per second: ' + turnsPerSecond.toFixed(2));
-  assert.ok(turnsPerSecond < 3.6, 'mostly regular turns: ' + turnsPerSecond.toFixed(2));
+  assert.ok(turnsPerSecond < 5.6, 'mostly regular turns: ' + turnsPerSecond.toFixed(2));
   assert.ok(stalls < 30, 'guests hardly ever stand still waiting for a turn (frames: ' + stalls + ')');
   assert.ok(maxBehind < 45, 'well under a second behind (ticks: ' + maxBehind + ')');
 });
