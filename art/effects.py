@@ -221,7 +221,104 @@ PROJECTILES = {
     'boomerang': boomerang,
     'sword': sword,
     'piercing': piercing,
+    'seed': lambda: seed(),
 }
+
+def seed():
+    """The Druid's thorny seed, with a green trail."""
+    rows = ['', '', '', '', '',
+            '..........y.',
+            '.t.t....yQQy',
+            '..t...tQQrQQy',
+            '.t.t.t.QQQQQQ.y',
+            '..t...tQQQQQy',
+            '.t.t....yQQy',
+            '..........y']
+    return render(rows, {'t': '#9fe06a88', 'Q': '#5a3a1e', 'r': '#a8783e', 'y': '#c8ff70'}, 16, outline=True)
+
+
+# ---- Druid ---------------------------------------------------------------------------------------------------------------
+def wolf():
+    """The Animalic Druid's wolf, facing right (the game mirrors it to face left). 64x64, the wolf about 24 art pixels long."""
+    rows = [''] * 9 + [
+        '.....................gw',
+        '....................gGgw',
+        '...................gGEgGw',
+        '...GGGGG..........gGGGgww',
+        '..GgggggGGGGGGGGGgGGGGGGvv',
+        '.GggwwgggggggggggGGGGGGG',
+        'GGgwgggggggggggggGGGuGu',
+        'G.GggggggggggggggGGG',
+        '...GgggggggggggGGG',
+        '...GGG.GGGGG..GG.GG',
+        '...GG..GG.....GG.GG',
+        '...GG...GG....GG..GG',
+        '...KK...KK....KK..KK']
+    rows = ['....' + r for r in rows]
+    return render(rows, {'K': '#2a2c34', 'G': '#56606b', 'g': '#8f99a4', 'w': '#d8dee6', 'E': '#ffb347', 'v': '#16181c', 'u': '#ece2c6'},
+                  32, outline=True)
+
+
+def thorns():
+    """A patch of brambles on the ground (the Naturist Druid's thorns), 32x32."""
+    g = Grid(16)
+    g.disc(8, 8.5, 6.5, 'a', 5.5)
+    for x0, y0, x1, y1 in ((2, 9, 13, 7), (4, 4, 12, 13), (3, 12, 11, 4), (7, 3, 9, 14), (1, 7, 14, 10)):
+        g.line(x0, y0, x1, y1, 'G')
+    for x, y in ((3, 8), (6, 5), (10, 6), (12, 9), (9, 12), (5, 11), (8, 8), (11, 4), (4, 13)):
+        g.set(x, y, 'w')
+    for x, y in ((5, 7), (10, 10), (7, 11)):
+        g.set(x, y, 'l')
+    return render(g.rows(), {'a': '#22301aaa', 'G': '#5a6a2a', 'w': '#f2ead2', 'l': '#9fe06a'}, 16, outline=False)
+
+
+def spikes_frames():
+    """Bramble spikes erupting from a patch: 3 frames of 32x32 art (64x64 each)."""
+    frames = []
+    spikes = [(8, 22, 9), (13, 25, 12), (18, 21, 14), (23, 24, 11), (11, 18, 8), (21, 17, 9), (16, 26, 7)]
+    for f in range(3):
+        g = Grid(32)
+        g.disc(16, 23, 12, 'a', 6)
+        k = [0.55, 1, 0.7][f]
+        for x, y, h in spikes:
+            top = round(y - h * k)
+            for yy in range(top, y + 1):
+                w = 1 if yy - top < 3 else 2
+                for dx in range(-w + 1, w):
+                    g.set(x + dx, yy, 'Q' if dx < 0 or w == 1 else 'q')
+            g.set(x, top, 'w')
+        frames.append(render(g.rows(), {'a': '#2a3a1c66', 'Q': '#6a8a3a', 'q': '#3f5a24', 'w': '#f2ead2'}, 32, outline=f < 2))
+    return strip(frames)
+
+
+def moon():
+    """The Lunar Druid's falling moon, 64x64."""
+    g = Grid(32)
+    g.disc(16, 16, 14.5, 'g')
+    g.disc(16, 16, 12.5, 'm')
+    g.disc(13, 13, 9, 'l')
+    for x, y, r in ((20, 19, 3), (11, 21, 2), (19, 10, 2), (9, 12, 1.5), (23, 14, 1.5)):
+        g.disc(x, y, r, 'c'); g.disc(x - 0.6, y - 0.6, r * 0.6, 'm')
+    g.disc(10, 9, 2, 'w')
+    return render(g.rows(), {'g': '#b8c8ff55', 'm': '#c8d2ee', 'l': '#e6ecfa', 'c': '#9aa6c8', 'w': '#ffffff'}, 32, outline=True)
+
+
+def moonburst_frames():
+    """Where the moon lands: a cold, pale shockwave, 5 frames of 64x64."""
+    frames = []
+    for f in range(5):
+        g = Grid(32)
+        r = [6, 10, 13, 14.5, 15.5][f]
+        if f < 3:
+            g.disc(16, 16, r, 'b'); g.disc(16, 16, r * 0.7, 'c'); g.disc(16, 16, r * 0.35, 'w')
+        else:
+            g.ring(16, 16, r, 2.2, 'b')
+            for i in range(8):
+                a = i * 0.785 + f
+                g.disc(16 + math.cos(a) * r * 0.7, 16 + math.sin(a) * r * 0.7, 1.6, 's')
+        frames.append(render(g.rows(), {'w': '#ffffff', 'c': '#dfe8ff', 'b': '#8ab4f0bb', 's': '#c8d8ff88'}, 32))
+    return strip(frames)
+
 
 # ---- Animated effects ---------------------------------------------------------------------------------------------------
 def hit_frames():
@@ -291,6 +388,8 @@ AILMENTS = {
     'burn':   (['...o', '..oo.o', '.ooyo', '.oyyo', 'ooyWyo', 'oyWWyo', '.oyyo', '..oo'], {'o': '#e0602e', 'y': '#ffb347', 'W': '#ffe9a0'}),
     'poison': (['..gggg', '.gGGGGg', 'gGkGGkG', 'gGGGGGg', '.gGkkG', '..gGGg', '..g.g', ''], {'g': '#3f7a2a', 'G': '#a6d94a', 'k': '#16240f'}),
     'slow':   (['.c....c', '.cC..cC', '..cccC', '...cC', '.c....c', '.cC..cC', '..cccC', '...cC'], {'c': '#a8c8f0', 'C': '#5a7ab0'}),
+    'root':   (['g.....g', '.g...g', '..gGg', 'g.GQG.g', '.gQQQg', '..QQQ', '.QQ.QQ', 'QQ...QQ'],
+               {'g': '#7ad04b', 'G': '#3f6a2a', 'Q': '#8a6a3a'}),
     'freeze': (['wwwwwww', 'wcWcccC', 'wWcWccC', 'wcWcWcC', 'wccWcWC', 'wcccWcC', 'wccccCC', 'CCCCCCC'],
                {'w': '#e8faff', 'c': '#8edcff', 'W': '#ffffff', 'C': '#3f8fc4'}),
     'shock':  (['....yy', '...yy', '..yyW', '.yyyyy', '...yy', '..yy', '.yy', '.y'], {'y': '#d6a2ff', 'W': '#ffffff'}),
@@ -397,6 +496,11 @@ def main():
     made['fx_slash'] = slash_frames()
     made['fx_explosion'] = explosion_frames()
     made['fx_strike'] = strike_frames()
+    made['fx_spikes'] = spikes_frames()
+    made['fx_moon'] = moon()
+    made['fx_moonburst'] = moonburst_frames()
+    made['minion_wolf'] = wolf()
+    made['zone_thorns'] = thorns()
     for k, (rows, pal) in AILMENTS.items():
         made['ail_' + k] = render(rows, pal, 8, outline=True)
     for k, fn in ZONES.items():

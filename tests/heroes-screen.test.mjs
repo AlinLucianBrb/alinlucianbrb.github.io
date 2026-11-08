@@ -34,7 +34,7 @@ test('Heroes: one card per playable hero; clicking opens its page on the Informa
   state.profile = { level: 2, lineup: ['warrior', 'ranger', 'mage'], equipment: {} };
   state.items = null;
   await heroes.mount(null, {});
-  assert.equal(byId.hrGrid.children.length, 4, 'Warrior, Ranger, Mage and Rogue');
+  assert.equal(byId.hrGrid.children.length, 5, 'Warrior, Ranger, Mage, Rogue and Druid');
   assert.equal(byId.hrPage.hidden, true);
   assert.ok(texts(byId.hrGrid.children[0]).includes('Melee · Strength'));
   byId.hrGrid.children[0].onclick();

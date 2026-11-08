@@ -153,6 +153,9 @@ HEADS = {
     'hood_mage': [  # a tall pointed hood with a circlet and a glowing gem
         '........H....', '.......hH....', '......hhH....', '....hjhhH....', '..hjJjhhH....', '.hjJjjhhHH...',
         '.hjYyEyYXHH..', '.hjXvEvEvXH..', '.hhXvvvvvXH..', '.jhhXYzYXhhH.'],
+    'hood_antlers': [  # druid: a hood with antlers
+        'u..u...u..u..', '.u.u...u.u...', '..u.hhH.u....', '..uhjhhHu....', '..hjJjhhH....', '.hjJjjhhHH...',
+        '.hjhXvvvXHH..', '.hjXvEvEvXH..', '.hhXmMmmmXH..', '.jhhXYzYXhhH.'],
     'hood_goggles': [  # alchemist: goggles pushed up on the hood
         '.............', '.............', '....hhH......', '...hjhhH.....', '..hjJjhhH....', '.hKzKKzKHH...',
         '.hKyKKyKXH...', '.hjXvEvEvXH..', '.hhXmMmmmXH..', '.jhhXYzYXhhH.'],
@@ -183,6 +186,14 @@ WEAPONS = {
     'boomerang': [(4, 29, 'zY'), (5, 28, 'zyY'), (6, 28, 'zy'), (7, 28, 'zy'), (8, 28, 'zy'), (9, 28, 'zy'), (10, 28, 'zyzz'),
                   (11, 28, 'zyyy'), (12, 28, 'YYYY')],
     'flask': [(9, 28, 'Q'), (10, 28, 'g'), (11, 27, 'woA'), (12, 26, 'wooAa'), (13, 26, 'woAAa')],
+    # Druid: a gnarled branch with leaves around a glowing seed
+    'staff_nature': [(y, 28, 'Q') for y in range(4, 28)] + [(0, 26, 'y..z'), (1, 26, 'Yy.zy'), (2, 27, 'QoQ'), (3, 27, 'qAQ'),
+                     (9, 29, 'y'), (10, 29, 'Yy'), (16, 27, 'y'), (17, 26, 'yY')],
+    # Lunar Druid: a silver crescent moon on a staff
+    'staff_moon': [(y, 28, 'Q') for y in range(4, 28)] + [(0, 28, 'ooW'), (1, 27, 'oo'), (2, 27, 'o'), (3, 27, 'oo'), (4, 28, 'ooW')],
+    # Animalic Druid: a totem with a beast skull and feathers
+    'staff_totem': [(y, 28, 'Q') for y in range(3, 28)] + [(0, 27, 'uuU'), (1, 27, 'vUv'), (2, 27, 'uuU'), (3, 27, 'u.u'),
+                    (5, 29, 'f'), (6, 29, 'f'), (7, 29, 'f')],
 }
 HAND = [(14, 25, 'nnsss'), (15, 27, 'sSS')]
 BACK = {
@@ -244,6 +255,10 @@ HEROES = {
     'assassin':      {'cloak': '#2c2436', 'torso': '#3c3244', 'accent': '#9b6bd6', 'glow': '#d2a8ff', 'head': 'hood', 'weapon': 'dagger', 'left': 'dagger'},
     'toxicologist':  {'cloak': '#35422a', 'torso': '#4a4632', 'accent': '#a6d94a', 'glow': '#c8ff70', 'orb': '#a6d94a', 'head': 'hood', 'weapon': 'dagger_toxic', 'left': 'dagger_toxic'},
     'alchemist':     {'cloak': '#4c3626', 'torso': 'leather', 'accent': '#ff9f43', 'glow': '#ffc070', 'orb': '#ff9f43', 'head': 'hood_goggles', 'weapon': 'flask'},
+    'druid':         {'cloak': '#54482c', 'torso': 'leather', 'accent': '#8fbf5a', 'glow': '#c8ff70', 'orb': '#a8f070', 'head': 'hood_antlers', 'weapon': 'staff_nature'},
+    'animalic':      {'cloak': '#5a4430', 'torso': 'leather', 'accent': '#c98a4b', 'glow': '#ffb347', 'head': 'hood_ears', 'weapon': 'staff_totem', 'fletch': '#c98a4b'},
+    'naturist':      {'cloak': '#23452a', 'torso': '#3e4e28', 'accent': '#5fcf6a', 'glow': '#b6ff8a', 'orb': '#7ad04b', 'head': 'hood_antlers', 'weapon': 'staff_nature', 'robe': True},
+    'lunar':         {'cloak': '#2c3456', 'torso': '#323c66', 'accent': '#b8c8ff', 'glow': '#e0e8ff', 'orb': '#dfe8ff', 'head': 'hood_mage', 'weapon': 'staff_moon', 'robe': True},
 }
 
 

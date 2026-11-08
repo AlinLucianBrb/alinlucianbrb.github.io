@@ -23,8 +23,8 @@ function setup(heroId, mods = [], seed = 31) {
 const tick = (w, e, seconds) => { for (let i = 0; i < seconds * 60; i++) tickEffects(w, e, 1 / 60); };
 
 test('every hero has a damage type and all the combat stats, starting at 0', () => {
-  assert.deepEqual(HEROES.map(h => h.damageType), ['physical', 'physical', 'spell', 'physical']);
-  for (const h of HEROES) for (const k in COMBAT_STATS) assert.equal(h.stats[k], 0, h.id + ' ' + k);
+  assert.deepEqual(HEROES.map(h => h.damageType), ['physical', 'physical', 'spell', 'physical', 'physical']);
+  for (const h of HEROES) for (const k in COMBAT_STATS) assert.equal(h.stats[k], h.id === 'druid' && k === 'rootChance' ? 0.15 : 0, h.id + ' ' + k);
 });
 
 test('with no armor or resistances nothing changes: enemies take the full hit', () => {
@@ -152,5 +152,5 @@ test('a whole match with every ailment switched on runs, and every ailment happe
   let seen = new Set(); w.ev.on('ailment', a => seen.add(a.id));
   w.auto = true;
   for (let i = 0; i < 30000 && step(w); i++);
-  assert.deepEqual([...seen].sort(), ['bleed', 'burn', 'freeze', 'poison', 'shock']);
+  assert.deepEqual([...seen].sort(), ['bleed', 'burn', 'freeze', 'poison', 'root', 'shock']);
 });

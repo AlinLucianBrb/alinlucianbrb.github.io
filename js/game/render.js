@@ -16,6 +16,7 @@ function boltSprite(p) {
   if (p.look === 'arrow') return form === 'marksman' ? 'proj_arrow_gold' : form === 'hunter' ? 'proj_arrow_toxic' : 'proj_arrow';
   if (p.look === 'dagger') return 'proj_dagger_toxic';
   if (p.look === 'flask') return p.as === 'toxic' ? 'proj_flask_toxic' : 'proj_flask_fire';
+  if (p.look === 'seed') return 'proj_seed';
   const type = p.as || (d && d.damageType);
   return type === 'fire' ? 'proj_fireball' : type === 'cold' ? 'proj_ice_shard' : type === 'lightning' ? 'proj_spark' : 'proj_bolt_arcane';
 }
@@ -142,10 +143,27 @@ const ZONE_SPRITE = {
     ctx.globalAlpha = 1;
     return true;
   },
-  barrier: (ctx, z) => fade(ctx, 0.6 * Math.min(1, z.t * 4), () => drawSprite(ctx, 'zone_barrier', z.x, z.y, T * 1.15)),   /* see-through, so it does not dominate the screen */
+  barrier: (ctx, z) => fade(ctx, Math.min(1, z.t * 4), () => drawSprite(ctx, 'zone_barrier', z.x, z.y, T * 1.15)),
   poisonpool: (ctx, z) => fade(ctx, Math.min(1, z.t), () => drawSprite(ctx, 'zone_poison', z.x, z.y, z.r * 2.4)),
   oil: (ctx, z) => fade(ctx, Math.min(1, z.t * 2), () => drawSprite(ctx, 'zone_oil', z.x, z.y, z.r * 2.4)),
-  trap: (ctx, z) => drawSprite(ctx, 'zone_trap', z.x, z.y, 30)
+  trap: (ctx, z) => drawSprite(ctx, 'zone_trap', z.x, z.y, 30),
+  /* Naturist Druid: a bramble patch that fades in and out over its 1.5 seconds; when it erupts, spikes burst out of it. */
+  thorns: (ctx, z) => {
+    if (!sprite('zone_thorns')) return false;
+    if (z.t > 0) fade(ctx, Math.min(1, (z.life - z.t) * 8, z.t * 4), () => drawSprite(ctx, 'zone_thorns', z.x, z.y, z.r * 2.4));
+    if (z.spikeT > 0) drawSprite(ctx, 'fx_spikes', z.x, z.y - 10, 52, 0, Math.min(2, Math.floor((1 - z.spikeT / 0.45) * 3)), 3);
+    return true;
+  },
+  /* Lunar Druid: the moon falls from the sky onto where it will land; its shadow grows underneath. */
+  moonfall: (ctx, z) => {
+    if (!sprite('fx_moon')) return false;
+    const k = Math.max(0, z.t / z.fall);   /* 1 at the top, 0 when it lands */
+    ctx.globalAlpha = 0.35 * (1 - k) + 0.1;
+    ctx.beginPath(); ctx.ellipse?.(z.x, z.y, z.r * (1 - 0.5 * k), z.r * 0.4 * (1 - 0.5 * k), 0, 0, 7); ctx.fillStyle = '#0a1020'; ctx.fill();
+    ctx.globalAlpha = 1;
+    drawSprite(ctx, 'fx_moon', z.x, z.y - 20 - 220 * k * k, 56 + 30 * (1 - k));
+    return true;
+  }
 };
 function fade(ctx, a, fn) { ctx.globalAlpha = Math.max(0, Math.min(1, a)); const ok = fn(); ctx.globalAlpha = 1; return ok; }
 const ZONE_DRAW = {
@@ -381,10 +399,10 @@ export function draw(ctx, g, v) {
       ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
     }
     const full = t.energy >= t.s.energyMax;
-    /* Timed buffs: a red ring for Frenzy, a blue one for Rally. */
+    /* Timed buffs: a red ring for Frenzy, a soft blue one for Rally, a green one for Nature's grasp. */
     if (t.buffs) t.buffs.forEach((b, i) => {
       ctx.beginPath(); ctx.arc(t.x, t.y, 24 + i * 4, 0, 7);
-      ctx.strokeStyle = b.id === 'frenzy' ? 'rgba(229,100,90,.85)' : 'rgba(127,179,255,.85)'; ctx.lineWidth = 2.5; ctx.stroke();
+      ctx.strokeStyle = b.id === 'frenzy' ? 'rgba(229,100,90,.85)' : b.id === 'grasp' ? 'rgba(143,191,90,.8)' : 'rgba(127,179,255,.5)'; ctx.lineWidth = 2.5; ctx.stroke();
     });
     if (full) {                            /* ultimate ready: a soft gold glow */
       ctx.beginPath(); ctx.arc(t.x, t.y, 21, 0, 7); ctx.fillStyle = 'rgba(255,216,74,.28)'; ctx.fill();
@@ -407,6 +425,7 @@ export function draw(ctx, g, v) {
     }
     ctx.globalAlpha = 1;
   }
+  for (const t of g.heroes) if (t.wolf && t.def.kind === 'wolf') drawWolf(ctx, t);
   const slashArt = sprite('fx_slash');
   for (const s of v.vfx.slashes) {
     const a = Math.max(0, s.t / s.ttl);
@@ -453,8 +472,18 @@ export function draw(ctx, g, v) {
   for (const a of v.vfx.anims || []) drawSprite(ctx, a.name, a.x, a.y, a.s, 0, Math.floor(a.t / a.dur * a.frames), a.frames);
 }
 
-/* Small icons over an enemy for each ailment it has (bleeding, burning, poisoned, slowed, frozen, shocked); two slows show one icon. */
-const AIL_ICON = { bleed: 'ail_bleed', burn: 'ail_burn', poison: 'ail_poison', chill: 'ail_slow', oiled: 'ail_slow', freeze: 'ail_freeze', shock: 'ail_shock' };
+/* The Animalic Druid's wolf: facing where it runs, bigger with a red glow while enraged, a little hop when it bites. */
+function drawWolf(ctx, t) {
+  const w = t.wolf, big = t.rage > 0, s = (big ? 1.45 : 1) * 46, img = sprite('minion_wolf');
+  ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse?.(w.x, w.y + 7, s * 0.3, s * 0.08, 0, 0, 7); ctx.fill();
+  if (big) { ctx.beginPath(); ctx.arc(w.x, w.y, s * 0.36, 0, 7); ctx.fillStyle = 'rgba(229,70,60,.22)'; ctx.fill(); }
+  const cy = w.y + 7 - 0.16 * s - (w.bite > 0 ? 2 : 0);
+  if (!img) { ctx.beginPath(); ctx.arc(w.x, w.y, big ? 9 : 6, 0, 7); ctx.fillStyle = '#8f99a4'; ctx.fill(); return; }
+  ctx.save(); ctx.translate(w.x, cy); ctx.scale(w.face || 1, 1); ctx.drawImage(img, -s / 2, -s / 2, s, s); ctx.restore();
+}
+
+/* Small icons over an enemy for each ailment it has (bleeding, burning, poisoned, slowed, frozen, shocked, rooted); two slows show one icon. */
+const AIL_ICON = { bleed: 'ail_bleed', burn: 'ail_burn', poison: 'ail_poison', chill: 'ail_slow', oiled: 'ail_slow', freeze: 'ail_freeze', shock: 'ail_shock', root: 'ail_root' };
 function ailmentIcons(ctx, e, x, y) {
   if (!e.fx) return;
   let i = 0, shown = '';

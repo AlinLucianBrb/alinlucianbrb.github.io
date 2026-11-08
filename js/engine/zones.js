@@ -77,6 +77,32 @@ ZONES.oil = {
   }
 };
 
+/* Naturist Druid's thorns: every `every` seconds, hits each enemy standing in the patch for `scale` of a hit. spikeT is only
+   for drawing the eruption (see SPIKES in ultimates.js). */
+ZONES.thorns = {
+  update(g, z, dt) {
+    z.t -= dt; z.next -= dt;
+    if (z.spikeT > 0) z.spikeT = Math.max(0, z.spikeT - dt);
+    if (z.next <= 0 && z.t > 0) {
+      z.next += z.every;
+      const r2 = z.r * z.r;
+      for (const e of g.enemies) if (!e.dead && (e.x - z.x) ** 2 + (e.y - z.y) ** 2 <= r2) g.attack(z.owner, e, z.scale);
+    }
+    return z.t > 0 || z.spikeT > 0;
+  }
+};
+
+/* Lunar Druid's moon: falls for `fall` seconds, then smashes everything within r for `scale` hits of the Druid's cold damage. */
+ZONES.moonfall = {
+  update(g, z, dt) {
+    if ((z.t -= dt) > 0) return true;
+    const r2 = z.r * z.r;
+    for (const e of g.enemies) if (!e.dead && (e.x - z.x) ** 2 + (e.y - z.y) ** 2 <= r2) g.attack(z.owner, e, z.scale);
+    g.ev.emit('moonfall', { zone: z });
+    return false;
+  }
+};
+
 export function updateZones(g, dt) {
   const list = g.zones; if (!list || !list.length) return;
   let j = 0;

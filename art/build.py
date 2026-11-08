@@ -11,7 +11,7 @@ import os, subprocess, sys
 ART = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(ART, 'out')
 ASSETS = os.path.join(os.path.dirname(ART), 'assets')
-PREFIXES = ('tiles.', 'deco_', 'hero_', 'enemy_', 'proj_', 'fx_', 'ail_', 'zone_', 'item_', 'ability_')
+PREFIXES = ('tiles.', 'deco_', 'hero_', 'enemy_', 'proj_', 'fx_', 'ail_', 'zone_', 'item_', 'ability_', 'minion_')
 
 # Start from an empty art/out/, so a sprite that was renamed or removed does not linger.
 os.makedirs(OUT, exist_ok=True)

@@ -4,6 +4,7 @@
 import { inflict } from './combat.js';
 import { applyEffect } from './effects.js';
 import { T, COLS, ROWS } from '../content/data.js';
+import { pathPos } from './enemies.js';
 export const ULTIMATES = {};
 export const registerUltimate = (id, def) => { ULTIMATES[id] = def; };
 
@@ -91,7 +92,7 @@ export const RALLY = { seconds: 5, radius: 220, mods: [{ stat: 'energyPerAttack'
 registerUltimate('rally', { name: 'Rally', desc: 'Doubles energy from attacks for nearby heroes, the Commander included, for 5 seconds.', damageMult: 1,
   onFire(w, h) {
     for (const o of w.heroes) if ((o.x - h.x) ** 2 + (o.y - h.y) ** 2 <= RALLY.radius ** 2) w.addBuff(o, 'rally', 'Rally', RALLY.mods, RALLY.seconds);
-    w.fx?.slash(h.x, h.y, 0, Math.PI, RALLY.radius, 0.5, '#7fb3ff');
+    w.fx?.slash(h.x, h.y, 0, Math.PI, RALLY.radius, 0.5, 'rgba(127,179,255,.3)');   /* a soft flash: it covers a big area */
   } });
 
 /* Sentinel: Barricade, blocks the path for 1 second right in front of the enemy the Sentinel is attacking, so that enemy
@@ -139,4 +140,44 @@ registerUltimate('oil', { name: 'Flammable puddles', desc: 'Flammable puddles sl
   onFire(w, h) {
     const taken = new Set(w.zones.filter(z => z.type === 'oil').map(z => z.cell));
     for (const c of groundSpots(w, h, OIL.count, taken)) w.zones.push({ type: 'oil', owner: h, cell: c.i, x: c.x, y: c.y, r: OIL.radius, t: OIL.seconds });
+  } });
+
+/* ---- Druid ---- */
+/* Druid: Nature's grasp, for 6 seconds every hero within 180 px (the Druid too) has +10% chance to root the enemies it hits. */
+export const GRASP = { seconds: 6, radius: 180, mods: [{ stat: 'rootChance', type: 'flat', value: 0.1 }] };
+registerUltimate('grasp', { name: "Nature's grasp", desc: 'For 6 seconds, heroes near the Druid (the Druid too) have +10% chance to root the enemies they hit.', damageMult: 1,
+  onFire(w, h) {
+    for (const o of w.heroes) if ((o.x - h.x) ** 2 + (o.y - h.y) ** 2 <= GRASP.radius ** 2) w.addBuff(o, 'grasp', "Nature's grasp", GRASP.mods, GRASP.seconds);
+    w.fx?.slash(h.x, h.y, 0, Math.PI, GRASP.radius, 0.5, 'rgba(143,191,90,.35)');
+  } });
+
+/* Animalic Druid: Enrage, the wolf grows bigger and stronger for 6 seconds: twice the reach and twice the damage. */
+export const ENRAGE = { seconds: 6 };
+registerUltimate('enrage', { name: 'Enrage', desc: 'The wolf grows bigger and stronger for 6 seconds: twice the reach and twice the damage.', damageMult: 1,
+  onFire(w, h) { h.rage = ENRAGE.seconds; } });
+
+/* Naturist Druid: Bramble spikes, every thorn patch of the Druid erupts: each enemy standing in one (or close to it) takes
+   4x a hit, once, however many patches it stands in. */
+export const SPIKES = { scale: 4, reach: 1.3, show: 0.45 };
+registerUltimate('spikes', { name: 'Bramble spikes', desc: 'Every thorn patch erupts in spikes: 4x damage to each enemy standing in one.', damageMult: 1,
+  onFire(w, h) { h.erupt = true; } });
+export function erupt(w, h) {
+  const hit = new Set();
+  for (const z of w.zones) {
+    if (z.type !== 'thorns' || z.owner !== h) continue;
+    z.spikeT = SPIKES.show;
+    const r2 = (z.r * SPIKES.reach) ** 2;
+    for (const e of w.enemies) if (!e.dead && !hit.has(e) && (e.x - z.x) ** 2 + (e.y - z.y) ** 2 <= r2) { hit.add(e); w.attack(h, e, SPIKES.scale); }
+  }
+}
+
+/* Lunar Druid: Moonfall, a moon falls where the targeted enemy will be in 0.6 seconds and smashes everything within 70 px
+   for 5x a hit of the Druid's cold damage (which also slows). */
+export const MOON = { fall: 0.6, radius: 70, scale: 5 };
+const landing = { x: 0, y: 0 };
+registerUltimate('moonfall', { name: 'Moonfall', desc: 'A moon falls on the enemies and smashes everything around it for 5x damage.', damageMult: 1,
+  onFire(w, h, target) {
+    if (!target) return;
+    pathPos(w.path, Math.min(w.path.length - 1.001, (target.d + target.speed * MOON.fall) / T), landing);
+    w.zones.push({ type: 'moonfall', owner: h, x: landing.x, y: landing.y, r: MOON.radius, t: MOON.fall, fall: MOON.fall, scale: MOON.scale });
   } });

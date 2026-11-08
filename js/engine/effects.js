@@ -12,7 +12,7 @@ const EXTRA = {
 };
 export const EFFECTS = { ...AILMENTS, ...EXTRA };
 /* Which tint shows when an enemy has several effects. */
-const TINT_ORDER = ['freeze', 'shock', 'burn', 'poison', 'bleed', 'mark', 'oiled', 'chill'];
+const TINT_ORDER = ['freeze', 'root', 'shock', 'burn', 'poison', 'bleed', 'mark', 'oiled', 'chill'];
 
 export function applyEffect(e, id, eff) {
   if (typeof eff === 'number') eff = { t: eff };          /* old style: just a duration */
@@ -51,7 +51,7 @@ export function tickEffects(g, e, dt) {
       continue;
     }
     if (def.kind === 'dot' && g.dot) g.dot(f.src, e, f.dps * Math.min(dt, f.t), def.type);
-    if (def.kind === 'freeze') mult = 0;
+    if (def.kind === 'freeze' || def.kind === 'root') mult = 0;   /* frozen or rooted: held in place */
     else if (def.speedMult) mult *= def.speedMult;
     if ((f.t -= dt) <= 0) delete e.fx[id];
     if (e.dead) break;

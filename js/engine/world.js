@@ -13,7 +13,7 @@ import { updateProjectiles } from './projectiles.js';
 import { updateZones } from './zones.js';
 import { createMeter } from './meter.js';
 import { createRng } from './rng.js';
-import { attackMult, gainEnergy } from './ultimates.js';
+import { attackMult, gainEnergy, erupt } from './ultimates.js';
 import { gainXp } from './levels.js';
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
@@ -76,6 +76,7 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
   });
   w.statsFor = h => statsFor(w, h);
   w.addBuff = (h, id, name, mods, seconds) => addBuff(w, h, id, name, mods, seconds);
+  w.erupt = h => erupt(w, h);   /* Naturist Druid's spikes */
   /* A boss that gets through on the last wave ends the run: a level is only won by beating its final boss. */
   w.ev.on('escape', ({ enemy }) => {
     w.lives = Math.max(0, w.lives - enemy.def.leak);

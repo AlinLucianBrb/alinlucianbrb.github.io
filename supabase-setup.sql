@@ -750,8 +750,8 @@ insert into public.talent_links (a, b) values
   ('t4_p48', 't4_p0'),
   ('t4_p0', 't4_p48');
 -- Playable heroes.
-insert into public.hero_classes (id) values ('warrior'), ('ranger'), ('mage'), ('rogue') on conflict (id) do nothing;
-delete from public.hero_classes where id <> all (array['warrior', 'ranger', 'mage', 'rogue']::text[]);
+insert into public.hero_classes (id) values ('warrior'), ('ranger'), ('mage'), ('rogue'), ('druid') on conflict (id) do nothing;
+delete from public.hero_classes where id <> all (array['warrior', 'ranger', 'mage', 'rogue', 'druid']::text[]);
 -- Item types. Removed items stay in the table (players may own them) but stop dropping.
 insert into public.item_types (id, slot, droppable) values
   ('helm', 'helm', true),

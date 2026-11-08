@@ -44,6 +44,7 @@ function newRun() {
   w.ev.on('crit', ({ enemy }) => { if (w.fx) { addSlash(v.vfx, enemy.x, enemy.y, 0, Math.PI, enemy.def.radius + 7, 0.16, '#ffd84a'); addAnim(v.vfx, 'fx_hit', enemy.x, enemy.y - 4, 30, 0.2, 4); } });   /* a gold flash on critical hits */
   w.ev.on('kill', ({ enemy }) => { if (w.fx && !enemy.escaped) addAnim(v.vfx, 'fx_hit', enemy.x, enemy.y - 6, 26 + enemy.def.radius, 0.24, 4); });
   w.ev.on('explode', ({ zone }) => { if (w.fx) addAnim(v.vfx, 'fx_explosion', zone.x, zone.y, 96, 0.45, 5); });
+  w.ev.on('moonfall', ({ zone }) => { if (w.fx) addAnim(v.vfx, 'fx_moonburst', zone.x, zone.y, zone.r * 2.3, 0.45, 5); });
   v.selected = v.moving = v.evo = null; ui.hideEvoPick(); if (v.speed > 2) v.speed = 1; v.vfx.beams.length = 0; v.vfx.slashes.length = 0; v.vfx.anims.length = 0; v.needFit = true;
   if (playOnPickSaved()) apply(w, { type: 'playOnPick', on: true });   /* logged, so the replay plays the same way */
   v.sel = heroIndex(w.lineup[0]);

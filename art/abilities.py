@@ -68,6 +68,21 @@ CLONES = ['...PP...GG..', '..PPPP.GGGG.', '..PvPv.GzGz.', '..PPPP.GGGG.', '.PPPP
 OIL = ['.....o......', '....oOo.....', '....oOo.....', '...oOwOo....', '...oOwOo....', '..nnnnnnnn..', '.nqqqqqqqqn.', 'nqqqqqqqqqqn',
        '.nqqqqqqqqn.', '..nnnnnnnn..']
 
+SEED = ['', '.......y....', '......yQy...', '.t...yQrQy..', '..t.yQQQQQy.', '.t.t.yQQQy..', '..t...yQy...', '.......y....']
+WOLF = ['.G........G.', '.GG......GG.', '.GgGGGGGGgG.', 'GggggggggggG', 'GgEEggggEEgG', 'GggggggggggG', '.GgggvvgggG.', '..GgwvvwgG..',
+        '..GuGGGGuG..', '...GGGGGG...']
+BRAMBLE = ['.....q......', '....qQq..w..', '..w.qQ..qQ..', '...qQ..qQq..', '..qQqqQQ....', '.qQ..qQ..w..', '.Q..qQ......', 'qQ.qQq..w...',
+           'Q..Q..qQ....', '..qQqQQ.....']
+MOONBEAM = ['...ccc......', '..cOc.......', '.cO.........', '.cO..b......', '.cO...b.....', '.cO....b..b.', '..cOc...bb..', '...ccc..b...',
+            '....b...b...', '...b....b...', '..b.....b...']
+GRASP = ['....llll....', '..ll....ll..', '.l..tttt..l.', 'l..t....t..l', 'l.t..QQ..t.l', 'l.t.QqqQ.t.l', 'l..t.QQ.t..l', '.l..tttt..l.',
+         '..ll....ll..', '....llll....']
+SPIKE = ['.....O......', '....OQ...O..', '..O.QQ..OQ..', '..QqQQ..QQ..', '.OQqQQ.OQQ..', '.QQqQQ.QQq..', 'qQQqQQqQQqq.', 'qqqqqqqqqqqq']
+MOONFALL = ['....mmmm....', '...mlllcm...', '..mlOlllcm..', '..mllcllcm..', '..mlllllcm..', '...mlcllm...', '....mmmm....', '..b......b..',
+            '.b..bbbb..b.', 'bbbbbbbbbbbb']
+WOLFPAL = {'G': '#56606b', 'g': '#8f99a4', 'E': '#ffb347', 'v': '#16181c', 'w': '#ffffff', 'u': '#ece2c6'}
+NATURE = {'Q': '#6a8a3a', 'q': '#3f5a24', 'O': '#f2ead2', 'r': '#a8783e', 'y': '#c8ff70', 't': '#7ad04b', 'l': '#c8ff70'}
+MOONPAL = {'c': '#c8d2ee', 'O': '#ffffff', 'b': '#b8c8ff', 'm': '#9aa6c8', 'l': '#e6ecfa'}
 GREEN = {'z': '#d4ffcc', 'y': '#8be28b', 'Y': '#4c8a4c'}
 TOXIC_FLASK = {'o': '#7ad04b', 'O': '#c8ff70'}
 #   id: (glyph, background colour, palette overrides)
@@ -86,6 +101,14 @@ ICONS = {
     'atk_blink': (BLINK, '#2c2436', {}),
     'atk_daggers': (DAGGERS, '#2f3a24', {}),
     'atk_flask': (FLASK, '#4c3020', {}),
+    'atk_seed': (SEED, '#2f3a20', {'Q': '#5a3a1e', 'r': '#a8783e', 'y': '#c8ff70', 't': '#9fe06a'}),
+    'atk_wolf': (WOLF, '#4a3424', WOLFPAL),
+    'atk_thorns': (BRAMBLE, '#2a3420', {'Q': '#6a8a3a', 'q': '#3f5a24', 'w': '#f2ead2'}),
+    'atk_moonbeam': (MOONBEAM, '#1f2848', MOONPAL),
+    'ult_grasp': (GRASP, '#26341c', {'Q': '#8a6a3a', 'q': '#5a3a1e', 'l': '#c8ff70', 't': '#7ad04b'}),
+    'ult_enrage': (WOLF, '#4a1414', dict(WOLFPAL, E='#ff3a2a')),
+    'ult_spikes': (SPIKE, '#2a3420', NATURE),
+    'ult_moonfall': (MOONFALL, '#1f2848', MOONPAL),
     'ult_empowered': (EMPOWER, '#4a3a18', {}),
     'ult_inferno': (FLAME, '#5a1c10', {}),
     'ult_blizzard': (SNOW, '#1a3550', {}),

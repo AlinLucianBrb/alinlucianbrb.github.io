@@ -15,12 +15,14 @@ export const STRATEGIES = {
   ranger: ['ranger'],
   mage: ['mage'],
   rogue: ['rogue'],
-  rogue3: ['rogue', 'ranger', 'mage']
+  rogue3: ['rogue', 'ranger', 'mage'],
+  druid: ['druid'],
+  druid3: ['druid', 'ranger', 'mage']
 };
 
 /* Talents for a player of the given level: whole clusters in order of usefulness for the lineup (damage and crits first,
    then the lineup's own clusters, then the rest), each reached by the shortest path from what is already taken. */
-const HERO_CLUSTERS = { warrior: ['martial', 'sunder'], ranger: ['marksman'], mage: ['sorcery'], rogue: ['martial', 'precision'] };
+const HERO_CLUSTERS = { warrior: ['martial', 'sunder'], ranger: ['marksman'], mage: ['sorcery'], rogue: ['martial', 'precision'], druid: ['sorcery'] };
 export function talentsFor(level, strategy = 'trio') {
   const points = pointsFor(level), picked = new Set();
   const order = [...new Set(['might', ...STRATEGIES[strategy].flatMap(h => HERO_CLUSTERS[h] || []), 'precision', 'energy', 'gate', 'toxins', 'wealth', 'lightning', 'fire', 'cold', 'relics', 'tempo', 'fortune'])];

@@ -3,6 +3,9 @@
    types, armor, resistances and ailments (combat.js), and draw through g.fx?.beam().
    Every attack follows the same pattern: strike(g, t) right before it (the ultimate when the energy bar is full, see
    ultimates.js), then charge(g, t) once it has hit something. */
+import { pathPos } from './enemies.js';
+import { T } from '../content/data.js';
+
 export const BEHAVIORS = {};
 export const registerBehavior = (kind, impl) => { BEHAVIORS[kind] = impl; };
 
@@ -248,3 +251,85 @@ function thrower(lookName, speed, types) {
 }
 registerBehavior('daggers', thrower('dagger', 560, [null, null]));
 registerBehavior('concoctions', thrower('flask', 420, ['fire', 'toxic']));
+
+/* ---- Druid forms ---- */
+/* Animalic Druid: a wolf fights for the Druid. It runs after the enemy furthest along the path within the Druid's range and
+   bites in a cone in front of it (physical; the Animalic Druid's hits bleed). Without a target it trots back to the Druid.
+   The wolf attacks at the Druid's cast speed and its hits are the Druid's (damage, crits, ailments, energy). While enraged
+   (the ultimate) it is bigger, with twice the reach and twice the damage. State: t.wolf = { x, y, face, bite }. */
+export const WOLF = { speed: 150, reach: 30, arc: 110, rageSpeed: 1.25 };
+registerBehavior('wolf', {
+  update(g, t, dt) {
+    const w = (t.wolf ||= { x: t.x + 14, y: t.y + 10, face: 1, bite: 0 });
+    if (t.rage > 0) t.rage = Math.max(0, t.rage - dt);
+    if (w.bite > 0) w.bite = Math.max(0, w.bite - dt);
+    const big = t.rage > 0, reach = WOLF.reach * (big ? 2 : 1), tg = pickTarget(g, t, t.s.range);
+    const gx = tg ? tg.x : t.x + 14, gy = tg ? tg.y : t.y + 10, dx = gx - w.x, dy = gy - w.y, dist = Math.hypot(dx, dy);
+    const stop = tg ? reach * 0.6 : 1;
+    if (dist > stop) { const step = Math.min(dist - stop, WOLF.speed * (big ? WOLF.rageSpeed : 1) * dt); w.x += dx / dist * step; w.y += dy / dist * step; }
+    if (Math.abs(dx) > 2) w.face = dx < 0 ? -1 : 1;
+    t.cd -= dt;
+    if (!tg || t.cd > 0 || dist > reach) return;
+    const mult = strike(g, t, tg);
+    rearm(t);
+    if (mult === 0) { charge(g, t); return; }
+    const ang = Math.atan2(tg.y - w.y, tg.x - w.x), half = WOLF.arc * Math.PI / 360, r2 = (reach + 6) ** 2, dmg = mult * (big ? 2 : 1);
+    for (const e of g.enemies) {
+      if (e.dead) continue;
+      const ex = e.x - w.x, ey = e.y - w.y;
+      if (ex * ex + ey * ey > r2) continue;
+      let da = Math.abs(Math.atan2(ey, ex) - ang);
+      if (da > Math.PI) da = 2 * Math.PI - da;
+      if (da <= half || ex * ex + ey * ey < 100) g.attack(t, e, dmg);
+    }
+    w.bite = 0.15;
+    g.fx?.slash(w.x, w.y, ang, half, reach + 6, 0.16, look(t, mult));
+    charge(g, t);
+  }
+});
+
+/* Naturist Druid: grows a patch of thorns on the path just ahead of the enemy furthest along it within range (one per
+   cast, so cast speed grows them faster). A patch lasts 1.5 seconds and hurts every enemy standing in it a few times a
+   second (see zones.js). Up to 8 of a Druid's patches at once (the oldest goes). The ultimate makes every patch erupt in
+   spikes (ultimates.js), including the one grown with it. */
+export const THORNS = { life: 1.5, every: 0.25, scale: 0.45, radius: 22, ahead: 0.6, max: 8 };
+const spot = { x: 0, y: 0 };
+registerBehavior('thorns', {
+  update(g, t, dt) {
+    if (!ready(t, dt)) return;
+    const tg = pickTarget(g, t, t.s.range);
+    if (!tg) return;
+    const mult = strike(g, t, tg);
+    rearm(t);
+    if (mult !== 0) {
+      pathPos(g.path, Math.min(g.path.length - 1.001, tg.d / T + THORNS.ahead), spot);
+      g.zones.push({ type: 'thorns', owner: t, x: spot.x, y: spot.y, r: THORNS.radius, t: THORNS.life, life: THORNS.life, next: 0,
+        every: THORNS.every, scale: THORNS.scale * mult, spikeT: 0 });
+      let mine = 0;
+      for (let i = g.zones.length - 1; i >= 0; i--) { const z = g.zones[i]; if (z.type === 'thorns' && z.owner === t && ++mine > THORNS.max) z.t = 0; }
+    }
+    if (t.erupt) { t.erupt = false; if (g.erupt) g.erupt(t); }
+    charge(g, t);
+  }
+});
+
+/* Lunar Druid: moonlight beams every enemy in range at once (cold damage, 70% of a hit each) and slows them. */
+export const MOONBEAM = { scale: 0.7 };
+registerBehavior('moonbeam', {
+  update(g, t, dt) {
+    if (!ready(t, dt)) return;
+    const first = pickTarget(g, t, t.s.range);
+    if (!first) return;
+    const mult = strike(g, t, first);
+    rearm(t);
+    if (mult !== 0) {
+      const r2 = t.s.range * t.s.range;
+      for (const e of g.enemies) {
+        if (e.dead || (e.x - t.x) ** 2 + (e.y - t.y) ** 2 > r2) continue;
+        g.attack(t, e, MOONBEAM.scale * mult);
+        g.fx?.beam(t.x, t.y - 6, e.x, e.y, 0.14, mult > 1 ? '#ffffff' : 'rgba(200,220,255,.75)', mult > 1 ? 3 : 2);
+      }
+    }
+    charge(g, t);
+  }
+});

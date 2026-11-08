@@ -102,7 +102,29 @@ export const HEROES = [
         short: 'Throws two concoctions at the strongest, toughest enemy in range: fire that burns, then toxic that poisons.', ultShort: 'Flammable puddles slow enemies; a burning enemy on one makes it explode.' }
     ] }],
     desc: 'Rogue (melee): two quick strikes, with a higher chance of critical hits. Evolves into an Assassin, Toxicologist or Alchemist.',
-    short: 'Strikes twice in quick succession, with a knack for critical hits. At level 10, choose a path.' }
+    short: 'Strikes twice in quick succession, with a knack for critical hits. At level 10, choose a path.' },
+  /* The Druid: a spell caster whose thorny bolts can root enemies in place (rootChance); its ultimate lends that power to
+     the heroes around it. Each evolution replaces the bolt with something of its own: a wolf, thorns on the path, or
+     moonlight that hits every enemy in range. */
+  { id: 'druid', name: 'Druid', archetype: 'spell', attribute: 'intellect', kind: 'bolt', projLook: 'seed', projSpeed: 460, damageType: 'physical', color: '#8fbf5a',
+    shape: [6, 0], tags: ['spell', 'projectile', 'physical', 'nature'], rate: 'castSpeed',
+    stats: withEnergy({ damage: 24, range: 115, cooldown: 0.85, castSpeed: 1, targets: 1 }, { strength: 3, dexterity: 4, intellect: 10, rootChance: 0.15 }), ultimate: 'grasp',
+    evolutions: [{ level: 10, cost: 150, choices: [
+      { id: 'animalic', name: 'Animalic Druid', color: '#c98a4b', kind: 'wolf', ultimate: 'enrage', tags: ['melee', 'minion'], stats: { range: 130 },
+        mods: [...plus50cast, always('bleedChance'), { stat: 'damage', type: 'more', value: 0.25, scope: ['all'] }],
+        short: 'A wolf runs after the enemy furthest along the path and bites everything in front of it; its bites bleed.',
+        ultShort: 'Enrages the wolf: bigger and stronger, with twice the reach and twice the damage, for 6 seconds.' },
+      { id: 'naturist', name: 'Naturist Druid', color: '#5fcf6a', kind: 'thorns', ultimate: 'spikes', tags: ['area'],
+        mods: plus50cast,
+        short: 'Grows thorns on the path ahead of the enemies; they hurt everything standing in them for 1.5 seconds. Cast speed grows them faster.',
+        ultShort: 'Every thorn patch erupts in spikes, dealing heavy damage to each enemy standing in one.' },
+      { id: 'lunar', name: 'Lunar Druid', color: '#b8c8ff', kind: 'moonbeam', damageType: 'cold', ultimate: 'moonfall', tags: ['cold'],
+        applies: { chill: 'chillTime' }, stats: { chillTime: 1 }, mods: plus50cast,
+        short: 'Moonlight beams every enemy in range at once with cold damage, slowing them.',
+        ultShort: 'Brings down a moon that smashes the enemies around where it lands.' }
+    ] }],
+    desc: 'Druid (spell): thorny bolts that can root enemies in place. Evolves into an Animalic, Naturist or Lunar Druid.',
+    short: 'Shoots thorny bolts that can root enemies in place (15%). At level 10, choose a path.' }
 ];
 HEROES.forEach(h => h.tags.push(h.id));
 

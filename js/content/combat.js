@@ -16,13 +16,15 @@ export const ARMOR_CAP = 0.99;        /* ...up to 99% */
      stacks: false keeps only the strongest one; true keeps up to maxStacks at once (poison).
    - shock: lowers the enemy's defenses for `duration` seconds: armor by armorDown (a share) and every resistance by resDown
      (percentage points, so an enemy with no resistance takes extra damage from non-physical hits).
-   - freeze: the enemy stops; a bigger hit (relative to its max life) freezes it for longer. */
+   - freeze: the enemy stops; a bigger hit (relative to its max life) freezes it for longer.
+   - root: the enemy is held in place for `duration` seconds; any damage type can root (the Druid's thorny bolts). */
 export const AILMENTS = {
   bleed:  { name: 'Bleed',  kind: 'dot', from: ['physical'], type: 'physical', dpsOfHit: 0.7, duration: 4, stacks: false, tint: '#9c2a2a' },
   poison: { name: 'Poison', kind: 'dot', from: ['physical', 'toxic'], type: 'toxic', dpsOfHit: 0.3, duration: 2, stacks: true, maxStacks: 20, tint: '#7ad04b' },
   burn:   { name: 'Burn',   kind: 'dot', from: ['fire'], type: 'fire', dpsOfHit: 0.9, duration: 4, stacks: false, tint: '#ff8a3d' },
   shock:  { name: 'Shock',  kind: 'shock', from: ['lightning'], armorDown: 0.5, resDown: 0.2, duration: 2, tint: '#ffe45c' },
-  freeze: { name: 'Freeze', kind: 'freeze', from: ['cold'], base: 0.3, perLifeShare: 2, max: 1.5, tint: '#d8f2ff' }
+  freeze: { name: 'Freeze', kind: 'freeze', from: ['cold'], base: 0.3, perLifeShare: 2, max: 1.5, tint: '#d8f2ff' },
+  root:   { name: 'Root',   kind: 'root', from: DAMAGE_TYPES, duration: 1, tint: '#8a9a4b' }
 };
 
 /* Combat stats every hero has, all 0 to start, so talents, relics and items can raise them:

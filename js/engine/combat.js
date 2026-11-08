@@ -73,6 +73,7 @@ export function inflict(w, hero, e, id, hit) {
   if (a.kind === 'dot') applyEffect(e, id, { t: a.duration, dps: a.dpsOfHit * hit, src: hero });
   else if (a.kind === 'shock') applyEffect(e, id, { t: a.duration, mag: a.resDown, armorDown: a.armorDown, resDown: a.resDown });
   else if (a.kind === 'freeze') applyEffect(e, id, { t: Math.min(a.max, a.base + a.perLifeShare * hit / e.max) });
+  else if (a.kind === 'root') applyEffect(e, id, { t: a.duration });
   w.ev.emit('ailment', { hero, enemy: e, id });
 }
 

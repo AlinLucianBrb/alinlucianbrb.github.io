@@ -24,7 +24,7 @@ let meterEmpty, cb = {}, banishBtns = [];
 
 /* Tags in words, for tooltips: relics, talents and items that name a tag work on heroes that have it. */
 const TAG_LABEL = { melee: 'Melee', range: 'Ranged', projectile: 'Projectile', spell: 'Spell', arcane: 'Arcane', thrown: 'Thrown',
-  physical: 'Physical', fire: 'Fire', cold: 'Cold', lightning: 'Lightning', toxic: 'Toxic' };
+  physical: 'Physical', fire: 'Fire', cold: 'Cold', lightning: 'Lightning', toxic: 'Toxic', nature: 'Nature', minion: 'Minion', area: 'Area' };
 export const tagLine = d => d.tags.filter(t => TAG_LABEL[t]).map(t => TAG_LABEL[t]).join(' · ');
 /* The ailments a hero's hits can inflict right now: an ailment needs a chance above 0 (from the evolution, talents, relics
    or items) and a hit of a damage type it comes from (bleed from physical hits, burn from fire...). Slows are listed too. */
