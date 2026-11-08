@@ -39,11 +39,12 @@ export async function signIn(username, password, captchaToken) {
 export const signOut = () => sb.auth.signOut();
 export async function currentSession() { const { data } = await sb.auth.getSession(); return data.session; }
 export async function getProfile(userId) {
-  let { data, error } = await sb.from('profiles').select('username,level,xp,gold,best_wave,talents,levels_cleared,frontier_wave,lineup,equipment').eq('id', userId).maybeSingle();
+  let { data, error } = await sb.from('profiles').select('id,username,level,xp,gold,best_wave,talents,levels_cleared,frontier_wave,lineup,equipment').eq('id', userId).maybeSingle();
   if (error) { /* database not updated yet: fall back so login still works */
-    ({ data, error } = await sb.from('profiles').select('username,level,xp,gold,best_wave').eq('id', userId).maybeSingle());
+    ({ data, error } = await sb.from('profiles').select('id,username,level,xp,gold,best_wave').eq('id', userId).maybeSingle());
   }
-  if (data) fill(data);
+  /* The account id is who the player is in co-op (lobby host, live channel) and whose saved run is whose. */
+  if (data) { data.id = data.id || userId; fill(data); }
   return { profile: data, error: error && error.message };
 }
 export async function saveTalents(nodes) {
