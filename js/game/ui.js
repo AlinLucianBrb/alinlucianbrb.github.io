@@ -4,10 +4,11 @@ import { HEROES, RARITIES, RELICS, STAT_LABELS, rarityOdds, HERO_LEVELS, ATTRIBU
 export const ATTR_SHORT = { strength: 'Str', dexterity: 'Dex', intellect: 'Int' };
 export const ATTR_COLOR = { strength: '#e5645a', dexterity: '#5fd46f', intellect: '#5aa9ff' };
 import { ULTIMATES } from '../engine/ultimates.js';
-import { DAMAGE_LABEL } from '../content/combat.js';
+import { DAMAGE_LABEL, AILMENTS } from '../content/combat.js';
+import { rateOf } from '../engine/behaviors.js';
 import { explain, affected, attributeDamage } from '../engine/stats.js';
 import { bindTip } from '../core/tooltip.js';
-import { spriteImg, spriteUrl, heroSprite } from './sprites.js';
+import { spriteImg, spriteUrl, heroSprite, attackIcon, ultimateIcon } from './sprites.js';
 import { isBossWave } from '../engine/enemies.js';
 
 const $ = id => document.getElementById(id);
@@ -20,6 +21,22 @@ const cap = s => s[0].toUpperCase() + s.slice(1);
 const btns = [], rows = [];
 export const heroButton = i => btns[i];
 let meterEmpty, cb = {}, banishBtns = [];
+
+/* Tags in words, for tooltips: relics, talents and items that name a tag work on heroes that have it. */
+const TAG_LABEL = { melee: 'Melee', range: 'Ranged', projectile: 'Projectile', spell: 'Spell', arcane: 'Arcane', thrown: 'Thrown',
+  physical: 'Physical', fire: 'Fire', cold: 'Cold', lightning: 'Lightning', toxic: 'Toxic' };
+export const tagLine = d => d.tags.filter(t => TAG_LABEL[t]).map(t => TAG_LABEL[t]).join(' · ');
+/* The ailments a hero's hits can inflict right now: an ailment needs a chance above 0 (from the evolution, talents, relics
+   or items) and a hit of a damage type it comes from (bleed from physical hits, burn from fire...). Slows are listed too. */
+export function ailmentLine(d, s) {
+  const types = new Set([d.damageType, ...d.tags]), out = [];
+  for (const [id, a] of Object.entries(AILMENTS)) {
+    const c = s[id + 'Chance'] || 0;
+    if (c > 0 && a.from.some(t => types.has(t))) out.push(a.name + ' ' + Math.round(Math.min(1, c) * 100) + '%');
+  }
+  if (d.applies && d.applies.chill) out.push('Slow');
+  return out.join(', ');
+}
 
 /* Short stat line for a hero tooltip, using its current stats (relics and talents included). */
 function statLine(d, s) {
@@ -38,10 +55,22 @@ export function initUI(callbacks) {
     b.style.setProperty?.('--hc', d.color);
     const key = el('span', 'key'), name = el('span', 'nm'), nmText = el('span', '', d.name), lv = el('small'), status = el('span', 'cost');
     const pic = spriteImg(heroSprite(d), 'pix hico');
-    name.append(nmText, lv); b.append(key, name, status, pic);   /* the picture comes last in the DOM; CSS shows it first */ b._status = status; b._key = key; b._nm = nmText; b._lv = lv; b._pic = pic; b._picName = heroSprite(d);
+    /* The hero's two abilities, like action-bar icons: the basic attack darkens and clears clockwise as its cooldown runs;
+       the ultimate clears as the energy bar fills and glows gold when it is ready. */
+    const abil = el('span', 'abil idle'), atk = abilityIcon(attackIcon(d)), ult = abilityIcon(ultimateIcon(d));
+    abil.append(atk, ult);
+    bindTip(atk, () => { const info = cb.heroInfo(i), cur = info.unit ? info.unit.def : d;
+      return { title: 'Basic attack', color: cur.color, lines: [cur.short, { text: statLine(cur, info.stats), color: '#9db3a3' }] }; });
+    bindTip(ult, () => { const info = cb.heroInfo(i), cur = info.unit ? info.unit.def : d, u = ULTIMATES[cur.ultimate], s = info.stats;
+      return { title: 'Ultimate: ' + (u ? u.name : '?'), color: '#ffd84a', lines: [u ? u.desc : '',
+        { text: info.unit ? 'Energy ' + Math.floor(info.unit.energy) + ' / ' + s.energyMax : 'Energy ' + s.energyPerAttack + ' per attack, ' + s.energyMax + ' to fire', color: '#9db3a3' }] }; });
+    name.append(nmText, lv); b.append(key, name, status, pic, abil);   /* the picture comes last in the DOM; CSS shows it first */ b._status = status; b._key = key; b._nm = nmText; b._lv = lv; b._pic = pic; b._picName = heroSprite(d);
+    b._abil = abil; b._atk = atk; b._ult = ult; b._form = d.id;
     bindTip(b, () => {
-      const info = cb.heroInfo(i), u = ULTIMATES[d.ultimate];
-      const lines = [d.short, { text: statLine(d, info.stats), color: '#9db3a3' }];
+      const info = cb.heroInfo(i), cur = info.unit ? info.unit.def : d, u = ULTIMATES[cur.ultimate], ail = ailmentLine(cur, info.stats);
+      const lines = [cur.short, { text: statLine(cur, info.stats), color: '#9db3a3' }];
+      lines.push({ text: 'Tags: ' + tagLine(cur) + ' (relics, talents and items for these tags work on it)', color: '#9db3a3' });
+      lines.push({ text: 'Damage: ' + DAMAGE_LABEL[cur.damageType || 'physical'] + (ail ? ' · inflicts ' + ail : ''), color: '#9db3a3' });
       if (u) lines.push({ text: 'Ultimate: ' + u.name + ' (' + u.desc + ')', color: '#9db3a3' });
       lines.push(info.unit ? { text: 'Click to select it. Click and hold it on the map to move it.', color: '#9db3a3' } : { text: 'Free to place: one per match · key ' + b._key.textContent, color: '#9db3a3' });
       if (info.unit) lines.push({ text: 'Level ' + info.unit.level + ': heroes gain XP from every kill while on the field.', color: '#8fd3ff' });
@@ -50,7 +79,7 @@ export function initUI(callbacks) {
         const need = info.evoLevel || info.evo.level;
         lines.push({ text: 'At level ' + need + ' it can evolve into ' + list + ' for ' + info.evoCost + ' gold.', color: info.unit && info.unit.level >= need && info.gold >= info.evoCost ? '#f2b84b' : '#9db3a3' });
       }
-      return { title: d.name + ' · ' + cap(d.archetype), color: d.color, lines };
+      return { title: cur.name + ' · ' + cap(cur.archetype), color: cur.color, lines };
     });
     wrap.append(up, b); $('tbtns').append(wrap); btns.push(b);
   });
@@ -110,10 +139,6 @@ export function renderHUD(g, v) {
     const b = btns[i];
     if (!b._inLineup) return;
     const unit = g.heroes.find(h => h.type === i);
-    /* A hero with no evolution left has nothing more to do from its button, so the button goes away. */
-    const done = !!unit && !unit.base.evolutions[unit.tier];
-    if (b.hidden !== done) { b.hidden = b._wrap.hidden = done; layout = true; }
-    if (done) { b._up.hidden = true; return; }
     /* Evolve button above the card: shown once the hero has the level, with the cost; dimmed until you have the gold. */
     const step = unit && unit.base.evolutions[unit.tier], due = !!step && unit.level >= g.evolveLevel(unit) && g.phase !== 'over';
     if (b._up.hidden === due) b._up.hidden = !due;
@@ -128,6 +153,7 @@ export function renderHUD(g, v) {
     const hc = unit ? unit.def.color : d.color, pn = heroSprite(unit ? unit.def : d);
     if (b._picName !== pn) { b._picName = pn; b._pic.src = spriteUrl(pn); }   /* evolved: its new form */
     if (b._hc !== hc) { b._hc = hc; b.style.setProperty?.('--hc', hc); }
+    updateAbilities(b, unit, unit ? unit.def : d);
     b.classList.toggle('on', sel === i && (!unit || v.selected === unit)); b.classList.toggle('placed', !!unit);
   });
   if (layout && cb.onLayoutChange) cb.onLayoutChange();
@@ -313,6 +339,10 @@ export function showPick(g) {
     ban.title = 'Remove this relic from your pool for the rest of the run, and draw another';
     card.append(b, ban); box.append(card); banishBtns.push(ban);
   });
+  const keep = $('playOnPick');
+  keep.checked = !!g.playOnPick; keep.onchange = () => cb.onPlayOnPick(!!keep.checked);
+  if (!keep._tip) (keep._tip = true, bindTip(keep.parentElement || keep, () => ({ title: 'Keep playing while choosing', lines: ['The match carries on behind this window while you pick a relic.',
+    { text: 'Off by default. Remembered for your next matches.', color: '#9db3a3' }] })));
   $('pick').hidden = false; updatePick(g);
 }
 /* Cheap per-frame refresh of prices and disabled states while the picker is open. */
@@ -328,8 +358,36 @@ export function updatePick(g) {
   setText($('reroll'), 'Reroll all · ' + g.rerolls + ' left'); $('reroll').disabled = !(g.rerolls > 0);
   $('reroll').title = g.rerolls > 0 ? 'Draw three new offers (free)' : 'Relic talents give free rerolls';
   setText($('pickGold'), 'Gold: ' + g.gold);
+  $('pick').classList.toggle('live', !!g.playOnPick);   /* lighter backdrop, so the match shows through */
   banishBtns.forEach(b => { setText(b, 'Banish · ' + g.banishes + ' left'); b.disabled = !(g.banishes > 0); b.hidden = !(g.banishes > 0); });
 }
+/* An ability icon: the picture, a dark sweep over it (--p: the part still to go, 0 to 1) and a countdown. */
+function abilityIcon(name) {
+  const box = el('span', 'ab'), sweep = el('span', 'sw'), t = el('span', 'cdt');
+  box.append(spriteImg(name, 'pix'), sweep, t); box._img = box.children[0]; box._sw = sweep; box._t = t; box._p = -1;
+  return box;
+}
+function setSweep(box, p, text, ready) {
+  p = Math.round(Math.max(0, Math.min(1, p)) * 100) / 100;
+  if (box._p !== p) { box._p = p; box._sw.style.setProperty?.('--p', String(p)); }
+  setText(box._t, text);
+  if (box._ready !== ready) { box._ready = ready; box.classList.toggle('ready', ready); }
+}
+function updateAbilities(b, unit, def) {
+  const form = def.form || def.id;
+  if (b._form !== form) {             /* evolved: the new form's icons */
+    b._form = form;
+    b._atk._img.src = spriteUrl(attackIcon(def)); b._ult._img.src = spriteUrl(ultimateIcon(def));
+  }
+  const idle = !unit;
+  if (b._idle !== idle) { b._idle = idle; b._abil.classList.toggle('idle', idle); }
+  if (!unit) { setSweep(b._atk, 0, '', false); setSweep(b._ult, 1, '', false); return; }
+  const full = unit.s.cooldown ? unit.s.cooldown / rateOf(unit) : 0, left = Math.max(0, unit.cd || 0);
+  setSweep(b._atk, full > 0 ? left / full : 0, left >= 1 ? String(Math.ceil(left)) : '', false);
+  const e = unit.s.energyMax ? unit.energy / unit.s.energyMax : 0;
+  setSweep(b._ult, 1 - e, '', e >= 1);
+}
+
 export const hidePick = () => { $('pick').hidden = true; };
 export function showOver(title, text, msg, canNext) {
   setText($('overTitle'), title); setText($('overText'), text); setText($('subMsg'), msg || '');

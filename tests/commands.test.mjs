@@ -135,3 +135,27 @@ test('not enough gold is refused without side effects', () => {
 });
 
 test('unknown commands are refused', () => { assert.equal(apply(createWorld({ seed: 1 }), { type: 'teleport' }).reason, 'unknown command'); });
+
+test('keep playing while choosing a relic: off by default the match waits; turned on it runs on, and the replay agrees', async () => {
+  const { replay } = await import('../js/engine/replay.js');
+  const { exportLog } = await import('../js/engine/replay.js');
+  const run = on => {
+    const w = createWorld({ seed: 7, lineup: ['ranger'] }), t = tilesNearPath(w, 1);
+    apply(w, { type: 'place', hero: 'ranger', cx: t[0][0], cy: t[0][1] });
+    if (on) assert.ok(apply(w, { type: 'playOnPick', on: true }).ok);
+    apply(w, { type: 'wave' });
+    for (let i = 0; i < 60; i++) step(w);
+    assert.ok(apply(w, { type: 'buyRelic' }).ok, 'the starting gold buys one'); assert.equal(w.picking, true);
+    const before = w.tick;
+    for (let i = 0; i < 120; i++) step(w);
+    return { w, moved: w.tick - before };
+  };
+  assert.equal(run(false).moved, 0, 'off: the game waits for the choice');
+  const { w, moved } = run(true);
+  assert.equal(moved, 120, 'on: the match carries on behind the choice');
+  assert.equal(apply(w, { type: 'buyRelic' }).reason, 'busy', 'other actions still wait for the choice');
+  assert.ok(apply(w, { type: 'choose', index: 0 }).ok);
+  for (let i = 0; i < 30; i++) step(w);
+  const r = replay(exportLog(w), { maxTicks: w.tick });
+  assert.equal(r.tick, w.tick); assert.equal(r.gold, w.gold); assert.equal(r.relics.length, 1, 'the replay plays it the same way');
+});

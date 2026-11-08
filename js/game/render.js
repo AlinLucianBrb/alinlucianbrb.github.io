@@ -127,8 +127,22 @@ export function tickAnims(vfx, dt) {
 
 /* How each zone type looks: a sprite when the art has loaded, otherwise a shape. */
 const ZONE_SPRITE = {
-  storm: (ctx, z) => fade(ctx, Math.min(1, z.t) * (0.8 + 0.2 * Math.sin(z.t * 40)), () => drawSprite(ctx, 'zone_storm', z.x, z.y, z.r * 2.1)),
-  barrier: (ctx, z) => fade(ctx, Math.min(1, z.t * 4), () => drawSprite(ctx, 'zone_barrier', z.x, z.y, T * 1.15)),
+  storm: (ctx, z) => {   /* a faint dark area ringed by small thunderclouds at their own size (a big storm never stretches the art) */
+    const cloud = sprite('zone_storm_cloud');
+    if (!cloud) return false;
+    const a = Math.max(0, Math.min(1, z.t));
+    ctx.globalAlpha = a;
+    ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, 7); ctx.fillStyle = 'rgba(40,36,70,.22)'; ctx.fill();
+    ctx.setLineDash([6, 8]); ctx.strokeStyle = 'rgba(196,139,255,.45)'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.setLineDash([]);
+    const n = Math.max(6, Math.round(2 * Math.PI * z.r / 46)), spin = z.t * 0.25;
+    for (let i = 0; i < n; i++) {
+      const ang = spin + i * 2 * Math.PI / n, bob = Math.sin(z.t * 3 + i) * 1.5;
+      ctx.drawImage(cloud, z.x + Math.cos(ang) * z.r - 12, z.y + Math.sin(ang) * z.r - 12 + bob, 24, 24);
+    }
+    ctx.globalAlpha = 1;
+    return true;
+  },
+  barrier: (ctx, z) => fade(ctx, 0.6 * Math.min(1, z.t * 4), () => drawSprite(ctx, 'zone_barrier', z.x, z.y, T * 1.15)),   /* see-through, so it does not dominate the screen */
   poisonpool: (ctx, z) => fade(ctx, Math.min(1, z.t), () => drawSprite(ctx, 'zone_poison', z.x, z.y, z.r * 2.4)),
   oil: (ctx, z) => fade(ctx, Math.min(1, z.t * 2), () => drawSprite(ctx, 'zone_oil', z.x, z.y, z.r * 2.4)),
   trap: (ctx, z) => drawSprite(ctx, 'zone_trap', z.x, z.y, 30)
@@ -357,6 +371,8 @@ export function draw(ctx, g, v) {
       ctx.globalAlpha = 1;
     }
   }
+  /* Zones lie on the ground: drawn before heroes and enemies, so puddles never cover them. */
+  for (const z of g.zones || []) if (!(ZONE_SPRITE[z.type] && ZONE_SPRITE[z.type](ctx, z))) (ZONE_DRAW[z.type] || ZONE_DRAW.storm)(ctx, z);
   for (const t of g.heroes) {
     const d = t.def, [n, rot] = d.shape;
     if (t === v.moving) ctx.globalAlpha = 0.4;
@@ -374,7 +390,7 @@ export function draw(ctx, g, v) {
       ctx.beginPath(); ctx.arc(t.x, t.y, 21, 0, 7); ctx.fillStyle = 'rgba(255,216,74,.28)'; ctx.fill();
     }
     if (t.blink) {                         /* Assassin: a faded copy behind the enemy it just struck */
-      ctx.globalAlpha = 0.45 * Math.min(1, t.blink.t * 5);
+      ctx.globalAlpha = 0.85 * Math.min(1, t.blink.t * 5);
       if (!drawSprite(ctx, heroSprite(d), t.blink.x, t.blink.y + HERO_DY, HERO_S)) {
         if (n) poly(ctx, t.blink.x, t.blink.y, 13, n, rot); else { ctx.beginPath(); ctx.arc(t.blink.x, t.blink.y, 11, 0, 7); }
         ctx.fillStyle = d.color; ctx.fill();
@@ -389,16 +405,6 @@ export function draw(ctx, g, v) {
     if (t.tier && !art) {                  /* evolved: a gold ring (the art shows the evolved form instead) */
       ctx.beginPath(); ctx.arc(t.x, t.y, 18, 0, 7); ctx.strokeStyle = '#f2b84b'; ctx.lineWidth = 2.5; ctx.stroke();
     }
-    /* Level badge, top right of the hero. */
-    const bx = t.x + (art ? 16 : 13), byy = t.y - (art ? 17 : 13);
-    ctx.beginPath(); ctx.arc(bx, byy, 7, 0, 7); ctx.fillStyle = '#10200f'; ctx.fill();
-    ctx.strokeStyle = t.level >= 10 ? '#f2b84b' : '#8fd3ff'; ctx.lineWidth = 1.5; ctx.stroke();
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 8px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(String(t.level), bx, byy + 0.5);
-    /* Energy bar under the hero: blue while filling, gold when the ultimate is ready. */
-    const f = Math.max(0, Math.min(1, t.energy / t.s.energyMax));
-    ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(t.x - 15, t.y + 19, 30, 5);
-    ctx.fillStyle = full ? '#ffd84a' : '#5aa9ff'; ctx.fillRect(t.x - 14, t.y + 20, 28 * f, 3);
     ctx.globalAlpha = 1;
   }
   const slashArt = sprite('fx_slash');
@@ -423,7 +429,6 @@ export function draw(ctx, g, v) {
   }
   for (const b of v.vfx.beams) { ctx.strokeStyle = b.c; ctx.lineWidth = b.w; ctx.beginPath(); ctx.moveTo(b.x1, b.y1); ctx.lineTo(b.x2, b.y2); ctx.stroke(); }
   for (const p of g.projs) PROJ_DRAW[p.type](ctx, p);
-  for (const z of g.zones || []) if (!(ZONE_SPRITE[z.type] && ZONE_SPRITE[z.type](ctx, z))) (ZONE_DRAW[z.type] || ZONE_DRAW.storm)(ctx, z);
   for (const e of g.enemies) {
     const look = ENEMY_ART[e.type], art = look && drawSprite(ctx, 'enemy_' + e.type, e.x, e.y - look.s * 0.2, look.s);
     if (art) {
@@ -448,15 +453,15 @@ export function draw(ctx, g, v) {
   for (const a of v.vfx.anims || []) drawSprite(ctx, a.name, a.x, a.y, a.s, 0, Math.floor(a.t / a.dur * a.frames), a.frames);
 }
 
-/* Small icons over an enemy for each ailment it has (bleeding, burning, poisoned, chilled or frozen, shocked). */
-const AIL_ICON = { bleed: 'ail_bleed', burn: 'ail_burn', poison: 'ail_poison', chill: 'ail_chill', freeze: 'ail_chill', shock: 'ail_shock' };
+/* Small icons over an enemy for each ailment it has (bleeding, burning, poisoned, slowed, frozen, shocked); two slows show one icon. */
+const AIL_ICON = { bleed: 'ail_bleed', burn: 'ail_burn', poison: 'ail_poison', chill: 'ail_slow', oiled: 'ail_slow', freeze: 'ail_freeze', shock: 'ail_shock' };
 function ailmentIcons(ctx, e, x, y) {
   if (!e.fx) return;
-  let i = 0;
+  let i = 0, shown = '';
   for (const id in e.fx) {
     const name = AIL_ICON[id], st = e.fx[id];
-    if (!name || !st || (st.stacks ? !st.stacks.length : !(st.t > 0))) continue;
-    if (drawSprite(ctx, name, x + 5 + i * 11, y + 5, 10)) i++;
+    if (!name || !st || shown.includes(name) || (st.stacks ? !st.stacks.length : !(st.t > 0))) continue;
+    if (drawSprite(ctx, name, x + 5 + i * 11, y + 5, 10)) { i++; shown += name; }
     if (i >= 4) break;
   }
 }

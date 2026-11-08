@@ -257,7 +257,10 @@ test('evolving the Mage: an Evolve button with the cost pops up above its card; 
   assert.equal(m.def.name, 'Lightning Mage'); assert.equal(world().gold, 350);
   assert.ok(dom.made.some(e => e.tag === 'b' && e._text === '★ Lightning Mage · Lv 10'), 'the panel title shows the new form');
   assert.equal(rise.hidden, true, 'the Evolve button goes away');
-  assert.equal(dom.heroButton(2).hidden, true, 'a fully evolved hero has no button any more');
+  const mageBtn = dom.heroButton(2);
+  assert.equal(mageBtn.hidden, false, 'a fully evolved hero keeps its button: it shows the hero\'s state');
+  assert.ok(/ability_atk_fire|ability_atk_cold|ability_atk_lightning/.test(mageBtn._atk._img.src), 'the evolved form\'s attack icon');
+  assert.ok(/ability_ult_(inferno|blizzard|storm)/.test(mageBtn._ult._img.src), 'and its ultimate');
 });
 
 test('the match uses the lineup and items from the Play screen', () => {

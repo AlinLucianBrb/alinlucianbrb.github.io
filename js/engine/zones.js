@@ -17,7 +17,7 @@ export const ZONES = {
           const dx = e.x - z.x, dy = e.y - z.y;
           if (dx * dx + dy * dy > r2) continue;
           g.attack(z.owner, e, z.scale);
-          g.fx?.beam(e.x + 6, e.y - 70, e.x, e.y, 0.12, '#ffe45c', 3);
+          if (g.fx?.strike) g.fx.strike(e.x, e.y); else g.fx?.beam(e.x + 6, e.y - 70, e.x, e.y, 0.12, '#ffe45c', 3);   /* a bolt from the sky */
         }
       }
       return z.t > 0;

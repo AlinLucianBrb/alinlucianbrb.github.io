@@ -74,6 +74,8 @@ export const COMMANDS = {
     startWave(w); return OK;
   },
   auto(w, c) { w.auto = !!c.on; w.autoT = 3; return OK; },
+  /* Keep the game running while the relic choice is open (a player setting; off by default). Allowed at any time. */
+  playOnPick(w, c) { w.playOnPick = !!c.on; return OK; },
 
   /* Relic shop: buy, then choose one of three. Rerolls and banishes are free, but only talents give them (w.rerolls, w.banishes per match). */
   buyRelic(w) {

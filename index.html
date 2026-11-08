@@ -191,6 +191,14 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
 .herocard.placed .cost{color:var(--muted)}
 .herocard:has(.hico){padding-left:40px}
 .herocard .hico{position:absolute;left:3px;top:50%;width:34px;height:34px;transform:translateY(-52%)}
+/* Ability icons on the hero buttons: a dark sweep over the part still to go (--p), clearing clockwise like an action bar. */
+.herocard .abil{display:flex;gap:4px;margin-top:3px}
+.herocard .abil.idle{filter:grayscale(.85);opacity:.55}
+.herocard .ab{position:relative;display:block;width:28px;height:28px;border-radius:3px;overflow:hidden}
+.herocard .ab img{display:block;width:100%;height:100%}
+.herocard .ab .sw{position:absolute;inset:0;background:conic-gradient(transparent calc((1 - var(--p, 0)) * 1turn), rgba(0,0,0,.66) 0)}
+.herocard .ab .cdt{position:absolute;inset:0;display:grid;place-items:center;font-weight:800;font-size:.95em;color:#fff;text-shadow:0 0 2px #000,0 0 3px #000}
+.herocard .ab.ready{overflow:visible;box-shadow:0 0 0 2px #ffd84a,0 0 8px 1px rgba(255,216,74,.8)}
 /* Pixel art: sprites from assets/, drawn with hard edges. */
 .pix{image-rendering:pixelated}
 .hcardart,.evoart{order:-1;align-self:center;width:72px;height:72px;margin:-6px 0 -8px}
@@ -217,6 +225,8 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
 .spdbtn{min-width:46px;font-weight:700}
 .spdbtn.on{border-color:var(--accent);color:var(--accent)}
 #pauseBanner{top:42%;left:50%;transform:translate(-50%,-50%);font-size:2em;font-weight:700;letter-spacing:.12em;padding:.25em 1em;pointer-events:none}
+.overlay.live{background:rgba(12,18,15,.6)}
+.pickopt{display:flex;gap:6px;align-items:center;font-size:.9em;color:var(--muted);cursor:pointer}
 .overlay{position:absolute;inset:0;z-index:5;background:rgba(12,18,15,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px;text-align:center;overflow:auto}
 .choices{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
 .card{display:flex;flex-direction:column;gap:2px;width:clamp(140px,22vw,210px)}
@@ -399,6 +409,7 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
     <div class="choices" id="choices"></div>
     <div class="pickbar"><button id="reroll">Reroll all</button><span class="muted" id="pickGold"></span></div>
     <div class="muted" id="pickOdds"></div>
+    <label class="pickopt"><input type="checkbox" id="playOnPick"> Keep playing while choosing</label>
   </div>
   <div class="overlay" id="evoPick" hidden>
     <h2 id="evoTitle">Evolve</h2>

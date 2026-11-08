@@ -49,7 +49,7 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
   const path = genPath(rng.path), mods = [...talentMods(talents), ...itemMods(equipped)];
   const w = {
     seed: seed >>> 0, stageN: stage, stage: def, maxWave: def.waves, rng, path, pathSet: new Set(path.map(c => c.join(','))),
-    tick: 0, phase: 'build', won: false, auto: false, autoT: 3, picking: false, pick: null,
+    tick: 0, phase: 'build', won: false, auto: false, autoT: 3, picking: false, pick: null, playOnPick: false,
     gold: 100 + resolve(0, 'startGold', mods), lives: 20 + resolve(0, 'startLives', mods),
     wave: 0, spawnLeft: 0, spawnT: 0, kills: 0, bossKills: 0, nextHeroId: 1,
     heroes: [], enemies: [], projs: [], zones: [], mods, relics: [], relicsBought: 0, banned: new Set(),
@@ -165,9 +165,10 @@ export function endRun(w, won) {
   w.endPending = { won };
 }
 
-/* Advances the game by one step. Returns false (and does nothing) while the game is over or waiting on a relic choice. */
+/* Advances the game by one step. Returns false (and does nothing) while the game is over, or waiting on a relic choice
+   (unless the player chose to keep playing while choosing: playOnPick). */
 export function step(w) {
-  if (w.phase === 'over' || w.picking) return false;
+  if (w.phase === 'over' || (w.picking && !w.playOnPick)) return false;
   if (w.phase === 'build' && w.auto && (w.autoT -= STEP) <= 0) startWave(w);
   if (w.phase === 'wave' && w.spawnLeft > 0 && (w.spawnT -= STEP) <= 0) {
     spawnEnemy(w, waveEnemyType(w.wave, w.spawnLeft, w.stage)); w.spawnLeft--; w.spawnT = spawnDelay(w.wave);

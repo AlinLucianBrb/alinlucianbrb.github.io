@@ -5,24 +5,35 @@
 import { HEROES } from '../content/data.js';
 import { ITEMS } from '../content/items.js';
 import { ENEMIES } from '../engine/enemies.js';
+import { ULTIMATES } from '../engine/ultimates.js';
 
 const BASE = new URL('../../assets/', import.meta.url);
 export const spriteUrl = name => new URL(name + '.png', BASE).href;
 
 /* Every sprite the game uses (a test checks that each one is in assets/). */
+/* Ability icons on the hero buttons: the basic attack icon for each hero and evolution (ultimates use ability_ult_<id>). */
+export const ATTACK_ICON = {
+  warrior: 'atk_sword', berserker: 'atk_twin', commander: 'atk_launch', sentinel: 'atk_sword',
+  ranger: 'atk_arrow', marksman: 'atk_arrow_gold', boomeranger: 'atk_boomerang', hunter: 'atk_arrow_toxic',
+  mage: 'atk_arcane', firemage: 'atk_fire', coldmage: 'atk_cold', lightningmage: 'atk_lightning',
+  rogue: 'atk_twin', assassin: 'atk_blink', toxicologist: 'atk_daggers', alchemist: 'atk_flask'
+};
+export const attackIcon = def => 'ability_' + (ATTACK_ICON[def.form || def.id] || 'atk_sword');
+export const ultimateIcon = def => 'ability_ult_' + def.ultimate;
 const heroIds = HEROES.flatMap(h => [h.id, ...(h.evolutions || []).flatMap(s => s.choices.map(c => c.id))]);
-export const SPRITES = [
+export const SPRITES = [...new Set([
   ...heroIds.map(id => 'hero_' + id),
   ...Object.keys(ENEMIES).map(id => 'enemy_' + id),
   ...Object.keys(ITEMS).flatMap(id => [0, 1, 2, 3].map(r => 'item_' + id + '_' + r)),
   ...['arrow', 'arrow_gold', 'arrow_toxic', 'bolt_arcane', 'fireball', 'ice_shard', 'spark', 'dagger_toxic', 'flask_fire', 'flask_toxic',
     'boomerang', 'sword', 'piercing'].map(n => 'proj_' + n),
-  'fx_hit', 'fx_slash', 'fx_explosion',
-  ...['bleed', 'burn', 'poison', 'chill', 'shock'].map(n => 'ail_' + n),
-  ...['poison', 'oil', 'storm', 'barrier', 'trap'].map(n => 'zone_' + n),
+  'fx_hit', 'fx_slash', 'fx_explosion', 'fx_strike',
+  ...['bleed', 'burn', 'poison', 'slow', 'freeze', 'shock'].map(n => 'ail_' + n),
+  ...['poison', 'oil', 'storm_cloud', 'barrier', 'trap'].map(n => 'zone_' + n),
+  ...Object.values(ATTACK_ICON).map(n => 'ability_' + n), ...Object.keys(ULTIMATES).map(n => 'ability_ult_' + n),
   ...['tree', 'tree_2', 'bush', 'rock', 'flowers', 'mushrooms'].map(n => 'deco_' + n),
   'tiles'
-];
+])];
 
 const canLoad = () => typeof Image !== 'undefined';
 const cache = new Map();

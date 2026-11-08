@@ -5,7 +5,10 @@ Run:  python3 art/effects.py      (writes art/out/proj_*.png, fx_*.png, ail_*.pn
 - Projectiles point RIGHT; the game rotates them to their direction of flight. Small ones are 32x32 images (16x16 art
   pixels), the Commander's sword and the Marksman's piercing shot 64x64.
 - Animated effects are horizontal strips of frames (fx_hit: 4 frames of 32x32; fx_slash: 3 of 64x64, pointing right;
-  fx_explosion: 5 of 64x64). Ailment icons are 16x16 (8x8 art pixels), drawn over enemies. Zones are 64x64, one tile.
+  fx_explosion: 5 of 64x64; fx_strike: 3 of 64x64, a bolt from the sky whose strike point is the bottom centre). Ailment
+  icons are 16x16 (8x8 art pixels), drawn over enemies (slow and freeze have their own). Zones are 64x64, one tile;
+  the storm is drawn from small clouds (zone_storm_cloud, 32x32) placed around its edge at their own size, so a big
+  storm never stretches the pixels.
 - Solid objects (arrows, daggers, bottles, the barricade, the trap) get the dark outline; light and magic (bolts, sparks,
   slashes, explosions, puddles) do not, and use a few see-through shades instead.
 Colours are hex strings; 8-digit ones carry alpha. Grids are rows of characters, '.' transparent, padded to the size.
@@ -287,7 +290,9 @@ AILMENTS = {
     'bleed':  (['...r', '..rr', '.rRRr', '.rRWr', 'rRRRRr', 'rRRRRr', '.rRRr', '..rr'], {'r': '#8f1f1f', 'R': '#d9574e', 'W': '#ffb0a0'}),
     'burn':   (['...o', '..oo.o', '.ooyo', '.oyyo', 'ooyWyo', 'oyWWyo', '.oyyo', '..oo'], {'o': '#e0602e', 'y': '#ffb347', 'W': '#ffe9a0'}),
     'poison': (['..gggg', '.gGGGGg', 'gGkGGkG', 'gGGGGGg', '.gGkkG', '..gGGg', '..g.g', ''], {'g': '#3f7a2a', 'G': '#a6d94a', 'k': '#16240f'}),
-    'chill':  (['...c', '.c.c.c', '..cWc', 'ccWWWcc', '..cWc', '.c.c.c', '...c', ''], {'c': '#72c8f0', 'W': '#ffffff'}),
+    'slow':   (['.c....c', '.cC..cC', '..cccC', '...cC', '.c....c', '.cC..cC', '..cccC', '...cC'], {'c': '#a8c8f0', 'C': '#5a7ab0'}),
+    'freeze': (['wwwwwww', 'wcWcccC', 'wWcWccC', 'wcWcWcC', 'wccWcWC', 'wcccWcC', 'wccccCC', 'CCCCCCC'],
+               {'w': '#e8faff', 'c': '#8edcff', 'W': '#ffffff', 'C': '#3f8fc4'}),
     'shock':  (['....yy', '...yy', '..yyW', '.yyyyy', '...yy', '..yy', '.yy', '.y'], {'y': '#d6a2ff', 'W': '#ffffff'}),
 }
 
@@ -307,15 +312,43 @@ def zone_oil():
     return render(g.rows(), {'a': '#2a1c0ecc', 'o': '#3c2a14dd', 's': '#ffdcaa66', 'e': '#ff9f43aa'}, 32)
 
 
-def zone_storm():
-    g = Grid(32)
-    g.ring(16, 16, 15, 1.6, 'c', gaps=lambda a: math.sin(a * 6) > 0.55)
-    g.disc(16, 16, 13.4, 'f')
-    for x0, y0 in ((9, 9), (20, 11), (13, 20)):
-        pts = [(x0, y0), (x0 + 2, y0 + 3), (x0, y0 + 4), (x0 + 2, y0 + 7)]
-        for (a, b), (c, d) in zip(pts, pts[1:]):
-            g.line(a, b, c, d, 'W')
-    return render(g.rows(), {'c': '#ffe45ccc', 'f': '#ffe45c22', 'W': '#fff6c8'}, 32)
+def storm_cloud():
+    """One small thundercloud; the game places several around the storm's edge at their own size (no stretching)."""
+    g = Grid(16)
+    for cx, cy, r in ((3.5, 9.5, 2.6), (6, 7.5, 3.2), (9.5, 6.5, 3.4), (12.5, 8.5, 2.8), (8, 10, 3)):
+        g.disc(cx, cy, r, 'G')
+    for cx, cy, r in ((5.5, 6.8, 1.8), (9, 5.5, 2.2), (12, 7.6, 1.4)):
+        g.disc(cx, cy, r, 'g')
+    for x in range(3, 14):
+        if g.g[11][x] == 'G': g.g[11][x] = 'K'
+    g.set(7, 10, 'p'); g.set(8, 11, 'v'); g.set(9, 10, 'p')
+    return render(g.rows(), {'K': '#2a2c3a', 'G': '#4a4c60', 'g': '#7a7e96', 'p': '#c48bff', 'v': '#fbf2ff'}, 16, outline=True)
+
+
+def strike_frames():
+    """A bolt of lightning from the sky to the ground: 3 frames of 32x32 art pixels (the strike point is the bottom centre)."""
+    pts = [(14, 0), (18, 6), (13, 11), (19, 17), (14, 23), (17, 27), (16, 31)]
+    frames = []
+    for f in range(3):
+        g = Grid(32)
+        core = set()
+        for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+            steps = max(abs(x1 - x0), abs(y1 - y0))
+            for i in range(steps + 1):
+                core.add((round(x0 + (x1 - x0) * i / steps), round(y0 + (y1 - y0) * i / steps)))
+        if f < 2:
+            for x, y in core:
+                for dx in (-2, -1, 0, 1, 2):
+                    g.set(x + dx, y, 'p' if f == 0 else 'a')
+            for x, y in core:
+                for dx in ((0, 1) if f == 0 else (0,)):
+                    g.set(x + dx, y, 'W' if f == 0 else 'v')
+            g.disc(16, 30.5, [4, 3][f], 'p', 1.6)
+            g.disc(16, 30.5, [2.4, 1.6][f], 'W', 1)
+        else:
+            g.disc(16, 30.5, 4.5, 'a', 1.6)
+        frames.append(render(g.rows(), {'W': '#ffffff', 'v': '#f2e2ff', 'p': '#c48bffcc', 'a': '#c48bff55'}, 32))
+    return strip(frames)
 
 
 def zone_barrier():
@@ -352,7 +385,7 @@ def zone_trap():
     return render(rows, {'G': '#5e5a66', 'w': '#dde4ea', 'K': '#2c323a', 'y': '#7ad04b', 'E': '#c8ff70'}, 16, outline=True)
 
 
-ZONES = {'poison': zone_poison, 'oil': zone_oil, 'storm': zone_storm, 'barrier': zone_barrier, 'trap': zone_trap}
+ZONES = {'poison': zone_poison, 'oil': zone_oil, 'storm_cloud': storm_cloud, 'barrier': zone_barrier, 'trap': zone_trap}
 
 
 def main():
@@ -363,6 +396,7 @@ def main():
     made['fx_hit'] = hit_frames()
     made['fx_slash'] = slash_frames()
     made['fx_explosion'] = explosion_frames()
+    made['fx_strike'] = strike_frames()
     for k, (rows, pal) in AILMENTS.items():
         made['ail_' + k] = render(rows, pal, 8, outline=True)
     for k, fn in ZONES.items():
@@ -392,9 +426,10 @@ def preview(made):
         at(made[k], (i % 8) * 64, (i // 8) * 64)
     at(made['fx_hit'], 0, 128); at(made['fx_slash'], 192 - 64, 128)
     at(made['fx_explosion'], 192, 192)
-    for i, k in enumerate(['ail_bleed', 'ail_burn', 'ail_poison', 'ail_chill', 'ail_shock']):
+    bg.alpha_composite(made['fx_strike'], (0, 128))
+    for i, k in enumerate(['ail_bleed', 'ail_burn', 'ail_poison', 'ail_slow', 'ail_freeze', 'ail_shock']):
         bg.alpha_composite(made[k], (8 + i * 22, 220))
-    for i, k in enumerate(['zone_poison', 'zone_oil', 'zone_storm', 'zone_barrier', 'zone_trap']):
+    for i, k in enumerate(['zone_poison', 'zone_oil', 'zone_storm_cloud', 'zone_barrier', 'zone_trap']):
         at(made[k], 64 * (i + 1) if i < 4 else 0, 256 if i < 4 else 256)
     bg.resize((bg.width * 2, bg.height * 2), Image.NEAREST).save(os.path.join(OUT, 'preview-effects.png'))
 

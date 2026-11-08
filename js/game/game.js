@@ -6,7 +6,7 @@ import { apply } from '../engine/commands.js';
 import { exportLog } from '../engine/replay.js';
 import { heroStats } from '../engine/stats.js';
 import { draw, addBeam, tickBeams, addSlash, tickSlashes, addAnim, tickAnims } from './render.js';
-import { preload as preloadArt } from './sprites.js';
+import { preload as preloadArt, get as sprite } from './sprites.js';
 import { createCamera, fitCamera, clampCamera, zoomAt, panBy, toWorld } from './camera.js';
 import * as ui from './ui.js';
 
@@ -21,7 +21,17 @@ let last = -1, acc = 0, active = false, raf = 0, hooks = {}, uiT = 0, stageN = 1
 /* Screen-only state: chosen hero button, hover, selection, speed, pause, camera, canvas size and visual effects. */
 const v = { sel: 0, hover: null, selected: null, moving: null, speed: 1, paused: false, needFit: true,
   cam: createCamera(), dpr: 1, cw: MAP_W, ch: MAP_H, vfx: { beams: [], slashes: [], anims: [] }, fx: null };
-v.fx = { beam: (...a) => addBeam(v.vfx, ...a), slash: (...a) => addSlash(v.vfx, ...a) };
+v.fx = { beam: (...a) => addBeam(v.vfx, ...a), slash: (...a) => addSlash(v.vfx, ...a),
+  /* The Lightning Mage's storm: a bolt from the sky onto the enemy (a plain beam while the art is not loaded). */
+  strike: (x, y) => { if (sprite('fx_strike')) addAnim(v.vfx, 'fx_strike', x, y - 34, 72, 0.28, 3); else addBeam(v.vfx, x + 6, y - 70, x, y, 0.12, '#ffe45c', 3); } };
+
+/* Player setting: keep the game running while the relic choice is open (off by default, remembered on this browser). */
+const PLAY_ON_PICK = 'tbd.playOnPick';
+const playOnPickSaved = () => { try { return localStorage.getItem(PLAY_ON_PICK) === '1'; } catch (e) { return false; } };
+function setPlayOnPick(on) {
+  try { localStorage.setItem(PLAY_ON_PICK, on ? '1' : '0'); } catch (e) { /* private mode: it just is not remembered */ }
+  act({ type: 'playOnPick', on: !!on });
+}
 
 const newSeed = () => (globalThis.crypto && crypto.getRandomValues) ? crypto.getRandomValues(new Uint32Array(1))[0] : Math.floor(Math.random() * 4294967296);
 
@@ -35,6 +45,7 @@ function newRun() {
   w.ev.on('kill', ({ enemy }) => { if (w.fx && !enemy.escaped) addAnim(v.vfx, 'fx_hit', enemy.x, enemy.y - 6, 26 + enemy.def.radius, 0.24, 4); });
   w.ev.on('explode', ({ zone }) => { if (w.fx) addAnim(v.vfx, 'fx_explosion', zone.x, zone.y, 96, 0.45, 5); });
   v.selected = v.moving = v.evo = null; ui.hideEvoPick(); if (v.speed > 2) v.speed = 1; v.vfx.beams.length = 0; v.vfx.slashes.length = 0; v.vfx.anims.length = 0; v.needFit = true;
+  if (playOnPickSaved()) apply(w, { type: 'playOnPick', on: true });   /* logged, so the replay plays the same way */
   v.sel = heroIndex(w.lineup[0]);
   ui.setLineup(w);
   setPaused(false);
@@ -75,7 +86,7 @@ function frame(now) {
   if (!active) return;
   if (last < 0) last = now;
   const real = Math.min(MAX_CATCHUP, Math.max(0, (now - last) / 1000)); last = now;
-  const hidden = !!document.hidden, running = !v.paused && !v.evo && w.phase !== 'over' && !w.picking;   /* the evolve picker pauses too */
+  const hidden = !!document.hidden, running = !v.paused && !v.evo && w.phase !== 'over' && (!w.picking || w.playOnPick);   /* the evolve picker pauses too */
   w.fx = hidden ? null : v.fx;
   acc = running ? acc + real * v.speed : 0;
   const deadline = performance.now() + (hidden ? 150 : 8);
@@ -276,7 +287,7 @@ const chooseEvolution = i => { const h = v.evo; if (h && act({ type: 'evolve', i
 const toggleMove = () => { if (v.selected && w.phase !== 'over') { v.moving = v.moving === v.selected ? null : v.selected; ui.renderInspector(w, v); } };
 ui.initUI({
   onSelectType: selectType, onEvolveHero: i => openEvolve(unitOf(i)), onCloseInspector: closeInspector, onEvolveChoice: chooseEvolution, speed3x: () => !!(w && w.gs.speed3x),
-  onChoose: i => act({ type: 'choose', index: i }), onReroll: () => act({ type: 'reroll' }), onBanish: i => act({ type: 'banish', index: i }),
+  onChoose: i => act({ type: 'choose', index: i }), onPlayOnPick: setPlayOnPick, onReroll: () => act({ type: 'reroll' }), onBanish: i => act({ type: 'banish', index: i }),
   heroInfo: i => {
     const def = HEROES[i], unit = w && unitOf(i), tier = unit ? unit.tier : 0, evo = def.evolutions[tier];   /* a step: { level, cost, choices } */
     const evoCost = evo && w ? Math.round(evo.cost * w.gs.evolveCost) : evo ? evo.cost : null;
