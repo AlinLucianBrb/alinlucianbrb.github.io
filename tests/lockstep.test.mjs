@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorld, step } from '../js/engine/world.js';
-import { createHost, createGuest, guestSteps } from '../js/net/lockstep.js';
+import { createHost, createGuest, TURN_MS, IDLE_MS } from '../js/net/lockstep.js';
 import { hashWorld } from '../js/engine/hash.js';
 import { exportLog, replay } from '../js/engine/replay.js';
 import { tilesNearPath } from './helpers.mjs';
@@ -41,8 +41,9 @@ function run({ dropTurn = -1, ticks = 60 * 150 } = {}) {
   const hw = make(), g1w = make(), g2w = make();
   let clock = 0, turnsSeen = 0, desyncs = 0;
   const host = createHost({ world: hw, transport: net.peer('h'), me: 0, now: () => clock });
-  const g1 = createGuest({ world: g1w, transport: net.peer('g1'), me: 1, onDesync: () => desyncs++ });
-  const g2 = createGuest({ world: g2w, transport: net.peer('g2'), me: 2, onDesync: () => desyncs++ });
+  const g1 = createGuest({ world: g1w, transport: net.peer('g1'), me: 1, onDesync: () => desyncs++, now: () => clock });
+  const g2 = createGuest({ world: g2w, transport: net.peer('g2'), me: 2, onDesync: () => desyncs++, now: () => clock });
+  let turns = 0, stalls = 0, maxBehind = 0;
   net.drop(m => m.ev === 'turn' && m.to.id === 'g2' && turnsSeen++ === dropTurn);
   const t = tilesNearPath(hw, 8);
   /* What each player does, at their own (local) tick. */
@@ -60,10 +61,12 @@ function run({ dropTurn = -1, ticks = 60 * 150 } = {}) {
   for (let i = 0; i < ticks && !(hw.phase === 'over' && g1w.phase === 'over' && g2w.phase === 'over'); i++) {
     clock += 1000 / 60;
     if (hw.phase !== 'over') step(hw);
-    host.flush();
+    if (host.flush()) turns++;
     for (const [g, gw] of [[g1, g1w], [g2, g2w]]) {
-      let n = guestSteps(g, 1);
+      let n = g.stepsFor(1 / 60);
       while (n-- > 0 && gw.phase !== 'over') { step(gw); g.afterStep(); }
+      if (g.lag === 0 && gw.tick > 60 && hw.phase !== 'over') stalls++;   /* caught up with the host: it has to wait for a turn */
+      if (gw.tick > 0) maxBehind = Math.max(maxBehind, hw.tick - gw.tick);
     }
     plan.forEach((p, k) => {
       const wOf = p[1] === host ? hw : p[1] === g1 ? g1w : g2w;
@@ -71,8 +74,9 @@ function run({ dropTurn = -1, ticks = 60 * 150 } = {}) {
     });
     net.pump();
   }
-  for (let i = 0; i < 200; i++) { host.flush(true); net.pump(); for (const [g, gw] of [[g1, g1w], [g2, g2w]]) { let n = guestSteps(g, 50); while (n-- > 0 && gw.phase !== 'over') { step(gw); g.afterStep(); } } }
-  return { hw, g1w, g2w, desyncs };
+  const seconds = clock / 1000;
+  for (let i = 0; i < 600; i++) { clock += 1000 / 60; host.flush(true); net.pump(); for (const [g, gw] of [[g1, g1w], [g2, g2w]]) { let n = g.stepsFor(1 / 60); while (n-- > 0 && gw.phase !== 'over') { step(gw); g.afterStep(); } } }
+  return { hw, g1w, g2w, desyncs, turnsPerSecond: turns / seconds, stalls, maxBehind };
 }
 
 test('the host and two guests play the very same match', () => {
@@ -87,6 +91,14 @@ test('the host and two guests play the very same match', () => {
   assert.equal(hashWorld(replay(exportLog(g2w))), hashWorld(hw), 'and it replays');
 });
 
+test('turns are sparing (about 1 a second when nobody acts), and guests still play smoothly a little behind the host', () => {
+  const { turnsPerSecond, stalls, maxBehind } = run();
+  assert.ok(turnsPerSecond <= 1000 / TURN_MS && turnsPerSecond >= 1000 / IDLE_MS * 0.9, 'turns per second: ' + turnsPerSecond.toFixed(2));
+  assert.ok(turnsPerSecond < 1.4, 'mostly idle turns: ' + turnsPerSecond.toFixed(2));
+  assert.ok(stalls < 30, 'guests hardly ever stand still waiting for a turn (frames: ' + stalls + ')');
+  assert.ok(maxBehind < 60 * 2, 'never more than 2 seconds behind (ticks: ' + maxBehind + ')');
+});
+
 test('a lost turn is asked for again, and the guest catches up in step', () => {
   const { hw, g2w, desyncs } = run({ dropTurn: 3 });
   assert.equal(desyncs, 0);
@@ -98,11 +110,11 @@ test('a guest notices when its world is not the host\'s', () => {
   const net = network(), hw = make(), gw = make();
   let clock = 0, seen = null;
   const host = createHost({ world: hw, transport: net.peer('h'), now: () => clock });
-  const g = createGuest({ world: gw, transport: net.peer('g'), me: 1, onDesync: i => { seen = i; } });
+  const g = createGuest({ world: gw, transport: net.peer('g'), me: 1, onDesync: i => { seen = i; }, now: () => clock });
   gw.players[1].gold += 1;                    /* something only the guest's world has */
-  for (let i = 0; i < 60 * 8; i++) {
+  for (let i = 0; i < 60 * 14; i++) {
     clock += 1000 / 60; step(hw); host.flush(); net.pump();
-    let n = guestSteps(g, 1); while (n-- > 0) { step(gw); g.afterStep(); }
+    let n = g.stepsFor(1 / 60); while (n-- > 0) { step(gw); g.afterStep(); }
   }
   assert.ok(seen && seen.hash, 'the hash check caught it');
   assert.equal(g.desynced, true);

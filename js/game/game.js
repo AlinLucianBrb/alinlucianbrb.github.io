@@ -9,7 +9,7 @@ import { draw, addBeam, tickBeams, addSlash, tickSlashes, addAnim, tickAnims } f
 import { preload as preloadArt, get as sprite } from './sprites.js';
 import { createCamera, fitCamera, clampCamera, zoomAt, panBy, toWorld } from './camera.js';
 import * as ui from './ui.js';
-import { createHost, createGuest, guestSteps } from '../net/lockstep.js';
+import { createHost, createGuest } from '../net/lockstep.js';
 import { worldOptions } from '../net/session.js';
 
 const $ = id => document.getElementById(id);
@@ -148,12 +148,13 @@ function frame(now) {
   acc = running ? acc + real * speed : 0;
   const deadline = performance.now() + (hidden ? 150 : 8);
   if (net && !net.isHost) {
-    let n = guestSteps(net, acc / STEP);
-    if (n === 0 && net.allowed() === 0) acc = Math.min(acc, STEP);   /* waiting for the host: do not bank time */
+    /* A guest keeps its own pace, a little behind the host (js/net/lockstep.js). */
+    let n = running ? net.stepsFor(real) : 0;
+    acc = 0;
     while (n-- > 0) {
-      if (!step(world)) { acc = 0; break; }
-      net.afterStep(); acc = Math.max(0, acc - STEP);
-      if (performance.now() > deadline) break;
+      if (!step(world)) break;
+      net.afterStep();
+      if (performance.now() > deadline + (hidden ? 0 : 8)) break;
     }
   } else {
     while (acc >= STEP) {
