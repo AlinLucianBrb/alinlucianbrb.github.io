@@ -6,6 +6,7 @@ import { HEROES } from '../content/data.js';
 import { ITEMS } from '../content/items.js';
 import { ENEMIES } from '../engine/enemies.js';
 import { ULTIMATES } from '../engine/ultimates.js';
+import '../engine/kits/index.js';   /* the hero kits register their ultimates (their icons are listed below) */
 
 const BASE = new URL('../../assets/', import.meta.url);
 export const spriteUrl = name => new URL(name + '.png', BASE).href;
@@ -17,7 +18,11 @@ export const ATTACK_ICON = {
   ranger: 'atk_arrow', marksman: 'atk_arrow_gold', boomeranger: 'atk_boomerang', hunter: 'atk_arrow_toxic',
   mage: 'atk_arcane', firemage: 'atk_fire', coldmage: 'atk_cold', lightningmage: 'atk_lightning',
   rogue: 'atk_twin', assassin: 'atk_blink', toxicologist: 'atk_daggers', alchemist: 'atk_flask',
-  druid: 'atk_seed', animalic: 'atk_wolf', naturist: 'atk_thorns', lunar: 'atk_moonbeam'
+  druid: 'atk_seed', animalic: 'atk_wolf', naturist: 'atk_thorns', lunar: 'atk_moonbeam',
+  priest: 'atk_smite', incantation: 'atk_aura_holy', archangel: 'atk_lance', gospel: 'atk_psalm',
+  warlock: 'atk_shadow', occult: 'atk_aura_shadow', summoner: 'atk_imp', infernalist: 'atk_hellfire',
+  paladin: 'atk_hammer', heretic: 'atk_flail', inquisitor: 'atk_chain', crusader: 'atk_charge',
+  shaman: 'atk_lightning', witchdoctor: 'atk_dart', totemist: 'atk_totem', earthcaller: 'atk_fissure'
 };
 export const attackIcon = def => 'ability_' + (ATTACK_ICON[def.form || def.id] || 'atk_sword');
 export const ultimateIcon = def => 'ability_ult_' + def.ultimate;
@@ -27,9 +32,12 @@ export const SPRITES = [...new Set([
   ...Object.keys(ENEMIES).flatMap(id => ['enemy_' + id, 'enemy_' + id + '_2']),
   ...Object.keys(ITEMS).flatMap(id => [0, 1, 2, 3].map(r => 'item_' + id + '_' + r)),
   ...['arrow', 'arrow_gold', 'arrow_toxic', 'bolt_arcane', 'fireball', 'ice_shard', 'spark', 'dagger_toxic', 'flask_fire', 'flask_toxic',
-    'boomerang', 'sword', 'piercing', 'seed'].map(n => 'proj_' + n),
+    'boomerang', 'sword', 'piercing', 'seed', 'holy', 'shadow', 'hellfire', 'dart'].map(n => 'proj_' + n),
+  ...['flame', 'frost', 'storm'].map(n => 'minion_totem_' + n),
+  ...['imp', 'demon', 'golem', 'horse'].flatMap(n => ['minion_' + n, 'minion_' + n + '_2']),
+  'fx_judgement',
   'fx_hit', 'fx_slash', 'fx_explosion', 'fx_strike', 'fx_spikes', 'fx_moon', 'fx_moonburst', 'minion_wolf', 'minion_wolf_2',
-  ...['bleed', 'burn', 'poison', 'slow', 'freeze', 'shock', 'root'].map(n => 'ail_' + n),
+  ...['bleed', 'burn', 'poison', 'slow', 'freeze', 'shock', 'root', 'corruption', 'hex', 'doom', 'verdict', 'purge', 'link', 'stun'].map(n => 'ail_' + n),
   ...['poison', 'oil', 'storm_cloud', 'barrier', 'trap', 'thorns'].map(n => 'zone_' + n),
   ...Object.values(ATTACK_ICON).map(n => 'ability_' + n), ...Object.keys(ULTIMATES).map(n => 'ability_ult_' + n),
   ...['tree', 'tree_2', 'bush', 'rock', 'flowers', 'mushrooms'].map(n => 'deco_' + n),

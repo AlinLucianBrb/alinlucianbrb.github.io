@@ -2,6 +2,7 @@
 import { COLS, ROWS, T, HEROES } from '../content/data.js';
 import { tintOf } from '../engine/effects.js';
 import { get as sprite, tiles as tileSheet, drawSprite, heroSprite, frameOf } from './sprites.js';
+import { drawAuras, drawMinions, drawMounted, KIT_PROJ, KIT_ZONE, KIT_AIL_ICON, BUFF_COLOR } from './kit-art.js';
 
 const MAP_W = COLS * T, MAP_H = ROWS * T;
 /* Sprite sizes on the map (the art is 64 pixels a tile; the map uses T). Heroes stand on their tile, feet near its bottom. */
@@ -17,7 +18,10 @@ function boltSprite(p) {
   if (p.look === 'dagger') return 'proj_dagger_toxic';
   if (p.look === 'flask') return p.as === 'toxic' ? 'proj_flask_toxic' : 'proj_flask_fire';
   if (p.look === 'seed') return 'proj_seed';
+  if (p.look === 'dart') return 'proj_dart';
   const type = p.as || (d && d.damageType);
+  if (type === 'holy') return 'proj_holy';
+  if (type === 'shadow') return 'proj_shadow';
   return type === 'fire' ? 'proj_fireball' : type === 'cold' ? 'proj_ice_shard' : type === 'lightning' ? 'proj_spark' : 'proj_bolt_arcane';
 }
 const PROJ_DRAW = {
@@ -88,6 +92,8 @@ const PROJ_DRAW = {
     ctx.restore();
   }
 };
+
+Object.assign(PROJ_DRAW, KIT_PROJ);
 
 /* Short-lived visuals, pooled so busy fights don't create garbage. vfx = { beams: [], slashes: [] } belongs to the screen. */
 const pool = [];
@@ -208,6 +214,8 @@ const ZONE_DRAW = {
     ctx.beginPath(); ctx.arc(z.x, z.y, 3.5, 0, 7); ctx.fillStyle = '#b6f07c'; ctx.fill();
   }
 };
+
+Object.assign(ZONE_DRAW, KIT_ZONE);
 
 function poly(ctx, x, y, r, n, rot) {
   ctx.beginPath();
@@ -394,46 +402,10 @@ export function draw(ctx, g, v) {
   }
   /* Zones lie on the ground: drawn before heroes and enemies, so puddles never cover them. */
   for (const z of g.zones || []) if (!(ZONE_SPRITE[z.type] && ZONE_SPRITE[z.type](ctx, z))) (ZONE_DRAW[z.type] || ZONE_DRAW.storm)(ctx, z);
-  for (const t of g.heroes) {
-    const d = t.def, [n, rot] = d.shape;
-    if (t === v.moving) ctx.globalAlpha = 0.4;
-    if (t === v.selected) {
-      ctx.beginPath(); ctx.arc(t.x, t.y, t.s.range, 0, 7);
-      ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
-    }
-    const full = t.energy >= t.s.energyMax;
-    /* Timed buffs: a red ring for Frenzy, a soft blue one for Rally, a green one for Nature's grasp. */
-    if (t.buffs) t.buffs.forEach((b, i) => {
-      ctx.beginPath(); ctx.arc(t.x, t.y, 24 + i * 4, 0, 7);
-      ctx.strokeStyle = b.id === 'frenzy' ? 'rgba(229,100,90,.85)' : b.id === 'grasp' ? 'rgba(143,191,90,.8)' : 'rgba(127,179,255,.5)'; ctx.lineWidth = 2.5; ctx.stroke();
-    });
-    if (g.coop) {                          /* whose hero: a ring in the owner's colour, under its feet */
-      ctx.beginPath(); ctx.ellipse?.(t.x, t.y + 15, 17, 6, 0, 0, 7);
-      ctx.strokeStyle = PLAYER_COLORS[t.owner || 0]; ctx.lineWidth = 3; ctx.stroke();
-    }
-    if (full) {                            /* ultimate ready: a soft gold glow */
-      ctx.beginPath(); ctx.arc(t.x, t.y, 21, 0, 7); ctx.fillStyle = 'rgba(255,216,74,.28)'; ctx.fill();
-    }
-    if (t.blink) {                         /* Assassin: a faded copy behind the enemy it just struck */
-      ctx.globalAlpha = 0.85 * Math.min(1, t.blink.t * 5);
-      if (!drawSprite(ctx, heroSprite(d), t.blink.x, t.blink.y + HERO_DY, HERO_S)) {
-        if (n) poly(ctx, t.blink.x, t.blink.y, 13, n, rot); else { ctx.beginPath(); ctx.arc(t.blink.x, t.blink.y, 11, 0, 7); }
-        ctx.fillStyle = d.color; ctx.fill();
-      }
-      ctx.globalAlpha = t === v.moving ? 0.4 : 1;
-    }
-    /* Idle animation: two frames, each hero on its own beat (the game clock, so it pauses with the game). */
-    const art = drawSprite(ctx, frameOf(heroSprite(d), ((g.tick + t.id * 17) / 30 | 0) % 2 === 1), t.x, t.y + HERO_DY, HERO_S);
-    if (!art) {
-      if (n) poly(ctx, t.x, t.y, 15, n, rot); else { ctx.beginPath(); ctx.arc(t.x, t.y, 13, 0, 7); }
-      ctx.fillStyle = d.color; ctx.fill(); ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2; ctx.stroke();
-    }
-    if (t.tier && !art) {                  /* evolved: a gold ring (the art shows the evolved form instead) */
-      ctx.beginPath(); ctx.arc(t.x, t.y, 18, 0, 7); ctx.strokeStyle = '#f2b84b'; ctx.lineWidth = 2.5; ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
-  }
+  drawAuras(ctx, g);
+  for (const t of g.heroes) if (!t.def.flying) drawHero(ctx, g, v, t);
   for (const t of g.heroes) if (t.wolf && t.def.kind === 'wolf') drawWolf(ctx, t);
+  drawMinions(ctx, g);
   /* Co-op guests: heroes placed or moved, still on their way to the host, faded where they will stand. */
   for (const p of v.pending || []) {
     const c = p.cmd, d = c.type === 'place' ? HEROES.find(h => h.id === c.hero) : c.type === 'move' ? (g.heroes.find(h => h.id === c.id) || {}).def : null;
@@ -487,7 +459,50 @@ export function draw(ctx, g, v) {
     ctx.fillStyle = 'rgba(0,0,0,.75)'; ctx.fillRect(e.x - bw / 2 - 1, by - 1, bw + 2, 6);
     ctx.fillStyle = hpColor(f); ctx.fillRect(e.x - bw / 2, by, bw * Math.max(0, f), 4);
   }
+  for (const t of g.heroes) if (t.def.flying) drawHero(ctx, g, v, t);   /* the Archangel flies over the enemies on the path */
   for (const a of v.vfx.anims || []) drawSprite(ctx, a.name, a.x, a.y, a.s, 0, Math.floor(a.t / a.dur * a.frames), a.frames);
+}
+
+/* One hero: range ring when selected, buff rings, its co-op ring, ultimate glow, the Assassin's blink copy, the sprite. */
+function drawHero(ctx, g, v, t) {
+  const d = t.def, [n, rot] = d.shape;
+  if (t === v.moving) ctx.globalAlpha = 0.4;
+  if (t === v.selected) {
+    ctx.beginPath(); ctx.arc(t.x, t.y, t.s.range, 0, 7);
+    ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+  }
+  const full = t.energy >= t.s.energyMax;
+  /* Timed buffs: a red ring for Frenzy, a soft blue one for Rally, a green one for Nature's grasp. */
+  if (t.buffs) t.buffs.forEach((b, i) => {
+    ctx.beginPath(); ctx.arc(t.x, t.y, 24 + i * 4, 0, 7);
+    ctx.strokeStyle = b.id === 'frenzy' ? 'rgba(229,100,90,.85)' : b.id === 'grasp' ? 'rgba(143,191,90,.8)' : BUFF_COLOR[b.id] || 'rgba(127,179,255,.5)'; ctx.lineWidth = 2.5; ctx.stroke();
+  });
+  if (g.coop) {                          /* whose hero: a ring in the owner's colour, under its feet */
+    ctx.beginPath(); ctx.ellipse?.(t.x, t.y + 15, 17, 6, 0, 0, 7);
+    ctx.strokeStyle = PLAYER_COLORS[t.owner || 0]; ctx.lineWidth = 3; ctx.stroke();
+  }
+  if (full) {                            /* ultimate ready: a soft gold glow */
+    ctx.beginPath(); ctx.arc(t.x, t.y, 21, 0, 7); ctx.fillStyle = 'rgba(255,216,74,.28)'; ctx.fill();
+  }
+  if (t.blink) {                         /* Assassin: a faded copy behind the enemy it just struck */
+    ctx.globalAlpha = 0.85 * Math.min(1, t.blink.t * 5);
+    if (!drawSprite(ctx, heroSprite(d), t.blink.x, t.blink.y + HERO_DY, HERO_S)) {
+      if (n) poly(ctx, t.blink.x, t.blink.y, 13, n, rot); else { ctx.beginPath(); ctx.arc(t.blink.x, t.blink.y, 11, 0, 7); }
+      ctx.fillStyle = d.color; ctx.fill();
+    }
+    ctx.globalAlpha = t === v.moving ? 0.4 : 1;
+  }
+  /* Idle animation: two frames, each hero on its own beat (the game clock, so it pauses with the game). */
+  const art = d.mounted ? drawMounted(ctx, g, t, HERO_S, HERO_DY)   /* the Crusader: on his horse, wherever he rides */
+    : drawSprite(ctx, frameOf(heroSprite(d), ((g.tick + t.id * 17) / 30 | 0) % 2 === 1), t.x, t.y + HERO_DY, HERO_S);
+  if (!art) {
+    if (n) poly(ctx, t.x, t.y, 15, n, rot); else { ctx.beginPath(); ctx.arc(t.x, t.y, 13, 0, 7); }
+    ctx.fillStyle = d.color; ctx.fill(); ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2; ctx.stroke();
+  }
+  if (t.tier && !art) {                  /* evolved: a gold ring (the art shows the evolved form instead) */
+    ctx.beginPath(); ctx.arc(t.x, t.y, 18, 0, 7); ctx.strokeStyle = '#f2b84b'; ctx.lineWidth = 2.5; ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
 }
 
 /* The Animalic Druid's wolf: facing where it runs, bigger with a red glow while enraged, a little hop when it bites. */
@@ -504,7 +519,7 @@ function drawWolf(ctx, t) {
 }
 
 /* Small icons over an enemy for each ailment it has (bleeding, burning, poisoned, slowed, frozen, shocked, rooted); two slows show one icon. */
-const AIL_ICON = { bleed: 'ail_bleed', burn: 'ail_burn', poison: 'ail_poison', chill: 'ail_slow', oiled: 'ail_slow', freeze: 'ail_freeze', shock: 'ail_shock', root: 'ail_root' };
+const AIL_ICON = { bleed: 'ail_bleed', burn: 'ail_burn', poison: 'ail_poison', chill: 'ail_slow', oiled: 'ail_slow', freeze: 'ail_freeze', shock: 'ail_shock', root: 'ail_root', ...KIT_AIL_ICON };
 function ailmentIcons(ctx, e, x, y) {
   if (!e.fx) return;
   let i = 0, shown = '';

@@ -4,6 +4,7 @@ import { HEROES, RARITIES, RELICS, STAT_LABELS, rarityOdds, HERO_LEVELS, ATTRIBU
 export const ATTR_SHORT = { strength: 'Str', dexterity: 'Dex', intellect: 'Int' };
 export const ATTR_COLOR = { strength: '#e5645a', dexterity: '#5fd46f', intellect: '#5aa9ff' };
 import { ULTIMATES } from '../engine/ultimates.js';
+import '../engine/kits/index.js';
 import { DAMAGE_LABEL, AILMENTS } from '../content/combat.js';
 import { rateOf } from '../engine/behaviors.js';
 import { explain, affected, attributeDamage } from '../engine/stats.js';
@@ -26,7 +27,8 @@ let meterEmpty, cb = {}, banishBtns = [];
 
 /* Tags in words, for tooltips: relics, talents and items that name a tag work on heroes that have it. */
 const TAG_LABEL = { melee: 'Melee', range: 'Ranged', projectile: 'Projectile', spell: 'Spell', arcane: 'Arcane', thrown: 'Thrown',
-  physical: 'Physical', fire: 'Fire', cold: 'Cold', lightning: 'Lightning', toxic: 'Toxic', nature: 'Nature', minion: 'Minion', area: 'Area' };
+  physical: 'Physical', fire: 'Fire', cold: 'Cold', lightning: 'Lightning', toxic: 'Toxic', nature: 'Nature', minion: 'Minion', area: 'Area',
+  holy: 'Holy', shadow: 'Shadow', aura: 'Aura', curse: 'Curse', chain: 'Chain', totem: 'Totem', mounted: 'Mounted' };
 export const tagLine = d => d.tags.filter(t => TAG_LABEL[t]).map(t => TAG_LABEL[t]).join(' · ');
 /* The ailments a hero's hits can inflict right now: an ailment needs a chance above 0 (from the evolution, talents, relics
    or items) and a hit of a damage type it comes from (bleed from physical hits, burn from fire...). Slows are listed too. */

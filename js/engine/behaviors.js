@@ -39,17 +39,18 @@ export function targetCount(g, t) {
   const n = t.s.targets || 1, whole = Math.floor(n + 1e-9), rest = n - whole;
   return Math.max(1, whole + (rest > 1e-9 && g.rng && g.rng.combat.next() < rest ? 1 : 0));
 }
-const ready = (t, dt) => (t.cd -= dt) <= 0;
+/* The attack pattern's steps, shared with the hero kits (js/engine/kits). */
+export const ready = (t, dt) => (t.cd -= dt) <= 0;
 /* How fast a hero attacks: attack speed, or cast speed for spell casters (def.rate = 'castSpeed'). */
 export const rateOf = t => t.s[t.def.rate || 'speed'] || 1;
-const rearm = t => { t.cd = t.s.cooldown / rateOf(t); };
+export const rearm = t => { t.cd = t.s.cooldown / rateOf(t); };
 /* Damage multiplier for this attack: 1, or the ultimate's when the bar is full (0 when the ultimate replaces the attack).
    Worlds without energy (old tests) give 1. */
-const strike = (g, t, target) => (g.attackMult ? g.attackMult(t, target) : 1);
+export const strike = (g, t, target) => (g.attackMult ? g.attackMult(t, target) : 1);
 /* Fills the energy bar after an attack, unless that attack fired the ultimate. */
-const charge = (g, t) => { if (t.ultNow) { t.ultNow = false; return; } if (g.gainEnergy) g.gainEnergy(t); };
+export const charge = (g, t) => { if (t.ultNow) { t.ultNow = false; return; } if (g.gainEnergy) g.gainEnergy(t); };
 /* Ultimates look different: brighter and thicker. */
-const look = (t, mult) => (mult > 1 ? '#fff6c8' : t.def.color);
+export const look = (t, mult) => (mult > 1 ? '#fff6c8' : t.def.color);
 
 /* One swing: hits every enemy inside the arc and range, facing the target. */
 function swingAt(g, t, tg, mult, ttl) {

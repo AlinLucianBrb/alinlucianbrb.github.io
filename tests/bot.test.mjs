@@ -17,7 +17,8 @@ test('the bot finishes a run for every strategy and the result is consistent', (
     const { result, log } = playRun({ seed: 1, stage: 1, strategy });
     assert.equal(result.over, true, strategy + ' should finish');
     assert.ok(result.waves >= 1 && result.waves <= STAGES[0].waves);
-    assert.equal(result.won, result.waves === STAGES[0].waves && result.lives > 0);
+    if (result.won) assert.ok(result.waves === STAGES[0].waves && result.lives > 0, strategy + ': a win reaches the last wave with lives left');
+    else assert.ok(result.lives === 0 || result.waves === STAGES[0].waves, strategy + ': a loss runs out of lives, or the final boss got through');
     assert.equal(log.commands.filter(c => c.type === 'place').length, STRATEGIES[strategy].length, 'each hero placed once');
   }
 });

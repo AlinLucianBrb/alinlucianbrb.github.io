@@ -16,9 +16,11 @@ import { createRng } from './rng.js';
 import { attackMult, gainEnergy, erupt } from './ultimates.js';
 import { gainXp } from './levels.js';
 import { coopHpMult } from '../content/rules.js';
+import { damageTaken, EFFECT_HOOKS } from './effects.js';
+import './kits/index.js';   /* the newer heroes' behaviors, ultimates and zones register themselves */
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
-export const ENGINE_VERSION = 15;     /* bump when a rule change would make old command logs play out differently */
+export const ENGINE_VERSION = 16;     /* bump when a rule change would make old command logs play out differently */
 
 function genPath(rng) {
   let x = 0, y = 1 + rng.int(ROWS - 2); const p = [[x, y]];
@@ -77,7 +79,8 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
   };
   for (const k of PLAYER_FIELDS) Object.defineProperty(w, k, { get: () => ps[0][k], set: v => { ps[0][k] = v; }, enumerable: true });
   w.ownerOf = h => ps[h.owner || 0];
-  w.hit = (hero, e, amount, type) => hit(w, hero, e, amount, type);
+  w.hit = (hero, e, amount, type, quiet) => hit(w, hero, e, amount, type, quiet);
+  w.livesStart = w.lives;   /* the Heretic's blood price counts the lives lost since */
   w.attack = (hero, e, scale, rate, as, s) => attack(w, hero, e, scale, rate, as, s);
   w.dot = (src, e, amount, type) => dotDamage(w, src, e, amount, type);
   w.attackMult = (h, target) => attackMult(w, h, target);
@@ -119,13 +122,20 @@ function bonusGold(w, p) {
 }
 
 /* Central damage function: all damage ends here (already reduced by armor and resistances, see combat.js), so the meter,
-   kills and gold hook in one place. Heroes attack through w.attack(); damage over time comes through w.dot(). */
-export function hit(w, hero, e, amount, type = 'physical') {
+   kills and gold hook in one place. Heroes attack through w.attack(); damage over time comes through w.dot().
+   Curses make the enemy take more (damageTaken). quiet: damage passed on by an effect (the Witch Doctor's link), which
+   must not set off the effects again. */
+export function hit(w, hero, e, amount, type = 'physical', quiet = false) {
   if (e.dead || !(amount > 0)) return;
+  amount *= damageTaken(e);
   const dealt = Math.min(amount, e.hp);
   e.hp -= amount; if (hero) e.last = hero;
   if (hero) w.ev.emit('damage', { hero, enemy: e, amount: dealt, type });
-  if (e.hp <= 0) { e.dead = true; w.ev.emit('kill', { hero: hero || e.last, enemy: e }); }
+  if (!quiet && e.fx) for (const id in e.fx) { const f = EFFECT_HOOKS.damage[id]; if (f) f(w, hero, e, dealt, type, e.fx[id]); }
+  if (e.hp <= 0 && !e.dead) {
+    e.dead = true; w.ev.emit('kill', { hero: hero || e.last, enemy: e });
+    if (e.fx) for (const id in e.fx) { const f = EFFECT_HOOKS.death[id]; if (f) f(w, e, e.fx[id]); }
+  }
 }
 
 /* Timed buffs on a hero (Frenzy, Rally): { id, name, mods, t }. Giving a buff the hero already has refreshes it instead

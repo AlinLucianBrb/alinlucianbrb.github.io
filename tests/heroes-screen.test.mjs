@@ -1,5 +1,6 @@
 /* The Heroes, Inventory and level screens against a fake page and a fake server: hero pages with Information and
    Evolutions tabs, equipping items, the inventory grid, and choosing heroes after picking a level. */
+import { HEROES } from '../js/content/data.js';
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { installFakeDom } from './fake-dom.mjs';
@@ -35,7 +36,7 @@ test('Heroes: one card per playable hero; clicking opens its page on the Informa
   state.profile = { level: 2, lineup: ['warrior', 'ranger', 'mage'], equipment: {} };
   state.items = null;
   await heroes.mount(null, {});
-  assert.equal(byId.hrGrid.children.length, 5, 'Warrior, Ranger, Mage, Rogue and Druid');
+  assert.equal(byId.hrGrid.children.length, HEROES.length, 'one card per playable hero');
   assert.equal(byId.hrPage.hidden, true);
   assert.ok(texts(byId.hrGrid.children[0]).includes('Melee · Strength'));
   byId.hrGrid.children[0].onclick();

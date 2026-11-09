@@ -796,8 +796,8 @@ insert into public.talent_links (a, b) values
   ('t4_p48', 't4_p0'),
   ('t4_p0', 't4_p48');
 -- Playable heroes.
-insert into public.hero_classes (id) values ('warrior'), ('ranger'), ('mage'), ('rogue'), ('druid') on conflict (id) do nothing;
-delete from public.hero_classes where id <> all (array['warrior', 'ranger', 'mage', 'rogue', 'druid']::text[]);
+insert into public.hero_classes (id) values ('warrior'), ('ranger'), ('mage'), ('rogue'), ('druid'), ('priest'), ('warlock'), ('paladin'), ('shaman') on conflict (id) do nothing;
+delete from public.hero_classes where id <> all (array['warrior', 'ranger', 'mage', 'rogue', 'druid', 'priest', 'warlock', 'paladin', 'shaman']::text[]);
 -- Item types. Removed items stay in the table (players may own them) but stop dropping.
 insert into public.item_types (id, slot, droppable, affinity) values
   ('helm', 'helm', true, null),
@@ -828,8 +828,8 @@ insert into public.item_types (id, slot, droppable, affinity) values
 on conflict (id) do update set slot = excluded.slot, droppable = true, affinity = excluded.affinity;
 update public.item_types set droppable = false where id <> all (array['helm', 'body_armour', 'leggings', 'boots', 'power_charm', 'great_helm', 'plate_armour', 'plate_greaves', 'sabatons', 'bloodstone_ring', 'leather_hood', 'leather_jerkin', 'leather_trousers', 'ranger_boots', 'feather_charm', 'circlet', 'silk_robe', 'silk_wraps', 'silk_slippers', 'arcane_amulet', 'beast_mask', 'hide_armour', 'fur_leggings', 'fur_boots', 'fang_necklace']::text[]);
 -- Item bonuses: the relics an item can roll.
-insert into public.item_bonuses (id, tags) values ('Sharpened rounds', array[]::text[]), ('Long barrels', array['projectile']::text[]), ('Quick hands', array['melee', 'projectile']::text[]), ('Battle focus', array['spell']::text[]), ('Split bolt', array['spell']::text[]), ('Fine arrows', array['projectile']::text[]), ('Whetstone', array['melee']::text[]), ('Arcane focus', array['spell']::text[]), ('Wide swing', array['melee']::text[]), ('Keen edge', array['projectile']::text[]), ('Cruelty', array['melee']::text[]), ('Quick incantation', array['spell']::text[]), ('Pack leader', array['minion']::text[]), ('Feral haste', array['minion']::text[]), ('Hunting instinct', array['minion']::text[]), ('Savage bite', array['minion']::text[]) on conflict (id) do update set tags = excluded.tags;
-delete from public.item_bonuses where id <> all (array['Sharpened rounds', 'Long barrels', 'Quick hands', 'Battle focus', 'Split bolt', 'Fine arrows', 'Whetstone', 'Arcane focus', 'Wide swing', 'Keen edge', 'Cruelty', 'Quick incantation', 'Pack leader', 'Feral haste', 'Hunting instinct', 'Savage bite']::text[]);
+insert into public.item_bonuses (id, tags) values ('Sharpened rounds', array[]::text[]), ('Long barrels', array['projectile']::text[]), ('Quick hands', array['melee', 'projectile']::text[]), ('Battle focus', array['spell']::text[]), ('Split bolt', array['spell']::text[]), ('Fine arrows', array['projectile']::text[]), ('Whetstone', array['melee']::text[]), ('Arcane focus', array['spell']::text[]), ('Wide swing', array['melee']::text[]), ('Keen edge', array['projectile']::text[]), ('Cruelty', array['melee']::text[]), ('Quick incantation', array['spell']::text[]), ('Dark pact', array[]::text[]), ('Blasphemy', array[]::text[]), ('Holy water', array[]::text[]), ('Pack leader', array['minion']::text[]), ('Feral haste', array['minion']::text[]), ('Hunting instinct', array['minion']::text[]), ('Savage bite', array['minion']::text[]) on conflict (id) do update set tags = excluded.tags;
+delete from public.item_bonuses where id <> all (array['Sharpened rounds', 'Long barrels', 'Quick hands', 'Battle focus', 'Split bolt', 'Fine arrows', 'Whetstone', 'Arcane focus', 'Wide swing', 'Keen edge', 'Cruelty', 'Quick incantation', 'Dark pact', 'Blasphemy', 'Holy water', 'Pack leader', 'Feral haste', 'Hunting instinct', 'Savage bite']::text[]);
 
 -- ===== Game rules (generated from js/content by tools/rules-sql.mjs; do not edit by hand) =====
 -- How many levels there are.

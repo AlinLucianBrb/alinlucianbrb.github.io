@@ -37,6 +37,7 @@ test('hero stats apply only matching modifiers and only to stats the hero has', 
 
 test('every hero has an energy bar and an ultimate; every relic can affect at least one playable hero or the economy', async () => {
   const { ULTIMATES } = await import('../js/engine/ultimates.js');
+  await import('../js/engine/kits/index.js');
   for (const h of HEROES) { assert.ok(h.stats.energyMax > 0 && h.stats.energyPerAttack > 0, h.id); assert.ok(ULTIMATES[h.ultimate], h.id); assert.ok(h.evolutions.length >= 1, h.id); }
   for (const r of RELICS) {
     const ms = r.mods ? r.mods(1) : [];

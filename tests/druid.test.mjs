@@ -11,7 +11,7 @@ import { inflict } from '../js/engine/combat.js';
 import { levelMods } from '../js/engine/levels.js';
 import { GRASP, ENRAGE, SPIKES, MOON } from '../js/engine/ultimates.js';
 import { HEROES, T } from '../js/content/data.js';
-import { AILMENTS } from '../js/content/combat.js';
+import { AILMENTS, DAMAGE_TYPES } from '../js/content/combat.js';
 import { exportLog, replay } from '../js/engine/replay.js';
 import { hashWorld } from '../js/engine/hash.js';
 import { richWorld, place, enemyAt, dealt } from './helpers.mjs';
@@ -44,7 +44,7 @@ test('root holds an enemy in place for a second; any damage type can root', () =
   assert.equal(tickEffects(w, e, 0.6), 0);
   assert.equal(tickEffects(w, e, 0.1), 1, 'free again after a second');
   assert.equal(AILMENTS.root.duration, 1);
-  assert.deepEqual(AILMENTS.root.from, ['physical', 'spell', 'fire', 'cold', 'lightning', 'toxic']);
+  assert.deepEqual(AILMENTS.root.from, DAMAGE_TYPES, 'every damage type');
 });
 
 test('the Druid\'s bolts root with their chance (15%), on the seeded combat stream', () => {

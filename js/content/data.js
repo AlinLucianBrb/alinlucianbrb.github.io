@@ -129,15 +129,104 @@ export const HEROES = [
         ultShort: 'Brings down a moon that smashes the enemies around where it lands.' }
     ] }],
     desc: 'Druid (spell): thorny bolts that can root enemies in place. Evolves into an Animalic, Naturist or Lunar Druid.',
-    short: 'Shoots thorny bolts that can root enemies in place (15%). At level 10, choose a path.' }
+    short: 'Shoots thorny bolts that can root enemies in place (15%). At level 10, choose a path.' },
+  /* The Priest: a support caster (holy). Smite, and a Blessing for the heroes around her. Her forms: an aura that burns enemies
+     and speeds up allies (Incantation, the first aura hero), a piercing lance from a hero who may stand on the path
+     (Archangel), and energy for the heroes around her plus a saved life each wave (Gospel). Kit: js/engine/kits/priest.js. */
+  { id: 'priest', name: 'Priest', archetype: 'spell', attribute: 'intellect', kind: 'bolt', projLook: 'holy', projSpeed: 440, damageType: 'holy', color: '#f4e7b0',
+    shape: [8, 0], tags: ['spell', 'holy'], rate: 'castSpeed',
+    stats: withEnergy({ damage: 22, range: 115, cooldown: 0.9, castSpeed: 1, targets: 1 }, { strength: 2, dexterity: 3, intellect: 10 }), ultimate: 'blessing',
+    evolutions: [{ level: 10, cost: 150, choices: [
+      { id: 'incantation', name: 'Incantation', color: '#ffd76a', kind: 'aura', ultimate: 'crescendo', tags: ['area', 'aura'],
+        stats: { damage: 7, range: 100, cooldown: 0.5, energyPerAttack: 5 }, mods: plus50cast,
+        aura: { bless: { id: 'hymn', name: 'Hymn', mods: [{ stat: 'speed', type: 'inc', value: 0.15 }, { stat: 'castSpeed', type: 'inc', value: 0.15 }] } },
+        short: 'No attack: a holy aura burns every enemy inside it, and heroes inside attack and cast 15% faster.',
+        ultShort: 'Crescendo: for 5 seconds the aura is twice as wide and deals triple damage.' },
+      { id: 'archangel', name: 'Archangel', color: '#fff6c8', kind: 'lance', ultimate: 'judgement', tags: ['projectile'], stats: { range: 130 }, mods: plus50cast,
+        flying: true,
+        short: 'Throws a lance of light that pierces every enemy in a line. Wings: she can be moved onto the path.',
+        ultShort: 'Judgement: a giant blade falls on the toughest enemy in range for 8x damage; a non-boss left under 25% life dies.' },
+      { id: 'gospel', name: 'Gospel', color: '#ffe9a0', kind: 'psalm', ultimate: 'conversion', mods: plus50cast, sanctuary: true,
+        short: 'Each Psalm gives 3 energy to every hero around her. Sanctuary: once a wave, the first enemy to reach the gate is turned back.',
+        ultShort: 'Conversion: the toughest enemy in range (not a boss) turns and walks back down the path, striking its old allies.' }
+    ] }],
+    desc: 'Priest (spell): bolts of holy light, and a Blessing that strengthens the heroes around her. Evolves into an Incantation, Archangel or Gospel.',
+    short: 'Smites with bolts of holy light; her Blessing gives nearby heroes +30% damage. At level 10, choose a path.' },
+  /* The Warlock: shadow bolts that Corrupt (damage over time that grows with each stack). His forms: an aura that curses
+     enemies so everyone hits them harder (Occult), imps and a Greater Demon (Summoner), burning ground and spreading fire
+     (Infernalist). Kit: js/engine/kits/warlock.js. */
+  { id: 'warlock', name: 'Warlock', archetype: 'spell', attribute: 'intellect', kind: 'bolt', projSpeed: 420, damageType: 'shadow', color: '#9a5cd6',
+    shape: [5, Math.PI / 2], tags: ['spell', 'shadow'], rate: 'castSpeed',
+    stats: withEnergy({ damage: 18, range: 115, cooldown: 0.9, castSpeed: 1, targets: 1 }, { strength: 2, dexterity: 3, intellect: 10, corruptionChance: 0.5 }), ultimate: 'souldrain',
+    evolutions: [{ level: 10, cost: 150, choices: [
+      { id: 'occult', name: 'Occult', color: '#7a4fc0', kind: 'aura', ultimate: 'doom', tags: ['area', 'aura', 'curse'],
+        stats: { damage: 4, range: 110, cooldown: 0.5, energyPerAttack: 5 }, mods: plus50cast, aura: { curse: 'hex' },
+        short: 'No attack: a shadow aura Hexes every enemy inside, so they take 20% more damage from everyone and move 15% slower.',
+        ultShort: 'Doom: for 4 seconds Hexed enemies take 50% more damage; any that die explode in shadow.' },
+      { id: 'summoner', name: 'Summoner', color: '#c46aff', kind: 'imps', ultimate: 'demongate', tags: ['minion'], stats: { cooldown: 1.6 }, mods: plus50cast,
+        short: 'Each cast summons an imp (up to 3, 10 seconds each) that throws small bolts at the enemies near it.',
+        ultShort: 'Demon gate: a Greater Demon steps out for 8 seconds and cleaves the enemies around it.' },
+      { id: 'infernalist', name: 'Infernalist', color: '#ff6a3a', kind: 'hellfire', damageType: 'fire', ultimate: 'infernal', tags: ['fire', 'area'],
+        convert: { shadow: 0.3 }, contagion: true, mods: [...plus50cast, always('burnChance')],
+        short: 'Hellfire: a fireball that bursts and leaves burning ground. Always burns; burns jump to the next enemy when one dies.',
+        ultShort: 'Infernal: a meteor crashes into the biggest group of enemies, then a burning golem stands there for 6 seconds.' }
+    ] }],
+    desc: 'Warlock (spell): shadow bolts that Corrupt enemies, damage over time that grows with each stack. Evolves into an Occult, Summoner or Infernalist.',
+    short: 'Shadow bolts that Corrupt enemies (50%): damage over time that grows with each stack. At level 10, choose a path.' },
+  /* The Paladin: a slower, heavier Warrior; 30% of his damage is Holy. His forms: a fallen knight who grows stronger as lives
+     are lost and can pay one to empower everyone (Heretic), a hunter of the toughest enemies (Inquisitor), and a mounted
+     knight who charges down the path (Crusader). Kit: js/engine/kits/paladin.js. */
+  { id: 'paladin', name: 'Paladin', archetype: 'melee', attribute: 'strength', kind: 'swing', damageType: 'physical', convert: { holy: 0.3 }, color: '#e8d27a',
+    shape: [6, Math.PI / 6], tags: ['melee', 'physical', 'holy'],
+    stats: withEnergy({ damage: 36, range: 60, cooldown: 0.95, speed: 1, arc: 120 }, { strength: 10, dexterity: 3, intellect: 4 }), ultimate: 'consecration',
+    evolutions: [{ level: 10, cost: 150, choices: [
+      { id: 'heretic', name: 'Heretic', color: '#b04a3a', damageType: 'shadow', convert: { fire: 0.5 }, bloodPrice: 0.03, ultimate: 'heresy', tags: ['shadow', 'fire'],
+        mods: [...plus50, always('burnChance')],
+        short: 'A burning shadow flail (always burns), 3% stronger for every life lost this run.',
+        ultShort: 'Heresy: pays 1 life; every hero on the map deals +50% damage for 8 seconds (at most 3 lives a match, never at 5 or fewer; otherwise only the Heretic, for free).' },
+      { id: 'inquisitor', name: 'Inquisitor', color: '#f2e2a0', kind: 'verdict', damageType: 'holy', ultimate: 'purge', stats: { range: 100, cooldown: 0.8 }, mods: plus50,
+        short: 'A long chain flail at the toughest enemy in range; each hit adds a stack of Verdict (+5% damage taken from everything, up to 10).',
+        ultShort: 'Purge: every enemy in range loses all armor and 30 resistance for 6 seconds; a non-boss under 15% life dies.' },
+      { id: 'crusader', name: 'Crusader', color: '#d9b25a', kind: 'charge', mounted: true, ultimate: 'cavalry', tags: ['mounted'], stats: { range: 140, cooldown: 1.8, damage: 44 }, mods: plus50,
+        short: 'Charges on his horse down the nearest stretch of path toward the enemies, trampling and knocking back each one, then rides back.',
+        ultShort: 'Cavalry: three phantom riders gallop the whole path from the gate to the entrance, hitting and pushing back every enemy.' }
+    ] }],
+    desc: 'Paladin (melee): a heavy hammer, part of it holy, and Consecration. Evolves into a Heretic, Inquisitor or Crusader.',
+    short: 'A heavy hammer swing, 30% of it holy; Consecration burns the ground around him. At level 10, choose a path.' },
+  /* The Shaman: chain lightning that hits several enemies, and Ancestral call (heroes nearby attack faster). The second
+     strength hero. His forms: poison darts that link enemies so they share damage (Witch Doctor), totems that fight on their
+     own (Totemist), and cracks in the path plus a quake that pushes every enemy back (Earthcaller). Kit: js/engine/kits/shaman.js. */
+  { id: 'shaman', name: 'Shaman', archetype: 'spell', attribute: 'strength', kind: 'chain', damageType: 'lightning', color: '#7ad0e0',
+    shape: [3, Math.PI / 2], tags: ['spell', 'lightning', 'chain'], rate: 'castSpeed',
+    stats: withEnergy({ damage: 15, range: 110, cooldown: 0.9, castSpeed: 1, jumps: 2 }, { strength: 10, dexterity: 3, intellect: 6, shockChance: 0.1 }), ultimate: 'ancestral',
+    evolutions: [{ level: 10, cost: 150, choices: [
+      { id: 'witchdoctor', name: 'Witch Doctor', color: '#8ad04b', kind: 'darts', damageType: 'toxic', ultimate: 'locusts', tags: ['projectile', 'toxic', 'curse'],
+        stats: { damage: 11, cooldown: 0.55 }, mods: [...plus50cast, always('poisonChance')],
+        short: 'Fast poison darts (always poison); each Voodoo-links its target with 2 enemies near it: 30% of the damage one takes goes to the others.',
+        ultShort: 'Plague of locusts: a swarm flies from the gate back down the path, poisoning every enemy it passes.' },
+      { id: 'totemist', name: 'Totemist', color: '#d9a35a', kind: 'totems', ultimate: 'surge', tags: ['minion', 'totem'], stats: { cooldown: 2 }, mods: plus50cast,
+        short: 'Each cast plants a totem near him (up to 3, 12 seconds each): Flame, Frost and Storm in turn. Totems take up their tile.',
+        ultShort: 'Totem surge: every totem pulses for 4x damage around itself and stands its full time again.' },
+      { id: 'earthcaller', name: 'Earthcaller', color: '#b08a5a', kind: 'fissure', damageType: 'physical', ultimate: 'tectonic', tags: ['physical', 'area'],
+        stats: { range: 120, damage: 20 }, mods: plus50cast,
+        short: 'Fissure: the path cracks behind the leading enemy, hitting everyone on that stretch and stunning them for a moment.',
+        ultShort: 'Tectonic shift: every enemy on the map takes 2x damage and is pushed back 1.5 tiles.' }
+    ] }],
+    desc: 'Shaman (spell): chain lightning that jumps to 2 more enemies, and Ancestral call. Evolves into a Witch Doctor, Totemist or Earthcaller.',
+    short: 'Chain lightning that jumps to 2 more enemies; Ancestral call makes nearby heroes faster. At level 10, choose a path.' }
 ];
 HEROES.forEach(h => h.tags.push(h.id));
 
 /* A hero's evolved form: the base hero with the choice's changes on top. The id stays the base hero's, so talents, items
    and the lineup keep working; form holds the choice's id. */
+/* Traits a form can add or change (read by the engine on hero.def): flying (may stand on the path), sanctuary, aura,
+   convert (a share of the damage as another type), bloodPrice, contagion, projLook, projSpeed. */
+const TRAITS = ['flying', 'mounted', 'sanctuary', 'aura', 'convert', 'bloodPrice', 'contagion', 'projLook', 'projSpeed'];
 export function evolvedDef(base, choice) {
+  const traits = {};
+  for (const k of TRAITS) if (choice[k] !== undefined) traits[k] = choice[k];
   return {
-    ...base, form: choice.id, name: choice.name, color: choice.color || base.color, kind: choice.kind || base.kind,
+    ...base, ...traits, form: choice.id, name: choice.name, color: choice.color || base.color, kind: choice.kind || base.kind,
     damageType: choice.damageType || base.damageType, ultimate: choice.ultimate || base.ultimate,
     applies: choice.applies || base.applies, short: choice.short || base.short,
     stats: { ...base.stats, ...(choice.stats || {}) }, tags: [...base.tags, ...(choice.tags || [])]
@@ -214,6 +303,8 @@ export function rollRarity(r01, luck = 0) {
    Prospector (a 25% chance of +2 gold per kill per Common; past 100% it rolls again), Tax collector (half its earlier value)
    and Compound interest (full strength). */
 export const RELIC_POWER = 0.15;
+/* Heroes with a form that fights through minions. */
+const MINION_HEROES = ['druid', 'warlock', 'shaman'];
 const f = x => +x.toFixed(2);
 const P = x => x * RELIC_POWER;
 const hero = (stat, type, value, scope) => ({ stat, type, value, scope });
@@ -246,12 +337,16 @@ export const RELICS = [
   { name: 'Keen edge',         desc: m => '+' + f(P(20) * m) + '% crit chance',                  mods: m => [hero('critChance', 'flat', P(0.2) * m, ['all'])] },
   { name: 'Cruelty',           desc: m => '+' + f(P(50) * m) + '% crit damage',                  mods: m => [hero('critDamage', 'flat', P(0.5) * m, ['all'])] },
   { name: 'Quick incantation', desc: m => '+' + f(P(20) * m) + '% cast speed (spell heroes)',    mods: m => [hero('castSpeed', 'inc', P(0.2) * m, ['spell'])] },
-  /* Minion counterparts of the damage relics (for the Animalic Druid's wolf). lineup: only offered when one of these heroes
-     is in the match. */
-  { name: 'Pack leader',       desc: m => '+' + f(P(30) * m) + '% minion damage',      lineup: ['druid'], mods: m => [hero('minionDamage', 'inc', P(0.3) * m, ['minion'])] },
-  { name: 'Feral haste',       desc: m => '+' + f(P(20) * m) + '% minion attack speed', lineup: ['druid'], mods: m => [hero('minionSpeed', 'inc', P(0.2) * m, ['minion'])] },
-  { name: 'Hunting instinct',  desc: m => '+' + f(P(20) * m) + '% minion crit chance',  lineup: ['druid'], mods: m => [hero('minionCritChance', 'flat', P(0.2) * m, ['minion'])] },
-  { name: 'Savage bite',       desc: m => '+' + f(P(50) * m) + '% minion crit damage',  lineup: ['druid'], mods: m => [hero('minionCritDamage', 'flat', P(0.5) * m, ['minion'])] }
+  /* Holy and Shadow heroes (Priest, Paladin; Warlock, Heretic). */
+  { name: 'Dark pact',         desc: m => '+' + f(P(30) * m) + '% damage to shadow heroes',     lineup: ['warlock', 'paladin'], mods: m => [hero('damage', 'inc', P(0.3) * m, ['shadow'])] },
+  { name: 'Blasphemy',         desc: m => '+' + f(P(20) * m) + '% corruption chance',           lineup: ['warlock', 'paladin'], mods: m => [hero('corruptionChance', 'flat', P(0.2) * m, ['all'])] },
+  { name: 'Holy water',        desc: m => '+' + f(P(30) * m) + '% damage to holy heroes',       lineup: ['priest', 'paladin'], mods: m => [hero('damage', 'inc', P(0.3) * m, ['holy'])] },
+  /* Minion counterparts of the damage relics (the Druid's wolf, the Warlock's imps and demon, the Shaman's totems).
+     lineup: only offered when one of these heroes is in the match. */
+  { name: 'Pack leader',       desc: m => '+' + f(P(30) * m) + '% minion damage',      lineup: MINION_HEROES, mods: m => [hero('minionDamage', 'inc', P(0.3) * m, ['minion'])] },
+  { name: 'Feral haste',       desc: m => '+' + f(P(20) * m) + '% minion attack speed', lineup: MINION_HEROES, mods: m => [hero('minionSpeed', 'inc', P(0.2) * m, ['minion'])] },
+  { name: 'Hunting instinct',  desc: m => '+' + f(P(20) * m) + '% minion crit chance',  lineup: MINION_HEROES, mods: m => [hero('minionCritChance', 'flat', P(0.2) * m, ['minion'])] },
+  { name: 'Savage bite',       desc: m => '+' + f(P(50) * m) + '% minion crit damage',  lineup: MINION_HEROES, mods: m => [hero('minionCritDamage', 'flat', P(0.5) * m, ['minion'])] }
 ];
 /* Kept for later: relics for the archived heroes and the Frost Mage's slow. Not offered while those heroes are not playable. */
 export const RELIC_ARCHIVE = [

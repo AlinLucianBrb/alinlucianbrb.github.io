@@ -9,7 +9,9 @@ import { recalc, startWave, statsFor } from './world.js';
 const OK = { ok: true };
 const fail = reason => ({ ok: false, reason });
 const inBounds = (cx, cy) => Number.isInteger(cx) && Number.isInteger(cy) && cx >= 0 && cy >= 0 && cx < COLS && cy < ROWS;
-const isFree = (w, cx, cy, except) => inBounds(cx, cy) && !w.pathSet.has(cx + ',' + cy) && !w.heroes.some(h => h !== except && h.cx === cx && h.cy === cy);
+/* A free tile: on the map, not taken by a hero or a totem, and off the path (unless the hero flies: the Archangel). */
+const isFree = (w, cx, cy, except) => inBounds(cx, cy) && (!w.pathSet.has(cx + ',' + cy) || !!(except && except.def.flying))
+  && !w.heroes.some(h => h !== except && h.cx === cx && h.cy === cy) && !w.zones.some(z => z.blocks && z.cx === cx && z.cy === cy);
 const blocked = (w, p) => w.phase === 'over' ? fail('over') : p.picking ? fail('busy') : null;
 const playerOf = (w, c) => w.players[c.p | 0];
 

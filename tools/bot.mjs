@@ -17,12 +17,17 @@ export const STRATEGIES = {
   rogue: ['rogue'],
   rogue3: ['rogue', 'ranger', 'mage'],
   druid: ['druid'],
-  druid3: ['druid', 'ranger', 'mage']
+  druid3: ['druid', 'ranger', 'mage'],
+  priest: ['priest'], priest3: ['priest', 'ranger', 'warrior'],
+  warlock: ['warlock'], warlock3: ['warlock', 'ranger', 'warrior'],
+  paladin: ['paladin'], paladin3: ['paladin', 'ranger', 'mage'],
+  shaman: ['shaman'], shaman3: ['shaman', 'ranger', 'warrior']
 };
 
 /* Talents for a player of the given level: whole clusters in order of usefulness for the lineup (damage and crits first,
    then the lineup's own clusters, then the rest), each reached by the shortest path from what is already taken. */
-const HERO_CLUSTERS = { warrior: ['martial', 'sunder'], ranger: ['marksman'], mage: ['sorcery'], rogue: ['martial', 'precision'], druid: ['sorcery'] };
+const HERO_CLUSTERS = { warrior: ['martial', 'sunder'], ranger: ['marksman'], mage: ['sorcery'], rogue: ['martial', 'precision'], druid: ['sorcery'],
+  priest: ['sorcery', 'toxins'], warlock: ['sorcery', 'toxins'], paladin: ['martial', 'sunder'], shaman: ['sorcery', 'lightning'] };
 export function talentsFor(level, strategy = 'trio') {
   const points = pointsFor(level), picked = new Set();
   const order = [...new Set(['might', ...STRATEGIES[strategy].flatMap(h => HERO_CLUSTERS[h] || []), 'precision', 'energy', 'gate', 'toxins', 'wealth', 'lightning', 'fire', 'cold', 'relics', 'tempo', 'fortune'])];

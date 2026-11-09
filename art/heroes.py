@@ -159,6 +159,30 @@ HEADS = {
     'hood_goggles': [  # alchemist: goggles pushed up on the hood
         '.............', '.............', '....hhH......', '...hjhhH.....', '..hjJjhhH....', '.hKzKKzKHH...',
         '.hKyKKyKXH...', '.hjXvEvEvXH..', '.hhXmMmmmXH..', '.jhhXYzYXhhH.'],
+    'hood_priest': [  # a light cowl with a gold circlet across the brow
+        '.............', '.............', '....hhH......', '...hjhhH.....', '..hjJjhhH....', '.hjyyzyyHH...',
+        '.hjyXvvvXyH..', '.hjyvEvEvyH..', '.hhyMMmmmyH..', '.jhhYyzyYhhH.'],
+    'hood_halo': [  # Incantation: the cowl under a floating halo
+        '...zyyyyz....', '..z......z...', '....hhH......', '...hjhhH.....', '..hjJjhhH....', '.hjJjjhhHH...',
+        '.hjyXvvvXyH..', '.hjyvEvEvyH..', '.hhyMMmmmyH..', '.jhhYyzyYhhH.'],
+    'helm_wings': [  # Archangel: a bright helm with small wings
+        'W...........W', 'wW.........Ww', '.wW.wggG..Ww.', '..wwwgggGKw..', '..wwggggGGK..', '..wgKKKKKGK..',
+        '..wKvEvEvKK..', '..wgGgvgGGK..', '..KgGgvgGKK..', '.jhhKYzYKhhH.'],
+    'hood_horns': [  # Warlock: a hood with two small horns
+        '.............', '..u......U...', '..uu.hhHUU...', '...uhjhhU....', '..hjJjhhH....', '.hjJjjhhHH...',
+        '.hjhXvvvXHH..', '.hjXvEvEvXH..', '.hhXmMmmmXH..', '.jhhXYzYXhhH.'],
+    'hat_inquisitor': [  # a wide-brimmed hat with a gold band
+        '.............', '.............', '....KKKK.....', '....KKKK.....', '...KYyYK.....', 'KKKKKKKKKKK..',
+        '.hjXvvvvXHH..', '.hjXvEvEvXH..', '.hhXmMmmmXH..', '.jhhXYzYXhhH.'],
+    'helm_cross': [  # Crusader: a great helm with a cross on the brow
+        '.............', '.............', '...KwwggGK...', '..KwwyggGGK..', '..wyyyyyyGK..', '..wgKyKKKGK..',
+        '..wKvEvEvKK..', '..wgGvyvGGK..', '..KgGgggGKK..', '.jhhKYzYKhhH.'],
+    'mask_feathers': [  # Shaman: a carved wooden mask under a crest of feathers
+        '..f.f.f......', '..fyfyf......', '...fyf.......', '....hhH......', '..hjJjhhH....', '.hjJjjhhHH...',
+        '.hjQQQQQXHH..', '.hjQEQQEQXH..', '.hhQQrrQQXH..', '.jhhXYzYXhhH.'],
+    'mask_skull': [  # Witch Doctor: a bone mask in the hood
+        '.............', '.............', '....hhH......', '...hjhhH.....', '..hjuuuuH....', '.hjuuuuuuH...',
+        '.hjuEuuEuHH..', '.hjuuuuuuXH..', '.hhXuvuvuXH..', '.jhhXYzYXhhH.'],
     'helm': [
         '.............', '.............', '....wggG.....', '...wwgggGK...', '..wwggggGGK..', '..wgKKKKKGK..',
         '..wKvEvEvKK..', '..wgGgvgGGK..', '..KgGgvgGKK..', '.jhhKYzYKhhH.'],
@@ -191,6 +215,28 @@ WEAPONS = {
                      (9, 29, 'y'), (10, 29, 'Yy'), (16, 27, 'y'), (17, 26, 'yY')],
     # Lunar Druid: a silver crescent moon on a staff
     'staff_moon': [(y, 28, 'Q') for y in range(4, 28)] + [(0, 28, 'ooW'), (1, 27, 'oo'), (2, 27, 'o'), (3, 27, 'oo'), (4, 28, 'ooW')],
+    # Priest: a staff crowned with a golden sun
+    'staff_holy': [(0, 28, 'z'), (1, 27, 'zyz'), (2, 26, 'zyWyz'), (3, 27, 'zyz'), (4, 28, 'y')] + [(y, 28, 'Q') for y in range(5, 28)],
+    # Archangel: a spear of light, gold shaft and a white blade
+    'spear_light': [(0, 28, 'W'), (1, 28, 'W'), (2, 27, 'zWz'), (3, 28, 'z')] + [(y, 28, 'y') for y in range(4, 28)],
+    # Occult: a staff topped with a glowing eye
+    'staff_eye': [(0, 27, 'aaa'), (1, 26, 'aAoAa'), (2, 26, 'aoEoa'), (3, 26, 'aAoAa'), (4, 27, 'aaa')] + [(y, 28, 'Q') for y in range(5, 28)],
+    # Paladin: a war hammer
+    'hammer': [(1, 26, 'KggG'), (2, 26, 'gwgG'), (3, 26, 'gwgG'), (4, 26, 'KggG')] + [(y, 28, 'Q') for y in range(5, 28)],
+    # Heretic: a spiked flail ball wreathed in fire (the orb colour), on a short chain
+    'flail': [(1, 28, 'o'), (2, 27, 'oKo'), (3, 26, 'oKgKo'), (4, 27, 'oKo'), (5, 28, 'o'), (6, 28, 'g'), (7, 29, 'g'), (8, 28, 'g'),
+              (9, 29, 'g'), (10, 28, 'g')] + [(y, 28, 'Q') for y in range(11, 28)],
+    # Inquisitor: a long chain flail
+    'flail_chain': [(0, 30, 'K'), (1, 29, 'KgK'), (2, 30, 'K'), (3, 29, 'g'), (4, 30, 'g'), (5, 29, 'g'), (6, 30, 'g'), (7, 29, 'g'),
+                    (8, 28, 'g'), (9, 28, 'g')] + [(y, 28, 'Q') for y in range(10, 28)],
+    # Crusader: a lance with a pennant in his colour
+    'lance': [(0, 28, 'w'), (1, 28, 'w'), (2, 28, 'w'), (3, 27, 'gwg'), (4, 28, 'g'), (5, 29, 'yy'), (6, 29, 'yyy'), (7, 29, 'yy')]
+             + [(y, 28, 'Q') for y in range(8, 28)],
+    # Earthcaller: a stone maul
+    'maul': [(1, 26, 'GGgG'), (2, 25, 'GgggGG'), (3, 25, 'GggGGG'), (4, 26, 'GGGG')] + [(y, 28, 'Q') for y in range(5, 28)],
+    # Totemist: a little carved totem pole on a staff, a glowing ember in it
+    'staff_carved': [(0, 27, 'yyy'), (1, 27, 'QEQ'), (2, 27, 'QQQ'), (3, 27, 'oEo'), (4, 27, 'ooo'), (5, 27, 'QEQ'), (6, 27, 'QQQ')]
+                    + [(y, 28, 'Q') for y in range(7, 28)],
     # Animalic Druid: a totem with a beast skull and feathers
     'staff_totem': [(y, 28, 'Q') for y in range(3, 28)] + [(0, 27, 'uuU'), (1, 27, 'vUv'), (2, 27, 'uuU'), (3, 27, 'u.u'),
                     (5, 29, 'f'), (6, 29, 'f'), (7, 29, 'f')],
@@ -205,9 +251,15 @@ LEFT = {
                (16, 2, 'wyyzyyYG'), (17, 2, 'GyyzyyYK'), (18, 3, 'GyzyYK'), (19, 3, 'GyzyYK'), (20, 4, 'GzYK'), (21, 4, 'GK'),
                (22, 5, 'K')],
     'dagger': [(16, 4, 'y'), (17, 3, 'sS'), (18, 2, 'YyY')] + [(y, 3, 'wg') for y in range(19, 22)] + [(22, 3, 'w')],
+    # Gospel: a holy book held in the left hand
+    'tome': [(14, 2, 'YyyyyY'), (15, 2, 'YuuuuY'), (16, 2, 'YuzzuY'), (17, 2, 'YuuuuY'), (18, 2, 'YyyyyY')],
     'dagger_toxic': [(16, 4, 'y'), (17, 3, 'sS'), (18, 2, 'YyY')] + [(y, 3, 'oA') for y in range(19, 22)] + [(22, 3, 'o'),
                      (24, 3, 'o')],
 }
+# Archangel's wings: drawn BEHIND the figure (only on empty cells), a big one on the left and the tip of the right one.
+WINGS = [(3, 6, 'Ww'), (4, 4, 'WWwg'), (5, 2, 'WWWwwg'), (6, 1, 'WWWWwwg'), (7, 0, 'WWWWwwgg'), (8, 0, 'WWWwwwgg'), (9, 0, 'WWwwwggG'),
+         (10, 0, 'Wwwwgg'), (11, 0, 'wwwggG'), (12, 0, 'wwgg'), (13, 0, 'wggG'), (14, 1, 'gG'), (15, 1, 'gG'), (16, 2, 'G'),
+         (2, 21, 'wW'), (3, 21, 'gwW'), (4, 22, 'gwW'), (5, 23, 'gw'), (6, 23, 'gw'), (7, 24, 'g')]
 ROBE = [(19, 9, 'nNnnnnnnbbB'), (20, 9, 'nNnnnnnnbbB'), (21, 8, 'nNnnnnnnnbbB'), (22, 8, 'nNnnnnnnnbbB'),
         (23, 8, 'nNnnnnnnbbbB'), (24, 8, 'NnnnnnnnbbbB'), (25, 8, 'nNnnnnnnbbbB'), (26, 8, 'YyyyyyyyyyyY'),
         (27, 8, '.DDDD..DDDD.')]
@@ -224,6 +276,11 @@ def compose(h):
     for y in range(10):
         for i in range(13):
             g[y][HEAD_X + i] = head[y][i]
+    if h.get('wings'):
+        for y, x, seg in WINGS:
+            for i, c in enumerate(seg):
+                if c != '.' and g[y][x + i] == '.':
+                    g[y][x + i] = c
     if h.get('back'):
         put(g, BACK[h['back']])
     if h.get('left'):
@@ -258,6 +315,22 @@ HEROES = {
     'druid':         {'cloak': '#54482c', 'torso': 'leather', 'accent': '#8fbf5a', 'glow': '#c8ff70', 'orb': '#a8f070', 'head': 'hood_antlers', 'weapon': 'staff_nature'},
     'animalic':      {'cloak': '#5a4430', 'torso': 'leather', 'accent': '#c98a4b', 'glow': '#ffb347', 'head': 'hood_ears', 'weapon': 'staff_totem', 'fletch': '#c98a4b'},
     'naturist':      {'cloak': '#23452a', 'torso': '#3e4e28', 'accent': '#5fcf6a', 'glow': '#b6ff8a', 'orb': '#7ad04b', 'head': 'hood_antlers', 'weapon': 'staff_nature', 'robe': True},
+    'priest':        {'cloak': '#cfc4a6', 'torso': '#e2d8bf', 'accent': '#e8c25a', 'glow': '#fff0a8', 'orb': '#fff0a8', 'head': 'hood_priest', 'weapon': 'staff_holy', 'robe': True},
+    'incantation':   {'cloak': '#b8913e', 'torso': '#efe2b8', 'accent': '#ffd76a', 'glow': '#fff6c8', 'orb': '#ffe9a0', 'head': 'hood_halo', 'weapon': 'staff_holy', 'robe': True},
+    'archangel':     {'cloak': '#c9d4e2', 'torso': 'steel', 'accent': '#fff6c8', 'glow': '#fffbe6', 'head': 'helm_wings', 'weapon': 'spear_light', 'wings': True},
+    'gospel':        {'cloak': '#6e5230', 'torso': '#d9cba6', 'accent': '#ffe9a0', 'glow': '#fff0a8', 'head': 'hood_trim', 'weapon': 'staff_holy', 'left': 'tome', 'robe': True},
+    'warlock':       {'cloak': '#3a2850', 'torso': '#4a3466', 'accent': '#9a5cd6', 'glow': '#e0c0ff', 'orb': '#b47aff', 'head': 'hood_horns', 'weapon': 'staff', 'robe': True},
+    'occult':        {'cloak': '#241a36', 'torso': '#2e2244', 'accent': '#7a4fc0', 'glow': '#c8a0ff', 'orb': '#a070ff', 'head': 'hood_mage', 'weapon': 'staff_eye', 'robe': True},
+    'summoner':      {'cloak': '#4a1e2a', 'torso': '#3a2440', 'accent': '#c46aff', 'glow': '#ff7a5a', 'head': 'hood_horns', 'weapon': 'staff_totem', 'fletch': '#c46aff'},
+    'infernalist':   {'cloak': '#3a1410', 'torso': '#4a2016', 'accent': '#ff6a3a', 'glow': '#ffb347', 'orb': '#ff6a3a', 'head': 'helm_horns', 'weapon': 'staff', 'robe': True},
+    'paladin':       {'cloak': '#c9b98a', 'torso': 'steel', 'accent': '#e8c25a', 'glow': '#fff0a8', 'head': 'helm_great', 'weapon': 'hammer', 'left': 'shield'},
+    'heretic':       {'cloak': '#3a1414', 'torso': '#2e2a32', 'accent': '#ff6a3a', 'glow': '#ff5a2a', 'orb': '#ff6a3a', 'head': 'helm_horns', 'weapon': 'flail'},
+    'inquisitor':    {'cloak': '#6a1a1a', 'torso': '#2e2428', 'accent': '#f2e2a0', 'glow': '#fff6c8', 'head': 'hat_inquisitor', 'weapon': 'flail_chain'},
+    'crusader':      {'cloak': '#e2dccb', 'torso': 'steel', 'accent': '#c8302a', 'glow': '#ffd76a', 'head': 'helm_cross', 'weapon': 'lance', 'left': 'shield'},
+    'shaman':        {'cloak': '#2f5054', 'torso': 'leather', 'accent': '#7ad0e0', 'glow': '#c8f8ff', 'orb': '#7ad0e0', 'head': 'mask_feathers', 'weapon': 'staff', 'fletch': '#7ad0e0'},
+    'witchdoctor':   {'cloak': '#2e3a22', 'torso': '#4a3a26', 'accent': '#8ad04b', 'glow': '#c8ff70', 'head': 'mask_skull', 'weapon': 'staff_totem', 'fletch': '#8ad04b'},
+    'totemist':      {'cloak': '#5a3a22', 'torso': 'leather', 'accent': '#d9a35a', 'glow': '#ffd27a', 'orb': '#ff8a3d', 'head': 'mask_feathers', 'weapon': 'staff_carved', 'fletch': '#d9a35a'},
+    'earthcaller':   {'cloak': '#4a3a2a', 'torso': '#5a4a3a', 'accent': '#b08a5a', 'glow': '#ffb347', 'head': 'hood_ears', 'weapon': 'maul'},
     'lunar':         {'cloak': '#2c3456', 'torso': '#323c66', 'accent': '#b8c8ff', 'glow': '#e0e8ff', 'orb': '#dfe8ff', 'head': 'hood_mage', 'weapon': 'staff_moon', 'robe': True},
 }
 

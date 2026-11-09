@@ -15,7 +15,7 @@ export const ENEMIES = {
 };
 /* Threat: 0 on the first wave, +1 per wave, and each level after the first adds 25% to the growth. */
 export const threat = (wave, stage = 1) => Math.max(0, wave - 1) * (1 + 0.25 * (stage - 1));
-const DEF_TYPES = ['spell', 'fire', 'cold', 'lightning', 'toxic'];
+const DEF_TYPES = ['spell', 'fire', 'cold', 'lightning', 'toxic', 'holy', 'shadow'];
 /* An enemy's defenses on a wave: { armor, res: { type: value } }. Resistances are capped by RES_CAP (99%) when they are used. */
 export function defensesFor(def, wave, stage) {
   const t = threat(wave, stage), r = (def.res || 0) * t, res = {};
@@ -51,6 +51,9 @@ export function spawnEnemy(g, type) {
   pathPos(g.path, 0, e);
   g.enemies.push(e);
 }
+/* Things that can stop an enemy that reaches the gate (the Gospel Priest's Sanctuary): f(g, e) -> true if it moved the
+   enemy back (it sets e.d). Kits push into this list. */
+export const LEAK_GUARDS = [];
 export function updateEnemies(g, dt) {
   const end = g.path.length - 1.001;
   for (const e of g.enemies) {
@@ -60,10 +63,26 @@ export function updateEnemies(g, dt) {
     /* A barricade (zones.js) stops enemies that reach it; enemies already past it keep going. */
     if (g.zones) for (const z of g.zones) if (z.type === 'barrier' && before <= z.d && e.d > z.d) e.d = z.d;
     const i = e.d / T;
+    if (i >= end && LEAK_GUARDS.some(f => f(g, e))) { pathPos(g.path, e.d / T, e); continue; }   /* turned back (Sanctuary) */
     if (i >= end) { e.dead = true; e.escaped = true; g.ev.emit('escape', { enemy: e }); continue; }
     pathPos(g.path, i, e);
   }
 }
+/* Knockback (Crusader, Earthcaller): pushes an enemy back along the path by px pixels, never past the entrance. Bosses move
+   a quarter of it, and each enemy can be pushed back at most KNOCKBACK.perWave pixels per wave, so knockback can never hold
+   a wave forever. Returns how far it moved. */
+export const KNOCKBACK = { perWave: 2 * T, boss: 0.25 };
+export function knockback(g, e, px) {
+  if (e.dead || !(px > 0)) return 0;
+  if (e.def.boss) px *= KNOCKBACK.boss;
+  if (e.kbWave !== g.wave) { e.kbWave = g.wave; e.kb = 0; }
+  const d = Math.min(px, KNOCKBACK.perWave - e.kb, e.d);
+  if (d <= 0) return 0;
+  e.d -= d; e.kb += d;
+  pathPos(g.path, e.d / T, e);
+  return d;
+}
+
 /* Removes finished items in place (no new arrays every frame). */
 export function sweep(list) {
   let j = 0;

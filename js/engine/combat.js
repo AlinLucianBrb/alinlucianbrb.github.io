@@ -1,7 +1,7 @@
 /* How a hero's attack turns into damage: split the hit by damage type, reduce it by the enemy's armor and resistances,
    apply it, then roll for ailments. Every attack in the game goes through attack(); damage over time goes through dotDamage().
    The rolls use the world's seeded 'combat' random stream, so replays stay exact. */
-import { DAMAGE_TYPES, AILMENTS, RES_CAP, ARMOR_FACTOR, ARMOR_CAP } from '../content/combat.js';
+import { DAMAGE_TYPES, AILMENTS, RES_CAP, ARMOR_FACTOR, ARMOR_CAP, HOLY_RES_IGNORED } from '../content/combat.js';
 import { applyEffect } from './effects.js';
 
 /* How much of `amount` gets through, for one damage type. Armor only stops hits, not damage over time.
@@ -10,14 +10,16 @@ import { applyEffect } from './effects.js';
    off that resistance, also after the cap. */
 export function mitigate(e, type, amount, isHit = true, s = null) {
   if (amount <= 0) return 0;
-  const shock = e.fx && e.fx.shock;
+  const shock = e.fx && e.fx.shock, purge = e.fx && e.fx.purge;   /* the Inquisitor's Purge: no armor, resistances down */
   if (type === 'physical') {
-    const armor = (e.armor || 0) * (shock ? 1 - shock.armorDown : 1) * (isHit && s ? Math.max(0, 1 - (s.armorPen || 0)) : 1);
+    const armor = purge ? 0 : (e.armor || 0) * (shock ? 1 - shock.armorDown : 1) * (isHit && s ? Math.max(0, 1 - (s.armorPen || 0)) : 1);
     if (!isHit || armor <= 0) return amount;
     return amount * (1 - Math.min(ARMOR_CAP, armor / (armor + ARMOR_FACTOR * amount)));
   }
   const pen = isHit && s ? s[type + 'Pen'] || 0 : 0;
-  const r = Math.max(-1, Math.min(RES_CAP, (e.res && e.res[type]) || 0) - (shock ? shock.resDown : 0) - pen);
+  let base = Math.min(RES_CAP, (e.res && e.res[type]) || 0);
+  if (type === 'holy' && base > 0) base *= 1 - HOLY_RES_IGNORED;
+  const r = Math.max(-1, base - (shock ? shock.resDown : 0) - (purge ? purge.resDown : 0) - pen);
   return amount * (1 - r);
 }
 
@@ -36,13 +38,19 @@ export function critMult(w, hero, e, rate = 1, stats = null) {
 /* scale: multiplies the whole hit (ultimates, beam ramp, chain falloff). rate: how much of a "full hit" this is for ailment
    chances (a beam deals a sliver of damage every frame, so its rate is the frame time: its chances work per second).
    as: a damage type for this hit instead of the hero's own (the Alchemist's two concoctions: one fire, one toxic).
-   stats: the attacker's stats if not the hero's own (a minion's, see minionStats). The hit is still credited to the hero. */
+   stats: the attacker's stats if not the hero's own (a minion's, see minionStats). The hit is still credited to the hero.
+   A hero's convert ({ holy: 0.3 }: the Paladin) turns that share of its own damage into another type. The Heretic's blood
+   price (bloodPrice per life lost this run) makes every hit stronger. */
 export function attack(w, hero, e, scale = 1, rate = 1, as = null, stats = null) {
   if (e.dead) return;
-  const s = stats || hero.s, own = as || hero.def.damageType || 'physical';
+  const s = stats || hero.s, own = as || hero.def.damageType || 'physical', conv = !as && hero.def.convert;
   scale *= critMult(w, hero, e, rate, s);
+  if (hero.def.bloodPrice) scale *= 1 + hero.def.bloodPrice * Math.max(0, (w.livesStart || 0) - w.lives);
   for (const t of DAMAGE_TYPES) raw[t] = (s[t + 'Damage'] || 0) * scale;
-  raw[own] += s.damage * scale;
+  let base = s.damage * scale;
+  if (conv) for (const t in conv) { raw[t] += base * conv[t]; }
+  if (conv) { let k = 1; for (const t in conv) k -= conv[t]; base *= Math.max(0, k); }
+  raw[own] += base;
   let total = 0;
   for (const t of DAMAGE_TYPES) {
     if (raw[t] <= 0) continue;
@@ -66,6 +74,15 @@ export function attack(w, hero, e, scale = 1, rate = 1, as = null, stats = null)
   const ap = hero.def.applies;
   if (ap) for (const id in ap) applyEffect(e, id, { t: s[ap[id]] });
   return total;
+}
+
+/* Kills an enemy that is not a boss and has less than `share` of its life left (Archangel, Inquisitor). The rest of its
+   life is dealt as one last hit, credited to the hero. Returns true if it died. */
+export function execute(w, hero, e, share) {
+  if (e.dead || e.def.boss || e.hp > e.max * share) return false;
+  w.hit(hero, e, e.hp, hero.def.damageType || 'physical');
+  w.ev.emit('execute', { hero, enemy: e });
+  return true;
 }
 
 /* Puts an ailment on an enemy, sized from the hit that caused it. */

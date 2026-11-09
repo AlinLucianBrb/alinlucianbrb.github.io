@@ -41,6 +41,8 @@ test('the saved run is kept per account, cleared on demand, and forgotten after 
   assert.match(describeRun(got), /^Level 1, wave \d+$/);
   const old = JSON.parse(mem['tbd.run.u1']); old.savedAt -= 25 * 3600 * 1000; mem['tbd.run.u1'] = JSON.stringify(old);
   assert.equal(loadRun('u1'), null, 'too old: the server would not accept it any more');
+  saveRun('u1', { log: { ...log, ver: log.ver - 1 }, runId: 'r1' });
+  assert.equal(loadRun('u1'), null, 'saved before an update that changed the rules: it cannot be played back');
   saveRun('u1', { log, runId: 'r1' }); clearRun('u1');
   assert.equal(loadRun('u1'), null);
   delete globalThis.localStorage;
