@@ -17,7 +17,7 @@ import { apply } from '../engine/commands.js';
 import { hashWorld } from '../engine/hash.js';
 
 export const TURN_MS = 80;           /* an early turn as soon as there is a command to pass on (at most this often) */
-export const IDLE_MS = 333;          /* otherwise 3 a second (guests need upTo to move on, and wait about this long) */
+export const IDLE_MS = 200;          /* otherwise 3 a second (guests need upTo to move on, and wait about this long) */
 export const HASH_MS = 5000;         /* a hash about every 5 seconds */
 const TICKS_PER_S = 60;
 
