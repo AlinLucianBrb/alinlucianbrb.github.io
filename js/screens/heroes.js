@@ -109,7 +109,13 @@ function renderInfo(box, h) {
   /* Stats, with the equipped items included (gear that does not fit the hero counts as its general version). */
   const worn = wornItems()[h.id], s = heroStats(asPlayed(h), itemMods(worn ? { [h.id]: worn } : {}, wearer(h)));
   stats.append(el('h3', '', 'Stats' + (worn ? ' (with gear)' : '')));
-  const row = (label, value, note, cls) => { const r = el('div', 'srow' + (cls ? ' ' + cls : '')); r.append(el('span', '', label), el('b', '', value)); stats.append(r); if (note) stats.append(el('div', 'buff', note)); };
+  /* Each row with its icon (art/icons.py), by the label's first word. */
+  const ROW_ICON = { Strength: 'strength', Dexterity: 'dexterity', Intellect: 'intellect', Damage: 'damage', Range: 'range', Attacks: 'speed', Casts: 'castspeed', Crit: 'crit', Energy: 'energy' };
+  const row = (label, value, note, cls) => {
+    const r = el('div', 'srow' + (cls ? ' ' + cls : '')), name = el('span', ''), ic = ROW_ICON[label.split(' ')[0]];
+    if (ic) name.append(spriteImg('icon_' + ic, 'ico pix'));
+    name.append(el('span', '', label)); r.append(name, el('b', '', value)); stats.append(r); if (note) stats.append(el('div', 'buff', note));
+  };
   /* every attribute's side effect, from every point (ATTRIBUTE_EFFECTS) */
   for (const a of ATTRIBUTES) row(STAT_LABELS[a] + (a === h.attribute ? ' (main)' : ''), f(s[a]), ATTRIBUTE_EFFECTS[a].map(fx => '+' + f(s[a] * fx.per * (fx.stat === 'critDamage' ? 100 : 100)) + '% ' + fx.label).join(', '), a === h.attribute ? 'main' : '');
   row('Damage (' + DAMAGE_LABEL[h.damageType] + ')', f(s.damage * (1 - s.spread)) + '–' + f(s.damage * (1 + s.spread)), '+' + f(attributeDamage(h, s) * 100) + '% from ' + STAT_LABELS[h.attribute] + (worn ? ' · gear included' : ''));

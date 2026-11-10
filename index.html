@@ -301,12 +301,121 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
 }
 .tip{position:fixed;z-index:50;max-width:260px;background:#0f1612;border:2px solid var(--line);border-radius:6px;padding:8px 10px;pointer-events:none;font-size:.9em;box-shadow:0 4px 14px rgba(0,0,0,.5)}
 .tip b{display:block;margin-bottom:2px}
+/* ===== Pixel UI kit (art/ui.py, art/font.py, art/scenes.py, art/icons.py) =====
+   Frames are 9-slice border images at 2 screen pixels per art pixel: panels and tooltips have a 5-art-pixel border (10 px),
+   buttons and tabs 4 (8 px), slots, inputs and bars 3 (6 px). TBD Pixel (our own font) is crisp at multiples of 9 px:
+   18 px for buttons, labels and numbers, 27 px for titles. Body text stays in the system font. */
+@font-face{font-family:'TBD Pixel';src:url(assets/tbd-pixel.woff) format('woff');font-display:swap}
+:root{--pixel:'TBD Pixel',ui-monospace,monospace}
+h1,h2,.hbody h3,h3{font-family:var(--pixel);font-weight:400;letter-spacing:.02em;text-shadow:0 2px 0 #0b100d,2px 0 0 #0b100d,-2px 0 0 #0b100d,0 -2px 0 #0b100d}
+h1{font-size:27px;line-height:36px;color:#ffe08a}
+h2{font-size:27px;line-height:36px;color:#ffe08a}
+h3,.hbody h3{font-size:18px;line-height:22px;color:#cfe0d2;text-transform:none;letter-spacing:.02em}
+.pix,.scene,.logo img{image-rendering:pixelated}
+/* Menu screens stand in front of the dusk valley; the login and main menu see more of it. */
+.screen.scene{background:linear-gradient(rgba(10,14,12,.78),rgba(10,14,12,.86)),url(assets/ui_scene.png) center bottom/cover;image-rendering:pixelated}
+.screen.scene.bright{background:linear-gradient(rgba(10,14,12,.15),rgba(10,14,12,.45)),url(assets/ui_scene.png) center bottom/cover}
+.logo{margin:0;line-height:0;text-shadow:none}
+.logo img{width:min(402px,86vw);height:auto;filter:drop-shadow(0 4px 0 rgba(0,0,0,.35))}
+#screen-menu{gap:8px}
+#screen-menu .logo img{width:min(320px,70vw)}
+#screen-menu .menuBtns{gap:6px;width:min(420px,100%)}
+#screen-menu .menuBtns button{padding:2px 10px 4px;white-space:nowrap}
+#screen-menu .menuRow button{min-width:0;padding:2px 4px 4px}
+#screen-menu .topbar{position:absolute;top:12px;left:50%;transform:translateX(-50%)}
+/* Text buttons */
+button{border:8px solid transparent;border-radius:0;border-image:url(assets/ui_button.png) 8 fill / 8px stretch;background:none;color:#ecf1e8;padding:2px 10px 4px;text-shadow:0 2px 0 rgba(0,0,0,.45)}
+button:not(.herocard):not(.choose):not(.hcard):not(.lvl):not(.iconbtn):not(.linkbtn):not(.evochoice):not(.ph):not(.invcell):not(.evoup){font-family:var(--pixel);font-size:18px;line-height:20px}
+button:hover:not(:disabled){border-image-source:url(assets/ui_button_hover.png)}
+button:active:not(:disabled){border-image-source:url(assets/ui_button_down.png);padding-top:4px;padding-bottom:2px}
+button.go{border-image-source:url(assets/ui_button_go.png);color:#2a1a00;text-shadow:0 1px 0 rgba(255,255,255,.35);font-weight:400}
+button.go:hover:not(:disabled){border-image-source:url(assets/ui_button_go_hover.png)}
+button.go:active:not(:disabled){border-image-source:url(assets/ui_button_go_down.png)}
+button.relic{border-image-source:url(assets/ui_button_relic.png);color:#f2e2ff}
+button.relic:hover:not(:disabled){border-image-source:url(assets/ui_button_relic_hover.png)}
+button.danger{border-image-source:url(assets/ui_button_bad.png);color:#fff0ec}
+button.danger:hover:not(:disabled){border-image-source:url(assets/ui_button_bad_hover.png)}
+button.on,.tabs button.on{border-image-source:url(assets/ui_button_on.png);color:#ffe08a}
+button:disabled{opacity:.55;filter:grayscale(.6)}
+.linkbtn{border:none;border-image:none;background:none;padding:.2em .4em;text-shadow:none}
+.ico{width:18px;height:18px;vertical-align:-3px;margin-right:6px;image-rendering:pixelated}
+button .ico{width:18px;height:18px;margin-right:8px}
+/* Panels */
+.panel,.glass,.list,.hbody,.slots li,.invgrid,.treebox,.evonode,.hcard,.levels .lvl,.who,.purse,#lvPick .hgrid .hcard{border:10px solid transparent;border-radius:0;border-image:url(assets/ui_panel.png) 10 fill / 10px stretch;background:none;box-shadow:none}
+.glass{border-image-source:url(assets/ui_panel.png)}
+.hcard,.evonode,.levels .lvl{border-image-source:url(assets/ui_panel_light.png)}
+.hcard{border-top:10px solid transparent;box-shadow:inset 0 4px 0 var(--hc)}
+.hcard:hover,.hcard.picked,.evonode.chosen,.levels .lvl:hover:not(:disabled){filter:brightness(1.12)}
+.hcard.picked{box-shadow:inset 0 4px 0 var(--hc),0 0 0 3px #f2b84b}
+.evonode{border-top-width:10px;box-shadow:inset 0 4px 0 var(--hc)}
+.evonode.chosen{box-shadow:inset 0 4px 0 var(--hc),0 0 0 3px var(--hc),0 0 18px color-mix(in srgb,var(--hc) 45%,transparent)}
+.hbody{border-top-width:10px;box-shadow:inset 0 4px 0 var(--hc)}
+.menuBtns.panel{padding:6px 8px;width:min(300px,100%)}
+.who,.purse{padding:2px 10px;color:#cfe0d2}
+.who b,.purse b{font-family:var(--pixel);font-size:18px;font-weight:400}
+.purse b{color:#ffe08a}
+.topbar{align-items:center}
+.tip{border:10px solid transparent;border-radius:0;border-image:url(assets/ui_tooltip.png) 10 fill / 10px stretch;background:none;padding:2px 4px}
+.tip b{font-family:var(--pixel);font-size:18px;font-weight:400;line-height:22px}
+/* Tabs */
+.tabs button{border-image-source:url(assets/ui_tab.png)}
+.tabs button.on{border-image-source:url(assets/ui_tab_on.png)}
+/* Inputs, slots and bars: sunken */
+input:not([type=checkbox]),select,.field input,.joinrow input{border:6px solid transparent;border-radius:0;border-image:url(assets/ui_input.png) 6 fill / 6px stretch;background:none;color:#ecf1e8;padding:.35em .5em}
+.invcell,.hslot{border:6px solid transparent;border-radius:0;border-image:url(assets/ui_slot.png) 6 fill / 6px stretch;background:none}
+.invcell.picked{box-shadow:0 0 0 3px var(--accent)}
+.xp,.ebar{border:6px solid transparent;border-radius:0;border-image:url(assets/ui_bar.png) 6 fill / 6px stretch;background:none;height:auto;min-height:16px;box-sizing:border-box;overflow:hidden}
+.xp i,.ebar i{min-height:4px;height:4px}
+.ebar{min-height:14px}
+.herocard .ebar{min-height:12px;border-width:4px;border-image-width:4px}
+/* HUD numbers in the pixel font */
+.stat b,.goldbox b,.levels .lvl b,.hhead b,#tlPoints,.relicname,.cost,.version,#pauseBanner{font-family:var(--pixel);font-weight:400}
+.stat b{font-size:18px;line-height:22px}
+.goldbox b{font-size:27px;line-height:30px}
+.stat small,.goldbox small{display:flex;align-items:center;gap:0}
+.stat small .ico,.goldbox small .ico{width:14px;height:14px;margin-right:4px}
+#pauseBanner{font-size:36px;letter-spacing:.08em;color:#ffe08a}
+.version{font-size:18px}
+/* In-game hero cards: framed buttons with the hero's colour along the top */
+.herocard{border-image-source:url(assets/ui_button.png);box-shadow:inset 0 3px 0 var(--hc);padding:.2em 1.3em .25em .5em}
+.herocard.on{border-image-source:url(assets/ui_button_on.png);background:none}
+.herocard:has(.hico){padding-left:40px}
+.split #go,.split .autobtn{border-radius:0}
+.split .autobtn{border-image-source:url(assets/ui_button_bad.png);background:none;color:#ffe0dc;font-family:var(--pixel);font-size:18px;min-width:70px;padding:2px 4px 4px;letter-spacing:0}
+.split .autobtn.on{border-image-source:url(assets/ui_button_on.png);background:none;color:#e0ffd8}
+.spdbtn.on{color:#ffe08a}
+.evoup{border:2px solid #ffd84a;border-image:none;border-radius:0;background:#3a3214;padding:.15em .55em;text-shadow:none}
+.evoup.short{border-color:#6b6040;background:#24231a}
+/* Relic picker and evolution cards */
+.choose{border-image-source:url(assets/ui_panel_light.png);border-width:10px;border-image-slice:10 fill;border-image-width:10px;padding:4px 6px}
+.choose:hover:not(:disabled){border-image-source:url(assets/ui_panel_light.png);filter:brightness(1.15)}
+.relicname{font-size:18px;line-height:28px}
+.relicchip{border:none;border-radius:0;background:rgba(0,0,0,.25);box-shadow:inset 0 0 0 2px currentColor;padding:2px 6px}
+/* Level cards: each level's scene on top */
+.levels{grid-template-columns:repeat(auto-fit,minmax(190px,1fr));width:min(1100px,100%)}
+.levels .lvl{color:#ecf1e8;font-weight:400}
+.levels .lvl span{color:#cfe0d2}
+.lvl .lvname{font-family:var(--pixel);font-size:18px;line-height:22px;color:#ffe08a!important}
+.levels .lvl{padding:0;overflow:hidden;text-align:left;font-family:inherit;font-size:inherit;line-height:1.3}
+.levels .lvl .lvart{display:block;width:100%;aspect-ratio:2/1;object-fit:cover;image-rendering:pixelated;border-bottom:2px solid #0e1410}
+.levels .lvl .lvtxt{display:flex;flex-direction:column;gap:2px;padding:6px 8px 8px}
+.levels .lvl b{font-size:18px;line-height:22px;color:#cfe0d2}
+.levels .lvl:disabled .lvart{filter:grayscale(1) brightness(.6)}
+.levels .lvl.done{box-shadow:0 0 0 3px #5fd46f}
+.attr{align-items:center}
+.attr::before{content:'';width:14px;height:14px;background:center/contain no-repeat;image-rendering:pixelated}
+.attr.a-strength::before{background-image:url(assets/icon_strength.png)}
+.attr.a-dexterity::before{background-image:url(assets/icon_dexterity.png)}
+.attr.a-intellect::before{background-image:url(assets/icon_intellect.png)}
+/* Talent tree: cluster icons on the notables */
+.tnode image{pointer-events:none;image-rendering:pixelated}
+.treebox{background:#0d1310}
 </style>
 </head>
 <body>
 
-<section id="screen-login" class="screen" hidden>
-  <h1>Test TBD</h1>
+<section id="screen-login" class="screen scene bright" hidden>
+  <h1 class="logo"><img class="pix" src="assets/ui_logo.png" alt="Test TBD" width="402" height="105"></h1>
   <form id="loginForm" class="field">
     <input id="liUser" placeholder="Username" autocomplete="username" aria-label="Username" required>
     <input id="liPass" type="password" placeholder="Password" autocomplete="current-password" aria-label="Password" required>
@@ -325,27 +434,27 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
   <div class="msg" id="loginMsg" role="alert"></div>
 </section>
 
-<section id="screen-menu" class="screen" hidden>
+<section id="screen-menu" class="screen scene bright" hidden>
   <div class="topbar">
-    <div><b id="mName"></b><div>Level <b id="mLv"></b></div><div><span class="xp"><i id="mXpFill"></i></span> <span id="mXp"></span></div></div>
-    <div>Gold <b id="mGold"></b></div>
+    <div class="who panel"><b id="mName"></b><div><img class="ico pix" src="assets/icon_level.png" alt="">Level <b id="mLv"></b></div><div><span class="xp"><i id="mXpFill"></i></span> <span id="mXp"></span></div></div>
+    <div class="purse panel"><img class="ico pix" src="assets/icon_gold.png" alt="">Gold <b id="mGold"></b></div>
   </div>
-  <h1>Test TBD</h1>
-  <div class="menuBtns">
+  <h1 class="logo"><img class="pix" src="assets/ui_logo.png" alt="Test TBD" width="402" height="105"></h1>
+  <div class="menuBtns panel">
     <div id="resumeBox" class="resumebox" hidden><button class="go" id="resumeRunBtn">Resume run</button><button class="linkbtn" id="resumeDrop">Give it up</button></div>
-    <button class="go" data-nav="levels">Play solo</button>
-    <div class="menuRow"><button id="lobbyCreateBtn">Create lobby</button><button id="lobbyJoinBtn">Join lobby</button></div>
-    <button data-nav="heroes">Heroes</button>
-    <button data-nav="inventory">Inventory</button>
-    <button data-nav="talents" id="talentsBtn">Talents</button>
-    <button data-nav="leaderboard">Leaderboard</button>
-    <button data-nav="settings">Settings</button>
-    <button id="logoutBtn">Log out</button>
+    <button class="go" data-nav="levels"><img class="ico pix" src="assets/icon_play.png" alt="">Play solo</button>
+    <div class="menuRow"><button id="lobbyCreateBtn"><img class="ico pix" src="assets/icon_lobby.png" alt="">Create lobby</button><button id="lobbyJoinBtn"><img class="ico pix" src="assets/icon_join.png" alt="">Join lobby</button></div>
+    <button data-nav="heroes"><img class="ico pix" src="assets/icon_heroes.png" alt="">Heroes</button>
+    <button data-nav="inventory"><img class="ico pix" src="assets/icon_inventory.png" alt="">Inventory</button>
+    <button data-nav="talents" id="talentsBtn"><img class="ico pix" src="assets/icon_talents.png" alt=""><span id="talentsLbl">Talents</span></button>
+    <button data-nav="leaderboard"><img class="ico pix" src="assets/icon_leaderboard.png" alt="">Leaderboard</button>
+    <button data-nav="settings"><img class="ico pix" src="assets/icon_settings.png" alt="">Settings</button>
+    <button id="logoutBtn"><img class="ico pix" src="assets/icon_logout.png" alt="">Log out</button>
   </div>
   <div class="version" id="mVersion"></div>
 </section>
 
-<section id="screen-levels" class="screen" hidden>
+<section id="screen-levels" class="screen scene" hidden>
   <div id="lvChoose" class="lvstep">
     <h1>Choose a level</h1>
     <div class="levels" id="lvList"></div>
@@ -360,7 +469,7 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
   <button id="lvBack">Back</button>
 </section>
 
-<section id="screen-lobby" class="screen" hidden>
+<section id="screen-lobby" class="screen scene" hidden>
   <!-- Create: public or private (with a password), and the level. -->
   <div id="lbyCreate" class="lvstep" hidden>
     <h1>Create a lobby</h1>
@@ -397,7 +506,7 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
   <button id="lbyBack">Back</button>
 </section>
 
-<section id="screen-heroes" class="screen" hidden>
+<section id="screen-heroes" class="screen scene" hidden>
   <div class="topbar"><button id="hrBack">Back</button><span class="muted" id="hrMsg"></span><span></span></div>
   <h1 id="hrTitle">Heroes</h1>
   <div id="hrList">
@@ -410,7 +519,7 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
   </div>
 </section>
 
-<section id="screen-inventory" class="screen" hidden>
+<section id="screen-inventory" class="screen scene" hidden>
   <div class="topbar"><button id="invBack">Back</button><div>Items <b id="invCount"></b></div><span class="muted" id="invMsg"></span></div>
   <h1>Inventory</h1>
   <p class="muted" id="invEmpty">No items yet. Every win drops one, every boss you defeat drops one, and losses can too.</p>
@@ -419,20 +528,20 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
   <small class="muted">Hover an item to see what it does. Equip items on each hero's page (Heroes). Click one to sell it for gold.</small>
 </section>
 
-<section id="screen-leaderboard" class="screen" hidden>
+<section id="screen-leaderboard" class="screen scene" hidden>
   <h1>Leaderboard</h1>
   <div class="tabs" id="lbTabs" role="tablist"><button data-players="1" class="on">Solo</button><button data-players="2">2 players</button><button data-players="3">3 players</button><button data-players="4">4 players</button></div>
   <div class="list"><ol id="lbList"></ol></div>
   <button id="lbBack">Back</button>
 </section>
 
-<section id="screen-settings" class="screen" hidden>
+<section id="screen-settings" class="screen scene" hidden>
   <h1>Settings</h1>
   <p class="muted">Nothing here yet.</p>
   <button id="setBack">Back</button>
 </section>
 
-<section id="screen-talents" class="screen" hidden>
+<section id="screen-talents" class="screen scene" hidden>
   <div class="topbar">
     <button id="tlBack">Back</button>
     <div>Points available: <b id="tlPoints">0</b> <span class="muted" id="tlSave"></span></div>
@@ -449,9 +558,9 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
   <div class="hud-layer">
     <!-- Top middle: level, wave and lives. -->
     <div id="hud" class="glass">
-      <span class="stat"><small>Level</small><b id="stage"></b></span>
-      <span class="stat"><small>Wave</small><b id="wave"></b></span>
-      <span class="stat"><small>Lives</small><b id="lives"></b></span>
+      <span class="stat"><small><img class="ico pix" src="assets/icon_level.png" alt="">Level</small><b id="stage"></b></span>
+      <span class="stat"><small><img class="ico pix" src="assets/icon_wave.png" alt="">Wave</small><b id="wave"></b></span>
+      <span class="stat"><small><img class="ico pix" src="assets/icon_lives.png" alt="">Lives</small><b id="lives"></b></span>
     </div>
     <!-- Co-op: everyone in the match, their colour, gold and whether they are ready. -->
     <div id="coopBar" class="glass" hidden></div>
@@ -473,7 +582,7 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
     </div>
     <!-- Bottom: gold, heroes, Relic, then Start wave with Auto-start built in, and Speed beside it. -->
     <div id="hudBottom" class="glass">
-      <div class="goldbox"><small>Gold</small><b id="gold"></b><small id="interest" class="interest" hidden></small></div>
+      <div class="goldbox"><small><img class="ico pix" src="assets/icon_gold.png" alt="">Gold</small><b id="gold"></b><small id="interest" class="interest" hidden></small></div>
       <div class="heroes" id="tbtns"></div>
       <div class="actions">
         <button id="relic" class="relic">Relic</button>

@@ -173,8 +173,8 @@ test('hero panel: a hint on moving comes first, bonuses from the same source are
   assert.equal(kids[1].children[0].className, 'lvl'); assert.match(kids[1].children[0]._v, /^XP \d+\/10$/);
   assert.equal(kids[2].className, 'attrs');
   assert.deepEqual(kids[2].children.map(a => a.children.map(c => c._text).join(' ')), ['Str 10', 'Dex 4', 'Int 2']);
-  assert.equal(kids[2].children[0].className, 'attr main', 'strength is the main one'); assert.equal(kids[2].children[0].style.color, '#e5645a', 'in red');
-  assert.equal(kids[2].children[1].className, 'attr');
+  assert.equal(kids[2].children[0].className, 'attr a-strength main', 'strength is the main one (a-strength: its icon)'); assert.equal(kids[2].children[0].style.color, '#e5645a', 'in red');
+  assert.equal(kids[2].children[1].className, 'attr a-dexterity');
   assert.match(kids[3].children[0]._v, /^Energy \d+\/100$/, 'energy as x/max before its bar');
   assert.equal(dom.made.some(e => /click and hold|Evolves at level/.test(e._text || '') && byId.inspect.children.includes(e)), false, 'no move or evolve text');
   const lines = dom.made.filter(e => e.className === 'buff').map(e => e._text);
@@ -209,7 +209,7 @@ test('talent bonuses are stacked into one "Talents" line per stat', async () => 
   assert.equal(str.children[1]._text, '18');
   str.fire('pointerenter', { clientX: 5, clientY: 5 });
   const tip = dom.made.filter(e => e.className === 'tip').at(-1).children.map(c => c._text);
-  assert.deepEqual(tip, ['Strength (main attribute)', '+18% damage (+1% per point)', '+2 · Talents ×2', '+6 · Hero level']);
+  assert.deepEqual(tip, ['Strength (main attribute)', '+18% damage (+1% per point)', '+4.5% range', '+1.8% armor penetration', '+1.8% resistance penetration', '+2 · Talents ×2', '+6 · Hero level']);
   stopGame(); startGame(hooks); dom.frames(2);
 });
 

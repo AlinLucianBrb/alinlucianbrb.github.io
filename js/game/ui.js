@@ -1,5 +1,5 @@
 /* All DOM work for the game screen. Values are only written when they change, to avoid needless page updates. */
-import { HEROES, RARITIES, RELICS, STAT_LABELS, rarityOdds, HERO_LEVELS, ATTRIBUTES } from '../content/data.js';
+import { HEROES, RARITIES, RELICS, STAT_LABELS, rarityOdds, HERO_LEVELS, ATTRIBUTES, ATTRIBUTE_EFFECTS } from '../content/data.js';
 /* Attribute short names and colours: strength red, dexterity green, intellect blue. */
 export const ATTR_SHORT = { strength: 'Str', dexterity: 'Dex', intellect: 'Int' };
 export const ATTR_COLOR = { strength: '#e5645a', dexterity: '#5fd46f', intellect: '#5aa9ff' };
@@ -307,12 +307,13 @@ export function renderInspector(g, v) {
     const all = ownerMods.concat(t.mods, t.lvlMods || [], ...(t.buffs || []).map(b => b.mods));
     const ar = el('div', 'attrs');
     for (const a of ATTRIBUTES) {
-      const own = a === d.attribute, sp = el('span', 'attr' + (own ? ' main' : ''));
+      const own = a === d.attribute, sp = el('span', 'attr a-' + a + (own ? ' main' : ''));   /* a-<attribute>: its icon (CSS) */
       sp.append(el('small', '', ATTR_SHORT[a]), el('b', '', f(t.s[a])));
       if (own) sp.style.color = ATTR_COLOR[a];
       bindTip(sp, () => ({ title: STAT_LABELS[a] + (own ? ' (main attribute)' : ''), color: own ? ATTR_COLOR[a] : undefined,
-        lines: own ? ['+' + pct(attributeDamage(d, t.s)) + ' damage (+1% per point)', ...stackMods(explain(d, a, all).concat(explain(d, 'mainAttribute', all))).map(m => ({ text: describe(m, a), color: '#9db3a3' }))]
-          : ['Not ' + d.name + "'s main attribute: no effect yet."] }));
+        lines: [...(own ? ['+' + pct(attributeDamage(d, t.s)) + ' damage (+1% per point)'] : []),
+          ...ATTRIBUTE_EFFECTS[a].map(fx => '+' + f(t.s[a] * fx.per * 100) + '% ' + fx.label),
+          ...stackMods(explain(d, a, all).concat(own ? explain(d, 'mainAttribute', all) : [])).map(m => ({ text: describe(m, a), color: '#9db3a3' }))] }));
       ar.append(sp);
     }
     box.append(ar);

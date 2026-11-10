@@ -264,11 +264,11 @@ export const heroIndex = id => HEROES.findIndex(h => h.id === id);
 
 /* The five levels. Each has a wave count (15, then 5 more each), an enemy health multiplier and a per-wave growth rate. */
 export const STAGES = [
-  { n: 1, waves: 15, hpMult: 1,   growth: 1.14 },
-  { n: 2, waves: 20, hpMult: 1.2, growth: 1.15 },
-  { n: 3, waves: 25, hpMult: 1.5, growth: 1.16 },
-  { n: 4, waves: 30, hpMult: 2,   growth: 1.17 },
-  { n: 5, waves: 35, hpMult: 2.5, growth: 1.18 }
+  { n: 1, name: 'Green Meadow', waves: 15, hpMult: 1,   growth: 1.14 },   /* name: shown with the level's picture (assets/level_<n>.png) */
+  { n: 2, name: 'Deep Forest',  waves: 20, hpMult: 1.2, growth: 1.15 },
+  { n: 3, name: 'Mire',         waves: 25, hpMult: 1.5, growth: 1.16 },
+  { n: 4, name: 'Red Canyon',   waves: 30, hpMult: 2,   growth: 1.17 },
+  { n: 5, name: 'Ashlands',     waves: 35, hpMult: 2.5, growth: 1.18 }
 ];
 
 export const STAT_LABELS = {

@@ -110,6 +110,11 @@ function build() {
     const g = svg('g', { class: 'tnode', tabindex: 0, role: 'button', 'aria-label': n.name + ': ' + n.desc });
     const c = svg('circle', { cx: n.x, cy: n.y, r: n.root ? 20 : n.notable ? 22 : n.path ? 8 : 13 });
     g.append(c);
+    /* Each cluster's notable shows the cluster's icon (art/icons.py: icon_talent_<cluster>). */
+    if (n.notable && n.cluster) {
+      const im = svg('image', { href: 'assets/icon_talent_' + n.cluster + '.png', x: n.x - 15, y: n.y - 15, width: 30, height: 30 });
+      g.append(im);
+    }
     g.addEventListener('click', () => { if (!drag || drag.moved < 6) toggle(n); });
     g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(n); } });
     bindTip(g, () => tipFor(n));

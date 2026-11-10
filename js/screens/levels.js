@@ -18,7 +18,9 @@ function renderLevels() {
   STAGES.forEach(s => {
     const b = el('button', 'lvl' + (s.n <= cleared ? ' done' : ''));
     const c = s.n <= cleared ? 'Cleared ✓' : s.n === cleared + 1 ? (p.frontier_wave ? 'Furthest: wave ' + p.frontier_wave : 'Ready') : 'Locked';
-    b.disabled = s.n > cleared + 1; b.append(el('b', '', 'Level ' + s.n), el('span', '', s.waves + ' waves'), el('small', '', c));
+    const art = el('img', 'lvart pix'); art.src = 'assets/level_' + s.n + '.png'; art.alt = ''; art.onerror = () => art.remove?.();
+    const txt = el('span', 'lvtxt'); txt.append(el('b', '', 'Level ' + s.n), ...(s.name ? [el('span', 'lvname', s.name)] : []), el('span', '', s.waves + ' waves'), el('small', '', c));
+    b.disabled = s.n > cleared + 1; b.append(art, txt);
     b.onclick = () => { stage = s.n; lineup = []; say(''); render(); };
     list.append(b);
   });
