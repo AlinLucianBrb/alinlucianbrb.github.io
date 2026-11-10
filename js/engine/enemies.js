@@ -15,7 +15,7 @@ export const ENEMIES = {
 };
 /* Threat: 0 on the first wave, +1 per wave, and each level after the first adds 25% to the growth. */
 export const threat = (wave, stage = 1) => Math.max(0, wave - 1) * (1 + 0.25 * (stage - 1));
-const DEF_TYPES = ['spell', 'fire', 'cold', 'lightning', 'toxic', 'holy', 'shadow'];
+const DEF_TYPES = ['arcane', 'fire', 'cold', 'lightning', 'toxic', 'holy', 'shadow'];
 /* An enemy's defenses on a wave: { armor, res: { type: value } }. Resistances are capped by RES_CAP (99%) when they are used. */
 export function defensesFor(def, wave, stage) {
   const t = threat(wave, stage), r = (def.res || 0) * t, res = {};

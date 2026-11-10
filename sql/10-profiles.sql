@@ -13,6 +13,7 @@ create table public.profiles (
   frontier_wave int not null default 0,
   lineup text[] not null default '{warrior,ranger,mage}',
   equipment jsonb not null default '{}',
+  paths jsonb not null default '{}',   -- evolution paths chosen before a match: { "druid": "animalic" }
   created_at timestamptz not null default now()
 );
 -- No two accounts may share a username or an email (case-insensitive).

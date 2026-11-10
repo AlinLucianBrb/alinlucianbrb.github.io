@@ -9,7 +9,7 @@ import { updateZones } from '../js/engine/zones.js';
 import { updateEnemies } from '../js/engine/enemies.js';
 import { levelMods } from '../js/engine/levels.js';
 import { FRENZY, RALLY } from '../js/engine/ultimates.js';
-import { HEROES, T } from '../js/content/data.js';
+import { ATTRIBUTE_EFFECTS, HEROES, T } from '../js/content/data.js';
 import { exportLog, replay } from '../js/engine/replay.js';
 import { hashWorld } from '../js/engine/hash.js';
 import { richWorld, tilesNearPath, place, enemyAt, dealt } from './helpers.mjs';
@@ -35,10 +35,10 @@ test('Berserker: two swings in quick succession, each hit bleeds; the pair count
   const hit = h.s.damage;
   h.cd = 0; tick(w, h);
   assert.ok(Math.abs(dealt(e) - hit) < 1e-6, 'first swing'); assert.ok(e.fx.bleed, 'bleeding');
-  assert.equal(h.energy, 20);
+  assert.equal(h.energy, h.s.energyPerAttack);
   tick(w, h, Math.round(DOUBLE_SWING_GAP * 60) + 1);
   assert.ok(dealt(e) >= 2 * hit - 1e-6, 'second swing 0.15 s later');
-  assert.equal(h.energy, 20, 'no extra energy for the second swing');
+  assert.equal(h.energy, h.s.energyPerAttack, 'no extra energy for the second swing');
 });
 
 test('Berserker ultimate (Frenzy): +50% damage and attack speed for 5 s, then back to normal', () => {
@@ -72,7 +72,9 @@ test('Commander ultimate (Rally): doubles energy per attack for heroes nearby, h
   const a = place(w, 'ranger', ...near), b = place(w, 'mage', ...far);
   enemyAt(w, h.x + 30, h.y, 10, 1e6);
   h.energy = h.s.energyMax; h.cd = 0; tick(w, h);
-  assert.equal(h.s.energyPerAttack, 40); assert.equal(a.s.energyPerAttack, 40); assert.equal(b.s.energyPerAttack, 20, 'too far away');
+  /* 20 per attack, a little more from intellect (ATTRIBUTE_EFFECTS), doubled by Rally */
+  const epa = x => 20 * (1 + x.s.intellect * ATTRIBUTE_EFFECTS.intellect.per), near1 = (a, b) => Math.abs(a - b) < 1e-9;
+  assert.ok(near1(h.s.energyPerAttack, 2 * epa(h)) && near1(a.s.energyPerAttack, 2 * epa(a))); assert.ok(near1(b.s.energyPerAttack, epa(b)), 'too far away');
 });
 
 test('Sentinel ultimate (Barricade): blocks the path just ahead of its target for 1 s; enemies pile up in front, then move on', () => {

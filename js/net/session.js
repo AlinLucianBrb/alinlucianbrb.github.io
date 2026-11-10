@@ -15,4 +15,4 @@ export function seatOf(config, uid) {
 }
 /* The world options for a match config (what createWorld takes). */
 export const worldOptions = config => ({ seed: config.seed >>> 0, stage: config.stage,
-  players: config.players.map(p => ({ talents: p.talents || [], lineup: p.lineup, items: p.items || {} })) });
+  players: config.players.map(p => ({ talents: p.talents || [], lineup: p.lineup, items: p.items || {}, paths: p.paths || {} })) });

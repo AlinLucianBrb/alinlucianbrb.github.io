@@ -50,13 +50,16 @@ test('critical hits: chance from critChance, x critDamage; heroes with no chance
   const { w, h } = hero();
   const e = enemyAt(w, h.x + 30, h.y, 10, 1e9);
   h.mods.push({ stat: 'critChance', type: 'flat', value: 0.9, scope: ['all'], source: 'test', ri: -2 }); w.statsFor(h);
-  assert.equal(h.s.critChance, 1); assert.equal(h.s.critDamage, 1.5);
+  assert.ok(h.s.critChance >= 1); assert.equal(h.s.critDamage, 1.5);
   assert.equal(critMult(w, h, e), 1.5, 'always crits at 100%');
   let crits = 0; w.ev.on('crit', () => crits++);
   w.attack(h, e); assert.equal(crits, 1);
   assert.ok(Math.abs(dealt(e) - h.s.damage * 1.5) < 1e-6);
-  const { w: w2, h: war } = hero('warrior'), e2 = enemyAt(w2, war.x + 30, war.y, 10, 1e9), before = w2.rng.combat.state;
-  w2.attack(war, e2); assert.equal(w2.rng.combat.state, before, 'no crit chance: no roll, so older replays keep their rolls');
+  /* every point of dexterity gives a little crit chance, so a hero only has none if it has no dexterity */
+  const { w: w2, h: war } = hero('warrior'); war.mods.push({ stat: 'dexterity', type: 'more', value: -1, scope: ['all'], source: 'test', ri: -2 }); w2.statsFor(war);
+  const e2 = enemyAt(w2, war.x + 30, war.y, 10, 1e9), before = w2.rng.combat.state;
+  assert.equal(war.s.critChance, 0);
+  w2.attack(war, e2); assert.equal(w2.rng.combat.state, before, 'no crit chance: no roll');
 });
 
 test("the Rogue's Mark: every enemy on the map, 6 seconds, +25% crit chance and +50% crit damage against them, for every hero", () => {

@@ -30,6 +30,7 @@ button:focus-visible,input:focus-visible{outline:3px solid #fff;outline-offset:2
 .topbar b{color:var(--text)}
 .menuBtns{display:flex;flex-direction:column;gap:10px;width:min(260px,100%);margin-top:8px}
 .menuBtns button{padding:.7em .9em}
+.version{position:absolute;right:10px;bottom:8px;font-size:12px;color:var(--muted);opacity:.75;pointer-events:none;user-select:none}
 .menuRow{display:flex;gap:8px}
 .menuRow button{flex:1;padding:.7em .5em}
 .tabs{display:flex;gap:4px;flex-wrap:wrap;justify-content:center}
@@ -115,6 +116,12 @@ select{font:inherit;background:#101813;color:var(--text);border:2px solid var(--
 .evolink::before{top:0}.evolink::after{bottom:0}
 .evorow{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;width:100%;padding-top:12px;border-top:2px solid var(--line)}
 .evorow .evonode{width:auto}
+.evonode.chosen{box-shadow:0 0 0 3px var(--hc),0 0 18px color-mix(in srgb,var(--hc) 45%,transparent)}
+.evonode .preview{font-size:.85em;color:#dcc6ff}
+.evonode .pathbtn{margin-top:auto;padding:.45em .7em}
+.evonode .preview{margin-bottom:6px}
+.evonode.chosen .pathbtn{background:var(--hc);color:#101813;border-color:var(--hc)}
+.pathline{color:#dcc6ff}
 @media (max-width:760px){.hbody.info{grid-template-columns:1fr}}
 /* Inventory: a grid of item icons. */
 #screen-inventory{justify-content:flex-start;overflow:auto}
@@ -333,6 +340,7 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
     <button data-nav="settings">Settings</button>
     <button id="logoutBtn">Log out</button>
   </div>
+  <div class="version" id="mVersion"></div>
 </section>
 
 <section id="screen-levels" class="screen" hidden>

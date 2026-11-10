@@ -3,6 +3,7 @@
    in world.log with the tick it happened on. A failed command changes nothing and is not recorded.
    To add an action, add an entry to COMMANDS. */
 import { HEROES, RARITIES, RELICS, rollRarity, COLS, ROWS, T, evolvedDef, HERO_LEVELS } from '../content/data.js';
+import { pathChoice, startPreview, endPreview } from './preview.js';
 import { levelMods } from './levels.js';
 import { recalc, startWave, statsFor } from './world.js';
 
@@ -42,6 +43,8 @@ export const COMMANDS = {
     const level = Math.min(HERO_LEVELS.max, 1 + p.gs.heroStartLevel);   /* Training talents: heroes start at a higher level */
     const h = { id: w.nextHeroId++, owner: p.i, type, def, base: def, path: [], cx: c.cx, cy: c.cy, x: (c.cx + 0.5) * T, y: (c.cy + 0.5) * T,
       cd: 0, ramp: 0, lock: null, proj: null, dealt: 0, kills: 0, energy: 0, ults: 0, tier: 0, mods: [], level, xp: 0, lvlMods: levelMods(level), s: null };
+    const way = p.paths && p.paths[def.id] && pathChoice(def.id, p.paths[def.id]);
+    if (way) startPreview(h, way);   /* an evolution path chosen before the match: the form's preview from level 1 */
     statsFor(w, h);
     w.heroes.push(h);
     return { ok: true, id: h.id };
@@ -55,12 +58,16 @@ export const COMMANDS = {
     if (!h || (h.owner || 0) !== p.i) return fail('no such hero');
     const step = h.base.evolutions[h.tier], cost = w.evolveCost(h);
     if (!step) return fail('fully evolved');
-    const i = c.choice ?? (step.choices.length === 1 ? 0 : -1), choice = step.choices[i];
+    /* A hero with a path evolves into that form, and only that one. */
+    const planned = h.tier === 0 && h.preview ? step.choices.findIndex(x => x.id === h.preview.form) : -1;
+    if (planned >= 0 && c.choice != null && c.choice !== planned) return fail('path');
+    const i = planned >= 0 ? planned : c.choice ?? (step.choices.length === 1 ? 0 : -1), choice = step.choices[i];
     if (!choice) return fail('choose an evolution');
     if (h.level < w.evolveLevel(h)) return fail('level');
     if (p.gold < cost) return fail('gold');
     p.gold -= cost;
     h.mods.push(...choice.mods.map(m => ({ ...m, source: choice.name, ri: -3 })));
+    endPreview(h);
     h.def = evolvedDef(h.def, choice);
     h.path.push(choice.id); h.tier++; h.lock = null;
     statsFor(w, h);

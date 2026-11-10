@@ -4,6 +4,7 @@ import { xpNeed } from '../core/rules.js';
 import { pointsFor } from '../content/talents.js';
 import { signOut } from '../services/api.js';
 import { loadRun, clearRun, describeRun } from '../game/saved-run.js';
+import { versionText } from '../core/version.js';
 
 const $ = id => document.getElementById(id);
 let bound = false;
@@ -13,6 +14,7 @@ function render() {
   $('mName').textContent = p.username; $('mLv').textContent = p.level;
   $('mXp').textContent = 'XP ' + p.xp + '/' + need; $('mXpFill').style.width = Math.min(100, p.xp / need * 100) + '%';
   $('mGold').textContent = p.gold.toLocaleString();
+  $('mVersion').textContent = versionText();
   const free = pointsFor(p.level) - (p.talents || []).length;
   $('talentsBtn').textContent = free > 0 ? 'Talents (' + free + ')' : 'Talents';
   /* A run that was going on when the page was refreshed or closed: carry on, or give it up. */

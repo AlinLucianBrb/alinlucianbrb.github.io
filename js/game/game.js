@@ -10,6 +10,7 @@ import { preload as preloadArt, get as sprite } from './sprites.js';
 import { createCamera, fitCamera, clampCamera, zoomAt, panBy, toWorld } from './camera.js';
 import * as ui from './ui.js';
 import { createHost, createGuest } from '../net/lockstep.js';
+import { pathChoice } from '../engine/preview.js';
 import { worldOptions } from '../net/session.js';
 
 const $ = id => document.getElementById(id);
@@ -46,7 +47,7 @@ function newRun(resumeLog = null) {
   const c = hooks.coop;
   const seed = c ? c.config.seed : resumeLog ? resumeLog.seed : newSeed();
   world = c ? createWorld(worldOptions(c.config)) : resumeLog ? resume(resumeLog)
-    : createWorld({ seed, stage: stageN, talents: hooks.talents || [], lineup: hooks.lineup, items: hooks.items || {} });
+    : createWorld({ seed, stage: stageN, talents: hooks.talents || [], lineup: hooks.lineup, items: hooks.items || {}, paths: hooks.paths || {} });
   const me = c ? c.me : 0, current = world;
   w = playerView(world, me);
   net = !c ? null : c.isHost ? createHost({ world, transport: c.transport, me })
@@ -385,7 +386,8 @@ ui.initUI({
     const def = HEROES[i], unit = w && unitOf(i), tier = unit ? unit.tier : 0, evo = def.evolutions[tier];   /* a step: { level, cost, choices } */
     const evoCost = evo && w ? Math.round(evo.cost * w.gs.evolveCost) : evo ? evo.cost : null;
     const evoLevel = evo && w ? Math.max(1, evo.level + w.gs.evolveLevel) : evo ? evo.level : null;
-    return { stats: unit ? unit.s : heroStats(def, w ? w.mods : []), unit, evo, evoCost, evoLevel, gold: w ? w.gold : 0 };
+    const path = !tier && w && w.paths && w.paths[def.id] ? pathChoice(def.id, w.paths[def.id]) : null;   /* the form chosen before the match */
+    return { stats: unit ? unit.s : heroStats(def, w ? w.mods : []), unit, evo, evoCost, evoLevel, gold: w ? w.gold : 0, path };
   },
   onLayoutChange: () => { if (!v.cam.touched) v.needFit = true; },
   luck: () => (w ? w.gs.relicLuck : 0),

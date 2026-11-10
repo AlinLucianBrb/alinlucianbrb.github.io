@@ -65,7 +65,7 @@ export default {
     }
     const seat = config && seatOf(config, uid);
     startGame({
-      stage, talents: state.profile.talents || [], lineup: state.profile.lineup, items: equipped, onRunEnd, resume: saved ? saved.log : null,
+      stage, talents: state.profile.talents || [], lineup: state.profile.lineup, items: equipped, paths: state.profile.paths || {}, onRunEnd, resume: saved ? saved.log : null,
       coop: config ? { config, ...seat, transport: coop.channel || offlineChannel() } : null,
       onRunStart: () => { runId = null; if (!config) clearRun(uid); starting = register(); },
       onExit: () => { if (!config) clearRun(uid); bus.emit('nav', { to: 'menu' }); },   /* quitting gives the run up (co-op: leaves the match) */

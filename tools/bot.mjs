@@ -67,10 +67,13 @@ function scoreOffer(w, o) {
 
 /* form: which evolutions to take when a hero offers a choice, by choice id, comma-separated (e.g. 'firemage,hunter');
    heroes with none of them listed take their first choice. */
-export function playRun({ seed = 1, stage = 1, strategy = 'trio', level = 1, relics = true, items = {}, form = 'firemage,marksman', maxTicks = 4000000 } = {}) {
+/* paths: true chooses the wanted forms as evolution paths before the match (so the heroes show their previews from level 1). */
+export function playRun({ seed = 1, stage = 1, strategy = 'trio', level = 1, relics = true, items = {}, form = 'firemage,marksman', paths = false, maxTicks = 4000000 } = {}) {
   const wanted = String(form).split(',');
   const lineup = STRATEGIES[strategy];
-  const w = createWorld({ seed, stage, talents: talentsFor(level, strategy), lineup, items });
+  const way = {};
+  if (paths) for (const id of lineup) { const c = HEROES.find(h => h.id === id).evolutions[0].choices.find(x => wanted.includes(x.id)); if (c) way[id] = c.id; }
+  const w = createWorld({ seed, stage, talents: talentsFor(level, strategy), lineup, items, paths: way });
   /* Place every hero once, longest range first so the short-range heroes get the tiles right next to the path. */
   const order = [...lineup].sort((a, b) => heroStats(HEROES.find(h => h.id === b), w.mods).range - heroStats(HEROES.find(h => h.id === a), w.mods).range);
   for (const id of [...order].reverse()) {

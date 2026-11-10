@@ -12,6 +12,7 @@ import { bindTip } from '../core/tooltip.js';
 import { spriteImg, spriteUrl, heroSprite, attackIcon, ultimateIcon } from './sprites.js';
 import { isBossWave } from '../engine/enemies.js';
 import { COOP } from '../content/rules.js';
+import { PREVIEWS } from '../content/previews.js';
 import { PLAYER_COLORS } from './render.js';
 
 const $ = id => document.getElementById(id);
@@ -26,7 +27,7 @@ export const heroButton = i => btns[i];
 let meterEmpty, cb = {}, banishBtns = [];
 
 /* Tags in words, for tooltips: relics, talents and items that name a tag work on heroes that have it. */
-const TAG_LABEL = { melee: 'Melee', range: 'Ranged', projectile: 'Projectile', spell: 'Spell', arcane: 'Arcane', thrown: 'Thrown',
+const TAG_LABEL = { attack: 'Attack', trap: 'Trap', melee: 'Melee', range: 'Ranged', projectile: 'Projectile', spell: 'Spell', arcane: 'Arcane', thrown: 'Thrown',
   physical: 'Physical', fire: 'Fire', cold: 'Cold', lightning: 'Lightning', toxic: 'Toxic', nature: 'Nature', minion: 'Minion', area: 'Area',
   holy: 'Holy', shadow: 'Shadow', aura: 'Aura', curse: 'Curse', chain: 'Chain', totem: 'Totem', mounted: 'Mounted' };
 export const tagLine = d => d.tags.filter(t => TAG_LABEL[t]).map(t => TAG_LABEL[t]).join(' · ');
@@ -78,8 +79,9 @@ export function initUI(callbacks) {
       if (u) lines.push({ text: 'Ultimate: ' + u.name + ' (' + u.desc + ')', color: '#9db3a3' });
       lines.push(info.unit ? { text: 'Click to select it. Click and hold it on the map to move it.', color: '#9db3a3' } : { text: 'Free to place: one per match · key ' + b._key.textContent, color: '#9db3a3' });
       if (info.unit) lines.push({ text: 'Level ' + info.unit.level + ': heroes gain XP from every kill while on the field.', color: '#8fd3ff' });
+      if (info.path) lines.push({ text: 'Path: ' + info.path.name + '. Before it evolves: ' + PREVIEWS[info.path.id].desc, color: info.path.color || '#dcc6ff' });
       if (info.evo) {
-        const names = info.evo.choices.map(c => c.name), list = names.length > 1 ? names.slice(0, -1).join(', ') + ' or ' + names.at(-1) : names[0];
+        const names = (info.path ? [info.path] : info.evo.choices).map(c => c.name), list = names.length > 1 ? names.slice(0, -1).join(', ') + ' or ' + names.at(-1) : names[0];
         const need = info.evoLevel || info.evo.level;
         lines.push({ text: 'At level ' + need + ' it can evolve into ' + list + ' for ' + info.evoCost + ' gold.', color: info.unit && info.unit.level >= need && info.gold >= info.evoCost ? '#f2b84b' : '#9db3a3' });
       }
@@ -347,6 +349,7 @@ export function showEvoPick(g, h) {
   const cost = g.evolveCost(h), box = $('evoChoices'); box.textContent = '';
   setText($('evoTitle'), 'Evolve the ' + h.def.name + ' · ' + cost + ' gold');
   step.choices.forEach((c, i) => {
+    if (h.preview && c.id !== h.preview.form) return;   /* a hero with a path evolves only into its form */
     const d = h.def, u = ULTIMATES[c.ultimate || d.ultimate], color = c.color || d.color, card = el('div', 'card'), b = el('button', 'choose');
     const nm = el('b', '', c.name); nm.style.color = color; b.style.borderColor = color;
     b.append(nm, el('small', 'rar', DAMAGE_LABEL[c.damageType || d.damageType] + ' damage'), el('small', '', c.short),

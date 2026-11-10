@@ -1,12 +1,12 @@
 /* Damage types, defenses and ailments, Path of Exile style. This is the data; the rules are in js/engine/combat.js.
    Every hero deals its own damage type (damageType on the hero, physical by default) and can gain added damage of any type.
    Enemies can have armor (less physical damage from small hits, less from big ones relatively) and resistances (a flat % per type). */
-/* spell is plain magic: no ailment comes from it, and enemies can resist it like any other type.
+/* arcane is plain magic (the Mage's; it used to be called spell): no ailment comes from it, and enemies can resist it like any other type.
    holy (Priest, Paladin): no ailment, but it ignores half of the enemy's resistance (HOLY_RES_IGNORED): the enemies are demons.
    shadow (Warlock, Heretic): its ailment is Corruption, damage over time that grows with every stack. */
-export const DAMAGE_TYPES = ['physical', 'spell', 'fire', 'cold', 'lightning', 'toxic', 'holy', 'shadow'];
-export const DAMAGE_LABEL = { physical: 'Physical', spell: 'Spell', fire: 'Fire', cold: 'Cold', lightning: 'Lightning', toxic: 'Toxic', holy: 'Holy', shadow: 'Shadow' };
-export const DAMAGE_COLOR = { physical: '#c7ced6', spell: '#c39bf2', fire: '#ff8a3d', cold: '#8fd3ff', lightning: '#ffe45c', toxic: '#7ad04b', holy: '#fff0a8', shadow: '#9a5cd6' };
+export const DAMAGE_TYPES = ['physical', 'arcane', 'fire', 'cold', 'lightning', 'toxic', 'holy', 'shadow'];
+export const DAMAGE_LABEL = { physical: 'Physical', arcane: 'Arcane', fire: 'Fire', cold: 'Cold', lightning: 'Lightning', toxic: 'Toxic', holy: 'Holy', shadow: 'Shadow' };
+export const DAMAGE_COLOR = { physical: '#c7ced6', arcane: '#c39bf2', fire: '#ff8a3d', cold: '#8fd3ff', lightning: '#ffe45c', toxic: '#7ad04b', holy: '#fff0a8', shadow: '#9a5cd6' };
 export const HOLY_RES_IGNORED = 0.5;
 
 export const RES_CAP = 0.99;          /* resistances never block more than 99% (endless mode will need the room) */

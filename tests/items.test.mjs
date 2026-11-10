@@ -105,3 +105,23 @@ test('archetype items: every slot has a melee, projectile, spell and minion item
   assert.match(sql, /raise exception 'take the item off before selling it'/);
   assert.match(sql, /grant execute on function public\.sell_item\(uuid\) to authenticated;/);
 });
+
+test('gear that does not fit its wearer counts as its general version at 80%; a path\'s tags count from the start', async () => {
+  const { fitMod, FALLBACK } = await import('../js/content/items.js');
+  const { createWorld } = await import('../js/engine/world.js');
+  const fine = { stat: 'damage', type: 'inc', value: 0.1, scope: ['projectile'], source: 'X', need: 'rogue' };
+  assert.equal(fitMod(fine, { tags: ['melee', 'projectile', 'rogue'] }), fine, 'fits: as it is');
+  const g = fitMod(fine, { tags: ['melee', 'rogue'], rate: 'speed' });
+  assert.deepEqual([g.stat, g.scope], ['damage', ['all']]); assert.ok(Math.abs(g.value - 0.1 * FALLBACK) < 1e-12);
+  assert.equal(fitMod({ stat: 'minionSpeed', type: 'inc', value: 0.1, scope: ['minion'] }, { tags: ['spell'], rate: 'castSpeed' }).stat, 'castSpeed');
+  /* a Pack leader item on a Druid: general damage without a path, minion damage on the Animalic path */
+  const item = { type: 'fang_necklace', rarity: 0, bonuses: ['Pack leader'], ranks: [1] };
+  const plain = createWorld({ lineup: ['druid'], items: { druid: [item] } }).mods.filter(m => /Pack leader/.test(m.source));
+  const path = createWorld({ lineup: ['druid'], items: { druid: [item] }, paths: { druid: 'animalic' } }).mods.filter(m => /Pack leader/.test(m.source));
+  assert.equal(plain[0].stat, 'damage'); assert.equal(path[0].stat, 'minionDamage');
+});
+
+test('attribute bonuses: named attributes and the main attribute can be item bonuses', async () => {
+  const { ITEM_BONUSES } = await import('../js/content/items.js');
+  for (const n of ['Brawn', 'Finesse', 'Insight', 'Prowess']) assert.ok(ITEM_BONUSES.includes(n), n);
+});

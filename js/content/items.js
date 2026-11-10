@@ -101,10 +101,30 @@ export function itemBonusLines(it) {
   return out;
 }
 
+/* A bonus that does not fit its wearer (Pack leader on a hero with no minion, Fine arrows on a melee hero) is not wasted:
+   it counts as its general version at FALLBACK of its value. Damage for one kind of hero becomes damage; a speed becomes
+   the speed the hero uses (attack or cast); minion crits become crits; Wide swing and Split bolt become a little range. */
+export const FALLBACK = 0.8;
+const GENERAL = {
+  damage: m => ({ stat: 'damage', value: m.value }),
+  speed: (m, rate) => ({ stat: rate, value: m.value }), castSpeed: (m, rate) => ({ stat: rate, value: m.value }), minionSpeed: (m, rate) => ({ stat: rate, value: m.value }),
+  minionCritChance: m => ({ stat: 'critChance', value: m.value }), minionCritDamage: m => ({ stat: 'critDamage', value: m.value }),
+  minionDamage: m => ({ stat: 'damage', value: m.value }),
+  arc: m => ({ stat: 'range', type: 'inc', value: m.value / 100 }), targets: m => ({ stat: 'range', type: 'inc', value: m.value / 5 })
+};
+/* One item modifier for its wearer: as it is if it fits (or helps every hero), else its general version, or null. */
+export function fitMod(m, wearer) {
+  if (!wearer || !Array.isArray(m.scope) || m.scope.includes('all') || m.scope.some(s => wearer.tags.includes(s))) return m;
+  const g = GENERAL[m.stat] && GENERAL[m.stat](m, wearer.rate || 'speed');
+  return g ? { ...m, type: g.type || m.type, stat: g.stat, value: g.value * FALLBACK, scope: ['all'], source: m.source + ' (general, ' + Math.round(FALLBACK * 100) + '%)' } : null;
+}
+
 /* Modifiers for a match from the equipped items: { heroId: [item, ...] } (an item is { type, rarity, bonuses } or a type id).
    Hero bonuses apply to the wearer only, and only if it has the bonus's tags (Whetstone needs a melee hero); "need" holds the
-   wearer's id. Each bonus counts at its own rank. Unknown types and bonuses are ignored. */
-export function itemMods(equipped = {}) {
+   wearer's id. Each bonus counts at its own rank. Unknown types and bonuses are ignored.
+   wearerOf(heroId): { tags, rate } of the hero as it will play (its path's tags included), to turn bonuses that do not fit
+   into their general version (fitMod). Without it every bonus is kept as it is. */
+export function itemMods(equipped = {}, wearerOf = null) {
   const out = [];
   for (const heroId in equipped) {
     const list = Array.isArray(equipped[heroId]) ? equipped[heroId] : [equipped[heroId]];
@@ -118,7 +138,7 @@ export function itemMods(equipped = {}) {
         if (!onGear.has(name)) return;   /* gold, XP and lives bonuses no longer work on gear */
         const r = relicByName(name), mods = r && bonusMods(r, it.ranks[k]);
         const from = source + ': ' + name;   /* each bonus is its own line in the hero panel, e.g. "Epic Helm: Whetstone" */
-        if (mods) for (const m of mods) out.push({ ...m, need: heroId, source: from, ri: -2 });
+        if (mods) for (const m of mods) { const fit = fitMod({ ...m, need: heroId, source: from, ri: -2 }, wearerOf && wearerOf(heroId)); if (fit) out.push(fit); }
       });
     }
   }

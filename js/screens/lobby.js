@@ -8,6 +8,7 @@ import { STAGES, HEROES, LINEUP_SIZE, STAT_LABELS } from '../content/data.js';
 import { createLobby, joinLobby, listLobbies, lobbyPing, setLobbyStage, leaveLobby, startLobby, lobbyChannel } from '../services/api.js';
 import { coop, enterLobby, closeLobby } from '../net/session.js';
 import { PLAYER_COLORS } from '../game/render.js';
+import { pathChoice } from '../engine/preview.js';
 import { el, cap, currentLineup, wornItems, ensureItems, saveNow, sqlHint } from './loadout.js';
 
 const $ = id => document.getElementById(id);
@@ -92,7 +93,7 @@ async function enterRoom(lobby) {
 /* Tell the others what I bring (they need it to build the same match). */
 function announce() {
   if (!coop.channel) return;
-  coop.channel.track({ uid: uid(), name: state.profile.username, level: state.profile.level, talents: state.profile.talents || [], lineup: [...lineup], items: wornItems() });
+  coop.channel.track({ uid: uid(), name: state.profile.username, level: state.profile.level, talents: state.profile.talents || [], lineup: [...lineup], paths: { ...(state.profile.paths || {}) }, items: wornItems() });
 }
 async function ping() {
   if (!coop.lobby) return;
@@ -105,6 +106,8 @@ async function ping() {
   renderRoom();
 }
 const heroName = id => (HEROES.find(h => h.id === id) || { name: id }).name;
+/* A hero in a lineup, with its evolution path if it has one: "Druid → Animalic Druid". */
+const withPath = paths => id => { const c = paths && paths[id] && pathChoice(id, paths[id]); return heroName(id) + (c ? ' → ' + c.name : ''); };
 function renderRoom() {
   const l = coop.lobby; if (!l || view !== 'room') return;
   const here = coop.channel ? coop.channel.members() : {}, mine = l.host === uid();
@@ -118,7 +121,7 @@ function renderRoom() {
       li.style.setProperty('--pc', PLAYER_COLORS[idx % PLAYER_COLORS.length]);
       li.append(el('b', '', (m.user_id === l.host ? '♛ ' : '') + m.username + (m.user_id === uid() ? ' (you)' : '')),
         el('small', '', 'Level ' + m.level + (meta ? '' : ' · connecting…')),
-        el('small', '', meta ? meta.lineup.map(heroName).join(', ') : ''));
+        el('small', '', meta ? meta.lineup.map(withPath(meta.paths)).join(', ') : ''));
     } else li.append(el('small', '', 'Open slot'));
     box.append(li);
   }
@@ -129,7 +132,7 @@ function renderRoom() {
   $('lbyWait').textContent = mine
     ? (l.members.length < 2 ? 'Share the name ' + l.name + ' with your friends. A match needs at least 2 players.' : missing.length ? 'Waiting for ' + missing.map(m => m.username).join(', ') + ' to connect…' : 'Everyone is here.')
     : 'Waiting for the host to start the match…';
-  $('lbyMine').textContent = lineup.map(heroName).join(', ');
+  $('lbyMine').textContent = lineup.map(withPath(state.profile.paths)).join(', ');
   $('lbyChange').textContent = picking ? 'Done' : 'Change';
   $('lbyHeroes').hidden = !picking;
   if (picking) renderHeroes();
@@ -169,8 +172,8 @@ async function startMatch() {
   if (missing.length) return say('Waiting for ' + missing.map(m => m.username).join(', ') + ' to connect.');
   const seed = globalThis.crypto && crypto.getRandomValues ? crypto.getRandomValues(new Uint32Array(1))[0] : Math.floor(Math.random() * 4294967296);
   const config = { seed, stage: l.stage, host: uid(), players: l.members.map(m => {
-    const meta = m.user_id === uid() ? { talents: state.profile.talents || [], lineup, items: wornItems() } : here[m.user_id];
-    return { uid: m.user_id, name: m.username, talents: meta.talents || [], lineup: meta.lineup, items: meta.items || {} };
+    const meta = m.user_id === uid() ? { talents: state.profile.talents || [], lineup, paths: state.profile.paths || {}, items: wornItems() } : here[m.user_id];
+    return { uid: m.user_id, name: m.username, talents: meta.talents || [], lineup: meta.lineup, paths: meta.paths || {}, items: meta.items || {} };
   }) };
   $('lbyStart').disabled = true; say('Starting…', false);
   const { error } = await startLobby(l.id, config);

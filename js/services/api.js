@@ -12,6 +12,7 @@ const alias = username => username.toLowerCase() + '@' + AUTH_DOMAIN;
 const fill = p => {
   p.talents = p.talents || []; p.levels_cleared = p.levels_cleared || 0; p.frontier_wave = p.frontier_wave || 0;
   p.lineup = p.lineup && p.lineup.length ? p.lineup : ['warrior', 'ranger', 'mage']; p.equipment = p.equipment || {};
+  p.paths = p.paths && typeof p.paths === 'object' ? p.paths : {};
 };
 
 const USERNAME_PROBLEMS = {
@@ -77,6 +78,13 @@ export async function getItems() {
 export async function saveLoadout(lineup, equipment) {
   if (!sb) return { profile: null, ...OFFLINE };
   const { data, error } = await sb.rpc('save_loadout', { p_lineup: lineup, p_equipment: equipment });
+  if (data) fill(data);
+  return { profile: data, error: error && error.message };
+}
+/* Saves the evolution paths ({ heroId: formId }). */
+export async function savePaths(paths) {
+  if (!sb) return { profile: null, ...OFFLINE };
+  const { data, error } = await sb.rpc('save_paths', { p_paths: paths });
   if (data) fill(data);
   return { profile: data, error: error && error.message };
 }

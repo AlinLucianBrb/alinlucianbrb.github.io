@@ -96,7 +96,7 @@ registerBehavior('totems', {
     rearm(t);
     if (mult !== 0) {
       const mine = g.zones.filter(z => z.type === 'totem' && z.owner === t && z.t > 0);
-      if (mine.length >= TOTEM.max) mine[0].t = 0;   /* the oldest goes */
+      if (mine.length >= (t.totemMax || TOTEM.max)) mine[0].t = 0;   /* the oldest goes (a path preview keeps just one) */
       const spot = totemSpots(g, t)[0];
       if (spot) {
         const kind = TOTEM.kinds[(t.totemN = (t.totemN || 0) + 1) % 3];

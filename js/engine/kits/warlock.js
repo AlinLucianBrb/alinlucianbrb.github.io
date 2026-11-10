@@ -82,7 +82,7 @@ registerBehavior('imps', {
     const mult = strike(g, t, tg);
     rearm(t);
     if (mult !== 0) {
-      if (imps.length >= IMP.max) imps.shift();
+      if (imps.length >= (t.impMax || IMP.max)) imps.shift();   /* a path preview keeps just one */
       const k = g.rng.combat.int(6);   /* where it hovers around the target, on the seeded stream */
       imps.push({ x: t.x, y: t.y - 20, ox: (k - 2.5) * 12, oy: (k % 3) * 8, t: IMP.life, cd: 0.3, face: 1 });
     }

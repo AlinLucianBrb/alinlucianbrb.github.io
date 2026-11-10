@@ -4,6 +4,7 @@ alter table public.profiles add column if not exists levels_cleared int not null
 alter table public.profiles add column if not exists frontier_wave int not null default 0;
 alter table public.profiles add column if not exists lineup text[] not null default '{warrior,ranger,mage}';
 alter table public.profiles add column if not exists equipment jsonb not null default '{}';
+alter table public.profiles add column if not exists paths jsonb not null default '{}';
 
 -- Talent tree reworks: the tree is symmetrical, 20 two-stat clusters (combat on top, quality of life below) hanging from a
 -- circle of attribute paths (node ids start with t4_). Points spent in any older tree are refunded.

@@ -1,5 +1,5 @@
 /* Stat resolution, Path of Exile style:  (base + flat) x (1 + sum of "inc") x every "more". */
-import { ATTRIBUTE_DAMAGE } from '../content/data.js';
+import { ATTRIBUTE_DAMAGE, ATTRIBUTE_EFFECTS } from '../content/data.js';
 export const matches = (scope, tags) => scope.includes('all') || scope.some(s => tags.includes(s));
 /* need: a hero id the modifier is limited to (item bonuses only help the hero wearing the item). Hero tags include its id. */
 const applies = (m, stat, tags) => m.stat === stat && (tags ? Array.isArray(m.scope) && matches(m.scope, tags) && (!m.need || tags.includes(m.need)) : m.scope === 'global');
@@ -18,7 +18,18 @@ export function heroStats(def, mods) {
   const s = {}, own = def.attribute;
   if (own && own in def.stats) s[own] = resolve(def.stats[own], own, mods, def.tags) + resolve(0, 'mainAttribute', mods, def.tags);
   for (const k in def.stats) if (k !== own) s[k] = resolve(def.stats[k], k, mods, def.tags, k === 'damage' && own ? attributeDamage(def, s) : 0);
+  attributeEffects(s);
   return s;
+}
+/* Every attribute's side effect (ATTRIBUTE_EFFECTS): crit chance is added, area and energy from attacks are multiplied.
+   A strength hero's swing arc grows with its area. */
+function attributeEffects(s) {
+  for (const a in ATTRIBUTE_EFFECTS) {
+    const fx = ATTRIBUTE_EFFECTS[a], v = (s[a] || 0) * fx.per;
+    if (!(v > 0) || !(fx.stat in s)) continue;
+    if (fx.stat === 'critChance') s.critChance += v; else s[fx.stat] *= 1 + v;
+  }
+  if ('arc' in s && s.area) s.arc *= s.area;
 }
 /* The increased damage a hero gets from its own attribute (0.37 = +37%). */
 export const attributeDamage = (def, s) => (def.attribute && s[def.attribute] ? s[def.attribute] * ATTRIBUTE_DAMAGE : 0);

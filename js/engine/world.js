@@ -17,10 +17,11 @@ import { attackMult, gainEnergy, erupt } from './ultimates.js';
 import { gainXp } from './levels.js';
 import { coopHpMult } from '../content/rules.js';
 import { damageTaken, EFFECT_HOOKS } from './effects.js';
-import './kits/index.js';   /* the newer heroes' behaviors, ultimates and zones register themselves */
+import './kits/index.js';
+import { cleanPaths, pathChoice, pathDef, previewMods, syncPreview, updatePreview, previewHit } from './preview.js';   /* the newer heroes' behaviors, ultimates and zones register themselves */
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
-export const ENGINE_VERSION = 16;     /* bump when a rule change would make old command logs play out differently */
+export const ENGINE_VERSION = 17;     /* bump when a rule change would make old command logs play out differently */
 
 function genPath(rng) {
   let x = 0, y = 1 + rng.int(ROWS - 2); const p = [[x, y]];
@@ -43,29 +44,31 @@ export function cleanLineup(lineup) {
 
 /* One player's side of a match: its heroes' lineup, talents and items, and its own gold, relics and relic choice.
    In co-op every player has one (the map, the enemies, the lives and the waves are shared; gold and relics are not). */
-function makePlayer(i, { talents = [], lineup = null, items = {} } = {}) {
-  const team = cleanLineup(lineup), equipped = {};
+function makePlayer(i, { talents = [], lineup = null, items = {}, paths = {} } = {}) {
+  const team = cleanLineup(lineup), equipped = {}, path = cleanPaths(paths, team);
   for (const id of team) if (items && items[id]) { const list = (Array.isArray(items[id]) ? items[id] : [items[id]]).filter(Boolean).map(asItem); if (list.length) equipped[id] = list; }
-  const mods = [...talentMods(talents), ...itemMods(equipped)];
+  /* Gear that does not fit its wearer (as it will play: its path's tags included) counts as its general version. */
+  const wearerOf = id => { const d = HEROES.find(x => x.id === id), c = path[id] && pathChoice(id, path[id]); return d && { tags: c ? pathDef(d, c).tags : d.tags, rate: d.rate || 'speed' }; };
+  const mods = [...talentMods(talents), ...itemMods(equipped, wearerOf)];
   return {
-    i, talents: [...talents], lineup: team, items: equipped, mods, gold: 100 + resolve(0, 'startGold', mods), gs: null,
+    i, talents: [...talents], lineup: team, paths: path, items: equipped, mods, gold: 100 + resolve(0, 'startGold', mods), gs: null,
     relics: [], relicsBought: 0, banned: new Set(), picking: false, pick: null, playOnPick: false, auto: false, ready: false,
     /* Free relic rerolls and banishes for this match: they come only from talents. */
     rerolls: Math.round(resolve(0, 'rerolls', mods)), banishes: Math.round(resolve(0, 'banishes', mods))
   };
 }
 /* The fields that belong to a player. On the world they mean player 1's (w.gold, w.relics...), so solo code reads as before. */
-export const PLAYER_FIELDS = ['talents', 'lineup', 'items', 'mods', 'gold', 'gs', 'relics', 'relicsBought', 'banned', 'picking', 'pick', 'playOnPick',
+export const PLAYER_FIELDS = ['talents', 'lineup', 'paths', 'items', 'mods', 'gold', 'gs', 'relics', 'relicsBought', 'banned', 'picking', 'pick', 'playOnPick',
   'auto', 'ready', 'rerolls', 'banishes'];
 
 /* lineup: the hero ids brought into the match. items: { heroId: [{ type, rarity, bonuses }] } equipped before the match
    (see js/content/items.js; a plain item type id also works, as a Common item with no bonuses).
    Co-op: players: [{ talents, lineup, items }, ...] instead, one per player (2 to 4); enemies get that many times the life. */
-export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, items = {}, players = null, record = true } = {}) {
+export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, items = {}, paths = {}, players = null, record = true } = {}) {
   const def = STAGES[stage - 1];
   if (!def) throw new Error('Unknown stage ' + stage);
   const root = createRng(seed), rng = { path: root.fork('path'), relic: root.fork('relic'), combat: root.fork('combat'), gold: root.fork('gold') };
-  const ps = (players && players.length ? players : [{ talents, lineup, items }]).map((p, i) => makePlayer(i, p));
+  const ps = (players && players.length ? players : [{ talents, lineup, items, paths }]).map((p, i) => makePlayer(i, p));
   const path = genPath(rng.path), coop = ps.length > 1;
   const w = {
     seed: seed >>> 0, stageN: stage, stage: def, maxWave: def.waves, rng, path, pathSet: new Set(path.map(c => c.join(','))),
@@ -74,14 +77,18 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
     wave: 0, spawnLeft: 0, spawnT: 0, kills: 0, bossKills: 0, nextHeroId: 1,
     heroes: [], enemies: [], projs: [], zones: [],
     ev: createBus(), fx: null,
-    log: record ? { v: 1, ver: ENGINE_VERSION, seed: seed >>> 0, stage, talents: [...ps[0].talents], lineup: [...ps[0].lineup], items: JSON.parse(JSON.stringify(ps[0].items)), commands: [], ticks: 0,
-      ...(coop ? { players: ps.map(p => ({ talents: [...p.talents], lineup: [...p.lineup], items: JSON.parse(JSON.stringify(p.items)) })) } : {}) } : null
+    log: record ? { v: 1, ver: ENGINE_VERSION, seed: seed >>> 0, stage, talents: [...ps[0].talents], lineup: [...ps[0].lineup], paths: { ...ps[0].paths }, items: JSON.parse(JSON.stringify(ps[0].items)), commands: [], ticks: 0,
+      ...(coop ? { players: ps.map(p => ({ talents: [...p.talents], lineup: [...p.lineup], paths: { ...p.paths }, items: JSON.parse(JSON.stringify(p.items)) })) } : {}) } : null
   };
   for (const k of PLAYER_FIELDS) Object.defineProperty(w, k, { get: () => ps[0][k], set: v => { ps[0][k] = v; }, enumerable: true });
   w.ownerOf = h => ps[h.owner || 0];
   w.hit = (hero, e, amount, type, quiet) => hit(w, hero, e, amount, type, quiet);
   w.livesStart = w.lives;   /* the Heretic's blood price counts the lives lost since */
-  w.attack = (hero, e, scale, rate, as, s) => attack(w, hero, e, scale, rate, as, s);
+  w.attack = (hero, e, scale, rate, as, s) => {
+    const r = attack(w, hero, e, scale, rate, as, s);
+    if (hero.preview && !hero.echoOf) previewHit(w, hero, e);   /* the Sentinel's push, the Inquisitor's Verdict */
+    return r;
+  };
   w.dot = (src, e, amount, type) => dotDamage(w, src, e, amount, type);
   w.attackMult = (h, target) => attackMult(w, h, target);
   w.gainEnergy = (h, amount) => gainEnergy(h, amount);
@@ -174,7 +181,10 @@ export function statsFor(w, h) {
   const shared = w.players[h.owner || 0].mods;
   let own = h.lvlMods && h.lvlMods.length ? h.mods.concat(h.lvlMods) : h.mods;
   if (h.buffs && h.buffs.length) for (const b of h.buffs) own = own.concat(b.mods);
-  h.s = heroStats(h.def, own.length ? shared.concat(own) : shared);
+  if (h.preview) { h.pvMods = previewMods(h); own = own.concat(h.pvMods); }   /* a path's preview, at the hero's level */
+  const all = own.length ? shared.concat(own) : shared;
+  h.s = heroStats(h.def, all);
+  if (h.preview) syncPreview(h, all);
   h.ms = h.def.tags.includes('minion') ? minionStats(h.s) : null;   /* its minion's stats (the wolf) */
   if (h.energy > h.s.energyMax) h.energy = h.s.energyMax;
   return h.s;
@@ -219,6 +229,7 @@ export function step(w) {
     tickBuffs(w, h, STEP);
     if (h.s.energyPerSecond > 0 && w.phase === 'wave') gainEnergy(h, h.s.energyPerSecond * STEP);
     BEHAVIORS[h.def.kind].update(w, h, STEP);
+    if (h.preview) updatePreview(w, h, STEP);
   }
   updateProjectiles(w, STEP);
   updateZones(w, STEP);

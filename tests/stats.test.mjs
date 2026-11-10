@@ -87,8 +87,9 @@ test('Split bolt: a 15% chance of one more target per Common, by rarity; nobody 
 
 test('relic indicator lists only the hero types that would be affected', () => {
   const heroes = [{ type: 1, def: H('ranger') }, { type: 2, def: H('mage') }];
-  const a = affected(R('Fine arrows'), 1, heroes);
-  assert.equal(a.global, false); assert.deepEqual([...a.types], [[1, 1]]);
+  const a = affected(R('Fine arrows'), 1, heroes);   /* projectile delivery: the Ranger's arrows and the Mage's bolts */
+  assert.equal(a.global, false); assert.deepEqual([...a.types], [[1, 1], [2, 1]]);
+  assert.deepEqual([...affected(R('Whetstone'), 1, heroes).types], [], 'no melee hero');
   assert.equal(affected(R('Prospector'), 1, heroes).global, true);
   assert.equal(affected(R('Wide swing'), 1, heroes).types.size, 0, 'no warrior on the map');
 });

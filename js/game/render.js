@@ -402,10 +402,14 @@ export function draw(ctx, g, v) {
   }
   /* Zones lie on the ground: drawn before heroes and enemies, so puddles never cover them. */
   for (const z of g.zones || []) if (!(ZONE_SPRITE[z.type] && ZONE_SPRITE[z.type](ctx, z))) (ZONE_DRAW[z.type] || ZONE_DRAW.storm)(ctx, z);
-  drawAuras(ctx, g);
+  /* Path previews: an echo of the hero runs the form's attack (js/engine/preview.js); its aura, pup, imp, ride and blink are
+     drawn like the form's own. */
+  const echoes = g.heroes.filter(t => t.echo).map(t => t.echo), withEchoes = echoes.length ? { heroes: g.heroes.concat(echoes), tick: g.tick } : g;
+  drawAuras(ctx, withEchoes);
   for (const t of g.heroes) if (!t.def.flying) drawHero(ctx, g, v, t);
   for (const t of g.heroes) if (t.wolf && t.def.kind === 'wolf') drawWolf(ctx, t);
-  drawMinions(ctx, g);
+  for (const e of echoes) drawEcho(ctx, g, e);
+  drawMinions(ctx, withEchoes);
   /* Co-op guests: heroes placed or moved, still on their way to the host, faded where they will stand. */
   for (const p of v.pending || []) {
     const c = p.cmd, d = c.type === 'place' ? HEROES.find(h => h.id === c.hero) : c.type === 'move' ? (g.heroes.find(h => h.id === c.id) || {}).def : null;
@@ -481,6 +485,11 @@ function drawHero(ctx, g, v, t) {
     ctx.beginPath(); ctx.ellipse?.(t.x, t.y + 15, 17, 6, 0, 0, 7);
     ctx.strokeStyle = PLAYER_COLORS[t.owner || 0]; ctx.lineWidth = 3; ctx.stroke();
   }
+  if (t.preview) {                       /* a path: the form's colour as trim under its feet, brighter as the preview grows */
+    ctx.beginPath(); ctx.ellipse?.(t.x, t.y + 15, 15, 5, 0, 0, 7);
+    ctx.globalAlpha = 0.45 + 0.4 * Math.min(1, (t.level - 1) / 8); ctx.strokeStyle = t.preview.color; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.globalAlpha = t === v.moving ? 0.4 : 1;
+  }
   if (full) {                            /* ultimate ready: a soft gold glow */
     ctx.beginPath(); ctx.arc(t.x, t.y, 21, 0, 7); ctx.fillStyle = 'rgba(255,216,74,.28)'; ctx.fill();
   }
@@ -505,9 +514,21 @@ function drawHero(ctx, g, v, t) {
   ctx.globalAlpha = 1;
 }
 
-/* The Animalic Druid's wolf: facing where it runs, bigger with a red glow while enraged, a little hop when it bites. */
-function drawWolf(ctx, t) {
-  const w = t.wolf, big = t.rage > 0, s = (big ? 1.45 : 1) * 46;
+/* What a path preview's echo shows of the form: the wolf pup, a ghost rider charging down the path, the Assassin's blink. */
+function drawEcho(ctx, g, e) {
+  if (e.wolf && e.def.kind === 'wolf') drawWolf(ctx, e, 0.7);
+  if (e.ride) { ctx.globalAlpha = 0.7; drawMounted(ctx, g, e, HERO_S, HERO_DY); ctx.globalAlpha = 1; }
+  if (e.blink && e.blink.t > 0) {
+    ctx.globalAlpha = 0.7 * Math.min(1, e.blink.t * 5);
+    if (!drawSprite(ctx, heroSprite(e.def), e.blink.x, e.blink.y + HERO_DY, HERO_S)) { ctx.beginPath(); ctx.arc(e.blink.x, e.blink.y, 11, 0, 7); ctx.fillStyle = e.def.color; ctx.fill(); }
+    ctx.globalAlpha = 1;
+  }
+}
+
+/* The Animalic Druid's wolf: facing where it runs, bigger with a red glow while enraged, a little hop when it bites.
+   size: 0.7 for a path preview's pup. */
+function drawWolf(ctx, t, size = 1) {
+  const w = t.wolf, big = t.rage > 0, s = (big ? 1.45 : 1) * 46 * size;
   /* running: legs alternate with the distance covered */
   w.steps = (w.steps || 0) + Math.hypot(w.x - (w.px ?? w.x), w.y - (w.py ?? w.y)); w.px = w.x; w.py = w.y;
   const img = sprite(frameOf('minion_wolf', (w.steps / 8 | 0) % 2 === 1));

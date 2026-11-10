@@ -11,10 +11,18 @@ export const COLS = 16, ROWS = 10, T = 40;
 export const ENERGY = { energyMax: 100, energyPerAttack: 20, energyPerSecond: 0 };
 /* Attributes: strength, dexterity and intellect. Every hero has all three, and one of them is its own (attribute on the hero:
    Warrior strength, Ranger dexterity, Mage intellect). For now each point of a hero's own attribute gives +1% increased damage
-   (ATTRIBUTE_DAMAGE); the other two do nothing yet. Hero levels raise the hero's own attribute (stat mainAttribute, see
-   HERO_LEVELS). Talents, relics and items can raise any of them like any other stat. */
+   (ATTRIBUTE_DAMAGE). Hero levels raise the hero's own attribute (stat mainAttribute, see HERO_LEVELS). Talents, relics and
+   items can raise any of them like any other stat.
+   On top of that, every point of each attribute, the hero's own or not, gives a small bonus (ATTRIBUTE_EFFECTS):
+   strength a bigger area (stat area: swing arc, aura radius, burning ground...), dexterity crit chance, intellect more energy
+   from attacks. A form can have its own attribute (the Animalic Druid is a dexterity hero, see evolvedDef). */
 export const ATTRIBUTES = ['strength', 'dexterity', 'intellect'];
 export const ATTRIBUTE_DAMAGE = 0.01;
+export const ATTRIBUTE_EFFECTS = {
+  strength:  { stat: 'area', per: 0.003, label: 'area' },              /* +0.3% area per point */
+  dexterity: { stat: 'critChance', per: 0.001, label: 'crit chance' },  /* +0.1% crit chance per point */
+  intellect: { stat: 'energyPerAttack', per: 0.005, label: 'energy from attacks' }   /* +0.5% energy per point */
+};
 const ATTRS = { strength: 0, dexterity: 0, intellect: 0 };
 /* Critical hits: critChance (0 to 1) is the chance a hit is critical, critDamage what a critical hit is multiplied by.
    Most heroes start with no crit chance (the Rogue has some); relics, items and the Rogue's Mark add more. */
@@ -25,7 +33,7 @@ const CRIT = { critChance: 0, critDamage: 1.5 };
 export const MINION = { minionDamage: 1, minionSpeed: 1, minionCritChance: 0, minionCritDamage: 0 };
 /* Every hero gets the energy stats, the attributes, crits, the combat stats (added damage by type, ailment chances) and the
    minion stats, so anything can raise them. */
-const withEnergy = (stats, own = {}) => ({ ...stats, ...ENERGY, ...ATTRS, ...CRIT, ...COMBAT_STATS, ...MINION, ...own });
+const withEnergy = (stats, own = {}) => ({ ...stats, ...ENERGY, ...ATTRS, ...CRIT, ...COMBAT_STATS, ...MINION, area: 1, ...own });
 
 /* Hero levels during a match: every hero on the field gains XP from each enemy killed (the enemy's xp value, see enemies.js),
    whoever landed the blow. Each level adds perLevel (scaled by levels gained); xpToNext(L) is the XP from level L to L + 1. */
@@ -49,12 +57,12 @@ const always = stat => ({ stat, type: 'flat', value: 1, scope: ['all'] });   /* 
    To add a hero: add an entry here and a talent tree in talents.js. A new "kind" also needs a behavior in behaviors.js. */
 export const LINEUP_SIZE = 3;
 export const HEROES = [
-  { id: 'warrior', name: 'Warrior', archetype: 'melee', attribute: 'strength', kind: 'swing', damageType: 'physical', color: '#c7ced6', shape: [5, -Math.PI / 2], tags: ['melee', 'physical'],
+  { id: 'warrior', name: 'Warrior', archetype: 'melee', attribute: 'strength', kind: 'swing', damageType: 'physical', color: '#c7ced6', shape: [5, -Math.PI / 2], tags: ['melee', 'attack', 'physical'],
     stats: withEnergy({ damage: 28, range: 60, cooldown: 0.8, speed: 1, arc: 120 }, { strength: 10, dexterity: 4, intellect: 2 }), ultimate: 'empowered',
     evolutions: [{ level: 10, cost: 150, choices: [
       { id: 'berserker', name: 'Berserker', color: '#e5645a', kind: 'doubleswing', ultimate: 'frenzy', mods: [...plus50, always('bleedChance')],
         short: 'Swings twice in quick succession, and every hit makes enemies bleed.', ultShort: 'Frenzy: +50% damage and attack speed for 5 seconds.' },
-      { id: 'commander', name: 'Commander', color: '#7fb3ff', kind: 'launch', ultimate: 'rally', stats: { range: 110 }, mods: plus50,
+      { id: 'commander', name: 'Commander', color: '#7fb3ff', kind: 'launch', ultimate: 'rally', tags: ['projectile'], stats: { range: 110 }, mods: plus50,
         short: 'Launches the sword forward, hitting every enemy in its way.', ultShort: 'Rally: doubles energy from attacks for nearby heroes (and himself) for 5 seconds.' },
       { id: 'sentinel', name: 'Sentinel', color: '#c9b37e', ultimate: 'barricade', mods: plus50,
         short: 'The same swing, and a barricade to hold the line.', ultShort: 'Barricade: blocks the path, stopping enemies for 1 second.' }
@@ -62,7 +70,7 @@ export const HEROES = [
     desc: 'Warrior (melee): swings at close range, hitting every enemy in the arc. Evolves into a Berserker, Commander or Sentinel.',
     short: 'Swings a blade at close range, hitting every enemy in front of him. At level 10, choose a path.' },
   { id: 'ranger', name: 'Ranger', archetype: 'range', attribute: 'dexterity', kind: 'bolt', projLook: 'arrow', projSpeed: 620, damageType: 'physical', color: '#f2b84b', shape: [0, 0],
-    tags: ['range', 'projectile', 'physical'],
+    tags: ['range', 'projectile', 'attack', 'physical'],
     stats: withEnergy({ damage: 16, range: 120, cooldown: 0.5, speed: 1 }, { strength: 4, dexterity: 10, intellect: 3 }), ultimate: 'empowered',
     evolutions: [{ level: 10, cost: 150, choices: [
       { id: 'marksman', name: 'Marksman', color: '#ffd76a', ultimate: 'piercing', mods: plus50,
@@ -74,7 +82,7 @@ export const HEROES = [
     ] }],
     desc: 'Ranger (range): fast arrows at the enemy closest to your gate. Evolves into a Marksman, Boomerang Ranger or Hunter.',
     short: 'Long range and fast. Shoots arrows at the enemy closest to your gate. At level 10, choose a path.' },
-  { id: 'mage', name: 'Mage', archetype: 'spell', attribute: 'intellect', kind: 'bolt', damageType: 'spell', color: '#c39bf2', shape: [4, -Math.PI / 2], tags: ['spell', 'arcane'],
+  { id: 'mage', name: 'Mage', archetype: 'spell', attribute: 'intellect', kind: 'bolt', damageType: 'arcane', color: '#c39bf2', shape: [4, -Math.PI / 2], tags: ['spell', 'projectile', 'arcane'],
     rate: 'castSpeed', stats: withEnergy({ damage: 26, range: 110, cooldown: 1, castSpeed: 1, targets: 1 }, { strength: 2, dexterity: 4, intellect: 10 }), ultimate: 'empowered',
     /* At level 10 the Mage picks an element. The slow is the Frost Mage's old chill effect, kept for exactly this. */
     evolutions: [{ level: 10, cost: 150, choices: [
@@ -93,7 +101,7 @@ export const HEROES = [
   /* The Rogue: two quick strikes and a higher crit chance; its ultimate marks every enemy, making them easier to crit.
      Its evolutions go for "the strongest, toughest enemy": the one in range with the most life left. */
   { id: 'rogue', name: 'Rogue', archetype: 'melee', attribute: 'dexterity', kind: 'doubleswing', damageType: 'physical', color: '#4fb3a9', shape: [3, -Math.PI / 2],
-    tags: ['melee', 'physical'],
+    tags: ['melee', 'attack', 'physical'],
     stats: withEnergy({ damage: 17, range: 60, cooldown: 0.75, speed: 1, arc: 100 }, { strength: 4, dexterity: 10, intellect: 3, critChance: 0.1 }), ultimate: 'mark',
     evolutions: [{ level: 10, cost: 150, choices: [
       { id: 'assassin', name: 'Assassin', color: '#9b6bd6', kind: 'assassin', ultimate: 'clones', stats: { range: 130 },
@@ -115,7 +123,7 @@ export const HEROES = [
     shape: [6, 0], tags: ['spell', 'projectile', 'physical', 'nature'], rate: 'castSpeed',
     stats: withEnergy({ damage: 24, range: 115, cooldown: 0.85, castSpeed: 1, targets: 1 }, { strength: 3, dexterity: 4, intellect: 10, rootChance: 0.15 }), ultimate: 'grasp',
     evolutions: [{ level: 10, cost: 150, choices: [
-      { id: 'animalic', name: 'Animalic Druid', color: '#c98a4b', kind: 'wolf', ultimate: 'enrage', tags: ['melee', 'minion'], stats: { range: 130 },
+      { id: 'animalic', name: 'Animalic Druid', color: '#c98a4b', kind: 'wolf', ultimate: 'enrage', attribute: 'dexterity', tags: ['melee', 'minion'], stats: { range: 130 },
         mods: [...plus50cast, always('bleedChance'), { stat: 'damage', type: 'more', value: 0.25, scope: ['all'] }],
         short: 'A wolf runs after the enemy furthest along the path and bites everything in front of it; its bites bleed.',
         ultShort: 'Enrages the wolf: bigger and stronger, with twice the reach and twice the damage, for 6 seconds.' },
@@ -123,7 +131,7 @@ export const HEROES = [
         mods: plus50cast,
         short: 'Grows thorns on the path ahead of the enemies; they hurt everything standing in them for 1.5 seconds. Cast speed grows them faster.',
         ultShort: 'Every thorn patch erupts in spikes, dealing heavy damage to each enemy standing in one.' },
-      { id: 'lunar', name: 'Lunar Druid', color: '#b8c8ff', kind: 'moonbeam', damageType: 'cold', ultimate: 'moonfall', tags: ['cold'],
+      { id: 'lunar', name: 'Lunar Druid', color: '#b8c8ff', kind: 'moonbeam', damageType: 'cold', ultimate: 'moonfall', tags: ['cold', 'area'],
         applies: { chill: 'chillTime' }, stats: { chillTime: 1 }, mods: plus50cast,
         short: 'Moonlight beams every enemy in range at once with cold damage, slowing them.',
         ultShort: 'Brings down a moon that smashes the enemies around where it lands.' }
@@ -134,10 +142,10 @@ export const HEROES = [
      and speeds up allies (Incantation, the first aura hero), a piercing lance from a hero who may stand on the path
      (Archangel), and energy for the heroes around her plus a saved life each wave (Gospel). Kit: js/engine/kits/priest.js. */
   { id: 'priest', name: 'Priest', archetype: 'spell', attribute: 'intellect', kind: 'bolt', projLook: 'holy', projSpeed: 440, damageType: 'holy', color: '#f4e7b0',
-    shape: [8, 0], tags: ['spell', 'holy'], rate: 'castSpeed',
+    shape: [8, 0], tags: ['spell', 'projectile', 'holy'], rate: 'castSpeed',
     stats: withEnergy({ damage: 22, range: 115, cooldown: 0.9, castSpeed: 1, targets: 1 }, { strength: 2, dexterity: 3, intellect: 10 }), ultimate: 'blessing',
     evolutions: [{ level: 10, cost: 150, choices: [
-      { id: 'incantation', name: 'Incantation', color: '#ffd76a', kind: 'aura', ultimate: 'crescendo', tags: ['area', 'aura'],
+      { id: 'incantation', name: 'Incantation', color: '#ffd76a', kind: 'aura', ultimate: 'crescendo', tags: ['aura'],
         stats: { damage: 7, range: 100, cooldown: 0.5, energyPerAttack: 5 }, mods: plus50cast,
         aura: { bless: { id: 'hymn', name: 'Hymn', mods: [{ stat: 'speed', type: 'inc', value: 0.15 }, { stat: 'castSpeed', type: 'inc', value: 0.15 }] } },
         short: 'No attack: a holy aura burns every enemy inside it, and heroes inside attack and cast 15% faster.',
@@ -146,7 +154,7 @@ export const HEROES = [
         flying: true,
         short: 'Throws a lance of light that pierces every enemy in a line. Wings: she can be moved onto the path.',
         ultShort: 'Judgement: a giant blade falls on the toughest enemy in range for 8x damage; a non-boss left under 25% life dies.' },
-      { id: 'gospel', name: 'Gospel', color: '#ffe9a0', kind: 'psalm', ultimate: 'conversion', mods: plus50cast, sanctuary: true,
+      { id: 'gospel', name: 'Gospel', color: '#ffe9a0', kind: 'psalm', ultimate: 'conversion', tags: ['area'], mods: plus50cast, sanctuary: true,
         short: 'Each Psalm gives 3 energy to every hero around her. Sanctuary: once a wave, the first enemy to reach the gate is turned back.',
         ultShort: 'Conversion: the toughest enemy in range (not a boss) turns and walks back down the path, striking its old allies.' }
     ] }],
@@ -156,10 +164,10 @@ export const HEROES = [
      enemies so everyone hits them harder (Occult), imps and a Greater Demon (Summoner), burning ground and spreading fire
      (Infernalist). Kit: js/engine/kits/warlock.js. */
   { id: 'warlock', name: 'Warlock', archetype: 'spell', attribute: 'intellect', kind: 'bolt', projSpeed: 420, damageType: 'shadow', color: '#9a5cd6',
-    shape: [5, Math.PI / 2], tags: ['spell', 'shadow'], rate: 'castSpeed',
+    shape: [5, Math.PI / 2], tags: ['spell', 'projectile', 'shadow'], rate: 'castSpeed',
     stats: withEnergy({ damage: 18, range: 115, cooldown: 0.9, castSpeed: 1, targets: 1 }, { strength: 2, dexterity: 3, intellect: 10, corruptionChance: 0.5 }), ultimate: 'souldrain',
     evolutions: [{ level: 10, cost: 150, choices: [
-      { id: 'occult', name: 'Occult', color: '#7a4fc0', kind: 'aura', ultimate: 'doom', tags: ['area', 'aura', 'curse'],
+      { id: 'occult', name: 'Occult', color: '#7a4fc0', kind: 'aura', ultimate: 'doom', tags: ['aura', 'curse'],
         stats: { damage: 4, range: 110, cooldown: 0.5, energyPerAttack: 5 }, mods: plus50cast, aura: { curse: 'hex' },
         short: 'No attack: a shadow aura Hexes every enemy inside, so they take 20% more damage from everyone and move 15% slower.',
         ultShort: 'Doom: for 4 seconds Hexed enemies take 50% more damage; any that die explode in shadow.' },
@@ -177,7 +185,7 @@ export const HEROES = [
      are lost and can pay one to empower everyone (Heretic), a hunter of the toughest enemies (Inquisitor), and a mounted
      knight who charges down the path (Crusader). Kit: js/engine/kits/paladin.js. */
   { id: 'paladin', name: 'Paladin', archetype: 'melee', attribute: 'strength', kind: 'swing', damageType: 'physical', convert: { holy: 0.3 }, color: '#e8d27a',
-    shape: [6, Math.PI / 6], tags: ['melee', 'physical', 'holy'],
+    shape: [6, Math.PI / 6], tags: ['melee', 'attack', 'physical', 'holy'],
     stats: withEnergy({ damage: 36, range: 60, cooldown: 0.95, speed: 1, arc: 120 }, { strength: 10, dexterity: 3, intellect: 4 }), ultimate: 'consecration',
     evolutions: [{ level: 10, cost: 150, choices: [
       { id: 'heretic', name: 'Heretic', color: '#b04a3a', damageType: 'shadow', convert: { fire: 0.5 }, bloodPrice: 0.03, ultimate: 'heresy', tags: ['shadow', 'fire'],
@@ -197,7 +205,7 @@ export const HEROES = [
      strength hero. His forms: poison darts that link enemies so they share damage (Witch Doctor), totems that fight on their
      own (Totemist), and cracks in the path plus a quake that pushes every enemy back (Earthcaller). Kit: js/engine/kits/shaman.js. */
   { id: 'shaman', name: 'Shaman', archetype: 'spell', attribute: 'strength', kind: 'chain', damageType: 'lightning', color: '#7ad0e0',
-    shape: [3, Math.PI / 2], tags: ['spell', 'lightning', 'chain'], rate: 'castSpeed',
+    shape: [3, Math.PI / 2], tags: ['spell', 'projectile', 'lightning', 'chain'], rate: 'castSpeed',
     stats: withEnergy({ damage: 15, range: 110, cooldown: 0.9, castSpeed: 1, jumps: 2 }, { strength: 10, dexterity: 3, intellect: 6, shockChance: 0.1 }), ultimate: 'ancestral',
     evolutions: [{ level: 10, cost: 150, choices: [
       { id: 'witchdoctor', name: 'Witch Doctor', color: '#8ad04b', kind: 'darts', damageType: 'toxic', ultimate: 'locusts', tags: ['projectile', 'toxic', 'curse'],
@@ -222,14 +230,22 @@ HEROES.forEach(h => h.tags.push(h.id));
 /* Traits a form can add or change (read by the engine on hero.def): flying (may stand on the path), sanctuary, aura,
    convert (a share of the damage as another type), bloodPrice, contagion, projLook, projSpeed. */
 const TRAITS = ['flying', 'mounted', 'sanctuary', 'aura', 'convert', 'bloodPrice', 'contagion', 'projLook', 'projSpeed'];
+/* The taxonomy (see README): delivery tags (melee, projectile, trap, aura, area), source tags (attack, spell, minion) and the
+   damage type's tag. A form with its own attribute (attribute on the choice) swaps the two values, so the hero keeps what it had: the Druid's
+   10 intellect and 4 dexterity become the Animalic Druid's 10 dexterity and 4 intellect. Hero levels raise the main attribute,
+   whichever it is, so they carry over by themselves. */
 export function evolvedDef(base, choice) {
   const traits = {};
   for (const k of TRAITS) if (choice[k] !== undefined) traits[k] = choice[k];
+  const stats = { ...base.stats, ...(choice.stats || {}) }, from = base.attribute, to = choice.attribute || from;
+  if (to !== from && from in stats && to in stats) { const a = stats[from]; stats[from] = stats[to]; stats[to] = a; }
+  /* A form keeps its base hero's delivery and source tags, but a new damage type replaces the old one's tag (Fire Mage: no arcane). */
+  const dropped = choice.damageType && choice.damageType !== base.damageType && !(choice.tags || []).includes(base.damageType) ? base.damageType : null;
   return {
     ...base, ...traits, form: choice.id, name: choice.name, color: choice.color || base.color, kind: choice.kind || base.kind,
-    damageType: choice.damageType || base.damageType, ultimate: choice.ultimate || base.ultimate,
+    damageType: choice.damageType || base.damageType, ultimate: choice.ultimate || base.ultimate, attribute: to,
     applies: choice.applies || base.applies, short: choice.short || base.short,
-    stats: { ...base.stats, ...(choice.stats || {}) }, tags: [...base.tags, ...(choice.tags || [])]
+    stats, tags: [...new Set([...base.tags.filter(t => t !== dropped), ...(choice.tags || [])])]
   };
 }
 
@@ -337,6 +353,12 @@ export const RELICS = [
   { name: 'Keen edge',         desc: m => '+' + f(P(20) * m) + '% crit chance',                  mods: m => [hero('critChance', 'flat', P(0.2) * m, ['all'])] },
   { name: 'Cruelty',           desc: m => '+' + f(P(50) * m) + '% crit damage',                  mods: m => [hero('critDamage', 'flat', P(0.5) * m, ['all'])] },
   { name: 'Quick incantation', desc: m => '+' + f(P(20) * m) + '% cast speed (spell heroes)',    mods: m => [hero('castSpeed', 'inc', P(0.2) * m, ['spell'])] },
+  /* Attributes: a named one helps any hero (its side effect, see ATTRIBUTE_EFFECTS, and damage if it is the hero's own);
+     Prowess raises whichever is the hero's own, and follows a form that changes attribute. */
+  { name: 'Brawn',             desc: m => '+' + 3 * m + ' strength',                             mods: m => [hero('strength', 'flat', 3 * m, ['all'])] },
+  { name: 'Finesse',           desc: m => '+' + 3 * m + ' dexterity',                            mods: m => [hero('dexterity', 'flat', 3 * m, ['all'])] },
+  { name: 'Insight',           desc: m => '+' + 3 * m + ' intellect',                            mods: m => [hero('intellect', 'flat', 3 * m, ['all'])] },
+  { name: 'Prowess',           desc: m => '+' + 2 * m + ' to the main attribute',                mods: m => [hero('mainAttribute', 'flat', 2 * m, ['all'])] },
   /* Holy and Shadow heroes (Priest, Paladin; Warlock, Heretic). */
   { name: 'Dark pact',         desc: m => '+' + f(P(30) * m) + '% damage to shadow heroes',     lineup: ['warlock', 'paladin'], mods: m => [hero('damage', 'inc', P(0.3) * m, ['shadow'])] },
   { name: 'Blasphemy',         desc: m => '+' + f(P(20) * m) + '% corruption chance',           lineup: ['warlock', 'paladin'], mods: m => [hero('corruptionChance', 'flat', P(0.2) * m, ['all'])] },

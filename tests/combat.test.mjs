@@ -23,7 +23,7 @@ function setup(heroId, mods = [], seed = 31) {
 const tick = (w, e, seconds) => { for (let i = 0; i < seconds * 60; i++) tickEffects(w, e, 1 / 60); };
 
 test('every hero has a damage type and all the combat stats, starting at 0', () => {
-  assert.deepEqual(HEROES.slice(0, 5).map(h => h.damageType), ['physical', 'physical', 'spell', 'physical', 'physical']);
+  assert.deepEqual(HEROES.slice(0, 5).map(h => h.damageType), ['physical', 'physical', 'arcane', 'physical', 'physical']);
   assert.equal(HEROES.find(h => h.id === 'priest').damageType, 'holy');
   const own = { druid: { rootChance: 0.15 }, warlock: { corruptionChance: 0.5 }, shaman: { shockChance: 0.1 } };   /* the heroes that start with an ailment chance */
   for (const h of HEROES) for (const k in COMBAT_STATS) assert.equal(h.stats[k], (own[h.id] || {})[k] || 0, h.id + ' ' + k);
@@ -61,9 +61,9 @@ test("added damage of other types is dealt alongside the hero's own, each reduce
   assert.equal(dealt(e), 37);
 });
 
-test('the Mage deals spell damage, so spell resistance applies to it (and nothing else does)', () => {
+test('the Mage deals arcane damage, so arcane resistance applies to it (and nothing else does)', () => {
   const { w, h } = setup('mage');
-  const e = enemyAt(w, h.x + 20, h.y, 10); e.res = { spell: 0.5, cold: 0.75 };
+  const e = enemyAt(w, h.x + 20, h.y, 10); e.res = { arcane: 0.5, cold: 0.75 };
   w.attack(h, e); assert.equal(dealt(e), 13);
 });
 

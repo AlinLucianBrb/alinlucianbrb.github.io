@@ -55,8 +55,8 @@ test('hero buttons stay as indicators: the basic attack sweeps through its coold
 
 test('the hero tooltip names the current form\'s tags and the ailments its hits can inflict', () => {
   const mage = HEROES.find(h => h.id === 'mage'), fire = evolvedDef(mage, mage.evolutions[0].choices.find(c => c.id === 'firemage'));
-  assert.equal(tagLine(mage), 'Spell · Arcane');
-  assert.equal(tagLine(fire), 'Spell · Arcane · Fire');
+  assert.equal(tagLine(mage), 'Spell · Projectile · Arcane');
+  assert.equal(tagLine(fire), 'Spell · Projectile · Fire', 'a new damage type replaces the old one');
   assert.equal(ailmentLine(mage, heroStats(mage, [])), '', 'no ailment chance, no ailments');
   assert.match(ailmentLine(fire, { ...heroStats(fire, []), burnChance: 1 }), /^Burn 100%$/);
   assert.equal(ailmentLine(fire, { ...heroStats(fire, []), bleedChance: 1 }), '', 'bleed needs physical hits');

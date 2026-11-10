@@ -20,7 +20,7 @@ const flat = (stat, value, scope) => ({ stat, type: 'flat', value, scope });
 const more = (stat, value) => ({ stat, type: 'more', value, scope: 'global' });
 const gflat = (stat, value) => ({ stat, type: 'flat', value, scope: 'global' });
 const ginc = (stat, value) => ({ stat, type: 'inc', value, scope: 'global' });
-const ALL = ['all'], ELEMENTS = ['fire', 'cold', 'lightning', 'toxic', 'holy', 'shadow'];   /* every damage type but physical and plain spell */
+const ALL = ['all'], ELEMENTS = ['fire', 'cold', 'lightning', 'toxic', 'holy', 'shadow'];   /* every damage type but physical and plain arcane */
 const PATH_MODS = () => [flat('strength', 1, ALL), flat('dexterity', 1, ALL), flat('intellect', 1, ALL)];
 
 /* A cluster: key (part of the node ids), title, colour; a and b are the two kinds of stats: { name, mods } for each side node;

@@ -113,7 +113,7 @@ begin
   delete from public.runs where user_id = auth.uid() and finished_at is null;
   delete from public.runs where finished_at < now() - interval '30 days';
   insert into public.runs (user_id, stage, loadout, players, lobby)
-  values (auth.uid(), p_stage, jsonb_build_object('lineup', to_jsonb(me.lineup), 'equipment', me.equipment), n, p_lobby)
+  values (auth.uid(), p_stage, jsonb_build_object('lineup', to_jsonb(me.lineup), 'equipment', me.equipment, 'paths', me.paths), n, p_lobby)
   returning id into rid;
   return rid;
 end;
@@ -122,6 +122,20 @@ $$;
 -- Saves which heroes a player brings into matches (1 to 3 different heroes) and the gear each hero wears.
 -- equipment is { "heroId": { "slot": "itemId" } }: every hero must exist, every item must belong to the player and fit the slot
 -- it is in (its type's slot), and an item can only be worn once.
+-- Evolution paths, chosen on a hero's page before a match and free to change: { heroId: formId }. Only known heroes, and
+-- each value a short form id (the game ignores a form it does not know). An empty object clears them all.
+create or replace function public.save_paths(p_paths jsonb) returns public.profiles
+language plpgsql security definer set search_path = public as $$
+declare me public.profiles;
+begin
+  if auth.uid() is null then raise exception 'not signed in'; end if;
+  if p_paths is null or jsonb_typeof(p_paths) <> 'object' then raise exception 'bad paths'; end if;
+  if exists (select 1 from jsonb_each(p_paths) e where not exists (select 1 from public.hero_classes h where h.id = e.key)) then raise exception 'unknown hero'; end if;
+  if exists (select 1 from jsonb_each(p_paths) e where jsonb_typeof(e.value) <> 'string' or e.value #>> '{}' !~ '^[a-z]{2,24}$') then raise exception 'bad paths'; end if;
+  update public.profiles set paths = p_paths where id = auth.uid() returning * into me;
+  return me;
+end $$;
+
 create or replace function public.save_loadout(p_lineup text[], p_equipment jsonb) returns public.profiles
 language plpgsql security definer set search_path = public as $$
 declare me public.profiles; n int;

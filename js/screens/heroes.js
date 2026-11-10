@@ -1,16 +1,21 @@
 /* Heroes screen: every playable hero as a card; click one to open its page, with two tabs.
    - Information: gear slots on the left, the hero's picture in the middle (a placeholder until there is art), stats on the right.
-   - Evolutions: the hero's evolution tree, from the base hero to each form it can become.
-   Equipment changes are saved automatically. (The lineup is chosen after picking a level.) */
+   - Evolutions: the hero's evolution tree, from the base hero to each form it can become. Here the player picks the hero's
+     evolution PATH (or none): the form it will become, chosen before the match, so its gear can specialise and the hero
+     shows a preview of the form from level 1 (js/content/previews.js). Free to change between matches.
+   Equipment and path changes are saved automatically. (The lineup is chosen after picking a level.) */
 import { bus } from '../core/bus.js';
 import { state } from '../core/state.js';
 import { bindTip } from '../core/tooltip.js';
-import { HEROES, STAT_LABELS, ATTRIBUTES, evolvedDef } from '../content/data.js';
+import { HEROES, STAT_LABELS, ATTRIBUTES, ATTRIBUTE_EFFECTS, evolvedDef } from '../content/data.js';
 import { SLOTS, SLOT_LABEL, itemMods, itemName, itemColor, itemBonusLines } from '../content/items.js';
 import { DAMAGE_LABEL } from '../content/combat.js';
 import { ULTIMATES } from '../engine/ultimates.js';
 import { heroStats, attributeDamage } from '../engine/stats.js';
 import { spriteImg } from '../game/sprites.js';
+import { PREVIEWS } from '../content/previews.js';
+import { pathChoice, pathDef } from '../engine/preview.js';
+import { savePaths } from '../services/api.js';
 import { el, cap, items, itemById, equipment, gearOf, setGear, freeFor, wornItems, gearCount, ensureItems, saveNow, sqlHint, itemIcon, itemTip } from './loadout.js';
 
 const $ = id => document.getElementById(id);
@@ -25,6 +30,20 @@ function changed() {
   say('Saving…'); clearTimeout(timer); timer = setTimeout(flush, 600);
   render();
 }
+/* Evolution paths: { heroId: formId } on the profile. */
+const pathOf = id => { const p = state.profile.paths || {}; return p[id] ? pathChoice(id, p[id]) : null; };
+async function setPath(id, form) {
+  const before = { ...(state.profile.paths || {}) }, next = { ...before };
+  if (form) next[id] = form; else delete next[id];
+  state.profile.paths = next; say('Saving…'); render();
+  const { profile, error } = await savePaths(next);
+  if (error || !profile) { state.profile.paths = before; say('Could not save the path: ' + (error || 'unknown error') + sqlHint(error), true); render(); return; }
+  state.profile.paths = profile.paths || next; say('Saved'); render();
+}
+/* The hero as it will play: with its path's tags (so gear for the form counts). */
+const asPlayed = h => { const c = pathOf(h.id); return c ? pathDef(h, c) : h; };
+const wearer = h => () => ({ tags: asPlayed(h).tags, rate: h.rate || 'speed' });
+
 async function flush() {
   clearTimeout(timer); timer = 0;
   const { error } = await saveNow();
@@ -42,8 +61,9 @@ function renderList() {
     const card = el('button', 'hcard'), head = el('div', 'hhead');
     card.style.setProperty('--hc', h.color);
     head.append(el('b', '', h.name), el('small', 'muted', cap(h.archetype) + ' · ' + STAT_LABELS[h.attribute]));
-    const n = gearCount(h.id);
-    card.append(head, el('p', 'hdesc', h.short), el('small', 'muted', 'Gear ' + n + ' / ' + SLOTS.length), spriteImg('hero_' + h.id, 'pix hcardart'));
+    const n = gearCount(h.id), c = pathOf(h.id);
+    card.append(head, el('p', 'hdesc', h.short), el('small', 'muted', 'Gear ' + n + ' / ' + SLOTS.length),
+      el('small', c ? 'pathline' : 'muted', c ? 'Path: ' + c.name : 'No path: choose in the match'), spriteImg('hero_' + h.id, 'pix hcardart'));
     card.onclick = () => { hero = h; tab = 'info'; render(); };
     grid.append(card);
   }
@@ -84,11 +104,14 @@ function renderInfo(box, h) {
   art.style.setProperty('--hc', h.color); art.append(el('span', '', h.name[0]), img);
   img.onerror = () => { img.remove(); art.classList.remove('art'); };
   pic.append(art, el('p', 'hdesc', h.short));
-  /* Stats, with the equipped item included. */
-  const worn = wornItems()[h.id], s = heroStats(h, itemMods(worn ? { [h.id]: worn } : {}));
+  const c = pathOf(h.id);
+  pic.append(el('p', 'hdesc pathline', c ? 'Path: ' + c.name + '. Before level 10: ' + PREVIEWS[c.id].desc : 'No path yet: pick one on the Evolutions tab, or choose in the match.'));
+  /* Stats, with the equipped items included (gear that does not fit the hero counts as its general version). */
+  const worn = wornItems()[h.id], s = heroStats(asPlayed(h), itemMods(worn ? { [h.id]: worn } : {}, wearer(h)));
   stats.append(el('h3', '', 'Stats' + (worn ? ' (with gear)' : '')));
   const row = (label, value, note, cls) => { const r = el('div', 'srow' + (cls ? ' ' + cls : '')); r.append(el('span', '', label), el('b', '', value)); stats.append(r); if (note) stats.append(el('div', 'buff', note)); };
-  for (const a of ATTRIBUTES) row(STAT_LABELS[a] + (a === h.attribute ? ' (main)' : ''), f(s[a]), null, a === h.attribute ? 'main' : '');
+  /* every attribute's side effect, from every point (ATTRIBUTE_EFFECTS) */
+  for (const a of ATTRIBUTES) { const fx = ATTRIBUTE_EFFECTS[a]; row(STAT_LABELS[a] + (a === h.attribute ? ' (main)' : ''), f(s[a]), '+' + f(s[a] * fx.per * 100) + '% ' + fx.label, a === h.attribute ? 'main' : ''); }
   row('Damage (' + DAMAGE_LABEL[h.damageType] + ')', f(s.damage), '+' + f(attributeDamage(h, s) * 100) + '% from ' + STAT_LABELS[h.attribute] + (worn ? ' · gear included' : ''));
   row('Range', f(s.range));
   if (s.cooldown) row(h.rate === 'castSpeed' ? 'Casts per second' : 'Attacks per second', f((s[h.rate || 'speed'] || 1) / s.cooldown));
@@ -109,15 +132,19 @@ function renderEvolutions(box, h) {
   root.append(spriteImg('hero_' + h.id, 'pix evoart'));   /* last in the DOM; CSS shows it first */
   tree.append(root);
   for (const step of h.evolutions) {
-    tree.append(el('div', 'evolink', 'Level ' + step.level + ' · ' + step.cost + ' gold · choose one'));
+    tree.append(el('div', 'evolink', 'Level ' + step.level + ' · ' + step.cost + ' gold · choose one now (a path) or in the match'));
     const row = el('div', 'evorow');
     for (const c of step.choices) {
       const d = evolvedDef(h, c), cu = ULTIMATES[d.ultimate], n = el('div', 'evonode');
       n.style.setProperty('--hc', d.color);
       const nm = el('b', '', c.name); nm.style.color = d.color;
-      n.append(nm, el('small', 'muted', DAMAGE_LABEL[d.damageType] + ' damage · +50% damage, range and attack speed'), el('p', '', c.short));
+      n.append(nm, el('small', 'muted', DAMAGE_LABEL[d.damageType] + ' damage · +50% damage, range and attack speed' + (d.attribute !== h.attribute ? ' · becomes a ' + STAT_LABELS[d.attribute].toLowerCase() + ' hero' : '')), el('p', '', c.short));
       if (cu) n.append(el('small', '', 'Ultimate: ' + (c.ultShort || cu.name + ': ' + cu.desc)));
-      n.append(spriteImg('hero_' + c.id, 'pix evoart'));
+      if (PREVIEWS[c.id]) n.append(el('small', 'preview', 'Before level 10: ' + PREVIEWS[c.id].desc));
+      const chosen = (state.profile.paths || {})[h.id] === c.id, pb = el('button', 'pathbtn', chosen ? 'Chosen path ✓ (click to clear)' : 'Choose this path');
+      n.classList.toggle('chosen', chosen);
+      pb.onclick = () => setPath(h.id, chosen ? null : c.id);
+      n.append(pb, spriteImg('hero_' + c.id, 'pix evoart'));
       row.append(n);
     }
     tree.append(row);

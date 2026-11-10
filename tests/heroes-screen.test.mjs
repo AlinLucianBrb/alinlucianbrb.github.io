@@ -6,13 +6,14 @@ import assert from 'node:assert/strict';
 import { installFakeDom } from './fake-dom.mjs';
 
 const dom = installFakeDom();
-const saves = [], navs = [], sold = [];
+const saves = [], navs = [], sold = [], pathSaves = [];
 let failNext = false;
 mock.module(new URL('../js/services/api.js', import.meta.url).href, { namedExports: {
   getItems: async () => ({ items: [
     { id: 'i1', item_type: 'power_charm', rarity: 0, bonuses: [] },
     { id: 'i2', item_type: 'helm', rarity: 2, bonuses: ['Sharpened rounds', 'Whetstone', 'Prospector'] },
     { id: 'i3', item_type: 'helm', rarity: 0, bonuses: ['Long barrels'] }] }),
+  savePaths: async paths => { pathSaves.push(paths); return { profile: { paths } }; },
   sellItem: async id => { sold.push(id); return { profile: { gold: 500 + sold.length } }; },
   saveLoadout: async (lineup, equipment) => { saves.push({ lineup, equipment }); if (failNext) { failNext = false; return { error: 'boom' }; } return { profile: { lineup, equipment } }; }
 } });
@@ -81,9 +82,19 @@ test('Evolutions tab: the base hero, then its three forms', () => {
   const tree = byId.hrBody.children[0];
   assert.equal(tree.className, 'evotree');
   assert.equal(tree.children[0].children[0]._text, 'Ranger');
-  assert.equal(tree.children[1]._text, 'Level 10 · 150 gold · choose one');
+  assert.equal(tree.children[1]._text, 'Level 10 · 150 gold · choose one now (a path) or in the match');
   assert.deepEqual(tree.children[2].children.map(n => n.children[0]._text), ['Marksman', 'Boomerang Ranger', 'Hunter']);
   assert.ok(texts(tree).some(t => /^Ultimate: /.test(t)));
+  assert.ok(texts(tree).some(t => /^Before level 10: Every 5th arrow pierces/.test(t)), 'each form says what its preview does');
+});
+
+test('choosing a path on the Evolutions tab saves it; clicking it again clears it', async () => {
+  const tree = () => byId.hrBody.children[0], btn = i => find(tree().children[2].children[i], n => n.className === 'pathbtn');
+  btn(2).onclick(); await new Promise(r => setTimeout(r, 0));
+  assert.deepEqual(pathSaves.at(-1), { ranger: 'hunter' }); assert.deepEqual(state.profile.paths, { ranger: 'hunter' });
+  assert.match(btn(2)._text, /Chosen path/); assert.ok(tree().children[2].children[2]._cls.has('chosen'));
+  btn(2).onclick(); await new Promise(r => setTimeout(r, 0));
+  assert.deepEqual(pathSaves.at(-1), {}); assert.deepEqual(state.profile.paths, {});
 });
 
 test('a failed save puts back the last saved equipment and says why', async () => {
