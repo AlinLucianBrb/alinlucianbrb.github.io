@@ -2,7 +2,7 @@
    Sprites load in the background the first time they are asked for. Until one has loaded (or if it fails, or there is no
    browser to load it, as in the tests), get() returns null and the renderer draws its plain shapes instead, so the game
    never waits for art. Images are drawn with smoothing off so the pixels stay sharp. */
-import { HEROES } from '../content/data.js';
+import { HEROES, RELICS } from '../content/data.js';
 import { ITEMS } from '../content/items.js';
 import { ENEMIES } from '../engine/enemies.js';
 import { ULTIMATES } from '../engine/ultimates.js';
@@ -26,6 +26,8 @@ export const ATTACK_ICON = {
 };
 export const attackIcon = def => 'ability_' + (ATTACK_ICON[def.form || def.id] || 'atk_sword');
 export const ultimateIcon = def => 'ability_ult_' + def.ultimate;
+/* A relic's icon (art/relics.py): relic_ and its name in lower case, every run of other characters turned into "_". */
+export const relicIcon = name => 'relic_' + name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
 const heroIds = HEROES.flatMap(h => [h.id, ...(h.evolutions || []).flatMap(s => s.choices.map(c => c.id))]);
 export const SPRITES = [...new Set([
   ...heroIds.flatMap(id => ['hero_' + id, 'hero_' + id + '_2']),            /* _2: the second animation frame */
@@ -35,7 +37,7 @@ export const SPRITES = [...new Set([
     'boomerang', 'sword', 'piercing', 'seed', 'holy', 'shadow', 'hellfire', 'dart'].map(n => 'proj_' + n),
   ...['flame', 'frost', 'storm'].map(n => 'minion_totem_' + n),
   ...['imp', 'demon', 'golem', 'horse'].flatMap(n => ['minion_' + n, 'minion_' + n + '_2']),
-  'fx_judgement',
+  'fx_judgement', ...RELICS.map(r => relicIcon(r.name)),
   'fx_hit', 'fx_slash', 'fx_explosion', 'fx_strike', 'fx_spikes', 'fx_moon', 'fx_moonburst', 'minion_wolf', 'minion_wolf_2',
   ...['bleed', 'burn', 'poison', 'slow', 'freeze', 'shock', 'root', 'corruption', 'hex', 'doom', 'verdict', 'purge', 'link', 'stun'].map(n => 'ail_' + n),
   ...['poison', 'oil', 'storm_cloud', 'barrier', 'trap', 'thorns'].map(n => 'zone_' + n),

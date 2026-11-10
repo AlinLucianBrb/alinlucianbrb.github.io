@@ -30,8 +30,9 @@ test('hero stats apply only matching modifiers and only to stats the hero has', 
   const mods = asMods([...R('Sharpened rounds').mods(1.5), ...R('Fine arrows').mods(1), ...R('Quick hands').mods(1)]);
   assert.ok(Math.abs(heroStats(H('ranger'), mods).damage - 16 * (1 + 0.05625 + 0.045 + 0.1)) < 1e-9, 'relics add to the +10% from dexterity');
   assert.ok(Math.abs(heroStats(H('warrior'), mods).damage - 28 * 1.15625) < 1e-9, 'Fine arrows (projectile) skips the warrior');
-  assert.equal('arc' in heroStats(H('ranger'), mods), false, 'only the warrior has a swing arc');
-  assert.equal(touches(H('ranger'), R('Wide swing').mods(1)[0]), false);
+  assert.equal('arc' in heroStats(H('warrior'), mods), false, 'no swing arc stat any more (the swing is part of the hero)');
+  assert.equal(R('Wide swing'), undefined);
+  assert.equal(touches(H('ranger'), R('Whetstone').mods(1)[0]), false);
   assert.equal(touches(H('ranger'), R('Quick hands').mods(1)[0]), true);
 });
 
@@ -91,7 +92,6 @@ test('relic indicator lists only the hero types that would be affected', () => {
   assert.equal(a.global, false); assert.deepEqual([...a.types], [[1, 1], [2, 1]]);
   assert.deepEqual([...affected(R('Whetstone'), 1, heroes).types], [], 'no melee hero');
   assert.equal(affected(R('Prospector'), 1, heroes).global, true);
-  assert.equal(affected(R('Wide swing'), 1, heroes).types.size, 0, 'no warrior on the map');
 });
 
 test('relic descriptions scale with rarity', () => {

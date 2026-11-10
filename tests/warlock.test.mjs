@@ -103,7 +103,7 @@ test('Summoner: each cast summons an imp (up to 3, 10 s); imps throw bolts with 
   tick(w, h, 60 * DEMON.seconds); assert.equal(h.demon, null, 'gone after 8 s');
 });
 
-test('Infernalist: Hellfire bursts and leaves burning ground; burns jump on death; Infernal drops a meteor and a golem', () => {
+test('Infernalist: Hellfire bursts and leaves burning ground; burns jump on death; Infernal drops a meteor that knocks back', () => {
   const { w, h } = setup(['warlock']);
   evolveTo(w, h, 'infernalist');
   /* next to the path, with an enemy standing on it within range (Hellfire aims along the path) */
@@ -130,9 +130,10 @@ test('Infernalist: Hellfire bursts and leaves burning ground; burns jump on deat
   full(h); h.cd = 0; tick(w, h, 1);
   const met = w.zones.find(z => z.type === 'meteor');
   assert.ok(met && Math.abs(met.x - g1.x) < 1e-9 || Math.abs(met.x - g2.x) < 1e-9, 'on the group');
+  w.wave = 2; const d1 = g1.d;
   for (let i = 0; i < 60; i++) updateZones(w, 1 / 60);
-  assert.ok(w.zones.some(z => z.type === 'pulse' && z.look === 'golem'), 'the golem');
-  assert.ok(dealt(g1) > 0 && dealt(g2) > 0);
+  assert.ok(!w.zones.some(z => z.look === 'golem'), 'no golem any more');
+  assert.ok(dealt(g1) > 0 && dealt(g2) > 0); assert.ok(g1.d < d1, 'knocked back');
 });
 
 test('a match with each Warlock form replays exactly, and every form uses its ultimate', () => {

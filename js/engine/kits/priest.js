@@ -15,17 +15,17 @@ import '../aura.js';
 
 /* ---- Priest ---- */
 export const BLESSING = { seconds: 5, mods: [{ stat: 'damage', type: 'more', value: 0.3 }] };
-registerUltimate('blessing', { name: 'Blessing', desc: 'Heroes within the Priest\'s range, the Priest too, deal +30% damage for 5 seconds.', damageMult: 1,
+registerUltimate('blessing', { buff: 'blessing', name: 'Blessing', desc: 'Heroes within the Priest\'s range, the Priest too, deal +30% damage for 5 seconds.', damageMult: 1,
   onFire(w, h) {
     const r2 = h.s.range * h.s.range;
-    for (const o of w.heroes) if ((o.x - h.x) ** 2 + (o.y - h.y) ** 2 <= r2) w.addBuff(o, 'blessing', 'Blessing', BLESSING.mods, BLESSING.seconds);
+    for (const o of w.heroes) if ((o.x - h.x) ** 2 + (o.y - h.y) ** 2 <= r2) w.addBuff(o, 'blessing', 'Blessing', BLESSING.mods, BLESSING.seconds, h);
     w.fx?.slash(h.x, h.y, 0, Math.PI, h.s.range, 0.5, 'rgba(255,240,168,.3)');
   } });
 
 /* ---- Incantation ---- */
 /* The aura's blessing (Hymn, +15% attack and cast speed) is set on the form in data.js; Crescendo is the ultimate. */
 export const CRESCENDO = { seconds: 5, radius: 2, damage: 3 };
-registerUltimate('crescendo', { name: 'Crescendo', desc: 'For 5 seconds the aura is twice as wide and deals triple damage.', damageMult: 1,
+registerUltimate('crescendo', { active: h => !!(h.auraBoost && h.auraBoost.t > 0), name: 'Crescendo', desc: 'For 5 seconds the aura is twice as wide and deals triple damage.', damageMult: 1,
   onFire(w, h) { h.auraBoost = { t: CRESCENDO.seconds, radius: CRESCENDO.radius, damage: CRESCENDO.damage }; } });
 
 /* ---- Archangel ---- */
@@ -48,7 +48,7 @@ registerBehavior('lance', {
 });
 /* Judgement: a giant blade falls on the toughest enemy in range for 8x a hit; a non-boss left under 25% of its life dies. */
 export const JUDGEMENT = { scale: 8, execute: 0.25, show: 0.5 };
-registerUltimate('judgement', { name: 'Judgement', desc: 'A giant blade falls on the toughest enemy in range for 8x damage. A non-boss left under 25% life dies.', damageMult: 1,
+registerUltimate('judgement', { name: 'Judgement', desc: 'A giant blade falls on the toughest enemy in range for {8}. A non-boss left under 25% life dies.', damageMult: 1,
   onFire(w, h) {
     const tg = pickStrongest(w, h, h.s.range);
     if (!tg) return;

@@ -44,12 +44,12 @@ test('every hero now offers three evolutions, so a choice is always needed', () 
   assert.equal(apply(w, { type: 'evolve', id: war.id }).reason, 'choose an evolution');
 });
 
-test('each element changes the damage type, keeps +50% stats, and adds its on-hit effect', () => {
+test('each element changes the damage type, +25% to all stats, and adds its on-hit effect', () => {
   for (const [form, type] of [['firemage', 'fire'], ['coldmage', 'cold'], ['lightningmage', 'lightning']]) {
-    const { w, h } = mage(), dmg = h.s.damage;
+    const { w, h } = mage(), int = h.s.intellect;
     evolveTo(w, h, form);
     assert.equal(h.def.damageType, type, form);
-    assert.ok(Math.abs(h.s.damage - dmg * 1.5) < 1e-9, form + ' +50% damage');
+    assert.ok(Math.abs(h.s.intellect - int * 1.25) < 1e-9 && Math.abs(h.s.damage - 26 * (1 + h.s.intellect * 0.01) * 1.25) < 1e-9, form + ' +25% damage and intellect');
     const e = enemyAt(w, h.x + 60, h.y, 10);
     const types = []; w.ev.on('damage', d => types.push(d.type));
     shoot(w, h);

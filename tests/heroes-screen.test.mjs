@@ -47,7 +47,7 @@ test('Heroes: one card per playable hero; clicking opens its page on the Informa
   assert.equal(gear.children[0]._text, 'Gear'); assert.ok(pic.children[0].children.some(c => c.tag === 'img' && /assets\/hero_\w+\.png$/.test(c.src)), 'the hero\'s sprite'); assert.equal(stats.children[0]._text, 'Stats');
   const st = texts(stats);
   assert.ok(st.includes('Strength (main)') && st.includes('Dexterity') && st.includes('Intellect'), 'the three attributes');
-  assert.ok(st.includes('30.8'), 'damage 28 +10% from 10 strength');
+  assert.ok(st.includes('23.1–38.5'), 'damage 28 +10% from 10 strength, as min–max (±25%)');
   assert.ok(st.includes('+10% from Strength'));
 });
 
@@ -65,7 +65,8 @@ test('Information: five gear slots; an empty slot offers the free items that fit
   assert.ok(texts(helm).includes('Rare Helm')); assert.ok(btn(helm, /^Remove$/));
   assert.ok(texts(helm).includes('+11.25% damage (all heroes)  · rank 3') && texts(helm).includes('+13.5% damage to melee heroes  · rank 3'), 'its bonuses: an item from before ranks counts them at its rarity (Rare: rank 3)');
   assert.ok(texts(byId.hrBody).includes('Stats (with gear)'));
-  assert.ok(texts(byId.hrBody).includes(String(+(28 * (1 + 0.1 + 0.1125 + 0.135)).toFixed(2))), 'strength, Sharpened rounds and Whetstone add up');
+  const avg = 28 * (1 + 0.1 + 0.1125 + 0.135), mm = +(avg * 0.75).toFixed(2) + '–' + +(avg * 1.25).toFixed(2);
+  assert.ok(texts(byId.hrBody).includes(mm), 'strength, Sharpened rounds and Whetstone add up');
   iconBtns(slotBox('trinket'))[0].onclick();
   assert.deepEqual(state.profile.equipment, { warrior: { helm: 'i2', trinket: 'i1' } });
   await wait(700);
@@ -81,9 +82,9 @@ test('Evolutions tab: the base hero, then its three forms', () => {
   byId.hrTabs.children[1].onclick();
   const tree = byId.hrBody.children[0];
   assert.equal(tree.className, 'evotree');
-  assert.equal(tree.children[0].children[0]._text, 'Ranger');
+  assert.equal(tree.children[0].children[0]._text, 'Hunter');
   assert.equal(tree.children[1]._text, 'Level 10 · 150 gold · choose one now (a path) or in the match');
-  assert.deepEqual(tree.children[2].children.map(n => n.children[0]._text), ['Marksman', 'Boomerang Ranger', 'Hunter']);
+  assert.deepEqual(tree.children[2].children.map(n => n.children[0]._text), ['Ranger', 'Boomerang', 'Poacher']);
   assert.ok(texts(tree).some(t => /^Ultimate: /.test(t)));
   assert.ok(texts(tree).some(t => /^Before level 10: Every 5th arrow pierces/.test(t)), 'each form says what its preview does');
 });
@@ -142,20 +143,20 @@ test('Inventory: every item as an icon on a grid, with a tooltip saying what it 
   assert.equal(byId.invEmpty.hidden, true);
 });
 
-test('Levels: picking a level asks for the heroes (1 to 3), then Start saves the lineup and opens the match', async () => {
+test('Levels: picking a level asks for the heroes (none picked to start, 1 to 3 to play), then Start saves the lineup and opens the match', async () => {
   state.profile = { ...state.profile, levels_cleared: 1, frontier_wave: 0, lineup: ['warrior', 'ranger', 'mage'] };
   await levels.mount(null, {});
   assert.equal(byId.lvChoose.hidden, false); assert.equal(byId.lvPick.hidden, true);
   assert.equal(byId.lvList.children[2].disabled, true, 'level 3 is locked');
   byId.lvList.children[1].onclick();
   assert.equal(byId.lvPick.hidden, false); assert.equal(byId.lvPickTitle._text, 'Level 2: choose your heroes');
-  assert.equal(byId.lvCount._text, '3 / 3');
+  assert.equal(byId.lvCount._text, '0 / 3', 'none picked to start with'); assert.equal(byId.lvStart.disabled, true, 'Start waits for a hero');
   const cards = () => byId.lvHeroes.children;
-  cards()[2].onclick(); cards()[1].onclick();            /* leave the Mage and the Ranger home */
-  cards()[0].onclick();                                   /* would leave nobody */
-  assert.equal(byId.lvMsg._text, 'Bring at least one hero.');
-  cards()[2].onclick();                                   /* bring the Mage back */
-  assert.equal(byId.lvCount._text, '2 / 3');
+  cards()[0].onclick(); cards()[2].onclick();
+  assert.equal(byId.lvCount._text, '2 / 3'); assert.equal(byId.lvStart.disabled, false);
+  cards()[0].onclick(); cards()[2].onclick();             /* deselect both: allowed */
+  assert.equal(byId.lvCount._text, '0 / 3'); assert.equal(byId.lvStart.disabled, true);
+  cards()[0].onclick(); cards()[2].onclick();
   assert.equal(find(cards()[2], e => e.className === 'pickmark')._text, '✓ 2', 'shows the order they were picked in');
   navs.length = 0;
   await byId.lvStart.onclick();
@@ -170,7 +171,7 @@ test('Levels: "Next level" after a win comes straight to choosing heroes; Back r
   byId.lvBack.onclick();
   assert.equal(byId.lvChoose.hidden, false);
   failNext = true; navs.length = 0;
-  byId.lvList.children[0].onclick(); await byId.lvStart.onclick();
+  byId.lvList.children[0].onclick(); byId.lvHeroes.children[0].onclick(); await byId.lvStart.onclick();
   assert.match(byId.lvMsg._text, /^Could not save your lineup: boom/, 'a refused save does not start the match');
   assert.deepEqual(navs, []);
 });

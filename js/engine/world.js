@@ -21,7 +21,7 @@ import './kits/index.js';
 import { cleanPaths, pathChoice, pathDef, previewMods, syncPreview, updatePreview, previewHit } from './preview.js';   /* the newer heroes' behaviors, ultimates and zones register themselves */
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
-export const ENGINE_VERSION = 17;     /* bump when a rule change would make old command logs play out differently */
+export const ENGINE_VERSION = 18;     /* bump when a rule change would make old command logs play out differently */
 
 function genPath(rng) {
   let x = 0, y = 1 + rng.int(ROWS - 2); const p = [[x, y]];
@@ -107,7 +107,7 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
     for (const h of w.heroes) gainXp(w, h, enemy.def.xp || 0);   /* every hero on the field learns from every kill */
   });
   w.statsFor = h => statsFor(w, h);
-  w.addBuff = (h, id, name, mods, seconds) => addBuff(w, h, id, name, mods, seconds);
+  w.addBuff = (h, id, name, mods, seconds, by) => addBuff(w, h, id, name, mods, seconds, by);
   w.erupt = h => erupt(w, h);   /* Naturist Druid's spikes */
   /* A boss that gets through on the last wave ends the run: a level is only won by beating its final boss. */
   w.ev.on('escape', ({ enemy }) => {
@@ -147,7 +147,9 @@ export function hit(w, hero, e, amount, type = 'physical', quiet = false) {
 
 /* Timed buffs on a hero (Frenzy, Rally): { id, name, mods, t }. Giving a buff the hero already has refreshes it instead
    of stacking. Stats are recomputed when a buff starts or ends. */
-export function addBuff(w, h, id, name, mods, seconds) {
+/* by: the hero that gives it (default: the hero itself); its duration stat (the Duration relic) makes the buff last longer. */
+export function addBuff(w, h, id, name, mods, seconds, by = h) {
+  if (by && by.s && by.s.duration > 0) seconds *= by.s.duration;
   const list = (h.buffs ||= []), cur = list.find(b => b.id === id);
   if (cur) { cur.t = Math.max(cur.t, seconds); return; }
   list.push({ id, name, t: seconds, mods: mods.map(m => ({ ...m, scope: ['all'], source: name, ri: -5 })) });

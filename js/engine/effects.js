@@ -36,8 +36,10 @@ export function damageTaken(e) {
    every hit on an enemy with that effect; death[id](w, e, fx) when it dies with it. */
 export const EFFECT_HOOKS = { damage: {}, death: {} };
 
-export function applyEffect(e, id, eff) {
+/* by: the hero that applies it, whose duration stat (the Duration relic) makes it last longer. */
+export function applyEffect(e, id, eff, by = null) {
   if (typeof eff === 'number') eff = { t: eff };          /* old style: just a duration */
+  if (by && by.s && by.s.duration > 0 && by.s.duration !== 1) eff = { ...eff, t: eff.t * by.s.duration };
   if (!(eff.t > 0)) return;
   const def = EFFECTS[id], fx = (e.fx ||= {});
   if (def.stacks) {

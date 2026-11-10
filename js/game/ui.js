@@ -3,13 +3,13 @@ import { HEROES, RARITIES, RELICS, STAT_LABELS, rarityOdds, HERO_LEVELS, ATTRIBU
 /* Attribute short names and colours: strength red, dexterity green, intellect blue. */
 export const ATTR_SHORT = { strength: 'Str', dexterity: 'Dex', intellect: 'Int' };
 export const ATTR_COLOR = { strength: '#e5645a', dexterity: '#5fd46f', intellect: '#5aa9ff' };
-import { ULTIMATES } from '../engine/ultimates.js';
+import { ULTIMATES, ultDesc } from '../engine/ultimates.js';
 import '../engine/kits/index.js';
 import { DAMAGE_LABEL, AILMENTS } from '../content/combat.js';
 import { rateOf } from '../engine/behaviors.js';
 import { explain, affected, attributeDamage } from '../engine/stats.js';
 import { bindTip } from '../core/tooltip.js';
-import { spriteImg, spriteUrl, heroSprite, attackIcon, ultimateIcon } from './sprites.js';
+import { spriteImg, spriteUrl, heroSprite, attackIcon, ultimateIcon, relicIcon } from './sprites.js';
 import { isBossWave } from '../engine/enemies.js';
 import { COOP } from '../content/rules.js';
 import { PREVIEWS } from '../content/previews.js';
@@ -31,6 +31,14 @@ const TAG_LABEL = { attack: 'Attack', trap: 'Trap', melee: 'Melee', range: 'Rang
   physical: 'Physical', fire: 'Fire', cold: 'Cold', lightning: 'Lightning', toxic: 'Toxic', nature: 'Nature', minion: 'Minion', area: 'Area',
   holy: 'Holy', shadow: 'Shadow', aura: 'Aura', curse: 'Curse', chain: 'Chain', totem: 'Totem', mounted: 'Mounted' };
 export const tagLine = d => d.tags.filter(t => TAG_LABEL[t]).map(t => TAG_LABEL[t]).join(' · ');
+/* What a hero is, in one line (its attack and ultimate are described on their own icons): its attribute, delivery and
+   source, and for a form, the hero it came from. */
+const ROLE_DELIVERY = ['melee', 'projectile', 'trap', 'aura', 'area'], ROLE_SOURCE = ['attack', 'spell', 'minion'];
+export function roleLine(d) {
+  const pick = list => list.filter(t => d.tags.includes(t)).map(t => TAG_LABEL[t] || t).join(' + ');
+  const base = d.form ? HEROES.find(h => h.id === d.id) : null;
+  return (STAT_LABELS[d.attribute] || '') + ' hero · ' + [pick(ROLE_DELIVERY), pick(ROLE_SOURCE)].filter(Boolean).join(' · ') + (base ? ' · a form of the ' + base.name : '');
+}
 /* The ailments a hero's hits can inflict right now: an ailment needs a chance above 0 (from the evolution, talents, relics
    or items) and a hit of a damage type it comes from (bleed from physical hits, burn from fire...). Slows are listed too. */
 export function ailmentLine(d, s) {
@@ -45,7 +53,7 @@ export function ailmentLine(d, s) {
 
 /* Short stat line for a hero tooltip, using its current stats (relics and talents included). */
 function statLine(d, s) {
-  const dmg = f(s.damage), range = Math.round(s.range);
+  const dmg = s.spread > 0 ? f(s.damage * (1 - s.spread)) + '–' + f(s.damage * (1 + s.spread)) : f(s.damage), range = Math.round(s.range);   /* min–max per hit */
   if (d.dps) return 'Damage ' + dmg + '/s, up to ' + f(s.damage * 4) + '/s · Range ' + range;
   return 'Damage ' + dmg + ' · Range ' + range + ' · ' + f((s[d.rate || 'speed'] || 1) / s.cooldown) + (d.rate === 'castSpeed' ? ' casts/s' : ' attacks/s');
 }
@@ -67,16 +75,17 @@ export function initUI(callbacks) {
     bindTip(atk, () => { const info = cb.heroInfo(i), cur = info.unit ? info.unit.def : d;
       return { title: 'Basic attack', color: cur.color, lines: [cur.short, { text: statLine(cur, info.stats), color: '#9db3a3' }] }; });
     bindTip(ult, () => { const info = cb.heroInfo(i), cur = info.unit ? info.unit.def : d, u = ULTIMATES[cur.ultimate], s = info.stats;
-      return { title: 'Ultimate: ' + (u ? u.name : '?'), color: '#ffd84a', lines: [u ? u.desc : '',
+      return { title: 'Ultimate: ' + (u ? u.name : '?'), color: '#ffd84a', lines: [ultDesc(u, s),
         { text: info.unit ? 'Energy ' + Math.floor(info.unit.energy) + ' / ' + s.energyMax : 'Energy ' + s.energyPerAttack + ' per attack, ' + s.energyMax + ' to fire', color: '#9db3a3' }] }; });
     name.append(nmText, lv); b.append(key, name, status, pic, abil);   /* the picture comes last in the DOM; CSS shows it first */ b._status = status; b._key = key; b._nm = nmText; b._lv = lv; b._pic = pic; b._picName = heroSprite(d);
     b._abil = abil; b._atk = atk; b._ult = ult; b._form = d.id;
     bindTip(b, () => {
       const info = cb.heroInfo(i), cur = info.unit ? info.unit.def : d, u = ULTIMATES[cur.ultimate], ail = ailmentLine(cur, info.stats);
-      const lines = [cur.short, { text: statLine(cur, info.stats), color: '#9db3a3' }];
+      /* The hero as a whole (its attack and ultimate have their own tooltips on the two icons) */
+      const lines = [roleLine(cur), { text: statLine(cur, info.stats), color: '#9db3a3' }];
       lines.push({ text: 'Tags: ' + tagLine(cur) + ' (relics, talents and items for these tags work on it)', color: '#9db3a3' });
       lines.push({ text: 'Damage: ' + DAMAGE_LABEL[cur.damageType || 'physical'] + (ail ? ' · inflicts ' + ail : ''), color: '#9db3a3' });
-      if (u) lines.push({ text: 'Ultimate: ' + u.name + ' (' + u.desc + ')', color: '#9db3a3' });
+      lines.push({ text: 'Attack and ultimate: hover the two icons under its name.', color: '#9db3a3' });
       lines.push(info.unit ? { text: 'Click to select it. Click and hold it on the map to move it.', color: '#9db3a3' } : { text: 'Free to place: one per match · key ' + b._key.textContent, color: '#9db3a3' });
       if (info.unit) lines.push({ text: 'Level ' + info.unit.level + ': heroes gain XP from every kill while on the field.', color: '#8fd3ff' });
       if (info.path) lines.push({ text: 'Path: ' + info.path.name + '. Before it evolves: ' + PREVIEWS[info.path.id].desc, color: info.path.color || '#dcc6ff' });
@@ -184,7 +193,7 @@ export function renderHUD(g, v) {
       for (const [name, rs] of byName) {
         const top = RARITIES[Math.max(...rs)], def = RELICS.find(x => x.name === name), n = rs.length;
         const total = rs.reduce((a, r) => a + RARITIES[r].mult, 0);   /* relic effects scale with the multiplier, so copies add up */
-        const sp = el('span', 'relicchip', name + (n > 1 ? ' ×' + n : ''));
+        const sp = el('span', 'relicchip'); sp.append(spriteImg(relicIcon(name), 'pix relicico'), el('span', '', name + (n > 1 ? ' ×' + n : '')));
         sp.style.color = top.color; sp.style.borderColor = top.color; sp.tabIndex = 0;
         bindTip(sp, () => {
           const parts = RARITIES.map((r, i) => [r, rs.filter(x => x === i).length]).filter(([, c]) => c).map(([r, c]) => (c > 1 ? c + '× ' : '') + r.name);
@@ -310,20 +319,21 @@ export function renderInspector(g, v) {
     /* Energy as x/max, then the ultimate. */
     const u = ULTIMATES[d.ultimate], er = el('div', 'srow'), el2 = el('span', 'lvl energy'), ebar = el('span', 'ebar wide'), efill = el('i');
     ebar.append(efill); er.append(el2, ebar); box.append(er);
-    if (u) box.append(el('div', 'buff', 'When full: ' + u.name + ' (' + u.desc + ')'));
+    if (u) box.append(el('div', 'buff', 'When full: ' + u.name + ' (' + ultDesc(u, t.s) + ')'));
     box._elbl = el2; box._efill = efill; box._ebar = ebar;
     for (const key in d.stats) {
       if (key === 'cooldown' || key === 'energyMax' || ATTRIBUTES.includes(key)) continue;
       if (!t.s[key] && !d.stats[key]) continue;          /* unused stats (most combat stats for now) stay hidden */
       if (key === 'critDamage' && !(t.s.critChance > 0)) continue;   /* crit damage only matters with some crit chance */
-      if (key === 'arc' && !/swing/.test(d.kind)) continue;              /* forms that throw (Alchemist...) have no swing */
+      if (key === 'spread') continue;                                    /* shown with the damage as min-max */
       if (key.startsWith('minion') && !d.tags.includes('minion')) continue;   /* minion stats only for heroes with a minion */
       const isRate = key === 'speed' || key === 'castSpeed';
       const label = key === 'damage' ? (d.dps ? 'Damage per second' : 'Damage') + ' (' + DAMAGE_LABEL[d.damageType || 'physical'] + ')' : STAT_LABELS[key] || key;
       const value = isRate ? t.s[key] / t.s.cooldown : t.s[key];
       const base = isRate ? d.stats[key] / d.stats.cooldown : d.stats[key];
       const show = x => (isChance(key) ? pct(x) : f(x));
-      const row = el('div', 'srow'); row.append(el('span', '', label), el('span', '', show(value) + (f(value) !== f(base) ? '  (base ' + show(base) + ')' : '')));
+      const span = key === 'damage' && t.s.spread > 0 ? ' (' + f(value * (1 - t.s.spread)) + '–' + f(value * (1 + t.s.spread)) + ' a hit)' : '';
+      const row = el('div', 'srow'); row.append(el('span', '', label), el('span', '', show(value) + span + (f(value) !== f(base) ? '  (base ' + show(base) + ')' : '')));
       box.append(row);
       if (key === 'damage' && attributeDamage(d, t.s) > 0) {   /* the hero's own attribute: +1% damage per point */
         const line = el('div', 'buff', '+' + pct(attributeDamage(d, t.s)) + ' · ' + STAT_LABELS[d.attribute] + ' (attribute)'); line.style.color = ATTR_COLOR[d.attribute]; box.append(line);
@@ -353,7 +363,7 @@ export function showEvoPick(g, h) {
     const d = h.def, u = ULTIMATES[c.ultimate || d.ultimate], color = c.color || d.color, card = el('div', 'card'), b = el('button', 'choose');
     const nm = el('b', '', c.name); nm.style.color = color; b.style.borderColor = color;
     b.append(nm, el('small', 'rar', DAMAGE_LABEL[c.damageType || d.damageType] + ' damage'), el('small', '', c.short),
-      ...(u ? [el('small', 'aff', 'Ultimate: ' + (c.ultShort || u.name + ': ' + u.desc))] : []), el('small', 'aff', '+50% damage, range and attack speed'));
+      ...(u ? [el('small', 'aff', 'Ultimate: ' + u.name + ': ' + ultDesc(u, h.s))] : []), el('small', 'aff', '+25% to all its stats'));
     b.disabled = g.gold < cost;
     b.onclick = () => cb.onEvolveChoice(i);
     card.append(b); box.append(card);
@@ -379,7 +389,8 @@ export function showPick(g) {
   g.pick.offers.forEach((o, i) => {
     const rar = RARITIES[o.ri], card = el('div', 'card'), b = el('button', 'choose'), tag = el('small', 'rar', rar.name), ban = el('button', 'linkbtn');
     tag.style.color = rar.color; b.style.borderColor = rar.color;
-    b.append(el('small', 'pickkey', 'Key ' + (i + 1)), el('b', '', o.relic.name), tag, el('small', '', o.relic.desc(rar.mult)), indicator(g, o.relic, rar.mult));
+    const nm = el('b', 'relicname'); nm.append(spriteImg(relicIcon(o.relic.name), 'pix relicico big'), el('span', '', o.relic.name));
+    b.append(el('small', 'pickkey', 'Key ' + (i + 1)), nm, tag, el('small', '', o.relic.desc(rar.mult)), indicator(g, o.relic, rar.mult));
     b.onclick = () => cb.onChoose(i); ban.onclick = () => cb.onBanish(i);
     ban.title = 'Remove this relic from your pool for the rest of the run, and draw another';
     card.append(b, ban); box.append(card); banishBtns.push(ban);

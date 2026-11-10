@@ -29,10 +29,11 @@ test("only the hero's own attribute raises its damage: +1% increased per point, 
   assert.ok(near(heroStats(H('mage'), [inc, more]).damage, 26 * (1 + 0.5 + 0.1) * 1.5), 'increased adds, more multiplies');
 });
 
-test('hero levels raise the main attribute (+3 a level), whichever it is', () => {
+test('hero levels raise every stat: +3 main attribute, +1 the other two, +1% range and attack and cast speed a level', () => {
   const lv = levelMods(10);
   assert.ok(touches(H('mage'), lv[0]));
-  assert.equal(heroStats(H('mage'), lv).intellect, 37); assert.equal(heroStats(H('mage'), lv).strength, 2);
+  assert.equal(heroStats(H('mage'), lv).intellect, 37); assert.equal(heroStats(H('mage'), lv).strength, 2 + 9);
   assert.equal(heroStats(H('warrior'), lv).strength, 37);
   assert.ok(near(heroStats(H('ranger'), lv).damage, 16 * 1.37));
+  assert.ok(near(heroStats(H('ranger'), lv).speed, 1.09)); assert.ok(near(heroStats(H('mage'), lv).castSpeed, 1.09 * (1 + 37 * 0.003)));
 });

@@ -3,24 +3,27 @@ import { tickEffects } from './effects.js';
 
 /* Enemy types. hp and speed are multipliers on the wave's base values; bounty multiplies kill gold; leak is the lives lost if it reaches the gate;
    xp is what every hero on the field gains when it dies.
-   Defenses: armor and res (one resistance for every non-physical damage type) are per point of THREAT, which is 0 on wave 1 and
-   grows each wave, faster on harder levels (see threat). So every enemy starts with no defenses and ends a level with some:
-   Brutes are armored, Runners resist magic and elements, Bosses have both.
+   Defenses: armor (against physical) and res (one resistance for every other damage type) work the same way, as a share of
+   the damage blocked, and grow together: def is both, per point of THREAT, which is 0 on wave 1 and grows each wave, faster
+   on harder levels (see threat). So every enemy starts with no defenses and ends a level with some; tougher kinds have more.
+   (Enemy variants with more of one than the other can come later.)
+   ENEMY_SPEED scales every enemy's speed (0.65: 35% slower than the first versions).
    Add a type here, then return it from waveEnemyType. */
 export const ENEMIES = {
-  grunt:  { name: 'Grunt',  color: '#d1564d', radius: 10, hp: 1,   speed: 1,    bounty: 1,   leak: 1,  xp: 1,  armor: 0.5, res: 0.004 },
-  brute:  { name: 'Brute',  color: '#8c3b8f', radius: 14, hp: 3,   speed: 0.6,  bounty: 2.5, leak: 2,  xp: 3,  armor: 1.5, res: 0.002 },
-  runner: { name: 'Runner', color: '#e8c547', radius: 8,  hp: 0.5, speed: 1.5,  bounty: 0.8, leak: 1,  xp: 1,  armor: 0.2, res: 0.008 },
-  boss:   { name: 'Boss',   color: '#5b1f24', radius: 20, hp: 12,  speed: 0.45, bounty: 20,  leak: 10, xp: 25, armor: 2,   res: 0.006, boss: true }
+  grunt:  { name: 'Grunt',  color: '#d1564d', radius: 10, hp: 1,   speed: 1,    bounty: 1,   leak: 1,  xp: 1,  def: 0.004 },
+  brute:  { name: 'Brute',  color: '#8c3b8f', radius: 14, hp: 3,   speed: 0.6,  bounty: 2.5, leak: 2,  xp: 3,  def: 0.006 },
+  runner: { name: 'Runner', color: '#e8c547', radius: 8,  hp: 0.5, speed: 1.5,  bounty: 0.8, leak: 1,  xp: 1,  def: 0.003 },
+  boss:   { name: 'Boss',   color: '#5b1f24', radius: 20, hp: 12,  speed: 0.45, bounty: 20,  leak: 10, xp: 25, def: 0.006, boss: true }
 };
+export const ENEMY_SPEED = 0.65;
 /* Threat: 0 on the first wave, +1 per wave, and each level after the first adds 25% to the growth. */
 export const threat = (wave, stage = 1) => Math.max(0, wave - 1) * (1 + 0.25 * (stage - 1));
 const DEF_TYPES = ['arcane', 'fire', 'cold', 'lightning', 'toxic', 'holy', 'shadow'];
-/* An enemy's defenses on a wave: { armor, res: { type: value } }. Resistances are capped by RES_CAP (99%) when they are used. */
+/* An enemy's defenses on a wave: { armor, res: { type: value } }, all the same share. Capped by RES_CAP (99%) when used. */
 export function defensesFor(def, wave, stage) {
-  const t = threat(wave, stage), r = (def.res || 0) * t, res = {};
+  const t = threat(wave, stage), r = (def.def || 0) * t, res = {};
   for (const k of DEF_TYPES) res[k] = r;
-  return { armor: (def.armor || 0) * t, res };
+  return { armor: r, res };
 }
 
 /* Wave size, spawn timing and boss waves are rules the server shares: they live in js/content/rules.js. The boss is the
@@ -46,7 +49,7 @@ export function pathPos(path, i, out) {
 export function spawnEnemy(g, type) {
   const def = ENEMIES[type], st = g.stage;
   const hp = Math.max(1, Math.round(20 * st.hpMult * (g.hpMult || 1) * Math.pow(st.growth, g.wave - 1) * def.hp));   /* co-op: x players */
-  const e = { type, def, d: 0, hp, max: hp, speed: Math.min(90, 50 + g.wave * 2) * def.speed, x: 0, y: 0, fx: null, dead: false, escaped: false, last: null,
+  const e = { type, def, d: 0, hp, max: hp, speed: Math.min(90, 50 + g.wave * 2) * def.speed * ENEMY_SPEED, x: 0, y: 0, fx: null, dead: false, escaped: false, last: null,
     ...defensesFor(def, g.wave, st.n) };
   pathPos(g.path, 0, e);
   g.enemies.push(e);

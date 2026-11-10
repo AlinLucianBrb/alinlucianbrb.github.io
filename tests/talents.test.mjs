@@ -35,7 +35,7 @@ test('clusters: 6 or 8 nodes, two kinds of stats: the beginning and the end (not
   }
   const stats = new Set(tree.nodes.flatMap(n => n.mods.map(m => m.stat)));
   for (const s of ['damage', 'speed', 'critChance', 'critDamage', 'castSpeed', 'fireDamage', 'coldDamage', 'lightningDamage', 'armorPen', 'firePen', 'coldPen', 'lightningPen',
-    'energyPerAttack', 'rerolls', 'banishes', 'startGold', 'waveGold', 'startLives', 'evolveCost', 'heroXp', 'rewardXp', 'rewardGold', 'rewardLoot', 'speed3x', 'arc', 'range',
+    'energyPerAttack', 'rerolls', 'banishes', 'startGold', 'waveGold', 'startLives', 'evolveCost', 'heroXp', 'rewardXp', 'rewardGold', 'rewardLoot', 'speed3x', 'range',
     'interest', 'interestCap', 'relicCost', 'relicOffers', 'itemRarity', 'itemBonusChance', 'heroStartLevel', 'evolveLevel'])
     assert.ok(stats.has(s), 'some talent gives ' + s);
 });
@@ -98,9 +98,9 @@ test('nodes do not overlap', () => {
 });
 
 test('penetration: armor penetration ignores a share of armor, resistance penetration takes points off (hits only)', () => {
-  const e = { armor: 100, res: { fire: 0.4, cold: 0.99 }, fx: null };
+  const e = { armor: 0.4, res: { fire: 0.4, cold: 0.99 }, fx: null };
   const s = { armorPen: 0.5, firePen: 0.1, coldPen: 0.2 };
-  assert.ok(near(mitigate(e, 'physical', 20, true, s), 20 * (1 - 50 / (50 + 100))), 'half the armor ignored');
+  assert.ok(near(mitigate(e, 'physical', 100, true, s), 80), 'half the armor ignored: 40% counts as 20%');
   assert.ok(near(mitigate(e, 'fire', 100, true, s), 70), '40% resistance counts as 30%');
   assert.ok(near(mitigate(e, 'cold', 100, true, s), 21), 'after the 99% cap: 79%');
   assert.equal(mitigate(e, 'fire', 100, false, s), 60, 'damage over time is not penetrated');

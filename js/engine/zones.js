@@ -65,7 +65,7 @@ ZONES.oil = {
     let boom = false;
     for (const e of g.enemies) {
       if (e.dead || (e.x - z.x) ** 2 + (e.y - z.y) ** 2 > r2) continue;
-      applyEffect(e, 'oiled', { t: 0.2 });
+      applyEffect(e, 'oiled', { t: 0.2 }, z.owner);
       if (e.fx && e.fx.burn) boom = true;
     }
     if (!boom) return true;

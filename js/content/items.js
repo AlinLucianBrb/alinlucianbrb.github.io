@@ -44,7 +44,7 @@ export const ITEMS = {
 };
 /* The bonuses each archetype's items lean toward (all of them can be item bonuses). */
 export const AFFINITY = {
-  melee:      ['Whetstone', 'Wide swing', 'Quick hands', 'Cruelty'],
+  melee:      ['Whetstone', 'Brawn', 'Quick hands', 'Cruelty'],
   projectile: ['Fine arrows', 'Long barrels', 'Quick hands', 'Keen edge'],
   spell:      ['Arcane focus', 'Split bolt', 'Quick incantation', 'Battle focus'],
   minion:     ['Pack leader', 'Feral haste', 'Hunting instinct', 'Savage bite']
@@ -103,14 +103,14 @@ export function itemBonusLines(it) {
 
 /* A bonus that does not fit its wearer (Pack leader on a hero with no minion, Fine arrows on a melee hero) is not wasted:
    it counts as its general version at FALLBACK of its value. Damage for one kind of hero becomes damage; a speed becomes
-   the speed the hero uses (attack or cast); minion crits become crits; Wide swing and Split bolt become a little range. */
+   the speed the hero uses (attack or cast); minion crits become crits; Split bolt becomes a little range. */
 export const FALLBACK = 0.8;
 const GENERAL = {
   damage: m => ({ stat: 'damage', value: m.value }),
   speed: (m, rate) => ({ stat: rate, value: m.value }), castSpeed: (m, rate) => ({ stat: rate, value: m.value }), minionSpeed: (m, rate) => ({ stat: rate, value: m.value }),
   minionCritChance: m => ({ stat: 'critChance', value: m.value }), minionCritDamage: m => ({ stat: 'critDamage', value: m.value }),
   minionDamage: m => ({ stat: 'damage', value: m.value }),
-  arc: m => ({ stat: 'range', type: 'inc', value: m.value / 100 }), targets: m => ({ stat: 'range', type: 'inc', value: m.value / 5 })
+  targets: m => ({ stat: 'range', type: 'inc', value: m.value / 5 })
 };
 /* One item modifier for its wearer: as it is if it fits (or helps every hero), else its general version, or null. */
 export function fitMod(m, wearer) {

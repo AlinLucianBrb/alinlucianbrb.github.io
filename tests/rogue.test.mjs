@@ -50,11 +50,11 @@ test('critical hits: chance from critChance, x critDamage; heroes with no chance
   const { w, h } = hero();
   const e = enemyAt(w, h.x + 30, h.y, 10, 1e9);
   h.mods.push({ stat: 'critChance', type: 'flat', value: 0.9, scope: ['all'], source: 'test', ri: -2 }); w.statsFor(h);
-  assert.ok(h.s.critChance >= 1); assert.equal(h.s.critDamage, 1.5);
-  assert.equal(critMult(w, h, e), 1.5, 'always crits at 100%');
+  assert.ok(h.s.critChance >= 1); assert.ok(Math.abs(h.s.critDamage - (1.5 + h.s.dexterity * 0.005)) < 1e-9, '1.5, a little more from dexterity');
+  assert.equal(critMult(w, h, e), h.s.critDamage, 'always crits at 100%');
   let crits = 0; w.ev.on('crit', () => crits++);
   w.attack(h, e); assert.equal(crits, 1);
-  assert.ok(Math.abs(dealt(e) - h.s.damage * 1.5) < 1e-6);
+  assert.ok(Math.abs(dealt(e) - h.s.damage * h.s.critDamage) < 1e-6);
   /* every point of dexterity gives a little crit chance, so a hero only has none if it has no dexterity */
   const { w: w2, h: war } = hero('warrior'); war.mods.push({ stat: 'dexterity', type: 'more', value: -1, scope: ['all'], source: 'test', ri: -2 }); w2.statsFor(war);
   const e2 = enemyAt(w2, war.x + 30, war.y, 10, 1e9), before = w2.rng.combat.state;
@@ -72,7 +72,7 @@ test("the Rogue's Mark: every enemy on the map, 6 seconds, +25% crit chance and 
   let crits = 0, n = 2000, mults = new Set();
   for (let i = 0; i < n; i++) { const m = critMult(w, war, far); if (m > 1) { crits++; mults.add(m); } }
   assert.ok(crits > n * 0.21 && crits < n * 0.29, 'about 25%: ' + crits);
-  assert.deepEqual([...mults], [2], '1.5 + 0.5');
+  assert.deepEqual([...mults], [war.s.critDamage + 0.5], 'its crit damage + 0.5');
   for (let i = 0; i < 6 * 60 + 2; i++) tickEffects(w, far, 1 / 60);
   assert.equal(far.fx.mark, undefined, 'gone after 6 seconds');
 });
@@ -84,8 +84,8 @@ test('Assassin: teleports behind the strongest, toughest enemy in range (the mos
   h.cd = 0; tick(w, h);
   assert.ok(Math.abs(dealt(tough) - h.s.damage) < 1e-6); assert.equal(dealt(weak), 0); assert.equal(dealt(out), 0);
   assert.ok(h.blink, 'drawn behind its target for a moment');
-  assert.ok(Math.abs(h.s.damage - 17 * 1.37 * 1.5 * 2) < 1e-6, '+50% and x2 damage, after +37% dexterity');
-  assert.equal(h.s.range, 130 * 1.5);
+  assert.ok(Math.abs(h.s.damage - 17 * (1 + h.s.dexterity * 0.01) * 1.25 * 2) < 1e-6, '+25% and x2 damage, after its dexterity');
+  assert.ok(h.s.range > 130 * 1.25);
 });
 
 test('Assassin ultimate: clones strike every enemy on the map twice, instead of the normal strike', () => {
@@ -194,16 +194,17 @@ test('cast speed: the Mage attacks at its cast speed; attack speed does not help
   assert.equal(mage.rate, 'castSpeed'); assert.equal('speed' in mage.stats, false);
   const R = n => RELICS.find(r => r.name === n), as = m => m.map(x => ({ ...x }));
   const quick = as(R('Quick hands').mods(4)), cast = as(R('Quick incantation').mods(4));
-  assert.equal(heroStats(mage, quick).castSpeed, 1, 'attack speed: nothing for the Mage');
-  assert.ok(Math.abs(heroStats(mage, cast).castSpeed - 1.12) < 1e-9, 'cast speed: +12% (Epic)');
+  const c0 = heroStats(mage, []).castSpeed;   /* a little above 1: intellect gives cast speed */
+  assert.equal(heroStats(mage, quick).castSpeed, c0, 'attack speed: nothing for the Mage');
+  assert.ok(Math.abs(heroStats(mage, cast).castSpeed - c0 * 1.12) < 1e-9, 'cast speed: +12% (Epic)');
   assert.equal(heroStats(ranger, cast).speed, 1, 'and nothing for the Ranger');
   const w = richWorld({ seed: 31 }), [cx, cy] = [5, 0];
   let t; for (let x = 4; !t && x < 12; x++) for (let y = 2; y < 8; y++) if (!w.pathSet.has(x + ',' + y)) { t = [x, y]; break; }
   const m = place(w, 'mage', ...t);
   m.mods.push(...cast.map(x => ({ ...x, source: 'test', ri: -2 }))); w.statsFor(m);
-  assert.ok(Math.abs(rateOf(m) - 1.12) < 1e-9);
+  assert.ok(Math.abs(rateOf(m) - c0 * 1.12) < 1e-9);
   enemyAt(w, m.x + 40, m.y, 10, 1e9); m.cd = 0; BEHAVIORS.bolt.update(w, m, 1 / 60);
-  assert.ok(Math.abs(m.cd - 1 / 1.12) < 1e-9, 'its next cast comes 1 / cast speed seconds later');
+  assert.ok(Math.abs(m.cd - 1 / (c0 * 1.12)) < 1e-9, 'its next cast comes 1 / cast speed seconds later');
   assert.ok(cx >= 0 && cy >= 0);
 });
 

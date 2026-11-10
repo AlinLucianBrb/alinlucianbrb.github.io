@@ -54,7 +54,7 @@ export const look = (t, mult) => (mult > 1 ? '#fff6c8' : t.def.color);
 
 /* One swing: hits every enemy inside the arc and range, facing the target. */
 function swingAt(g, t, tg, mult, ttl) {
-  const ang = Math.atan2(tg.y - t.y, tg.x - t.x), half = Math.min(Math.PI, t.s.arc * Math.PI / 360), r2 = t.s.range * t.s.range;
+  const ang = Math.atan2(tg.y - t.y, tg.x - t.x), half = Math.min(Math.PI, (t.def.arc || 120) * Math.PI / 360), r2 = t.s.range * t.s.range;
   for (const e of g.enemies) {
     if (e.dead) continue;
     const dx = e.x - t.x, dy = e.y - t.y;
@@ -200,13 +200,16 @@ registerBehavior('chain', {
   }
 });
 
-/* ---- Rogue forms. "The strongest, toughest enemy" is the one in range with the most life left. ---- */
+/* ---- Rogue forms. "The strongest, toughest enemy" is the toughest KIND in range first (boss, then brute, grunt, runner:
+   TOUGHNESS), even at 1 life left; among the same kind, the one with the most life left. ---- */
+export const TOUGHNESS = { boss: 4, brute: 3, grunt: 2, runner: 1 };
+const tough = e => TOUGHNESS[e.type] || 0;
 export function pickStrongest(g, t, range) {
   const r2 = range * range; let best = null;
   for (const e of g.enemies) {
     if (e.dead) continue;
     const dx = e.x - t.x, dy = e.y - t.y;
-    if (dx * dx + dy * dy <= r2 && (!best || e.hp > best.hp)) best = e;
+    if (dx * dx + dy * dy <= r2 && (!best || tough(e) > tough(best) || (tough(e) === tough(best) && e.hp > best.hp))) best = e;
   }
   return best;
 }

@@ -10,7 +10,7 @@ import { bindTip } from '../core/tooltip.js';
 import { HEROES, STAT_LABELS, ATTRIBUTES, ATTRIBUTE_EFFECTS, evolvedDef } from '../content/data.js';
 import { SLOTS, SLOT_LABEL, itemMods, itemName, itemColor, itemBonusLines } from '../content/items.js';
 import { DAMAGE_LABEL } from '../content/combat.js';
-import { ULTIMATES } from '../engine/ultimates.js';
+import { ULTIMATES, ultDesc } from '../engine/ultimates.js';
 import { heroStats, attributeDamage } from '../engine/stats.js';
 import { spriteImg } from '../game/sprites.js';
 import { PREVIEWS } from '../content/previews.js';
@@ -111,15 +111,14 @@ function renderInfo(box, h) {
   stats.append(el('h3', '', 'Stats' + (worn ? ' (with gear)' : '')));
   const row = (label, value, note, cls) => { const r = el('div', 'srow' + (cls ? ' ' + cls : '')); r.append(el('span', '', label), el('b', '', value)); stats.append(r); if (note) stats.append(el('div', 'buff', note)); };
   /* every attribute's side effect, from every point (ATTRIBUTE_EFFECTS) */
-  for (const a of ATTRIBUTES) { const fx = ATTRIBUTE_EFFECTS[a]; row(STAT_LABELS[a] + (a === h.attribute ? ' (main)' : ''), f(s[a]), '+' + f(s[a] * fx.per * 100) + '% ' + fx.label, a === h.attribute ? 'main' : ''); }
-  row('Damage (' + DAMAGE_LABEL[h.damageType] + ')', f(s.damage), '+' + f(attributeDamage(h, s) * 100) + '% from ' + STAT_LABELS[h.attribute] + (worn ? ' · gear included' : ''));
+  for (const a of ATTRIBUTES) row(STAT_LABELS[a] + (a === h.attribute ? ' (main)' : ''), f(s[a]), ATTRIBUTE_EFFECTS[a].map(fx => '+' + f(s[a] * fx.per * (fx.stat === 'critDamage' ? 100 : 100)) + '% ' + fx.label).join(', '), a === h.attribute ? 'main' : '');
+  row('Damage (' + DAMAGE_LABEL[h.damageType] + ')', f(s.damage * (1 - s.spread)) + '–' + f(s.damage * (1 + s.spread)), '+' + f(attributeDamage(h, s) * 100) + '% from ' + STAT_LABELS[h.attribute] + (worn ? ' · gear included' : ''));
   row('Range', f(s.range));
   if (s.cooldown) row(h.rate === 'castSpeed' ? 'Casts per second' : 'Attacks per second', f((s[h.rate || 'speed'] || 1) / s.cooldown));
   if (s.critChance > 0) row('Crit chance', f(s.critChance * 100) + '% (×' + f(s.critDamage) + ' damage)');
-  if (s.arc) row('Swing arc (°)', f(s.arc));
   row('Energy per attack', f(s.energyPerAttack) + ' / ' + f(s.energyMax));
   const u = ULTIMATES[h.ultimate];
-  if (u) { stats.append(el('h3', '', 'Ultimate')); stats.append(el('p', 'hdesc', u.name + ': ' + u.desc)); }
+  if (u) { stats.append(el('h3', '', 'Ultimate')); stats.append(el('p', 'hdesc', u.name + ': ' + ultDesc(u, s))); }
   box.append(gear, pic, stats);
 }
 
@@ -138,8 +137,8 @@ function renderEvolutions(box, h) {
       const d = evolvedDef(h, c), cu = ULTIMATES[d.ultimate], n = el('div', 'evonode');
       n.style.setProperty('--hc', d.color);
       const nm = el('b', '', c.name); nm.style.color = d.color;
-      n.append(nm, el('small', 'muted', DAMAGE_LABEL[d.damageType] + ' damage · +50% damage, range and attack speed' + (d.attribute !== h.attribute ? ' · becomes a ' + STAT_LABELS[d.attribute].toLowerCase() + ' hero' : '')), el('p', '', c.short));
-      if (cu) n.append(el('small', '', 'Ultimate: ' + (c.ultShort || cu.name + ': ' + cu.desc)));
+      n.append(nm, el('small', 'muted', DAMAGE_LABEL[d.damageType] + ' damage · +25% to all its stats' + (d.attribute !== h.attribute ? ' · becomes a ' + STAT_LABELS[d.attribute].toLowerCase() + ' hero' : '')), el('p', '', c.short));
+      if (cu) n.append(el('small', '', 'Ultimate: ' + cu.name + ': ' + ultDesc(cu, heroStats(d, []))));
       if (PREVIEWS[c.id]) n.append(el('small', 'preview', 'Before level 10: ' + PREVIEWS[c.id].desc));
       const chosen = (state.profile.paths || {})[h.id] === c.id, pb = el('button', 'pathbtn', chosen ? 'Chosen path ✓ (click to clear)' : 'Choose this path');
       n.classList.toggle('chosen', chosen);

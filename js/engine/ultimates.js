@@ -18,7 +18,7 @@ registerUltimate('inferno', { name: 'Inferno', desc: 'Sets every enemy on the ma
    frozen half the time: level 5 took the balance bot over two hours.) */
 export const BLIZZARD_FREEZE = 1;
 registerUltimate('blizzard', { name: 'Blizzard', desc: 'Freezes every enemy on the map for ' + BLIZZARD_FREEZE + ' second.', damageMult: 1,
-  onFire(w, h) { for (const e of w.enemies) if (!e.dead) applyEffect(e, 'freeze', { t: BLIZZARD_FREEZE }); } });
+  onFire(w, h) { for (const e of w.enemies) if (!e.dead) applyEffect(e, 'freeze', { t: BLIZZARD_FREEZE }, h); } });
 
 /* Lightning Mage: a storm over the Mage for 3 seconds, striking everything inside every half second for half a hit
    (each strike shocks, since the Lightning Mage always shocks). */
@@ -31,11 +31,25 @@ registerUltimate('storm', { name: 'Storm', desc: 'A storm around the Mage strike
 export function attackMult(w, h, target) {
   if (h.energy < h.s.energyMax) return 1;
   const u = ULTIMATES[h.def.ultimate];
-  if (!u) return 1;
+  if (!u || buffActive(h, u)) return 1;   /* a buff ultimate waits, bar full, until its buff on the caster runs out */
   h.energy = 0; h.ults++; h.ultNow = true;
   if (u.onFire) u.onFire(w, h, target);
   w.ev.emit('ultimate', { hero: h, ultimate: u });
   return u.replaces ? 0 : (u.damageMult || 1);
+}
+
+/* An ultimate's description for a hero: "{6}" in it is damage of its own (not a boost to an attack the hero already makes),
+   shown as the number it deals with these stats ("about 156 damage"), or without stats as "6 times his damage". */
+export function ultDesc(u, s) {
+  if (!u) return '';
+  return u.desc.replace(/\{(\d+(?:\.\d+)?)\}/g, (_, n) => (s && s.damage > 0 ? 'about ' + Math.round(+n * s.damage) + ' damage' : n + ' times his damage'));
+}
+
+/* Ultimates that put something lasting on the caster (a buff, or a state like the wolf's rage) are not cast again while it
+   lasts: u.buff names the buff id, or u.active(h) says whether its effect is still on. */
+export function buffActive(h, u) {
+  if (u.active) return !!u.active(h);
+  return !!(u.buff && h.buffs && h.buffs.some(b => b.id === u.buff && b.t > 0));
 }
 
 /* Called by every behavior after an attack. The attack that fired the ultimate does not refill the bar. */
@@ -54,7 +68,7 @@ registerUltimate('piercing', { name: 'Piercing shot', desc: 'Charges a powerful 
 /* Boomerang Ranger: a boomerang spins around the Ranger for 6 seconds, hitting every enemy it touches for 3x (each one at
    most every 0.4 s). Several at once are spread evenly around the circle (see the orbit projectile). */
 export const ORBIT_SCALE = 3;   /* each touch hits for 3x */
-registerUltimate('orbit', { name: 'Spinning blade', desc: 'A boomerang spins around the Ranger for 6 seconds, hitting everything it touches for triple damage.', damageMult: 1,
+registerUltimate('orbit', { name: 'Spinning blade', desc: 'A boomerang spins around the hero for 6 seconds, hitting everything it touches for {3} each time.', damageMult: 1,
   onFire(w, h) { w.projs.push({ type: 'orbit', owner: h, x: h.x, y: h.y, t: 6, rot: 0, hitT: new Map(), scale: ORBIT_SCALE }); } });
 
 /* Where ground effects go (Hunter's traps, Alchemist's puddles): path tiles within the hero's range, first under the
@@ -84,14 +98,14 @@ registerUltimate('traps', { name: 'Toxic traps', desc: 'Lays 3 traps under enemi
 
 /* Berserker: Frenzy, +50% damage and attack speed for 5 seconds (more, so it multiplies everything else). */
 export const FRENZY = { seconds: 5, mods: [{ stat: 'damage', type: 'more', value: 0.5 }, { stat: 'speed', type: 'more', value: 0.5 }] };
-registerUltimate('frenzy', { name: 'Frenzy', desc: '+50% damage and attack speed for 5 seconds.', damageMult: 1,
+registerUltimate('frenzy', { buff: 'frenzy', name: 'Frenzy', desc: '+50% damage and attack speed for 5 seconds.', damageMult: 1,
   onFire(w, h) { w.addBuff(h, 'frenzy', 'Frenzy', FRENZY.mods, FRENZY.seconds); } });
 
 /* Commander: Rally, doubles the energy every hero within 220 px (the Commander too) gets from attacks, for 5 seconds. */
 export const RALLY = { seconds: 5, radius: 220, mods: [{ stat: 'energyPerAttack', type: 'inc', value: 1 }] };
-registerUltimate('rally', { name: 'Rally', desc: 'Doubles energy from attacks for nearby heroes, the Commander included, for 5 seconds.', damageMult: 1,
+registerUltimate('rally', { buff: 'rally', name: 'Rally', desc: 'Doubles energy from attacks for nearby heroes, the Commander included, for 5 seconds.', damageMult: 1,
   onFire(w, h) {
-    for (const o of w.heroes) if ((o.x - h.x) ** 2 + (o.y - h.y) ** 2 <= RALLY.radius ** 2) w.addBuff(o, 'rally', 'Rally', RALLY.mods, RALLY.seconds);
+    for (const o of w.heroes) if ((o.x - h.x) ** 2 + (o.y - h.y) ** 2 <= RALLY.radius ** 2) w.addBuff(o, 'rally', 'Rally', RALLY.mods, RALLY.seconds, h);
     w.fx?.slash(h.x, h.y, 0, Math.PI, RALLY.radius, 0.5, 'rgba(127,179,255,.3)');   /* a soft flash: it covers a big area */
   } });
 
@@ -111,7 +125,7 @@ registerUltimate('barricade', { name: 'Barricade', desc: 'Blocks the path in fro
 /* Rogue: marks every enemy on the map for 6 seconds. Hits against a marked enemy have +25% crit chance and +50% crit damage. */
 export const MARK = { seconds: 6, chance: 0.25, dmg: 0.5 };
 registerUltimate('mark', { name: 'Mark', desc: 'Marks every enemy on the map for 6 seconds: +25% crit chance and +50% crit damage against them.', damageMult: 1,
-  onFire(w) { for (const e of w.enemies) if (!e.dead) applyEffect(e, 'mark', { t: MARK.seconds, chance: MARK.chance, dmg: MARK.dmg }); } });
+  onFire(w, h) { for (const e of w.enemies) if (!e.dead) applyEffect(e, 'mark', { t: MARK.seconds, chance: MARK.chance, dmg: MARK.dmg }, h); } });
 
 /* Assassin: clones appear behind every enemy on the map and strike each one twice. It replaces the normal strike. */
 registerUltimate('clones', { name: 'Shadow clones', desc: 'Clones appear behind every enemy on the map and strike each one twice.', replaces: true,
@@ -145,21 +159,21 @@ registerUltimate('oil', { name: 'Flammable puddles', desc: 'Flammable puddles sl
 /* ---- Druid ---- */
 /* Druid: Nature's grasp, for 6 seconds every hero within 180 px (the Druid too) has +10% chance to root the enemies it hits. */
 export const GRASP = { seconds: 6, radius: 180, mods: [{ stat: 'rootChance', type: 'flat', value: 0.1 }] };
-registerUltimate('grasp', { name: "Nature's grasp", desc: 'For 6 seconds, heroes near the Druid (the Druid too) have +10% chance to root the enemies they hit.', damageMult: 1,
+registerUltimate('grasp', { buff: 'grasp', name: "Nature's grasp", desc: 'For 6 seconds, heroes near the Druid (the Druid too) have +10% chance to root the enemies they hit.', damageMult: 1,
   onFire(w, h) {
-    for (const o of w.heroes) if ((o.x - h.x) ** 2 + (o.y - h.y) ** 2 <= GRASP.radius ** 2) w.addBuff(o, 'grasp', "Nature's grasp", GRASP.mods, GRASP.seconds);
+    for (const o of w.heroes) if ((o.x - h.x) ** 2 + (o.y - h.y) ** 2 <= GRASP.radius ** 2) w.addBuff(o, 'grasp', "Nature's grasp", GRASP.mods, GRASP.seconds, h);
     w.fx?.slash(h.x, h.y, 0, Math.PI, GRASP.radius, 0.5, 'rgba(143,191,90,.35)');
   } });
 
 /* Animalic Druid: Enrage, the wolf grows bigger and stronger for 6 seconds: twice the reach and twice the damage. */
 export const ENRAGE = { seconds: 6 };
-registerUltimate('enrage', { name: 'Enrage', desc: 'The wolf grows bigger and stronger for 6 seconds: twice the reach and twice the damage.', damageMult: 1,
+registerUltimate('enrage', { active: h => h.rage > 0, name: 'Enrage', desc: 'The wolf grows bigger and stronger for 6 seconds: twice the reach and twice the damage.', damageMult: 1,
   onFire(w, h) { h.rage = ENRAGE.seconds; } });
 
 /* Naturist Druid: Bramble spikes, every thorn patch of the Druid erupts: each enemy standing in one (or close to it) takes
    4x a hit, once, however many patches it stands in. */
 export const SPIKES = { scale: 4, reach: 1.3, show: 0.45 };
-registerUltimate('spikes', { name: 'Bramble spikes', desc: 'Every thorn patch erupts in spikes: 4x damage to each enemy standing in one.', damageMult: 1,
+registerUltimate('spikes', { name: 'Bramble spikes', desc: 'Every thorn patch erupts in spikes: {4} to each enemy standing in one.', damageMult: 1,
   onFire(w, h) { h.erupt = true; } });
 export function erupt(w, h) {
   const hit = new Set();
@@ -175,7 +189,7 @@ export function erupt(w, h) {
    for 5x a hit of the Druid's cold damage (which also slows). */
 export const MOON = { fall: 0.6, radius: 70, scale: 5 };
 const landing = { x: 0, y: 0 };
-registerUltimate('moonfall', { name: 'Moonfall', desc: 'A moon falls on the enemies and smashes everything around it for 5x damage.', damageMult: 1,
+registerUltimate('moonfall', { name: 'Moonfall', desc: 'A moon falls on the enemies and smashes everything around it for {5}.', damageMult: 1,
   onFire(w, h, target) {
     if (!target) return;
     pathPos(w.path, Math.min(w.path.length - 1.001, (target.d + target.speed * MOON.fall) / T), landing);

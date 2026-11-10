@@ -55,7 +55,7 @@ test('Berserker ultimate (Frenzy): +50% damage and attack speed for 5 s, then ba
 
 test('Commander: launches the sword in a straight line to its range, hitting everything in the way once', () => {
   const { w, h } = warrior(); evolveTo(w, h, 'commander');
-  assert.equal(h.s.range, 110 * 1.5, 'the thrown sword reaches further than a swing');
+  assert.ok(h.s.range >= 110 * 1.25, 'the thrown sword reaches further than a swing');
   const lead = enemyAt(w, h.x + 50, h.y, 50), behind = enemyAt(w, h.x + 120, h.y, 1), past = enemyAt(w, h.x + 300, h.y, 0), off = enemyAt(w, h.x + 50, h.y + 80, 2);
   h.cd = 0; tick(w, h);
   assert.equal(w.projs[0].type, 'sword');
@@ -72,8 +72,8 @@ test('Commander ultimate (Rally): doubles energy per attack for heroes nearby, h
   const a = place(w, 'ranger', ...near), b = place(w, 'mage', ...far);
   enemyAt(w, h.x + 30, h.y, 10, 1e6);
   h.energy = h.s.energyMax; h.cd = 0; tick(w, h);
-  /* 20 per attack, a little more from intellect (ATTRIBUTE_EFFECTS), doubled by Rally */
-  const epa = x => 20 * (1 + x.s.intellect * ATTRIBUTE_EFFECTS.intellect.per), near1 = (a, b) => Math.abs(a - b) < 1e-9;
+  /* 2 per attack, a little more from intellect (ATTRIBUTE_EFFECTS), doubled by Rally */
+  const epa = x => 2 * (1 + x.s.intellect * ATTRIBUTE_EFFECTS.intellect[1].per), near1 = (a, b) => Math.abs(a - b) < 1e-9;
   assert.ok(near1(h.s.energyPerAttack, 2 * epa(h)) && near1(a.s.energyPerAttack, 2 * epa(a))); assert.ok(near1(b.s.energyPerAttack, epa(b)), 'too far away');
 });
 

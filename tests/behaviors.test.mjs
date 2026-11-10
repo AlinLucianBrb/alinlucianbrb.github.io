@@ -78,16 +78,19 @@ test('a bolt fizzles if its target dies before it arrives', () => {
   assert.equal(w.projs.length, 0);
 });
 
-test('energy fills by 20 per attack; the 6th attack is the ultimate (2x damage) and empties the bar', () => {
+test('energy fills by about 2 per attack; the 51st attack is the ultimate (2x damage) and empties the bar', () => {
   const { w, h } = setup('ranger');
-  h.mods.push({ stat: 'critChance', type: 'more', value: -1, scope: ['all'], source: 'test', ri: -2 }); w.statsFor(h);   /* no crits from dexterity */
+  h.mods.push({ stat: 'dexterity', type: 'more', value: -1, scope: ['all'], source: 'test', ri: -2 }); w.statsFor(h);   /* no crits from dexterity */
   const e = enemyAt(w, h.x + 30, h.y, 10);
   const hits = [];
-  for (let i = 0; i < 7; i++) { const before = dealt(e); h.cd = 0; tickHero(w, h); land(w); hits.push(Math.round((dealt(e) - before) * 1000) / 1000); if (i < 5) assert.ok(Math.abs(h.energy - Math.min(h.s.energyMax, h.s.energyPerAttack * (i + 1))) < 1e-9); }
-  assert.deepEqual(hits, [17.6, 17.6, 17.6, 17.6, 17.6, 35.2, 17.6]);
+  const n = Math.ceil(h.s.energyMax / h.s.energyPerAttack);   /* attacks to fill the bar */
+  for (let i = 0; i < n + 2; i++) { const before = dealt(e); h.cd = 0; tickHero(w, h); land(w); hits.push(Math.round((dealt(e) - before) * 1000) / 1000); if (i < n) assert.ok(Math.abs(h.energy - Math.min(h.s.energyMax, h.s.energyPerAttack * (i + 1))) < 1e-9); }
+  assert.ok(n >= 45 && n <= 50, 'about 50 attacks');
+  const x = hits[0];   /* (no dexterity here, so no +% from it either) */
+  assert.deepEqual(hits.slice(-3), [x, 2 * x, x]); assert.ok(hits.slice(0, n).every(y => y === x));
   assert.equal(h.ults, 1);
   assert.equal(h.energy, h.s.energyPerAttack, 'the ultimate empties the bar, and the attack after it starts filling again');
-  assert.ok(h.s.energyPerAttack > 20 && h.s.energyPerAttack < 20.5, 'about 20: a little more from intellect');
+  assert.ok(h.s.energyPerAttack > 2 && h.s.energyPerAttack < 2.05, 'about 2: a little more from intellect');
 });
 
 test('energy over time: heroes can also fill their bar per second during a wave', () => {

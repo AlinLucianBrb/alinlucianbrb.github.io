@@ -16,20 +16,18 @@ export function resolve(base, stat, mods, tags, extraInc = 0) {
    Attributes come first: the hero's own attribute also takes mainAttribute (hero levels), and gives increased damage. */
 export function heroStats(def, mods) {
   const s = {}, own = def.attribute;
-  if (own && own in def.stats) s[own] = resolve(def.stats[own], own, mods, def.tags) + resolve(0, 'mainAttribute', mods, def.tags);
+  if (own && own in def.stats) s[own] = resolve(def.stats[own] + resolve(0, 'mainAttribute', mods, def.tags), own, mods, def.tags);   /* main attribute points count like its own */
   for (const k in def.stats) if (k !== own) s[k] = resolve(def.stats[k], k, mods, def.tags, k === 'damage' && own ? attributeDamage(def, s) : 0);
   attributeEffects(s);
   return s;
 }
-/* Every attribute's side effect (ATTRIBUTE_EFFECTS): crit chance is added, area and energy from attacks are multiplied.
-   A strength hero's swing arc grows with its area. */
+/* Every attribute's side effects (ATTRIBUTE_EFFECTS), from every point: 'flat' ones are added, 'inc' ones multiply. */
 function attributeEffects(s) {
-  for (const a in ATTRIBUTE_EFFECTS) {
-    const fx = ATTRIBUTE_EFFECTS[a], v = (s[a] || 0) * fx.per;
+  for (const a in ATTRIBUTE_EFFECTS) for (const fx of ATTRIBUTE_EFFECTS[a]) {
+    const v = (s[a] || 0) * fx.per;
     if (!(v > 0) || !(fx.stat in s)) continue;
-    if (fx.stat === 'critChance') s.critChance += v; else s[fx.stat] *= 1 + v;
+    if (fx.type === 'flat') s[fx.stat] += v; else s[fx.stat] *= 1 + v;
   }
-  if ('arc' in s && s.area) s.arc *= s.area;
 }
 /* The increased damage a hero gets from its own attribute (0.37 = +37%). */
 export const attributeDamage = (def, s) => (def.attribute && s[def.attribute] ? s[def.attribute] * ATTRIBUTE_DAMAGE : 0);

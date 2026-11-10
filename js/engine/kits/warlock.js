@@ -10,7 +10,7 @@ import { registerUltimate, gainEnergy } from '../ultimates.js';
 import { ZONES } from '../zones.js';
 import { EFFECT_HOOKS, applyEffect } from '../effects.js';
 import { AILMENTS } from '../../content/combat.js';
-import { pathPos } from '../enemies.js';
+import { pathPos, knockback } from '../enemies.js';
 import { T } from '../../content/data.js';
 import { pulseZone, lob } from './common.js';
 import '../aura.js';
@@ -21,7 +21,7 @@ const near = (a, b, r) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2 <= r * r;
 /* Soul drain: a beam on the toughest enemy in range for 2 seconds, 5x a hit in all; if it dies while drained, every hero
    within 150 px gains 20 energy. */
 export const DRAIN = { seconds: 2, scale: 5, radius: 150, energy: 20 };
-registerUltimate('souldrain', { name: 'Soul drain', desc: 'Drains the toughest enemy in range for 2 seconds (5x damage); if it dies, heroes nearby gain 20 energy.', damageMult: 1,
+registerUltimate('souldrain', { name: 'Soul drain', desc: 'Drains the toughest enemy in range for 2 seconds, {5} in all; if it dies, heroes nearby gain 20 energy.', damageMult: 1,
   onFire(w, h) {
     const tg = pickStrongest(w, h, h.s.range);
     if (tg) w.zones.push({ type: 'drain', owner: h, target: tg, x: tg.x, y: tg.y, t: DRAIN.seconds });
@@ -45,7 +45,7 @@ ZONES.drain = {
 /* Doom: for 4 seconds the aura also Dooms the enemies inside (+50% damage taken; an enemy that dies Doomed explodes, dealing
    10% of its max life as shadow damage to the enemies within 50 px). */
 export const DOOM = { seconds: 4, blast: 50, share: 0.1 };
-registerUltimate('doom', { name: 'Doom', desc: 'For 4 seconds Hexed enemies take +50% more damage; any that die explode in shadow, hitting enemies around them.', damageMult: 1,
+registerUltimate('doom', { active: h => !!(h.auraCurse && h.auraCurse.t > 0), name: 'Doom', desc: 'For 4 seconds Hexed enemies take +50% more damage; any that die explode in shadow, hitting enemies around them.', damageMult: 1,
   onFire(w, h) { h.auraCurse = { id: 'doom', t: DOOM.seconds }; } });
 EFFECT_HOOKS.death.doom = (w, e, f) => {
   const src = f.src || e.last;
@@ -103,7 +103,7 @@ function updateDemon(g, t, dt, ms) {
   for (const e of g.enemies) if (!e.dead && near(e, d, DEMON.reach)) g.attack(t, e, DEMON.scale, 1, null, ms);
   g.fx?.slash(d.x, d.y, Math.atan2(dy, dx), Math.PI / 2, DEMON.reach, 0.2, '#ff5a3a');
 }
-registerUltimate('demongate', { name: 'Demon gate', desc: 'A Greater Demon steps out for 8 seconds and cleaves the enemies around it.', damageMult: 1,
+registerUltimate('demongate', { active: h => !!h.demon, name: 'Demon gate', desc: 'A Greater Demon steps out for 8 seconds and cleaves the enemies around it.', damageMult: 1,
   onFire(w, h, target) { h.demon = { x: target ? target.x : h.x, y: target ? target.y : h.y, t: DEMON.seconds, cd: 0.4, face: 1, cleave: 0 }; } });
 
 /* ---- Infernalist ---- */
@@ -111,10 +111,22 @@ registerUltimate('demongate', { name: 'Demon gate', desc: 'A Greater Demon steps
    for 2 seconds (a quarter of a hit every half second). The Infernalist always burns. */
 export const HELLFIRE = { speed: 380, radius: 40, burst: 1, seconds: 2, every: 0.5, scale: 0.25 };
 const aim = { x: 0, y: 0 };
+/* Hellfire spreads its burning ground: it aims at the enemy furthest along the path that is not standing in (or about to
+   land in) its own burning ground; if every enemy in range is, at the first. */
+function unburnt(g, t) {
+  const r2 = t.s.range * t.s.range, mine = g.zones.filter(z => z.type === 'pulse' && z.look === 'hellfire' && z.owner === t && z.t > 0), coming = g.projs.filter(p => p.type === 'lob' && p.owner === t);
+  let best = null;
+  for (const e of g.enemies) {
+    if (e.dead || (e.x - t.x) ** 2 + (e.y - t.y) ** 2 > r2) continue;
+    if (mine.some(z => near(e, z, z.r)) || coming.some(p => (e.x - p.tx) ** 2 + (e.y - p.ty) ** 2 <= HELLFIRE.radius ** 2)) continue;
+    if (!best || e.d > best.d) best = e;
+  }
+  return best || pickTarget(g, t, t.s.range);
+}
 registerBehavior('hellfire', {
   update(g, t, dt) {
     if (!ready(t, dt)) return;
-    const tg = pickTarget(g, t, t.s.range);
+    const tg = unburnt(g, t);
     if (!tg) return;
     const mult = strike(g, t, tg);
     rearm(t);
@@ -133,12 +145,12 @@ EFFECT_HOOKS.death.burn = (w, e, f) => {
   if (!f.src || !f.src.def || !f.src.def.contagion) return;
   let best = null, bd = CONTAGION.reach * CONTAGION.reach;
   for (const o of w.enemies) { if (o.dead || o === e) continue; const q = (o.x - e.x) ** 2 + (o.y - e.y) ** 2; if (q <= bd) { bd = q; best = o; } }
-  if (best) { applyEffect(best, 'burn', { t: AILMENTS.burn.duration, dps: f.dps, src: f.src }); w.fx?.beam(e.x, e.y, best.x, best.y, 0.15, '#ff8a3d', 2); }
+  if (best) { applyEffect(best, 'burn', { t: AILMENTS.burn.duration, dps: f.dps, src: f.src }, f.src); w.fx?.beam(e.x, e.y, best.x, best.y, 0.15, '#ff8a3d', 2); }
 };
-/* Infernal: a meteor falls on the biggest group in range (the enemy with the most others within 60 px) for 6x a hit, and a
-   burning golem stands there for 6 seconds, scorching everything within 55 px for half a hit every half second. */
-export const INFERNAL = { fall: 0.6, radius: 60, scale: 6, golem: 6, golemR: 55, every: 0.5, golemScale: 0.5 };
-registerUltimate('infernal', { name: 'Infernal', desc: 'A meteor crashes into the biggest group of enemies (6x damage), then a burning golem stands there for 6 seconds.', damageMult: 1,
+/* Infernal: a meteor falls on the biggest group in range (the enemy with the most others within 60 px) for 6x a hit and
+   knocks every enemy it hits back a tile (a boss a quarter of that). */
+export const INFERNAL = { fall: 0.6, radius: 60, scale: 6, knock: T };
+registerUltimate('infernal', { name: 'Infernal', desc: 'A meteor crashes into the biggest group of enemies for {6} and knocks them back a tile.', damageMult: 1,
   onFire(w, h) {
     let best = null, most = -1;
     for (const e of w.enemies) {
@@ -151,9 +163,8 @@ registerUltimate('infernal', { name: 'Infernal', desc: 'A meteor crashes into th
 ZONES.meteor = {
   update(g, z, dt) {
     if ((z.t -= dt) > 0) return true;
-    for (const e of g.enemies) if (!e.dead && near(e, z, z.r)) g.attack(z.owner, e, INFERNAL.scale);
+    for (const e of g.enemies) if (!e.dead && near(e, z, z.r)) { g.attack(z.owner, e, INFERNAL.scale); if (!e.dead) knockback(g, e, INFERNAL.knock); }
     g.ev.emit('explode', { zone: z });
-    g.zones.push(pulseZone(z.owner, z.x, z.y, { r: INFERNAL.golemR, t: INFERNAL.golem, every: INFERNAL.every, scale: INFERNAL.golemScale, look: 'golem' }));
     return false;
   }
 };

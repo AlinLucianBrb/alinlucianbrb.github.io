@@ -3,7 +3,7 @@
    - enemies take a hit (pulses are hits: crits, ailments and on-hit relics work; flat added damage counts at AURA.added,
      or many small pulses would get it many times over), and the form's curse if it has one;
    - allied heroes inside (any player's) get the form's blessing, refreshed every pulse, so it ends just after they leave.
-   The aura comes from the form's `aura` field: { bless: { id, name, mods }, curse: 'hex' }. Energy comes only from pulses that
+   The aura comes from the form's `aura` field: { bless: { id, name, mods }, curse: 'hex', harmless: true (no damage) }. Energy comes only from pulses that
    touch an enemy (energyPerAttack, set low on aura forms). The ultimate fires on such a pulse; while it lasts the hero's
    t.auraBoost = { t, radius, damage } makes the ring wider and the pulses stronger (Crescendo), and t.auraCurse adds a second
    curse (Doom). t.pulse counts down after each pulse, for the ripple the renderer draws. */
@@ -33,7 +33,7 @@ registerBehavior('aura', {
     if (!ready(t, dt)) return;
     rearm(t);
     const a = t.def.aura || {}, r = auraRadius(t), r2 = r * r;
-    if (a.bless) for (const o of g.heroes) if ((o.x - t.x) ** 2 + (o.y - t.y) ** 2 <= r2) g.addBuff(o, a.bless.id, a.bless.name, a.bless.mods, AURA.bless);
+    if (a.bless) for (const o of g.heroes) if ((o.x - t.x) ** 2 + (o.y - t.y) ** 2 <= r2) g.addBuff(o, a.bless.id, a.bless.name, a.bless.mods, AURA.bless, t);
     let first = null;
     for (const e of g.enemies) if (!e.dead && (e.x - t.x) ** 2 + (e.y - t.y) ** 2 <= r2) { first = e; break; }
     t.pulse = AURA.ripple;
@@ -42,9 +42,9 @@ registerBehavior('aura', {
     const r3 = auraRadius(t) ** 2;   /* the ultimate may have just widened it */
     for (const e of g.enemies) {
       if (e.dead || (e.x - t.x) ** 2 + (e.y - t.y) ** 2 > r3) continue;
-      if (a.curse) applyEffect(e, a.curse, { t: AURA.curse });
-      if (t.auraCurse) applyEffect(e, t.auraCurse.id, { t: AURA.curse, src: t });
-      if (s.damage > 0) g.attack(t, e, k, 1, null, s);
+      if (a.curse) applyEffect(e, a.curse, { t: AURA.curse }, t);
+      if (t.auraCurse) applyEffect(e, t.auraCurse.id, { t: AURA.curse, src: t }, t);
+      if (s.damage > 0 && !a.harmless) g.attack(t, e, k, 1, null, s);   /* the Occult's aura only curses */
     }
     charge(g, t);
   }

@@ -30,7 +30,7 @@ test('the Ranger offers three evolutions and needs a choice', () => {
   const { w, h } = ranger();
   assert.equal(apply(w, { type: 'evolve', id: h.id }).reason, 'choose an evolution');
   assert.ok(evolveTo(w, h, 'hunter').ok);
-  assert.equal(h.def.name, 'Hunter'); assert.equal(h.def.id, 'ranger');
+  assert.equal(h.def.name, 'Poacher'); assert.equal(h.def.id, 'ranger');
 });
 
 test('Marksman: same arrows; the ultimate replaces the arrow with a charged shot that pierces everything in a line for 3x', () => {

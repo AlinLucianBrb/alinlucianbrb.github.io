@@ -81,7 +81,7 @@ test('placing is free and once per hero; cards then select the hero; click and h
   assert.equal(view().moving, null);
   click(...t[1]); dom.frames(20);
   assert.equal(dom.button('Evolve'), undefined, 'no Evolve button in the panel');
-  assert.ok(dom.made.some(e => e.tag === 'b' && e._text === 'Ranger · Lv 1'), 'the panel title shows the level');
+  assert.ok(dom.made.some(e => e.tag === 'b' && e._text === 'Hunter · Lv 1'), 'the panel title shows the level');
   assert.ok(dom.made.some(e => e.className === 'lvl' && e._v === 'XP 0/10'), 'XP shown');
   assert.equal(dom.button('Sell'), undefined, 'no selling');
   assert.equal(dom.made.some(e => e.tag === 'div' && /^When full: Empowered strike/.test(e._text)), true, 'the panel explains the ultimate');
@@ -181,7 +181,7 @@ test('hero panel: a hint on moving comes first, bonuses from the same source are
   assert.ok(lines.includes('+15% · Sharpened rounds ×2 (Relic)'), 'stacked across rarities (3.75% + 11.25%): ' + lines.join(' | '));
   const chips = byId.relics.children;
   assert.equal(chips.length, 1, 'one relic chip, whatever the rarities');
-  assert.equal(chips[0]._text, 'Sharpened rounds ×2');
+  assert.equal(chips[0].children[1]._text, 'Sharpened rounds ×2'); assert.match(chips[0].children[0].src, /relic_sharpened_rounds\.png$/, 'its icon');
   chips[0].fire('pointerenter', { clientX: 10, clientY: 10 });
   const tip = dom.made.filter(e => e.className === 'tip').at(-1);
   assert.deepEqual(tip.children.map(c => c._text), ['Sharpened rounds ×2', 'Common + Rare', 'Together: +15% damage (all heroes)']);

@@ -57,8 +57,8 @@ test('a form with its own attribute swaps the values: the Animalic Druid is dext
   assert.ok(Math.abs(h.echo.s.dexterity - h.s.intellect) < 1e-9, 'the pup already uses the dexterity he will have');
   apply(w, { type: 'evolve', id: h.id });
   assert.equal(h.def.attribute, 'dexterity');
-  assert.ok(Math.abs(h.s.dexterity - (druid.stats.intellect + lvl)) < 1e-9, 'levels carry over');
-  assert.equal(h.s.intellect, druid.stats.dexterity);
+  assert.ok(Math.abs(h.s.dexterity - (druid.stats.intellect + lvl) * 1.25) < 1e-9, 'levels carry over (and the evolution adds 25%)');
+  assert.ok(Math.abs(h.s.intellect - (druid.stats.dexterity + 9) * 1.25) < 1e-9, 'the Druid\'s dexterity, +1 a level');
 });
 
 test('"every Nth" previews: the form\'s own attack, about once in N attacks, credited to the hero, and the base attack slows to match', () => {

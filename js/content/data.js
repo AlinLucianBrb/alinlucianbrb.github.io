@@ -8,20 +8,22 @@ export const COLS = 16, ROWS = 10, T = 40;
 /* Energy: every hero has a bar that fills as it attacks (and/or over time). When it is full, the next attack is the hero's
    ultimate (see js/engine/ultimates.js). These are the defaults; a hero can override them, and talents, relics and items
    can change them like any other stat. */
-export const ENERGY = { energyMax: 100, energyPerAttack: 20, energyPerSecond: 0 };
+export const ENERGY = { energyMax: 100, energyPerAttack: 2, energyPerSecond: 0 };   /* 50 attacks to an ultimate */
 /* Attributes: strength, dexterity and intellect. Every hero has all three, and one of them is its own (attribute on the hero:
-   Warrior strength, Ranger dexterity, Mage intellect). For now each point of a hero's own attribute gives +1% increased damage
-   (ATTRIBUTE_DAMAGE). Hero levels raise the hero's own attribute (stat mainAttribute, see HERO_LEVELS). Talents, relics and
-   items can raise any of them like any other stat.
-   On top of that, every point of each attribute, the hero's own or not, gives a small bonus (ATTRIBUTE_EFFECTS):
-   strength a bigger area (stat area: swing arc, aura radius, burning ground...), dexterity crit chance, intellect more energy
-   from attacks. A form can have its own attribute (the Animalic Druid is a dexterity hero, see evolvedDef). */
+   Warrior strength, Hunter dexterity, Mage intellect). For now each point of a hero's own attribute gives +1% increased damage
+   (ATTRIBUTE_DAMAGE). Hero levels raise all of a hero's stats (HERO_LEVELS). Talents, relics and items can raise any
+   attribute like any other stat.
+   On top of that, every point of each attribute, the hero's own or not, gives small bonuses (ATTRIBUTE_EFFECTS):
+   strength range and penetration (armor and every resistance), dexterity crit chance and crit damage, intellect cast speed
+   and energy from attacks. A form can have its own attribute (the Animalic Druid is a dexterity hero, see evolvedDef). */
 export const ATTRIBUTES = ['strength', 'dexterity', 'intellect'];
 export const ATTRIBUTE_DAMAGE = 0.01;
+/* Per point. type 'inc' multiplies the stat by 1 + points x per; 'flat' adds points x per. */
 export const ATTRIBUTE_EFFECTS = {
-  strength:  { stat: 'area', per: 0.003, label: 'area' },              /* +0.3% area per point */
-  dexterity: { stat: 'critChance', per: 0.001, label: 'crit chance' },  /* +0.1% crit chance per point */
-  intellect: { stat: 'energyPerAttack', per: 0.005, label: 'energy from attacks' }   /* +0.5% energy per point */
+  strength:  [{ stat: 'range', type: 'inc', per: 0.0025, label: 'range' }, { stat: 'armorPen', type: 'flat', per: 0.001, label: 'armor penetration' },
+              { stat: 'resPen', type: 'flat', per: 0.001, label: 'resistance penetration' }],
+  dexterity: [{ stat: 'critChance', type: 'flat', per: 0.001, label: 'crit chance' }, { stat: 'critDamage', type: 'flat', per: 0.005, label: 'crit damage' }],
+  intellect: [{ stat: 'castSpeed', type: 'inc', per: 0.003, label: 'cast speed' }, { stat: 'energyPerAttack', type: 'inc', per: 0.005, label: 'energy from attacks' }]
 };
 const ATTRS = { strength: 0, dexterity: 0, intellect: 0 };
 /* Critical hits: critChance (0 to 1) is the chance a hit is critical, critDamage what a critical hit is multiplied by.
@@ -33,23 +35,29 @@ const CRIT = { critChance: 0, critDamage: 1.5 };
 export const MINION = { minionDamage: 1, minionSpeed: 1, minionCritChance: 0, minionCritDamage: 0 };
 /* Every hero gets the energy stats, the attributes, crits, the combat stats (added damage by type, ailment chances) and the
    minion stats, so anything can raise them. */
-const withEnergy = (stats, own = {}) => ({ ...stats, ...ENERGY, ...ATTRS, ...CRIT, ...COMBAT_STATS, ...MINION, area: 1, ...own });
+/* Damage: every hit rolls between (1 - spread) and (1 + spread) of the damage stat (DAMAGE_ROLL.on turns it off for tests). */
+export const DAMAGE_SPREAD = 0.25;
+export const DAMAGE_ROLL = { on: true };
+const withEnergy = (stats, own = {}) => ({ ...stats, ...ENERGY, ...ATTRS, ...CRIT, ...COMBAT_STATS, ...MINION, resPen: 0, spread: DAMAGE_SPREAD, duration: 1, ...own });
 
 /* Hero levels during a match: every hero on the field gains XP from each enemy killed (the enemy's xp value, see enemies.js),
    whoever landed the blow. Each level adds perLevel (scaled by levels gained); xpToNext(L) is the XP from level L to L + 1. */
 export const HERO_LEVELS = {
   max: 30,
   xpToNext: L => 10 + 2 * (L - 1),
-  perLevel: [{ stat: 'mainAttribute', type: 'flat', value: 3 }]   /* +3 to the hero's own attribute, so +3% damage, per level */
+  /* Every level: +3 to the hero's own attribute (+3% damage, and its side effects), +1 to the other two, and +1% range and
+     attack and cast speed. */
+  perLevel: [{ stat: 'mainAttribute', type: 'flat', value: 2 }, ...['strength', 'dexterity', 'intellect'].map(stat => ({ stat, type: 'flat', value: 1 })),
+    ...['range', 'speed', 'castSpeed'].map(stat => ({ stat, type: 'inc', value: 0.01 }))]
 };
 
 /* Evolution: heroes can evolve during a match by spending gold, once they reach the step's level.
    evolutions is a list of steps: { level, cost, choices: [...] }. With one choice the hero simply evolves; with several the
    player picks one. A choice is a new form of the hero: it can change the name, colour, damage type, ultimate, on-hit effects
-   (applies), add base stats and tags, and gives its modifiers. For now every form also gets +50% to the main stats. */
-const plus50 = ['damage', 'range', 'speed'].map(stat => ({ stat, type: 'more', value: 0.5, scope: ['all'] }));
-/* Spell casters attack at their cast speed (castSpeed), not attack speed, so their evolutions raise that instead. */
-const plus50cast = ['damage', 'range', 'castSpeed'].map(stat => ({ stat, type: 'more', value: 0.5, scope: ['all'] }));
+   (applies), add base stats and tags, and gives its modifiers. Every form also gets +25% to all the base hero's stats
+   (EVOLVE_BONUS: damage, range, attack and cast speed, and the three attributes). */
+export const EVOLVE_BONUS = 0.25;
+const evolved = ['damage', 'range', 'speed', 'castSpeed', 'strength', 'dexterity', 'intellect'].map(stat => ({ stat, type: 'more', value: EVOLVE_BONUS, scope: ['all'] }));
 const always = stat => ({ stat, type: 'flat', value: 1, scope: ['all'] });   /* a 100% chance */
 
 /* The playable heroes. A player brings up to LINEUP_SIZE of them into a match, one of each, free to place.
@@ -58,64 +66,64 @@ const always = stat => ({ stat, type: 'flat', value: 1, scope: ['all'] });   /* 
 export const LINEUP_SIZE = 3;
 export const HEROES = [
   { id: 'warrior', name: 'Warrior', archetype: 'melee', attribute: 'strength', kind: 'swing', damageType: 'physical', color: '#c7ced6', shape: [5, -Math.PI / 2], tags: ['melee', 'attack', 'physical'],
-    stats: withEnergy({ damage: 28, range: 60, cooldown: 0.8, speed: 1, arc: 120 }, { strength: 10, dexterity: 4, intellect: 2 }), ultimate: 'empowered',
+    arc: 120, stats: withEnergy({ damage: 28, range: 60, cooldown: 0.8, speed: 1 }, { strength: 10, dexterity: 4, intellect: 2 }), ultimate: 'empowered',
     evolutions: [{ level: 10, cost: 150, choices: [
-      { id: 'berserker', name: 'Berserker', color: '#e5645a', kind: 'doubleswing', ultimate: 'frenzy', mods: [...plus50, always('bleedChance')],
-        short: 'Swings twice in quick succession, and every hit makes enemies bleed.', ultShort: 'Frenzy: +50% damage and attack speed for 5 seconds.' },
-      { id: 'commander', name: 'Commander', color: '#7fb3ff', kind: 'launch', ultimate: 'rally', tags: ['projectile'], stats: { range: 110 }, mods: plus50,
-        short: 'Launches the sword forward, hitting every enemy in its way.', ultShort: 'Rally: doubles energy from attacks for nearby heroes (and himself) for 5 seconds.' },
-      { id: 'sentinel', name: 'Sentinel', color: '#c9b37e', ultimate: 'barricade', mods: plus50,
-        short: 'The same swing, and a barricade to hold the line.', ultShort: 'Barricade: blocks the path, stopping enemies for 1 second.' }
+      { id: 'berserker', name: 'Berserker', color: '#e5645a', kind: 'doubleswing', ultimate: 'frenzy', mods: [...evolved, always('bleedChance')],
+        short: 'Swings twice in quick succession, and every hit makes enemies bleed.' },
+      { id: 'commander', name: 'Commander', color: '#7fb3ff', kind: 'launch', ultimate: 'rally', tags: ['projectile'], stats: { range: 110 }, mods: evolved,
+        short: 'Launches the sword forward, hitting every enemy in its way.' },
+      { id: 'sentinel', name: 'Sentinel', color: '#c9b37e', ultimate: 'barricade', mods: evolved,
+        short: 'The same swing, stronger.' }
     ] }],
     desc: 'Warrior (melee): swings at close range, hitting every enemy in the arc. Evolves into a Berserker, Commander or Sentinel.',
-    short: 'Swings a blade at close range, hitting every enemy in front of him. At level 10, choose a path.' },
-  { id: 'ranger', name: 'Ranger', archetype: 'range', attribute: 'dexterity', kind: 'bolt', projLook: 'arrow', projSpeed: 620, damageType: 'physical', color: '#f2b84b', shape: [0, 0],
+    short: 'Swings a blade at close range, hitting every enemy in front of him.' },
+  { id: 'ranger', name: 'Hunter', archetype: 'range', attribute: 'dexterity', kind: 'bolt', projLook: 'arrow', projSpeed: 620, damageType: 'physical', color: '#f2b84b', shape: [0, 0],
     tags: ['range', 'projectile', 'attack', 'physical'],
     stats: withEnergy({ damage: 16, range: 120, cooldown: 0.5, speed: 1 }, { strength: 4, dexterity: 10, intellect: 3 }), ultimate: 'empowered',
     evolutions: [{ level: 10, cost: 150, choices: [
-      { id: 'marksman', name: 'Marksman', color: '#ffd76a', ultimate: 'piercing', mods: plus50,
-        short: 'Same arrows, more of them.', ultShort: 'Charges a powerful arrow that pierces every enemy in its path.' },
-      { id: 'boomeranger', name: 'Boomerang Ranger', color: '#8be28b', kind: 'boom', ultimate: 'orbit', tags: ['thrown'], mods: plus50,
-        short: 'Throws a boomerang that hits every enemy on the way out and back.', ultShort: 'A boomerang spins around the Ranger, hitting everything it touches.' },
-      { id: 'hunter', name: 'Hunter', color: '#7ad04b', damageType: 'toxic', ultimate: 'traps', tags: ['toxic'], mods: plus50,
-        short: 'Arrows deal toxic damage.', ultShort: 'Lays traps on the path that burst with heavy toxic damage when stepped on.' }
+      { id: 'marksman', name: 'Ranger', color: '#ffd76a', ultimate: 'piercing', mods: evolved,
+        short: 'The same arrows, stronger.' },
+      { id: 'boomeranger', name: 'Boomerang', color: '#8be28b', kind: 'boom', ultimate: 'orbit', tags: ['thrown'], mods: evolved,
+        short: 'Throws a boomerang that hits every enemy on the way out and back.' },
+      { id: 'hunter', name: 'Poacher', color: '#7ad04b', damageType: 'toxic', ultimate: 'traps', tags: ['toxic'], mods: evolved,
+        short: 'Arrows deal toxic damage.' }
     ] }],
-    desc: 'Ranger (range): fast arrows at the enemy closest to your gate. Evolves into a Marksman, Boomerang Ranger or Hunter.',
-    short: 'Long range and fast. Shoots arrows at the enemy closest to your gate. At level 10, choose a path.' },
+    desc: 'Hunter (projectile): fast arrows at the enemy closest to your gate. Evolves into a Ranger, Boomerang or Poacher.',
+    short: 'Long range and fast. Shoots arrows at the enemy closest to your gate.' },
   { id: 'mage', name: 'Mage', archetype: 'spell', attribute: 'intellect', kind: 'bolt', damageType: 'arcane', color: '#c39bf2', shape: [4, -Math.PI / 2], tags: ['spell', 'projectile', 'arcane'],
     rate: 'castSpeed', stats: withEnergy({ damage: 26, range: 110, cooldown: 1, castSpeed: 1, targets: 1 }, { strength: 2, dexterity: 4, intellect: 10 }), ultimate: 'empowered',
     /* At level 10 the Mage picks an element. The slow is the Frost Mage's old chill effect, kept for exactly this. */
     evolutions: [{ level: 10, cost: 150, choices: [
       { id: 'firemage', name: 'Fire Mage', color: '#ff7a45', damageType: 'fire', ultimate: 'inferno', tags: ['fire'],
-        mods: [...plus50cast, always('burnChance')],
-        short: 'Bolts deal fire damage and set enemies on fire.', ultShort: 'Sets every enemy on the map on fire.' },
+        mods: [...evolved, always('burnChance')],
+        short: 'Bolts deal fire damage and set enemies on fire.' },
       { id: 'coldmage', name: 'Cold Mage', color: '#72c8f0', damageType: 'cold', ultimate: 'blizzard', tags: ['cold'],
-        applies: { chill: 'chillTime' }, stats: { chillTime: 1.5 }, mods: plus50cast,
-        short: 'Bolts deal cold damage and slow enemies to half speed.', ultShort: 'Freezes every enemy in place.' },
+        applies: { chill: 'chillTime' }, stats: { chillTime: 1.5 }, mods: evolved,
+        short: 'Bolts deal cold damage and slow enemies to half speed.' },
       { id: 'lightningmage', name: 'Lightning Mage', color: '#d6a2ff', damageType: 'lightning', ultimate: 'storm', tags: ['lightning'],
-        mods: [...plus50cast, always('shockChance')],
-        short: 'Bolts deal lightning damage and shock enemies, lowering their defenses.', ultShort: 'Calls a storm that strikes and shocks enemies around the Mage.' }
+        mods: [...evolved, always('shockChance')],
+        short: 'Bolts deal lightning damage and shock enemies, lowering their defenses.' }
     ] }],
     desc: 'Mage (spell): fires a magic bolt at the enemy closest to your gate. Evolves into a Fire, Cold or Lightning Mage.',
-    short: 'Fires a magic bolt at the enemy closest to your gate. At level 10, choose an element.' },
+    short: 'Fires a magic bolt at the enemy closest to your gate.' },
   /* The Rogue: two quick strikes and a higher crit chance; its ultimate marks every enemy, making them easier to crit.
      Its evolutions go for "the strongest, toughest enemy": the one in range with the most life left. */
   { id: 'rogue', name: 'Rogue', archetype: 'melee', attribute: 'dexterity', kind: 'doubleswing', damageType: 'physical', color: '#4fb3a9', shape: [3, -Math.PI / 2],
     tags: ['melee', 'attack', 'physical'],
-    stats: withEnergy({ damage: 17, range: 60, cooldown: 0.75, speed: 1, arc: 100 }, { strength: 4, dexterity: 10, intellect: 3, critChance: 0.1 }), ultimate: 'mark',
+    arc: 100, stats: withEnergy({ damage: 17, range: 60, cooldown: 0.75, speed: 1 }, { strength: 4, dexterity: 10, intellect: 3, critChance: 0.1 }), ultimate: 'mark',
     evolutions: [{ level: 10, cost: 150, choices: [
       { id: 'assassin', name: 'Assassin', color: '#9b6bd6', kind: 'assassin', ultimate: 'clones', stats: { range: 130 },
-        mods: [...plus50, { stat: 'damage', type: 'more', value: 1, scope: ['all'] }],
-        short: 'Teleports behind the strongest, toughest enemy in range and strikes once, for double damage.', ultShort: 'Clones appear behind every enemy on the map and strike each one twice.' },
+        mods: [...evolved, { stat: 'damage', type: 'more', value: 1, scope: ['all'] }],
+        short: 'Teleports behind the strongest, toughest enemy in range and strikes once, for double damage.' },
       { id: 'toxicologist', name: 'Toxicologist', color: '#a6d94a', kind: 'daggers', damageType: 'toxic', ultimate: 'poisonflask', tags: ['projectile', 'toxic'],
-        stats: { range: 120 }, mods: [...plus50, always('poisonChance')],
-        short: 'Throws two toxic daggers at the strongest, toughest enemy in range; each one poisons.', ultShort: 'A bottle of poison leaves a puddle that poisons every enemy walking through it.' },
+        stats: { range: 120 }, mods: [...evolved, always('poisonChance')],
+        short: 'Throws two toxic daggers at the strongest, toughest enemy in range; each one poisons.' },
       { id: 'alchemist', name: 'Alchemist', color: '#ff9f43', kind: 'concoctions', damageType: 'fire', ultimate: 'oil', tags: ['projectile', 'fire', 'toxic'],
-        stats: { range: 120 }, mods: [...plus50, always('burnChance'), always('poisonChance')],
-        short: 'Throws two concoctions at the strongest, toughest enemy in range: fire that burns, then toxic that poisons.', ultShort: 'Flammable puddles slow enemies; a burning enemy on one makes it explode.' }
+        stats: { range: 120 }, mods: [...evolved, always('burnChance'), always('poisonChance')],
+        short: 'Throws two concoctions at the strongest, toughest enemy in range: fire that burns, then toxic that poisons.' }
     ] }],
     desc: 'Rogue (melee): two quick strikes, with a higher chance of critical hits. Evolves into an Assassin, Toxicologist or Alchemist.',
-    short: 'Strikes twice in quick succession, with a knack for critical hits. At level 10, choose a path.' },
+    short: 'Strikes twice in quick succession, with a knack for critical hits.' },
   /* The Druid: a spell caster whose thorny bolts can root enemies in place (rootChance); its ultimate lends that power to
      the heroes around it. Each evolution replaces the bolt with something of its own: a wolf, thorns on the path, or
      moonlight that hits every enemy in range. */
@@ -124,20 +132,17 @@ export const HEROES = [
     stats: withEnergy({ damage: 24, range: 115, cooldown: 0.85, castSpeed: 1, targets: 1 }, { strength: 3, dexterity: 4, intellect: 10, rootChance: 0.15 }), ultimate: 'grasp',
     evolutions: [{ level: 10, cost: 150, choices: [
       { id: 'animalic', name: 'Animalic Druid', color: '#c98a4b', kind: 'wolf', ultimate: 'enrage', attribute: 'dexterity', tags: ['melee', 'minion'], stats: { range: 130 },
-        mods: [...plus50cast, always('bleedChance'), { stat: 'damage', type: 'more', value: 0.25, scope: ['all'] }],
-        short: 'A wolf runs after the enemy furthest along the path and bites everything in front of it; its bites bleed.',
-        ultShort: 'Enrages the wolf: bigger and stronger, with twice the reach and twice the damage, for 6 seconds.' },
+        mods: [...evolved, always('bleedChance'), { stat: 'damage', type: 'more', value: 0.25, scope: ['all'] }],
+        short: 'A wolf runs after the enemy furthest along the path and bites everything in front of it; its bites bleed.' },
       { id: 'naturist', name: 'Naturist Druid', color: '#5fcf6a', kind: 'thorns', ultimate: 'spikes', tags: ['area'],
-        mods: plus50cast,
-        short: 'Grows thorns on the path ahead of the enemies; they hurt everything standing in them for 1.5 seconds. Cast speed grows them faster.',
-        ultShort: 'Every thorn patch erupts in spikes, dealing heavy damage to each enemy standing in one.' },
+        mods: evolved,
+        short: 'Grows thorns on the path ahead of the enemies; they hurt everything standing in them for 1.5 seconds. Cast speed grows them faster.' },
       { id: 'lunar', name: 'Lunar Druid', color: '#b8c8ff', kind: 'moonbeam', damageType: 'cold', ultimate: 'moonfall', tags: ['cold', 'area'],
-        applies: { chill: 'chillTime' }, stats: { chillTime: 1 }, mods: plus50cast,
-        short: 'Moonlight beams every enemy in range at once with cold damage, slowing them.',
-        ultShort: 'Brings down a moon that smashes the enemies around where it lands.' }
+        applies: { chill: 'chillTime' }, stats: { chillTime: 1 }, mods: evolved,
+        short: 'Moonlight beams every enemy in range at once with cold damage, slowing them.' }
     ] }],
     desc: 'Druid (spell): thorny bolts that can root enemies in place. Evolves into an Animalic, Naturist or Lunar Druid.',
-    short: 'Shoots thorny bolts that can root enemies in place (15%). At level 10, choose a path.' },
+    short: 'Shoots thorny bolts that can root enemies in place (15%).' },
   /* The Priest: a support caster (holy). Smite, and a Blessing for the heroes around her. Her forms: an aura that burns enemies
      and speeds up allies (Incantation, the first aura hero), a piercing lance from a hero who may stand on the path
      (Archangel), and energy for the heroes around her plus a saved life each wave (Gospel). Kit: js/engine/kits/priest.js. */
@@ -146,20 +151,17 @@ export const HEROES = [
     stats: withEnergy({ damage: 22, range: 115, cooldown: 0.9, castSpeed: 1, targets: 1 }, { strength: 2, dexterity: 3, intellect: 10 }), ultimate: 'blessing',
     evolutions: [{ level: 10, cost: 150, choices: [
       { id: 'incantation', name: 'Incantation', color: '#ffd76a', kind: 'aura', ultimate: 'crescendo', tags: ['aura'],
-        stats: { damage: 7, range: 100, cooldown: 0.5, energyPerAttack: 5 }, mods: plus50cast,
+        stats: { damage: 7, range: 70, cooldown: 0.5, energyPerAttack: 0.5 }, mods: evolved,
         aura: { bless: { id: 'hymn', name: 'Hymn', mods: [{ stat: 'speed', type: 'inc', value: 0.15 }, { stat: 'castSpeed', type: 'inc', value: 0.15 }] } },
-        short: 'No attack: a holy aura burns every enemy inside it, and heroes inside attack and cast 15% faster.',
-        ultShort: 'Crescendo: for 5 seconds the aura is twice as wide and deals triple damage.' },
-      { id: 'archangel', name: 'Archangel', color: '#fff6c8', kind: 'lance', ultimate: 'judgement', tags: ['projectile'], stats: { range: 130 }, mods: plus50cast,
+        short: 'No attack: a holy aura burns every enemy inside it, and heroes inside attack and cast 15% faster.' },
+      { id: 'archangel', name: 'Archangel', color: '#fff6c8', kind: 'lance', ultimate: 'judgement', tags: ['projectile'], stats: { range: 130 }, mods: evolved,
         flying: true,
-        short: 'Throws a lance of light that pierces every enemy in a line. Wings: she can be moved onto the path.',
-        ultShort: 'Judgement: a giant blade falls on the toughest enemy in range for 8x damage; a non-boss left under 25% life dies.' },
-      { id: 'gospel', name: 'Gospel', color: '#ffe9a0', kind: 'psalm', ultimate: 'conversion', tags: ['area'], mods: plus50cast, sanctuary: true,
-        short: 'Each Psalm gives 3 energy to every hero around her. Sanctuary: once a wave, the first enemy to reach the gate is turned back.',
-        ultShort: 'Conversion: the toughest enemy in range (not a boss) turns and walks back down the path, striking its old allies.' }
+        short: 'Throws a lance of light that pierces every enemy in a line. Wings: she can be moved onto the path.' },
+      { id: 'gospel', name: 'Gospel', color: '#ffe9a0', kind: 'psalm', ultimate: 'conversion', tags: ['area'], mods: evolved, sanctuary: true,
+        short: 'Each Psalm gives 3 energy to every hero around her. Sanctuary: once a wave, the first enemy to reach the gate is turned back.' }
     ] }],
     desc: 'Priest (spell): bolts of holy light, and a Blessing that strengthens the heroes around her. Evolves into an Incantation, Archangel or Gospel.',
-    short: 'Smites with bolts of holy light; her Blessing gives nearby heroes +30% damage. At level 10, choose a path.' },
+    short: 'Smites the enemy closest to your gate with bolts of holy light.' },
   /* The Warlock: shadow bolts that Corrupt (damage over time that grows with each stack). His forms: an aura that curses
      enemies so everyone hits them harder (Occult), imps and a Greater Demon (Summoner), burning ground and spreading fire
      (Infernalist). Kit: js/engine/kits/warlock.js. */
@@ -168,39 +170,33 @@ export const HEROES = [
     stats: withEnergy({ damage: 18, range: 115, cooldown: 0.9, castSpeed: 1, targets: 1 }, { strength: 2, dexterity: 3, intellect: 10, corruptionChance: 0.5 }), ultimate: 'souldrain',
     evolutions: [{ level: 10, cost: 150, choices: [
       { id: 'occult', name: 'Occult', color: '#7a4fc0', kind: 'aura', ultimate: 'doom', tags: ['aura', 'curse'],
-        stats: { damage: 4, range: 110, cooldown: 0.5, energyPerAttack: 5 }, mods: plus50cast, aura: { curse: 'hex' },
-        short: 'No attack: a shadow aura Hexes every enemy inside, so they take 20% more damage from everyone and move 15% slower.',
-        ultShort: 'Doom: for 4 seconds Hexed enemies take 50% more damage; any that die explode in shadow.' },
-      { id: 'summoner', name: 'Summoner', color: '#c46aff', kind: 'imps', ultimate: 'demongate', tags: ['minion'], stats: { cooldown: 1.6 }, mods: plus50cast,
-        short: 'Each cast summons an imp (up to 3, 10 seconds each) that throws small bolts at the enemies near it.',
-        ultShort: 'Demon gate: a Greater Demon steps out for 8 seconds and cleaves the enemies around it.' },
+        stats: { damage: 4, range: 110, cooldown: 0.5, energyPerAttack: 0.5 }, mods: evolved, aura: { curse: 'hex', harmless: true },
+        short: 'No attack and no damage: a shadow aura Hexes every enemy inside, so they take 20% more damage from everyone and move 15% slower.' },
+      { id: 'summoner', name: 'Summoner', color: '#c46aff', kind: 'imps', ultimate: 'demongate', tags: ['minion'], stats: { cooldown: 1.6 }, mods: evolved,
+        short: 'Each cast summons an imp (up to 3, 10 seconds each) that throws small bolts at the enemies near it.' },
       { id: 'infernalist', name: 'Infernalist', color: '#ff6a3a', kind: 'hellfire', damageType: 'fire', ultimate: 'infernal', tags: ['fire', 'area'],
-        convert: { shadow: 0.3 }, contagion: true, mods: [...plus50cast, always('burnChance')],
-        short: 'Hellfire: a fireball that bursts and leaves burning ground. Always burns; burns jump to the next enemy when one dies.',
-        ultShort: 'Infernal: a meteor crashes into the biggest group of enemies, then a burning golem stands there for 6 seconds.' }
+        convert: { shadow: 0.3 }, contagion: true, mods: [...evolved, always('burnChance')],
+        short: 'Hellfire: a fireball that bursts and leaves burning ground, aimed where there is none yet. Always burns; burns jump to the next enemy when one dies.' }
     ] }],
     desc: 'Warlock (spell): shadow bolts that Corrupt enemies, damage over time that grows with each stack. Evolves into an Occult, Summoner or Infernalist.',
-    short: 'Shadow bolts that Corrupt enemies (50%): damage over time that grows with each stack. At level 10, choose a path.' },
+    short: 'Shadow bolts that Corrupt enemies (50%): damage over time that grows with each stack.' },
   /* The Paladin: a slower, heavier Warrior; 30% of his damage is Holy. His forms: a fallen knight who grows stronger as lives
      are lost and can pay one to empower everyone (Heretic), a hunter of the toughest enemies (Inquisitor), and a mounted
      knight who charges down the path (Crusader). Kit: js/engine/kits/paladin.js. */
   { id: 'paladin', name: 'Paladin', archetype: 'melee', attribute: 'strength', kind: 'swing', damageType: 'physical', convert: { holy: 0.3 }, color: '#e8d27a',
     shape: [6, Math.PI / 6], tags: ['melee', 'attack', 'physical', 'holy'],
-    stats: withEnergy({ damage: 36, range: 60, cooldown: 0.95, speed: 1, arc: 120 }, { strength: 10, dexterity: 3, intellect: 4 }), ultimate: 'consecration',
+    arc: 120, stats: withEnergy({ damage: 36, range: 60, cooldown: 0.95, speed: 1 }, { strength: 10, dexterity: 3, intellect: 4 }), ultimate: 'consecration',
     evolutions: [{ level: 10, cost: 150, choices: [
       { id: 'heretic', name: 'Heretic', color: '#b04a3a', damageType: 'shadow', convert: { fire: 0.5 }, bloodPrice: 0.03, ultimate: 'heresy', tags: ['shadow', 'fire'],
-        mods: [...plus50, always('burnChance')],
-        short: 'A burning shadow flail (always burns), 3% stronger for every life lost this run.',
-        ultShort: 'Heresy: pays 1 life; every hero on the map deals +50% damage for 8 seconds (at most 3 lives a match, never at 5 or fewer; otherwise only the Heretic, for free).' },
-      { id: 'inquisitor', name: 'Inquisitor', color: '#f2e2a0', kind: 'verdict', damageType: 'holy', ultimate: 'purge', stats: { range: 100, cooldown: 0.8 }, mods: plus50,
-        short: 'A long chain flail at the toughest enemy in range; each hit adds a stack of Verdict (+5% damage taken from everything, up to 10).',
-        ultShort: 'Purge: every enemy in range loses all armor and 30 resistance for 6 seconds; a non-boss under 15% life dies.' },
-      { id: 'crusader', name: 'Crusader', color: '#d9b25a', kind: 'charge', mounted: true, ultimate: 'cavalry', tags: ['mounted'], stats: { range: 140, cooldown: 1.8, damage: 44 }, mods: plus50,
-        short: 'Charges on his horse down the nearest stretch of path toward the enemies, trampling and knocking back each one, then rides back.',
-        ultShort: 'Cavalry: three phantom riders gallop the whole path from the gate to the entrance, hitting and pushing back every enemy.' }
+        mods: [...evolved, always('burnChance')],
+        short: 'A burning shadow flail (always burns), 3% stronger for every life lost this run.' },
+      { id: 'inquisitor', name: 'Inquisitor', color: '#f2e2a0', kind: 'verdict', damageType: 'holy', ultimate: 'purge', stats: { range: 100, cooldown: 0.8 }, mods: evolved,
+        short: 'A long chain flail at the toughest enemy in range; each hit adds a stack of Verdict (+5% damage taken from everything, up to 10).' },
+      { id: 'crusader', name: 'Crusader', color: '#d9b25a', kind: 'charge', mounted: true, onPath: true, ultimate: 'cavalry', tags: ['mounted'], stats: { range: 140, cooldown: 1.8, damage: 44 }, mods: evolved,
+        short: 'Charges on his horse down the nearest stretch of path toward the enemies, trampling and knocking back each one, then rides back. He can stand on the path, and then rides only along it.' }
     ] }],
     desc: 'Paladin (melee): a heavy hammer, part of it holy, and Consecration. Evolves into a Heretic, Inquisitor or Crusader.',
-    short: 'A heavy hammer swing, 30% of it holy; Consecration burns the ground around him. At level 10, choose a path.' },
+    short: 'A heavy hammer swing at close range, 30% of it holy.' },
   /* The Shaman: chain lightning that hits several enemies, and Ancestral call (heroes nearby attack faster). The second
      strength hero. His forms: poison darts that link enemies so they share damage (Witch Doctor), totems that fight on their
      own (Totemist), and cracks in the path plus a quake that pushes every enemy back (Earthcaller). Kit: js/engine/kits/shaman.js. */
@@ -209,27 +205,25 @@ export const HEROES = [
     stats: withEnergy({ damage: 15, range: 110, cooldown: 0.9, castSpeed: 1, jumps: 2 }, { strength: 10, dexterity: 3, intellect: 6, shockChance: 0.1 }), ultimate: 'ancestral',
     evolutions: [{ level: 10, cost: 150, choices: [
       { id: 'witchdoctor', name: 'Witch Doctor', color: '#8ad04b', kind: 'darts', damageType: 'toxic', ultimate: 'locusts', tags: ['projectile', 'toxic', 'curse'],
-        stats: { damage: 11, cooldown: 0.55 }, mods: [...plus50cast, always('poisonChance')],
-        short: 'Fast poison darts (always poison); each Voodoo-links its target with 2 enemies near it: 30% of the damage one takes goes to the others.',
-        ultShort: 'Plague of locusts: a swarm flies from the gate back down the path, poisoning every enemy it passes.' },
-      { id: 'totemist', name: 'Totemist', color: '#d9a35a', kind: 'totems', ultimate: 'surge', tags: ['minion', 'totem'], stats: { cooldown: 2 }, mods: plus50cast,
-        short: 'Each cast plants a totem near him (up to 3, 12 seconds each): Flame, Frost and Storm in turn. Totems take up their tile.',
-        ultShort: 'Totem surge: every totem pulses for 4x damage around itself and stands its full time again.' },
+        stats: { damage: 11, cooldown: 0.55 }, mods: [...evolved, always('poisonChance')],
+        short: 'Fast poison darts (always poison) at an enemy not linked yet; each Voodoo-links its target with 2 enemies near it: 30% of the damage one takes goes to the others.' },
+      { id: 'totemist', name: 'Totemist', color: '#d9a35a', kind: 'totems', ultimate: 'surge', tags: ['minion', 'totem'], stats: { cooldown: 2 }, mods: evolved,
+        short: 'Each cast plants a missing totem near him (up to 3, one of each: Flame, Frost, Storm; 12 seconds each). Totems take up their tile.' },
       { id: 'earthcaller', name: 'Earthcaller', color: '#b08a5a', kind: 'fissure', damageType: 'physical', ultimate: 'tectonic', tags: ['physical', 'area'],
-        stats: { range: 120, damage: 20 }, mods: plus50cast,
-        short: 'Fissure: the path cracks behind the leading enemy, hitting everyone on that stretch and stunning them for a moment.',
-        ultShort: 'Tectonic shift: every enemy on the map takes 2x damage and is pushed back 1.5 tiles.' }
+        stats: { range: 120, damage: 20 }, mods: evolved,
+        short: 'Fissure: the path cracks behind the leading enemy, hitting everyone on that stretch and stunning them for a moment.' }
     ] }],
     desc: 'Shaman (spell): chain lightning that jumps to 2 more enemies, and Ancestral call. Evolves into a Witch Doctor, Totemist or Earthcaller.',
-    short: 'Chain lightning that jumps to 2 more enemies; Ancestral call makes nearby heroes faster. At level 10, choose a path.' }
+    short: 'Chain lightning that jumps to 2 more enemies.' }
 ];
 HEROES.forEach(h => h.tags.push(h.id));
 
 /* A hero's evolved form: the base hero with the choice's changes on top. The id stays the base hero's, so talents, items
    and the lineup keep working; form holds the choice's id. */
-/* Traits a form can add or change (read by the engine on hero.def): flying (may stand on the path), sanctuary, aura,
+/* Traits a form can add or change (read by the engine on hero.def): flying (may stand on the path), onPath (the Crusader: may
+   stand on the path too, and then rides only along it), sanctuary, aura,
    convert (a share of the damage as another type), bloodPrice, contagion, projLook, projSpeed. */
-const TRAITS = ['flying', 'mounted', 'sanctuary', 'aura', 'convert', 'bloodPrice', 'contagion', 'projLook', 'projSpeed'];
+const TRAITS = ['flying', 'onPath', 'mounted', 'sanctuary', 'aura', 'convert', 'bloodPrice', 'contagion', 'projLook', 'projSpeed'];
 /* The taxonomy (see README): delivery tags (melee, projectile, trap, aura, area), source tags (attack, spell, minion) and the
    damage type's tag. A form with its own attribute (attribute on the choice) swaps the two values, so the hero keeps what it had: the Druid's
    10 intellect and 4 dexterity become the Animalic Druid's 10 dexterity and 4 intellect. Hero levels raise the main attribute,
@@ -279,9 +273,9 @@ export const STAGES = [
 
 export const STAT_LABELS = {
   damage: 'Damage', range: 'Range', speed: 'Attacks per second', chillTime: 'Chill duration (s)', jumps: 'Chain jumps',
-  rampRate: 'Beam ramp speed', arc: 'Swing arc (°)', targets: 'Targets per attack',
+  rampRate: 'Beam ramp speed', targets: 'Targets per attack',
   strength: 'Strength', dexterity: 'Dexterity', intellect: 'Intellect', mainAttribute: 'Main attribute',
-  castSpeed: 'Casts per second', critChance: 'Crit chance', critDamage: 'Crit damage (multiplier)',
+  castSpeed: 'Casts per second', resPen: 'Resistance penetration', duration: 'Duration (multiplier)', spread: 'Damage spread', critChance: 'Crit chance', critDamage: 'Crit damage (multiplier)',
   energyMax: 'Energy needed', energyPerAttack: 'Energy per attack', energyPerSecond: 'Energy per second',
   ...COMBAT_LABELS, relicLuck: 'Relic luck',
   minionDamage: 'Minion damage (multiplier)', minionSpeed: 'Minion attack speed (multiplier)', minionCritChance: 'Minion crit chance', minionCritDamage: 'Minion crit damage (added)',
@@ -349,12 +343,12 @@ export const RELICS = [
   { name: 'Fine arrows',       desc: m => '+' + f(P(30) * m) + '% damage to projectile heroes', mods: m => [hero('damage', 'inc', P(0.3) * m, ['projectile'])] },
   { name: 'Whetstone',         desc: m => '+' + f(P(30) * m) + '% damage to melee heroes',      mods: m => [hero('damage', 'inc', P(0.3) * m, ['melee'])] },
   { name: 'Arcane focus',      desc: m => '+' + f(P(30) * m) + '% damage to spell heroes',      mods: m => [hero('damage', 'inc', P(0.3) * m, ['spell'])] },
-  { name: 'Wide swing',        desc: m => '+' + f(P(20) * m) + '° swing arc',                    mods: m => [hero('arc', 'flat', P(20) * m, ['melee'])] },
   { name: 'Keen edge',         desc: m => '+' + f(P(20) * m) + '% crit chance',                  mods: m => [hero('critChance', 'flat', P(0.2) * m, ['all'])] },
   { name: 'Cruelty',           desc: m => '+' + f(P(50) * m) + '% crit damage',                  mods: m => [hero('critDamage', 'flat', P(0.5) * m, ['all'])] },
   { name: 'Quick incantation', desc: m => '+' + f(P(20) * m) + '% cast speed (spell heroes)',    mods: m => [hero('castSpeed', 'inc', P(0.2) * m, ['spell'])] },
   /* Attributes: a named one helps any hero (its side effect, see ATTRIBUTE_EFFECTS, and damage if it is the hero's own);
      Prowess raises whichever is the hero's own, and follows a form that changes attribute. */
+  { name: 'Duration',          desc: m => '+' + f(P(50) * m) + '% duration of buffs, debuffs and damage over time',   mods: m => [hero('duration', 'inc', P(0.5) * m, ['all'])] },
   { name: 'Brawn',             desc: m => '+' + 3 * m + ' strength',                             mods: m => [hero('strength', 'flat', 3 * m, ['all'])] },
   { name: 'Finesse',           desc: m => '+' + 3 * m + ' dexterity',                            mods: m => [hero('dexterity', 'flat', 3 * m, ['all'])] },
   { name: 'Insight',           desc: m => '+' + 3 * m + ' intellect',                            mods: m => [hero('intellect', 'flat', 3 * m, ['all'])] },

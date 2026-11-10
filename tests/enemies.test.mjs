@@ -17,11 +17,11 @@ test('defenses start at 0 on wave 1 and grow each wave, faster on harder levels'
   assert.equal(defensesFor(ENEMIES.grunt, 15, 1).res.physical, undefined, 'physical is handled by armor, not a resistance');
 });
 
-test('each enemy type has its own defenses: Brutes are armored, Runners resist, Bosses have both', () => {
+test('each enemy type has its own defenses, and armor and resistances grow together: tougher kinds have more', () => {
   const at = type => defensesFor(ENEMIES[type], 15, 1);
-  assert.ok(at('brute').armor > at('grunt').armor && at('brute').armor > at('runner').armor);
-  assert.ok(at('runner').res.fire > at('grunt').res.fire && at('runner').res.fire > at('brute').res.fire);
-  assert.ok(at('boss').armor >= at('brute').armor && at('boss').res.cold > at('grunt').res.cold);
+  for (const t of Object.keys(ENEMIES)) for (const r of Object.values(at(t).res)) assert.equal(r, at(t).armor, t);
+  assert.ok(at('brute').armor > at('grunt').armor && at('grunt').armor > at('runner').armor && at('boss').armor >= at('brute').armor);
+  assert.equal(defensesFor(ENEMIES.grunt, 1, 1).armor, 0, 'none on the first wave');
 });
 
 test('defenses cap at 99%, whatever the threat (ready for endless)', () => {

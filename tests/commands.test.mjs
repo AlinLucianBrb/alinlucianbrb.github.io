@@ -36,7 +36,7 @@ test('items apply to the hero wearing them, only if that hero is in the lineup',
   assert.deepEqual(createWorld({ seed: 1, lineup: ['ranger'], items: { warrior: 'power_charm' } }).items, {}, 'items on heroes left at home are ignored');
 });
 
-test('evolving needs level 10 and costs gold, gives +50% damage, range and attack speed, and only once for now (Warrior to Sentinel)', () => {
+test('evolving needs level 10 and costs gold, gives +25% to all the base stats, and only once for now (Warrior to Sentinel)', () => {
   const w = richWorld(), [t] = tilesNearPath(w, 1), h = place(w, 'warrior', ...t);
   assert.equal(apply(w, { type: 'evolve', id: h.id, choice: 2 }).reason, 'level', 'a fresh hero is level 1');
   h.level = 10;   /* test only: skip the XP (levels are tested in levels.test.mjs) */
@@ -44,7 +44,10 @@ test('evolving needs level 10 and costs gold, gives +50% damage, range and attac
   assert.equal(w.evolveCost(h), 150);
   assert.ok(apply(w, { type: 'evolve', id: h.id, choice: 2 }).ok);
   assert.equal(g - w.gold, 150); assert.equal(h.tier, 1);
-  assert.equal(h.s.damage, before.damage * 1.5); assert.equal(h.s.range, before.range * 1.5); assert.equal(h.s.speed, before.speed * 1.5);
+  const near = (a, b) => Math.abs(a - b) < 1e-9;
+  for (const k of ['strength', 'dexterity', 'intellect', 'speed']) assert.ok(near(h.s[k], before[k] * 1.25), k);
+  assert.ok(near(h.s.damage, 28 * (1 + h.s.strength * 0.01) * 1.25), 'damage: +25%, with the higher strength');
+  assert.ok(near(h.s.range, 60 * (1 + h.s.strength * 0.0025) * 1.25), 'range: +25%, with the higher strength');
   assert.equal(apply(w, { type: 'evolve', id: h.id, choice: 2 }).reason, 'fully evolved');
   assert.equal(w.evolveCost(h), null);
   const w2 = createWorld({ seed: 1 }), h2 = place(w2, 'warrior', ...tilesNearPath(w2, 1)[0]); h2.level = 10;
@@ -60,7 +63,7 @@ test('evolution stacks with relics and Bulk order makes it cheaper', () => {
   recalc(w);
   assert.equal(w.evolveCost(h), Math.round(150 * (1 - 0.0225 * 2)), 'Uncommon Bulk order: -4.5%');
   apply(w, { type: 'evolve', id: h.id, choice: 2 });
-  assert.ok(Math.abs(h.s.damage - 28 * (1 + 0.0375 + 0.10 + 0.03 * 9) * 1.5) < 1e-9, 'relic, strength and level bonuses add up, then evolution multiplies');
+  assert.ok(Math.abs(h.s.damage - 28 * (1 + 0.0375 + (10 + 3 * 9) * 1.25 * 0.01) * 1.25) < 1e-9, 'relic, strength and level bonuses add up, then evolution multiplies');
 });
 
 test('moving needs a free tile and briefly delays the next attack', () => {

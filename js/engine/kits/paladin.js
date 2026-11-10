@@ -21,24 +21,24 @@ registerUltimate('consecration', { name: 'Consecration', desc: 'The ground aroun
   onFire(w, h) { w.zones.push(pulseZone(h, h.x, h.y, { r: CONSECRATION.radius, t: CONSECRATION.seconds, every: CONSECRATION.every, scale: CONSECRATION.scale, as: 'holy', look: 'consecrate' })); } });
 
 /* ---- Heretic ---- */
-/* Heresy: pays 1 life and gives every hero on the map +50% damage for 8 seconds. Ultimates fire by themselves, so the price
-   is limited: each Heretic pays at most HERESY.maxPaid lives a match, and never at HERESY.minLives or fewer; otherwise only
-   the Heretic is empowered, for free. In co-op the lives are everyone's. */
-export const HERESY = { seconds: 8, minLives: 5, maxPaid: 3, mods: [{ stat: 'damage', type: 'more', value: 0.5 }] };
-registerUltimate('heresy', { name: 'Heresy', desc: 'Pays 1 life: every hero on the map deals +50% damage for 8 seconds. At most 3 lives a match, never at 5 or fewer; otherwise only the Heretic is empowered, for free.', damageMult: 1,
+/* Heresy: every hero on the map deals +50% damage for 8 seconds; if the Heretic can pay a life for it, twice that (+100%).
+   Ultimates fire by themselves, so the price is limited: each Heretic pays at most HERESY.maxPaid lives a match, and never
+   at HERESY.minLives or fewer. In co-op the lives are everyone's. */
+export const HERESY = { seconds: 8, minLives: 5, maxPaid: 3, mods: [{ stat: 'damage', type: 'more', value: 0.5 }], paid: [{ stat: 'damage', type: 'more', value: 1 }] };
+registerUltimate('heresy', { buff: 'heresy', name: 'Heresy', desc: 'Every hero on the map deals +50% damage for 8 seconds, or +100% if he can pay 1 life for it (at most 3 lives a match, never at 5 or fewer).', damageMult: 1,
   onFire(w, h) {
     const pay = w.lives > HERESY.minLives && (h.heresyPaid || 0) < HERESY.maxPaid;
     if (pay) { w.lives -= 1; h.heresyPaid = (h.heresyPaid || 0) + 1; }
-    for (const o of pay ? w.heroes : [h]) w.addBuff(o, 'heresy', 'Heresy', HERESY.mods, HERESY.seconds);
+    for (const o of w.heroes) w.addBuff(o, 'heresy', pay ? 'Heresy (paid)' : 'Heresy', pay ? HERESY.paid : HERESY.mods, HERESY.seconds, h);
     w.ev.emit('heresy', { hero: h, paid: pay });
   } });
 
 /* ---- Inquisitor ---- */
 /* Verdict: each hit adds a stack on the enemy (up to 10, for 5 seconds after the last): +5% damage taken from everything. */
 export const VERDICT = { seconds: 5 };
-export function addVerdict(e) {
+export function addVerdict(e, by = null) {
   const fx = (e.fx ||= {}), v = fx.verdict || (fx.verdict = { t: 0, n: 0 });
-  v.n = Math.min(EFFECTS.verdict.maxStacks, v.n + 1); v.t = VERDICT.seconds;
+  v.n = Math.min(EFFECTS.verdict.maxStacks, v.n + 1); v.t = VERDICT.seconds * (by && by.s && by.s.duration || 1);
 }
 registerBehavior('verdict', {
   update(g, t, dt) {
@@ -49,21 +49,21 @@ registerBehavior('verdict', {
     rearm(t);
     if (mult !== 0) {
       g.attack(t, tg, mult);
-      if (!tg.dead) addVerdict(tg);
+      if (!tg.dead) addVerdict(tg, t);
       g.fx?.beam(t.x, t.y - 6, tg.x, tg.y, 0.12, mult > 1 ? '#fff6c8' : 'rgba(200,200,190,.85)', mult > 1 ? 4 : 2);   /* the chain */
       g.fx?.slash(tg.x, tg.y, Math.atan2(tg.y - t.y, tg.x - t.x), Math.PI / 4, 18, 0.15, look(t, mult));
     }
     charge(g, t);
   }
 });
-/* Purge: every enemy in range loses all armor and 30 resistance for 6 seconds; a non-boss under 15% life dies. */
+/* Purge: every enemy in range loses 30 points of armor and of every resistance for 6 seconds; a non-boss under 15% life dies. */
 export const PURGE = { seconds: 6, resDown: 0.3, execute: 0.15 };
-registerUltimate('purge', { name: 'Purge', desc: 'Every enemy in range loses all armor and 30 resistance for 6 seconds; a non-boss under 15% life dies.', damageMult: 1,
+registerUltimate('purge', { name: 'Purge', desc: 'Every enemy in range loses 30% armor and 30% resistances for 6 seconds; a non-boss under 15% life dies.', damageMult: 1,
   onFire(w, h) {
     const r2 = h.s.range * h.s.range;
     for (const e of [...w.enemies]) {
       if (e.dead || (e.x - h.x) ** 2 + (e.y - h.y) ** 2 > r2) continue;
-      applyEffect(e, 'purge', { t: PURGE.seconds, resDown: PURGE.resDown });
+      applyEffect(e, 'purge', { t: PURGE.seconds, resDown: PURGE.resDown }, h);
       execute(w, h, e, PURGE.execute);
     }
     w.fx?.slash(h.x, h.y, 0, Math.PI, h.s.range, 0.45, 'rgba(255,246,200,.35)');
@@ -94,7 +94,9 @@ registerBehavior('charge', {
     const mult = strike(g, t, tg);
     if (mult === 0) { rearm(t); charge(g, t); return; }
     pathPos(g.path, t._pd.d / T, rp);
-    t.ride = { phase: 'out', x: t.x, y: t.y, d: t._pd.d, to: Math.max(0, t._pd.d - CHARGE.length), tx: rp.x, ty: rp.y, hit: new Set(), mult, face: rp.x < t.x ? -1 : 1 };
+    /* Standing on the path, he only ever rides along it: straight into the charge, and back the same way. */
+    const onPath = !!g.pathSet && g.pathSet.has(t.cx + ',' + t.cy);
+    t.ride = { phase: onPath ? 'ride' : 'out', onPath, home: t._pd.d, x: onPath ? rp.x : t.x, y: onPath ? rp.y : t.y, d: t._pd.d, to: Math.max(0, t._pd.d - CHARGE.length), tx: rp.x, ty: rp.y, hit: new Set(), mult, face: rp.x < t.x ? -1 : 1 };
     charge(g, t);
   }
 });
@@ -107,7 +109,16 @@ function moveTo(r, x, y, step) {
 function ride(g, t, r, dt) {
   const step = CHARGE.speed * dt;
   if (r.phase === 'out') { if (moveTo(r, r.tx, r.ty, step)) r.phase = 'ride'; return; }
-  if (r.phase === 'back') { if (moveTo(r, t.x, t.y, step)) { t.ride = null; rearm(t); } return; }
+  if (r.phase === 'back') {
+    if (r.onPath) {                       /* back up the path to his tile */
+      const before = r.x; r.d = Math.min(r.home, r.d + step); pathPos(g.path, r.d / T, r);
+      if (Math.abs(r.x - before) > 0.5) r.face = r.x < before ? -1 : 1;
+      if (r.d >= r.home) { t.ride = null; rearm(t); }
+      return;
+    }
+    if (moveTo(r, t.x, t.y, step)) { t.ride = null; rearm(t); }
+    return;
+  }
   const before = r.x;
   r.d = Math.max(r.to, r.d - step);
   pathPos(g.path, r.d / T, r);

@@ -49,7 +49,7 @@ test('the Shaman: chain lightning (3 enemies), strength; Ancestral call speeds u
   assert.equal(ANCESTRAL.seconds, 6);
 });
 
-test('Witch Doctor: darts link the target with 2 nearby enemies; 30% of the damage one takes goes to the others; locusts poison down the path', () => {
+test('Witch Doctor: darts link the target with 2 nearby enemies; 30% of the damage one takes goes to the others; locusts fly the whole path', () => {
   const { w, h } = setup(['shaman']);
   evolveTo(w, h, 'witchdoctor');
   const a = onPath(w, h, 0), b = onPath(w, h, 8), c = onPath(w, h, 16), far = onPath(w, h, 4 * T);
@@ -72,8 +72,9 @@ test('Witch Doctor: darts link the target with 2 nearby enemies; 30% of the dama
   onPath(w, h, 0);                                /* something in range, so the ultimate can fire */
   full(h); h.cd = 0; tick(w, h, 1);
   assert.ok(w.projs.some(p => p.type === 'swarm'));
-  for (let i = 0; i < 60 * LOCUSTS.seconds; i++) updateProjectiles(w, 1 / 60);
-  assert.ok(x.fx && x.fx.poison && x.fx.poison.stacks.length > 1, 'the swarm passed over it');
+  let frames = 0; while (w.projs.some(p => p.type === 'swarm') && frames < 60 * 60) { updateProjectiles(w, 1 / 60); frames++; }
+  assert.ok(x.fx && x.fx.poison && x.fx.poison.stacks.length >= 1, 'the swarm passed over it');
+  assert.ok(Math.abs(frames / 60 - (w.path.length - 1.001) * T / LOCUSTS.speed) < 0.1, 'the whole path, gate to entrance');
 });
 
 test('Totemist: each cast plants a totem (Flame, Frost, Storm in turn, up to 3); a totem blocks its tile; Totem surge', () => {

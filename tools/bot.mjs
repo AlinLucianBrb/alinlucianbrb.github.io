@@ -83,8 +83,9 @@ export function playRun({ seed = 1, stage = 1, strategy = 'trio', level = 1, rel
     for (const h of w.heroes) {
       const step = h.base.evolutions[h.tier];
       if (!step || h.level < step.level || w.gold < w.evolveCost(h)) continue;
-      const i = step.choices.findIndex(c => wanted.includes(c.id));
-      apply(w, { type: 'evolve', id: h.id, choice: i >= 0 ? i : 0 });
+      /* the wanted form, else the first that deals damage (the Occult only curses: no use to a bot playing alone) */
+      const i = step.choices.findIndex(c => wanted.includes(c.id)), fallback = Math.max(0, step.choices.findIndex(c => !(c.aura && c.aura.harmless)));
+      apply(w, { type: 'evolve', id: h.id, choice: i >= 0 ? i : fallback });
     }
     const evolving = w.heroes.some(h => w.evolveCost(h) !== null && h.level >= h.base.evolutions[h.tier].level);
     if (relics && !evolving && w.relicsBought < 12 && w.gold >= w.relicCost() && apply(w, { type: 'buyRelic' }).ok) {

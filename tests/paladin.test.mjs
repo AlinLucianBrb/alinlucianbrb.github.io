@@ -51,7 +51,7 @@ test('the Paladin: melee, strength, 30% of his damage holy; Consecration; three 
   assert.ok(z && z.r === CONSECRATION.radius && z.as === 'holy');
 });
 
-test('Heretic: burns, grows with lives lost, and Heresy pays a life to empower every hero (never at 5 lives or fewer)', () => {
+test('Heretic: burns, grows with lives lost; Heresy empowers every hero, twice as much when it pays a life (never at 5 lives or fewer)', () => {
   const { w, h } = setup(['paladin', 'warrior']);
   evolveTo(w, h, 'heretic');
   const ally = place(w, 'warrior', ...(() => { for (let cx = 1; cx < 15; cx++) for (let cy = 1; cy < 9; cy++) if (!w.pathSet.has(cx + ',' + cy) && !w.heroes.some(o => o.cx === cx && o.cy === cy)) return [cx, cy]; })());
@@ -60,13 +60,17 @@ test('Heretic: burns, grows with lives lost, and Heresy pays a life to empower e
   const lives = w.lives;
   full(h); h.cd = 0; tick(w, h, 1);
   assert.equal(w.lives, lives - 1, 'paid a life');
-  assert.ok(ally.buffs.some(b => b.id === 'heresy') && h.buffs.some(b => b.id === 'heresy'), 'every hero');
-  for (let i = 0; i < 5; i++) { full(h); h.cd = 0; tick(w, h, 1); }
+  const buff = x => x.buffs.find(b => b.id === 'heresy');
+  assert.ok(buff(ally) && buff(h), 'every hero'); assert.equal(buff(ally).mods[0].value, 1, '+100% when paid');
+  full(h); h.cd = 0; tick(w, h, 1);
+  assert.equal(w.lives, lives - 1, 'not cast again while its buff lasts'); assert.equal(h.energy, h.s.energyMax);
+  const expire = () => { for (const o of [h, ally]) { o.buffs.length = 0; w.statsFor(o); } };
+  for (let i = 0; i < 5; i++) { expire(); full(h); h.cd = 0; tick(w, h, 1); }
   assert.equal(w.lives, lives - HERESY.maxPaid, 'at most 3 lives a match');
-  w.lives = HERESY.minLives; h.heresyPaid = 0; ally.buffs.length = 0; w.statsFor(ally);
+  w.lives = HERESY.minLives; h.heresyPaid = 0; expire();
   full(h); h.cd = 0; tick(w, h, 1);
   assert.equal(w.lives, HERESY.minLives, 'never below');
-  assert.ok(!ally.buffs.some(b => b.id === 'heresy'), 'then only the Heretic');
+  assert.equal(buff(ally).mods[0].value, 0.5, 'then +50%, for every hero');
 });
 
 test('Inquisitor: hits the toughest enemy in range, stacking Verdict up to 10; Purge strips defenses and executes', () => {
@@ -79,11 +83,11 @@ test('Inquisitor: hits the toughest enemy in range, stacking Verdict up to 10; P
   assert.ok(Math.abs(damageTaken(tough) - 1.5) < 1e-9);
   /* Purge */
   w.enemies.length = 0;
-  const armored = onPath(w, h, 0, 1e6); armored.armor = 50; armored.res = { fire: 0.2, holy: 0.2 };
+  const armored = onPath(w, h, 0, 1e6); armored.armor = 0.5; armored.res = { fire: 0.2, holy: 0.2 };
   const dying = onPath(w, h, 4, 1000); dying.hp = 100;
   full(h); h.cd = 0; tick(w, h, 1);
   assert.ok(armored.fx.purge, 'purged'); assert.ok(dying.dead, 'executed under 15%');
-  assert.equal(mitigate(armored, 'physical', 100), 100, 'no armor');
+  assert.ok(Math.abs(mitigate(armored, 'physical', 100) - 80) < 1e-9, '30 points off the armor');
   assert.ok(Math.abs(mitigate(armored, 'fire', 100) - 110) < 1e-9, '30 resistance off');
   assert.equal(PURGE.seconds, 6);
 });

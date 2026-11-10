@@ -35,10 +35,10 @@ test('with no armor or resistances nothing changes: enemies take the full hit', 
   w.attack(h, e); assert.equal(dealt(e), 16);
 });
 
-test('armor stops more of small hits than of big ones, up to 99%', () => {
-  const e = { armor: 100, res: {}, fx: null };
-  assert.ok(Math.abs(mitigate(e, 'physical', 20) - 20 * (1 - 100 / (100 + 100))) < near, '20 dmg vs 100 armor: half gets through');
-  assert.ok(mitigate(e, 'physical', 200) / 200 > mitigate(e, 'physical', 20) / 20, 'bigger hits are reduced less');
+test('armor blocks a share of physical hits, like a resistance, up to 99%', () => {
+  const e = { armor: 0.5, res: {}, fx: null };
+  assert.ok(Math.abs(mitigate(e, 'physical', 20) - 10) < near, '50% armor: half gets through');
+  assert.ok(Math.abs(mitigate(e, 'physical', 200) / 200 - mitigate(e, 'physical', 20) / 20) < near, 'the same share of any hit');
   assert.ok(Math.abs(mitigate({ armor: 1e9, res: {} }, 'physical', 10) - 0.1) < near, 'never more than 99%');
   assert.equal(mitigate(e, 'fire', 20), 20, 'armor does nothing against fire');
   assert.equal(mitigate(e, 'physical', 20, false), 20, 'armor does not stop damage over time');
@@ -64,7 +64,7 @@ test("added damage of other types is dealt alongside the hero's own, each reduce
 test('the Mage deals arcane damage, so arcane resistance applies to it (and nothing else does)', () => {
   const { w, h } = setup('mage');
   const e = enemyAt(w, h.x + 20, h.y, 10); e.res = { arcane: 0.5, cold: 0.75 };
-  w.attack(h, e); assert.equal(dealt(e), 13);
+  w.attack(h, e); assert.ok(Math.abs(dealt(e) - h.s.damage * (1 - (0.5 - h.s.resPen))) < 1e-9, 'half resisted (a little less: strength penetrates)');
 });
 
 test('bleed: 70% of the physical hit per second for 4 s; only the strongest bleed counts; credited to the hero', () => {
@@ -100,9 +100,9 @@ test('burn comes only from fire; a warrior with fire damage burns, one without d
   assert.ok(Math.abs(e2.fx.burn.dps - 0.9 * 10) < near);
 });
 
-test('shock lowers defenses for 2 s: half the armor, and 20 points off every resistance', () => {
-  const e = { armor: 100, res: { fire: 0.5, cold: 1.5 }, fx: { shock: { t: 2, armorDown: 0.5, resDown: 0.2 } } };
-  assert.ok(Math.abs(mitigate(e, 'physical', 20) - 20 * (1 - 50 / (50 + 100))) < near, 'armor 100 counts as 50');
+test('shock lowers defenses for 2 s: 20 points off armor and off every resistance alike', () => {
+  const e = { armor: 0.5, res: { fire: 0.5, cold: 1.5 }, fx: { shock: { t: 2, resDown: 0.2 } } };
+  assert.ok(Math.abs(mitigate(e, 'physical', 100) - 70) < near, '50% armor counts as 30%');
   assert.ok(Math.abs(mitigate(e, 'fire', 100) - 70) < near, '50% fire resistance counts as 30%');
   assert.ok(Math.abs(mitigate(e, 'cold', 100) - 21) < near, 'capped at 99% first, then shocked down to 79%');
   assert.ok(Math.abs(mitigate(e, 'toxic', 100) - 120) < near, 'no resistance: shocked to -20%, so 20% extra');
@@ -110,7 +110,7 @@ test('shock lowers defenses for 2 s: half the armor, and 20 points off every res
   const t = enemyAt(w, h.x + 30, h.y, 10);
   w.attack(h, t); const first = dealt(t);
   assert.equal(first, 33, 'the hit that shocks is not boosted');
-  w.attack(h, t); assert.ok(Math.abs(dealt(t) - first - (28 + 6)) < near, 'next hit: physical unchanged (no armor), lightning +20%');
+  w.attack(h, t); assert.ok(Math.abs(dealt(t) - first - (28 + 5) * 1.2) < near, 'next hit: physical and lightning both +20% (no armor or resistance to start with)');
   tick(w, t, 2.1); assert.ok(!t.fx.shock);
 });
 

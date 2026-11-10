@@ -31,7 +31,8 @@ test('level-ups: XP carries over, each level adds +3 to the hero\'s own attribut
   assert.equal(h.level, 3); assert.equal(h.xp, 25 - 10 - 12); assert.deepEqual(ups, [2, 3]);
   assert.equal(h.s.strength, 16, 'level 3: 10 strength + 6');
   assert.ok(Math.abs(h.s.damage - 28 * 1.16) < 1e-9, '16 strength = +16% damage');
-  assert.deepEqual(levelMods(1), []); assert.equal(levelMods(5)[0].value, 12); assert.equal(levelMods(5)[0].stat, 'mainAttribute');
+  assert.deepEqual(levelMods(1), []); assert.equal(levelMods(5)[0].value, 8); assert.equal(levelMods(5)[0].stat, 'mainAttribute');
+  assert.equal(h.s.dexterity, 4 + 2, '+1 to the other attributes a level');
 });
 
 test('levels stop at the maximum', () => {
