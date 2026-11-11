@@ -1,12 +1,17 @@
-/* A simple bot that plays the game through the same commands a player uses. It is not clever: it is a repeatable yardstick
-   for balance ("how often does a sensible, unskilled player win level 3?") and a source of long, realistic test runs.
-   It places each hero in its lineup once on the best tile it can find, then spends gold on evolutions and relics. */
+/* The balance bot: plays the game through the same commands a player uses, as a repeatable yardstick for balance ("how often
+   does a good player win level 3 with these heroes?") and a source of long, realistic test runs. It places each hero on the
+   best tile it can find, then spends gold on evolutions and relics. With skill 'smart' (the default) it plays like a good
+   player (tools/balance/smart.mjs); 'simple' is the first, plainer bot. The experiments and the HTML report built on it are
+   in tools/balance/ (npm run balance:report). */
 import { HEROES, RARITIES, STAGES, T } from '../js/content/data.js';
 import { TREES, TREE_ID, pathTo, pointsFor } from '../js/content/talents.js';
 import { createWorld, step, summary } from '../js/engine/world.js';
 import { apply } from '../js/engine/commands.js';
 import { exportLog } from '../js/engine/replay.js';
 import { affected, heroStats } from '../js/engine/stats.js';
+import { spotsFor, offerValue, bestForm, betterSpot } from './balance/smart.mjs';
+import { gearFor, playedDef } from './balance/gear.mjs';
+import { attach } from './balance/collect.mjs';
 
 /* Lineups the bot can play with. */
 export const STRATEGIES = {
@@ -29,8 +34,8 @@ export const STRATEGIES = {
 const HERO_CLUSTERS = { warrior: ['martial', 'sunder'], ranger: ['marksman'], mage: ['sorcery'], rogue: ['martial', 'precision'], druid: ['sorcery'],
   priest: ['sorcery', 'toxins'], warlock: ['sorcery', 'toxins'], paladin: ['martial', 'sunder'], shaman: ['sorcery', 'lightning'] };
 export function talentsFor(level, strategy = 'trio') {
-  const points = pointsFor(level), picked = new Set();
-  const order = [...new Set(['might', ...STRATEGIES[strategy].flatMap(h => HERO_CLUSTERS[h] || []), 'precision', 'energy', 'gate', 'toxins', 'wealth', 'lightning', 'fire', 'cold', 'relics', 'tempo', 'fortune'])];
+  const points = pointsFor(level), picked = new Set(), team = Array.isArray(strategy) ? strategy : STRATEGIES[strategy];
+  const order = [...new Set(['might', ...team.flatMap(h => HERO_CLUSTERS[h] || []), 'precision', 'energy', 'gate', 'toxins', 'wealth', 'lightning', 'fire', 'cold', 'relics', 'tempo', 'fortune'])];
   const clusters = TREES[TREE_ID].clusters;
   for (const key of order) {
     const cl = clusters.find(c => c.key === key); if (!cl) continue;
@@ -45,8 +50,79 @@ export function talentsFor(level, strategy = 'trio') {
   return [...picked];
 }
 
-/* Free tiles ranked by how many path tiles are within a hero's range (later path tiles count a little more). */
-function spotsFor(w, range) {
+function scoreOffer(w, o) {
+  const m = RARITIES[o.ri].mult, a = affected(o.relic, m, w.heroes);
+  if (a.global) return (o.relic.name === 'Reinforced gate' ? 2 : 1.5) * m;
+  let n = 0; for (const c of a.types.values()) n += c;
+  return n * 3 * m;
+}
+
+/* Plays one run and returns { world, result, log, stage, strategy, level, maxWave, metrics }.
+   lineup (or strategy, a name in STRATEGIES): the heroes. level: the player level (its talents, see talentsFor).
+   skill: 'smart' (default: see tools/balance/smart.mjs) or 'simple' (the first bot: best tile once, first form, relics by
+   how many heroes they touch). form: forms to take, by id, comma-separated ('firemage,hunter'); others are chosen by the
+   skill. paths: true takes those forms as evolution paths before the match. gear: 'none', 'common', 'rare' or 'epic'
+   (tools/balance/gear.mjs; items overrides it). relics: false buys none. startRelics: [{ name, ri }] given before wave 1.
+   collect: true also returns the measurements of tools/balance/collect.mjs. */
+export function playRun({ seed = 1, stage = 1, strategy = 'trio', lineup = null, level = 1, relics = true, startRelics = [], items = null, gear = 'none',
+  form = '', paths = false, skill = 'smart', collect = false, maxTicks = 4000000 } = {}) {
+  const wanted = String(form || '').split(',').filter(Boolean), smart = skill !== 'simple';
+  const team = lineup || STRATEGIES[strategy];
+  const way = {};
+  if (paths) for (const id of team) { const c = HEROES.find(h => h.id === id).evolutions[0].choices.find(x => wanted.includes(x.id)); if (c) way[id] = c.id; }
+  const w = createWorld({ seed, stage, talents: talentsFor(level, team), lineup: team, items: items || gearFor(team, gear, way), paths: way, relics: startRelics });
+  const rec = collect ? attach(w) : null;
+  const rangeOf = id => heroStats(playedDef(id, way[id]), w.mods).range;
+  /* Place every hero once, the shortest range first, so it gets the tiles right next to the path. */
+  const order = [...team].sort((a, b) => rangeOf(a) - rangeOf(b));
+  for (const id of order) {
+    const def = playedDef(id, way[id]);
+    for (const s of (smart ? spotsFor(w, rangeOf(id), def) : simpleSpots(w, rangeOf(id)))) if (apply(w, { type: 'place', hero: id, cx: s.cx, cy: s.cy }).ok) break;
+  }
+  const evolveCost = h => w.evolveCost(h);
+  function spend(g = w) {
+    for (const h of g.heroes) {
+      const st = h.base.evolutions[h.tier];
+      if (!st || h.level < g.evolveLevel(h) || g.gold < g.evolveCost(h)) continue;
+      let i = st.choices.findIndex(c => wanted.includes(c.id));
+      if (i < 0 && h.preview) i = st.choices.findIndex(c => c.id === h.preview.form);
+      if (i < 0) i = smart && g === w ? bestForm(w, h, spendSimple) : Math.max(0, st.choices.findIndex(c => !(c.aura && c.aura.harmless)));
+      const gold = g.gold;
+      if (apply(g, { type: 'evolve', id: h.id, choice: i }).ok && g === w) {
+        if (rec) rec.spend('evolve', gold - g.gold);
+        const to = smart && betterSpot(g, h);
+        if (to) apply(g, { type: 'move', id: h.id, cx: to.cx, cy: to.cy });
+      }
+    }
+    /* Relics: keep the gold an evolution coming up soon will need. */
+    const soon = g.heroes.find(h => h.base.evolutions[h.tier] && h.level >= g.evolveLevel(h) - (smart ? 2 : 0));
+    const reserve = soon ? evolveCost(soon) : 0;
+    /* the smart bot buys as long as it can afford one (one a second at most); the simple one stops at 12 */
+    if (relics && (smart || g.relicsBought < 12) && g.gold >= g.relicCost() + (smart ? reserve : 0) && !(!smart && soon)) {
+      const gold = g.gold;
+      if (apply(g, { type: 'buyRelic' }).ok) {
+        let best = 0, bs = -Infinity;
+        g.pick.offers.forEach((o, i) => { const v = smart ? offerValue(g, o) : scoreOffer(g, o); if (v > bs) { bs = v; best = i; } });
+        apply(g, { type: 'choose', index: best });
+        if (rec && g === w) rec.spend('relic', gold - g.gold);
+      }
+    }
+  }
+  /* What the copies in a look ahead do between waves: the simple rules, so the look ahead stays quick. */
+  function spendSimple(g) {
+    for (const h of g.heroes) { const st = h.base.evolutions[h.tier]; if (st && h.level >= g.evolveLevel(h) && g.gold >= g.evolveCost(h)) apply(g, { type: 'evolve', id: h.id, choice: h.preview ? undefined : 0 }); }
+  }
+  while (w.phase !== 'over' && w.tick < maxTicks) {
+    if (w.phase === 'build') { spend(); apply(w, { type: 'wave' }); }
+    else if (w.tick % 60 === 0) spend();
+    if (!step(w)) break;
+    if (rec) rec.tick();
+  }
+  return { world: w, result: summary(w), log: exportLog(w), stage, strategy, lineup: team, level, maxWave: STAGES[stage - 1].waves, metrics: rec ? rec.finish() : null };
+}
+
+/* The first bot's tiles: free tiles ranked by path covered (kept for skill: 'simple'). */
+function simpleSpots(w, range) {
   const out = [], cells = w.path.map(([x, y], i) => [(x + 0.5) * T, (y + 0.5) * T, 1 + i / w.path.length]);
   for (let cx = 0; cx < 16; cx++) for (let cy = 0; cy < 10; cy++) {
     if (w.pathSet.has(cx + ',' + cy)) continue;
@@ -56,48 +132,4 @@ function spotsFor(w, range) {
     if (score) out.push({ cx, cy, score });
   }
   return out.sort((a, b) => b.score - a.score);
-}
-
-function scoreOffer(w, o) {
-  const m = RARITIES[o.ri].mult, a = affected(o.relic, m, w.heroes);
-  if (a.global) return (o.relic.name === 'Reinforced gate' ? 2 : 1.5) * m;
-  let n = 0; for (const c of a.types.values()) n += c;
-  return n * 3 * m;
-}
-
-/* form: which evolutions to take when a hero offers a choice, by choice id, comma-separated (e.g. 'firemage,hunter');
-   heroes with none of them listed take their first choice. */
-/* paths: true chooses the wanted forms as evolution paths before the match (so the heroes show their previews from level 1). */
-export function playRun({ seed = 1, stage = 1, strategy = 'trio', level = 1, relics = true, items = {}, form = 'firemage,marksman', paths = false, maxTicks = 4000000 } = {}) {
-  const wanted = String(form).split(',');
-  const lineup = STRATEGIES[strategy];
-  const way = {};
-  if (paths) for (const id of lineup) { const c = HEROES.find(h => h.id === id).evolutions[0].choices.find(x => wanted.includes(x.id)); if (c) way[id] = c.id; }
-  const w = createWorld({ seed, stage, talents: talentsFor(level, strategy), lineup, items, paths: way });
-  /* Place every hero once, longest range first so the short-range heroes get the tiles right next to the path. */
-  const order = [...lineup].sort((a, b) => heroStats(HEROES.find(h => h.id === b), w.mods).range - heroStats(HEROES.find(h => h.id === a), w.mods).range);
-  for (const id of [...order].reverse()) {
-    for (const s of spotsFor(w, heroStats(HEROES.find(h => h.id === id), w.mods).range)) if (apply(w, { type: 'place', hero: id, cx: s.cx, cy: s.cy }).ok) break;
-  }
-  function spend() {
-    for (const h of w.heroes) {
-      const step = h.base.evolutions[h.tier];
-      if (!step || h.level < step.level || w.gold < w.evolveCost(h)) continue;
-      /* the wanted form, else the first that deals damage (the Occult only curses: no use to a bot playing alone) */
-      const i = step.choices.findIndex(c => wanted.includes(c.id)), fallback = Math.max(0, step.choices.findIndex(c => !(c.aura && c.aura.harmless)));
-      apply(w, { type: 'evolve', id: h.id, choice: i >= 0 ? i : fallback });
-    }
-    const evolving = w.heroes.some(h => w.evolveCost(h) !== null && h.level >= h.base.evolutions[h.tier].level);
-    if (relics && !evolving && w.relicsBought < 12 && w.gold >= w.relicCost() && apply(w, { type: 'buyRelic' }).ok) {
-      let best = 0, bs = -1;
-      w.pick.offers.forEach((o, i) => { const s = scoreOffer(w, o); if (s > bs) { bs = s; best = i; } });
-      apply(w, { type: 'choose', index: best });
-    }
-  }
-  while (w.phase !== 'over' && w.tick < maxTicks) {
-    if (w.phase === 'build') { spend(); apply(w, { type: 'wave' }); }
-    else if (w.tick % 60 === 0) spend();
-    if (!step(w)) break;
-  }
-  return { world: w, result: summary(w), log: exportLog(w), stage, strategy, level, maxWave: STAGES[stage - 1].waves };
 }

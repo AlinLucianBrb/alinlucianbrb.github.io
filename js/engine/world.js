@@ -1,7 +1,7 @@
 /* The simulation. A world holds all game state and advances in fixed steps; players change it only through commands (commands.js).
    Nothing in js/engine touches the page, the clock or Math.random, so a world can run in a browser, in Node (tests, the balance bot)
    or on a server, and the same seed plus the same commands always gives the same result. */
-import { HEROES, STAGES, COLS, ROWS, LINEUP_SIZE } from '../content/data.js';
+import { HEROES, STAGES, COLS, ROWS, LINEUP_SIZE, RELICS, RARITIES } from '../content/data.js';
 import { itemMods, asItem } from '../content/items.js';
 import { createBus } from '../core/bus.js';
 import { talentMods } from '../content/talents.js';
@@ -44,19 +44,22 @@ export function cleanLineup(lineup) {
 
 /* One player's side of a match: its heroes' lineup, talents and items, and its own gold, relics and relic choice.
    In co-op every player has one (the map, the enemies, the lives and the waves are shared; gold and relics are not). */
-function makePlayer(i, { talents = [], lineup = null, items = {}, paths = {} } = {}) {
+function makePlayer(i, { talents = [], lineup = null, items = {}, paths = {}, relics = [] } = {}) {
   const team = cleanLineup(lineup), equipped = {}, path = cleanPaths(paths, team);
   for (const id of team) if (items && items[id]) { const list = (Array.isArray(items[id]) ? items[id] : [items[id]]).filter(Boolean).map(asItem); if (list.length) equipped[id] = list; }
   /* Gear that does not fit its wearer (as it will play: its path's tags included) counts as its general version. */
   const wearerOf = id => { const d = HEROES.find(x => x.id === id), c = path[id] && pathChoice(id, path[id]); return d && { tags: c ? pathDef(d, c).tags : d.tags, rate: d.rate || 'speed' }; };
   const mods = [...talentMods(talents), ...itemMods(equipped, wearerOf)];
   return {
-    i, talents: [...talents], lineup: team, paths: path, items: equipped, mods, gold: 100 + resolve(0, 'startGold', mods), gs: null,
+    i, talents: [...talents], lineup: team, paths: path, items: equipped, mods, startRelics: cleanRelics(relics), gold: 100 + resolve(0, 'startGold', mods), gs: null,
     relics: [], relicsBought: 0, banned: new Set(), picking: false, pick: null, playOnPick: false, auto: false, ready: false,
     /* Free relic rerolls and banishes for this match: they come only from talents. */
     rerolls: Math.round(resolve(0, 'rerolls', mods)), banishes: Math.round(resolve(0, 'banishes', mods))
   };
 }
+/* Starting relics (for experiments: the balance bot gives a player relics before the match): [{ name, ri }], known relics only. */
+const cleanRelics = list => (list || []).filter(r => r && RELICS.some(x => x.name === r.name) && RARITIES[r.ri]).map(r => ({ name: r.name, ri: r.ri | 0 }));
+
 /* The fields that belong to a player. On the world they mean player 1's (w.gold, w.relics...), so solo code reads as before. */
 export const PLAYER_FIELDS = ['talents', 'lineup', 'paths', 'items', 'mods', 'gold', 'gs', 'relics', 'relicsBought', 'banned', 'picking', 'pick', 'playOnPick',
   'auto', 'ready', 'rerolls', 'banishes'];
@@ -64,11 +67,11 @@ export const PLAYER_FIELDS = ['talents', 'lineup', 'paths', 'items', 'mods', 'go
 /* lineup: the hero ids brought into the match. items: { heroId: [{ type, rarity, bonuses }] } equipped before the match
    (see js/content/items.js; a plain item type id also works, as a Common item with no bonuses).
    Co-op: players: [{ talents, lineup, items }, ...] instead, one per player (2 to 4); enemies get that many times the life. */
-export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, items = {}, paths = {}, players = null, record = true } = {}) {
+export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, items = {}, paths = {}, relics = [], players = null, record = true } = {}) {
   const def = STAGES[stage - 1];
   if (!def) throw new Error('Unknown stage ' + stage);
   const root = createRng(seed), rng = { path: root.fork('path'), relic: root.fork('relic'), combat: root.fork('combat'), gold: root.fork('gold') };
-  const ps = (players && players.length ? players : [{ talents, lineup, items, paths }]).map((p, i) => makePlayer(i, p));
+  const ps = (players && players.length ? players : [{ talents, lineup, items, paths, relics }]).map((p, i) => makePlayer(i, p));
   const path = genPath(rng.path), coop = ps.length > 1;
   const w = {
     seed: seed >>> 0, stageN: stage, stage: def, maxWave: def.waves, rng, path, pathSet: new Set(path.map(c => c.join(','))),
@@ -77,8 +80,8 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
     wave: 0, spawnLeft: 0, spawnT: 0, kills: 0, bossKills: 0, nextHeroId: 1,
     heroes: [], enemies: [], projs: [], zones: [],
     ev: createBus(), fx: null,
-    log: record ? { v: 1, ver: ENGINE_VERSION, seed: seed >>> 0, stage, talents: [...ps[0].talents], lineup: [...ps[0].lineup], paths: { ...ps[0].paths }, items: JSON.parse(JSON.stringify(ps[0].items)), commands: [], ticks: 0,
-      ...(coop ? { players: ps.map(p => ({ talents: [...p.talents], lineup: [...p.lineup], paths: { ...p.paths }, items: JSON.parse(JSON.stringify(p.items)) })) } : {}) } : null
+    log: record ? { v: 1, ver: ENGINE_VERSION, seed: seed >>> 0, stage, talents: [...ps[0].talents], lineup: [...ps[0].lineup], paths: { ...ps[0].paths }, ...(ps[0].startRelics.length ? { relics: ps[0].startRelics.map(r => ({ ...r })) } : {}), items: JSON.parse(JSON.stringify(ps[0].items)), commands: [], ticks: 0,
+      ...(coop ? { players: ps.map(p => ({ talents: [...p.talents], lineup: [...p.lineup], paths: { ...p.paths }, relics: p.startRelics.map(r => ({ ...r })), items: JSON.parse(JSON.stringify(p.items)) })) } : {}) } : null
   };
   for (const k of PLAYER_FIELDS) Object.defineProperty(w, k, { get: () => ps[0][k], set: v => { ps[0][k] = v; }, enumerable: true });
   w.ownerOf = h => ps[h.owner || 0];
@@ -114,6 +117,13 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
     w.lives = Math.max(0, w.lives - enemy.def.leak);
     if (w.lives <= 0 || (enemy.def.boss && w.wave >= w.maxWave)) endRun(w, false);
   });
+  /* Starting relics count as if picked before the first wave (same effect as the choose command). */
+  for (const p of ps) for (const r of p.startRelics) {
+    const def = RELICS.find(x => x.name === r.name), m = RARITIES[r.ri].mult;
+    if (def.mods) for (const x of def.mods(m)) p.mods.push({ ...x, source: def.name, ri: r.ri });
+    if (def.onPick) def.onPick(w, m);
+    p.relics.push({ name: def.name, r: r.ri });
+  }
   recalc(w);
   return w;
 }
