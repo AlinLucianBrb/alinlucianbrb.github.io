@@ -106,11 +106,16 @@ registerBehavior('totems', {
     const mult = strike(g, t, tg);
     rearm(t);
     if (mult !== 0) {
-      /* A new totem only when one is missing (up to 3; a path preview keeps one): the kind that is not standing yet. */
+      /* A new totem only when one is missing (up to 3; a path preview keeps one): a kind that is not standing yet, taking
+         them in turn after the last one placed (Flame, Frost, Storm, Flame...), so a Shaman on the Totemist path, who keeps
+         one totem at a time, cycles through all three as each expires. */
       const mine = g.zones.filter(z => z.type === 'totem' && z.owner === t && z.t > 0);
       const spot = mine.length < (t.totemMax || TOTEM.max) && totemSpots(g, t)[0];
       if (spot) {
-        const kind = TOTEM.kinds.find(k => !mine.some(z => z.kind === k)) || TOTEM.kinds[0];
+        const n = TOTEM.kinds.length, from = (t.lastTotem ?? -1) + 1;
+        const turn = Array.from({ length: n }, (_, i) => TOTEM.kinds[(from + i) % n]);
+        const kind = turn.find(k => !mine.some(z => z.kind === k)) || turn[0];
+        t.lastTotem = TOTEM.kinds.indexOf(kind);
         g.zones.push({ type: 'totem', owner: t, kind, cx: spot.cx, cy: spot.cy, x: (spot.cx + 0.5) * T, y: (spot.cy + 0.5) * T, t: TOTEM.life, cd: 0.2, blocks: true, flash: 0 });
       }
     }

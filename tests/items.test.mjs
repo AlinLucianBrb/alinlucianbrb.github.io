@@ -37,7 +37,7 @@ test('each bonus has its own rank, 1 to 4; rarer items roll higher ranks more of
 });
 
 test('gear keeps the hero bonuses (damage, speed, crits, energy, minions) and drops gold, XP and lives', () => {
-  for (const name of ['Prospector', 'Tax collector', 'Compound interest', 'Bulk order', 'Four-leaf clover', 'Reinforced gate']) assert.ok(!ITEM_BONUSES.includes(name), name);
+  for (const name of ['Prospector', 'Tax collector', 'Compound interest', 'Four-leaf clover', 'Reinforced gate']) assert.ok(!ITEM_BONUSES.includes(name), name);
   for (const name of ['Sharpened rounds', 'Quick hands', 'Battle focus', 'Keen edge', 'Pack leader', 'Feral haste', 'Hunting instinct', 'Savage bite']) assert.ok(ITEM_BONUSES.includes(name), name);
   const old = { type: 'helm', rarity: 1, bonuses: ['Prospector', 'Keen edge'], ranks: [4, 1] };
   assert.deepEqual(itemLines(old), [RELICS.find(r => r.name === 'Keen edge').desc(1)], 'an old gold bonus no longer shows as working');

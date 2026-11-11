@@ -284,8 +284,8 @@ applyFormTuning();
 
 /* The five levels. Each has a wave count (15, then 5 more each), an enemy health multiplier and a per-wave growth rate.
    Tuned (Nov 11) so that at its point on the progression curve (PROGRESSION in tools/balance/suites.mjs: level 1 at player
-   level 1 with no gear, up to level 5 at player level 30 with epic gear) the weakest tenth of teams clears a level about
-   40% of the time. Each level starts a little tougher than the one before and grows more gently, so its last waves
+   level 1 with no gear, up to level 5 at player level 30 with epic gear) the weakest tenth of teams cleared a level about
+   40% of the time; since relic offers fit the match (Nov 11), teams are stronger and it clears about 50-65%. Each level starts a little tougher than the one before and grows more gently, so its last waves
    are the hardest of all; before: hpMult 1 / 1.2 / 1.5 / 2 / 2.5, growth 1.14 / 1.15 / 1.16 / 1.17 / 1.18. */
 export const STAGES = [
   { n: 1, name: 'Green Meadow', waves: 15, hpMult: 5.2,  growth: 1.14 },    /* name: shown with the level's picture (assets/level_<n>.png) */
@@ -359,7 +359,6 @@ export const RELICS = [
   { name: 'Prospector',        desc: m => prospect(25 * m), label: 'Economy', mods: m => [glob('bountyChance', 'flat', 0.25 * m)] },
   { name: 'Reinforced gate',   desc: m => '+' + lives(m) + ' li' + (lives(m) > 1 ? 'ves' : 'fe'), label: 'Your gate', onPick: (g, m) => { g.lives += lives(m); },
     itemMods: m => [glob('startLives', 'flat', lives(m))] },   /* as an item bonus: starting lives */
-  { name: 'Bulk order',        desc: m => 'Evolutions cost ' + f(P(15) * m) + '% less', label: 'Economy', mods: m => [glob('evolveCost', 'more', -P(0.15) * m)] },
   { name: 'Split bolt',        desc: m => 'Spell attacks: ' + f(P(100) * m) + '% chance to hit 1 more target', mods: m => [hero('targets', 'flat', P(1) * m, ['spell'])] },
   { name: 'Tax collector',     desc: m => '+' + f(25 * m) + '% gold for clearing a wave', label: 'Economy', mods: m => [glob('waveGold', 'inc', 0.25 * m)] },
   { name: 'Compound interest', desc: m => 'After each wave, get ' + f(5 * m) + '% of your gold (max ' + 60 * m + '). Copies add up.',

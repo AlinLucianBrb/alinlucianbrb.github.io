@@ -57,13 +57,12 @@ test('evolving needs level 10 and costs gold, gives +25% to all the base stats, 
   assert.equal(apply(w2, { type: 'evolve', id: 99 }).reason, 'no such hero');
 });
 
-test('evolution stacks with relics and Bulk order makes it cheaper', () => {
+test('evolution stacks with relics', () => {
   const w = richWorld(), h = place(w, 'warrior', ...tilesNearPath(w, 1)[0]);
   h.level = 10; h.lvlMods = levelMods(10);   /* test only: a level-10 hero with its level bonus */
-  w.mods.push(...RELICS.find(r => r.name === 'Bulk order').mods(2).map(m => ({ ...m, source: 'Bulk order', ri: 2 })));
   w.mods.push(...RELICS.find(r => r.name === 'Sharpened rounds').mods(1).map(m => ({ ...m, source: 'x', ri: 0 })));
   recalc(w);
-  assert.equal(w.evolveCost(h), Math.round(150 * (1 - 0.0225 * 2)), 'Uncommon Bulk order: -4.5%');
+  assert.equal(w.evolveCost(h), 150);
   apply(w, { type: 'evolve', id: h.id, choice: 2 });
   assert.ok(Math.abs(h.s.damage - 28 * (1 + 0.0375 + (10 + 3 * 9) * 1.25 * 0.01) * 1.25 * Math.sqrt(FORM_TUNING.sentinel || 1)) < 1e-9, 'relic, strength and level bonuses add up, then evolution multiplies');
 });

@@ -77,6 +77,22 @@ test('Witch Doctor: darts link the target with 2 nearby enemies; 30% of the dama
   assert.ok(Math.abs(frames / 60 - (w.path.length - 1.001) * T / LOCUSTS.speed) < 0.1, 'the whole path, gate to entrance');
 });
 
+test('a Shaman on the Totemist path keeps one totem and cycles Flame, Frost, Storm as each expires', () => {
+  const w = richWorld({ seed: 5, lineup: ['shaman', 'warrior'], paths: { shaman: 'totemist' } });
+  let tile; for (let cx = 4; !tile && cx < 12; cx++) for (let cy = 2; cy < 8; cy++) if (!w.pathSet.has(cx + ',' + cy)) { tile = [cx, cy]; break; }
+  const h = place(w, 'shaman', ...tile);
+  h.level = 10; h.lvlMods = levelMods(10); w.statsFor(h);
+  onPath(w, h, 0);
+  const kinds = [], mine = () => w.zones.filter(z => z.type === 'totem' && z.t > 0);
+  for (let i = 0; i < 60 * 60 && kinds.length < 4; i++) {
+    step(w);
+    for (const z of mine()) if (!z._seen) { z._seen = true; kinds.push(z.kind); }
+    assert.ok(mine().length <= 1, 'one totem at a time');
+    for (const z of mine()) z.t = Math.min(z.t, 0.5);   /* let each expire quickly */
+  }
+  assert.deepEqual(kinds.slice(0, 4), ['flame', 'frost', 'storm', 'flame']);
+});
+
 test('Totemist: each cast plants a totem (Flame, Frost, Storm in turn, up to 3); a totem blocks its tile; Totem surge', () => {
   const { w, h } = setup(['shaman', 'warrior']);
   evolveTo(w, h, 'totemist');

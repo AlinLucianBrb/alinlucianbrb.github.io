@@ -3,7 +3,8 @@
    in world.log with the tick it happened on. A failed command changes nothing and is not recorded.
    To add an action, add an entry to COMMANDS. */
 import { HEROES, RARITIES, RELICS, rollRarity, COLS, ROWS, T, evolvedDef, HERO_LEVELS } from '../content/data.js';
-import { pathChoice, startPreview, endPreview } from './preview.js';
+import { pathChoice, pathDef, startPreview, endPreview } from './preview.js';
+import { affected } from './stats.js';
 import { levelMods } from './levels.js';
 import { recalc, startWave, statsFor } from './world.js';
 
@@ -16,8 +17,24 @@ const isFree = (w, cx, cy, except) => inBounds(cx, cy) && (!w.pathSet.has(cx + '
 const blocked = (w, p) => w.phase === 'over' ? fail('over') : p.picking ? fail('busy') : null;
 const playerOf = (w, c) => w.players[c.p | 0];
 
+/* Does a relic do anything for this player's heroes? Economy and gate relics always do. A hero relic must touch one of the
+   lineup's heroes as it can play in this match: the basic hero, and its chosen path's form (or, with no path chosen, any of
+   its forms). Relics limited to some heroes (lineup) also need one of them. */
+export function relicFits(r, p) {
+  if (r.lineup && !r.lineup.some(id => p.lineup.includes(id))) return false;
+  const defs = [];
+  for (const id of p.lineup) {
+    const base = HEROES.find(h => h.id === id);
+    if (!base) continue;
+    defs.push(base);
+    for (const st of base.evolutions) for (const c of st.choices) if (!p.paths[id] || p.paths[id] === c.id) defs.push(pathDef(base, c), evolvedDef(base, c));
+  }
+  const a = affected(r, 1, defs.map((def, k) => ({ type: k, def })));
+  return !!(a.global || a.types.size);
+}
+
 function drawRelics(w, p, n, taken) {
-  const pool = RELICS.filter(r => !p.banned.has(r.name) && !taken.includes(r.name) && (!r.lineup || r.lineup.some(id => p.lineup.includes(id)))), out = [];   /* minion relics only with a Druid */
+  const pool = RELICS.filter(r => !p.banned.has(r.name) && !taken.includes(r.name) && relicFits(r, p)), out = [];   /* only relics for this match's heroes */
   while (out.length < n && pool.length) out.push({ relic: pool.splice(w.rng.relic.int(pool.length), 1)[0], ri: rollRarity(w.rng.relic.next(), p.gs.relicLuck) });
   return out;
 }

@@ -65,10 +65,8 @@ export function offerValue(w, o, p = w.players[0]) {
   const m = RARITIES[o.ri].mult, r = o.relic, left = Math.max(0, 1 - w.wave / w.maxWave);
   const a = affected(r, m, w.heroes);
   if (a.global) {
-    const evolving = w.heroes.some(h => h.tier === 0 && (h.owner || 0) === p.i);
     switch (r.name) {
       case 'Reinforced gate': return (w.lives < 10 ? 6 : 1.5) * m;
-      case 'Bulk order': return evolving ? 3 * m : 0;
       case 'Prospector': return 3 * m * left;
       case 'Tax collector': case 'Compound interest': return 2.5 * m * left;
       case 'Four-leaf clover': return 1.2 * m * left;
