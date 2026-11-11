@@ -115,6 +115,11 @@ export function buildReport(data, prevData = null) {
 
   const gearTable = `<div class="tw"><table class="grid"><thead><tr><th>Player level</th>${a.gear.gears.map(g => `<th>${esc(g[0].toUpperCase() + g.slice(1))} gear</th>`).join('')}</tr></thead><tbody>${a.gear.levels.map((L, i) => `<tr><th>${L}</th>${a.gear.cells[i].map(c => `<td style="background:${heat(c.progress)}"><b>${fmt(c.win, '%')}</b><small>wave ${fmt(c.wave)} · progress ${fmt(c.progress)}</small></td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 
+  const T = a.target || {};
+  const near = (v, t, tol) => (v === null ? '' : Math.abs(v - t) <= tol ? 'ok' : 'off');
+  const curveTable = (a.curve || []).length ? `<div class="tw"><table class="grid"><thead><tr><th>Level</th><th>Setup</th><th>Weakest tenth</th><th>Strongest tenth</th><th>Worst team</th><th>Best team</th></tr></thead><tbody>${a.curve.map(c => `<tr><th>${c.stage} · ${esc(c.name)}</th><td>player level ${c.level}<small>${c.gear === 'none' ? 'no gear' : esc(c.gear) + ' gear'}</small></td>
+<td class="${near(c.weak, T.weak, 8)}" style="background:${heat(100 - Math.abs(c.weak - T.weak) * 4)}"><b>${fmt(c.weak, '%')}</b><small>target ${T.weak}% · wave ${fmt(c.wave)}</small></td>
+<td style="background:${heat(100 - Math.abs(c.strong - T.strong) * 2)}"><b>${fmt(c.strong, '%')}</b><small>target ${T.strong}%</small></td><td>${fmt(c.worst, '%')}</td><td>${fmt(c.best, '%')}</td></tr>`).join('')}</tbody></table></div>` : '<p class="note">No curve runs yet (npm run balance:report runs them after the teams).</p>';
   const R = a.relicSetup;
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Balance report</title>
 <style>
@@ -153,6 +158,10 @@ ${powerChart}<h3>Every form</h3>${formsTable}<h3>By hero</h3>${heroesTable}</sec
 <h3>Best form teams</h3>${teamList(a.bestTeams)}<h3>Worst form teams</h3>${teamList(a.worstTeams)}
 <h3>Pairs that work well together</h3><p class="note">Synergy: how much better the teams with both do than their two team values add up to (points). Pairs of two forms so strong that their teams win almost every time are left out: the score stops at a clean win, so they cannot show synergy.</p>${pairChart(a.bestPairs)}
 <h3>Pairs that work badly together</h3>${pairChart(a.worstPairs)}</section>
+
+<section><h2 style="margin-top:0">Difficulty curve</h2>
+<p class="note">Each level at its point on the progression curve (the player level and gear a player usually has on reaching it), played by the weakest and the strongest tenth of teams as ranked in Teams (teams with ${esc((T.exclude || []).map(id => (a.forms.find(f => f.form === id) || { formName: id }).formName).join(' or '))} left out: their crowd control puts them far above the rest), and by the single worst and best team. Target: the weakest tenth clears about ${T.weak}% of the time. The strongest tenth's target of ${T.strong}% would need teams within about 20% of each other in strength; they are still several times apart, so it clears far more often.</p>
+${curveTable}</section>
 
 <section><h2 style="margin-top:0">Difficulty</h2>
 <p class="note">Every level with three lineups (Warrior, Hunter, Mage · Paladin, Druid, Warlock · Rogue, Priest, Shaman); gear grows with the player level (none, common, rare, epic). Hover a cell for each lineup.</p>

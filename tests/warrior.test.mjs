@@ -12,7 +12,7 @@ import { FRENZY, RALLY } from '../js/engine/ultimates.js';
 import { ATTRIBUTE_EFFECTS, HEROES, T } from '../js/content/data.js';
 import { exportLog, replay } from '../js/engine/replay.js';
 import { hashWorld } from '../js/engine/hash.js';
-import { richWorld, tilesNearPath, place, enemyAt, dealt } from './helpers.mjs';
+import { richWorld, tilesNearPath, place, enemyAt, dealt, gentleLevel1 } from './helpers.mjs';
 
 const FORMS = ['berserker', 'commander', 'sentinel'];
 function warrior(seed = 31) {
@@ -60,7 +60,7 @@ test('Commander: launches the sword in a straight line to its range, hitting eve
   h.cd = 0; tick(w, h);
   assert.equal(w.projs[0].type, 'sword');
   for (let i = 0; i < 60; i++) updateProjectiles(w, 1 / 60);   /* only this sword flies: no second throw */
-  assert.ok(Math.abs(dealt(lead) - h.s.damage) < 1e-9); assert.ok(Math.abs(dealt(behind) - h.s.damage) < 1e-9, 'pierces');
+  assert.ok(Math.abs(dealt(lead) - h.s.damage) < 1e-6); assert.ok(Math.abs(dealt(behind) - h.s.damage) < 1e-6, 'pierces');   /* dealt() rounds to 6 decimals */
   assert.equal(dealt(past), 0, 'stops at its range'); assert.equal(dealt(off), 0, 'only what is in its way');
 });
 
@@ -93,7 +93,8 @@ test('Sentinel ultimate (Barricade): blocks the path just ahead of its target fo
   assert.ok(walker.d > z.d, 'moving again after 1 s');
 });
 
-test('a match where the Warrior evolves (each form) replays exactly', () => {
+test('a match where the Warrior evolves (each form) replays exactly', tc => {
+  gentleLevel1(tc);
   for (const form of FORMS) {
     const w = createWorld({ seed: 6 }), t = tilesNearPath(w, 6);
     const war = place(w, 'warrior', ...t[1]); place(w, 'ranger', ...t[3]); place(w, 'mage', ...t[5]);

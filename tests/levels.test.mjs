@@ -6,7 +6,7 @@ import { apply } from '../js/engine/commands.js';
 import { HERO_LEVELS, HEROES } from '../js/content/data.js';
 import { ENEMIES } from '../js/engine/enemies.js';
 import { levelMods } from '../js/engine/levels.js';
-import { richWorld, tilesNearPath, place, enemyAt } from './helpers.mjs';
+import { richWorld, tilesNearPath, place, enemyAt, gentleLevel1 } from './helpers.mjs';
 
 test('the XP curve: 10 to reach level 2, 2 more for each level after; level 10 takes 162 XP', () => {
   assert.deepEqual([1, 2, 3, 9].map(HERO_LEVELS.xpToNext), [10, 12, 14, 26]);
@@ -43,7 +43,8 @@ test('levels stop at the maximum', () => {
   if (h.level === HERO_LEVELS.max) assert.equal(h.xp, 0);
 });
 
-test('heroes reach level 10 during a normal level 1, and can then evolve with enough gold', () => {
+test('heroes reach level 10 during a normal level 1, and can then evolve with enough gold', tc => {
+  gentleLevel1(tc);
   const w = createWorld({ seed: 2 }), t = tilesNearPath(w, 6);
   const war = place(w, 'warrior', ...t[1]); place(w, 'ranger', ...t[3]); place(w, 'mage', ...t[5]);
   apply(w, { type: 'auto', on: true });

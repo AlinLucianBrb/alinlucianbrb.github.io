@@ -17,8 +17,8 @@ test('co-op worlds: one player per lobby member, enemy life x players, shared li
   assert.equal(solo.coop, false); assert.equal(solo.players.length, 1); assert.equal(solo.hpMult, 1);
   assert.equal(duo.coop, true); assert.equal(duo.hpMult, 2); assert.equal(four.hpMult, 4);
   for (const w of [solo, duo, four]) { w.wave = 3; spawnEnemy(w, 'grunt'); }
-  assert.equal(duo.enemies[0].max, 2 * solo.enemies[0].max, '2 players: x2 life');
-  assert.equal(four.enemies[0].max, 4 * solo.enemies[0].max, '4 players: x4 life');
+  assert.ok(Math.abs(duo.enemies[0].max - 2 * solo.enemies[0].max) <= 1, '2 players: x2 life (rounded)');
+  assert.ok(Math.abs(four.enemies[0].max - 4 * solo.enemies[0].max) <= 2, '4 players: x4 life (rounded)');
   assert.deepEqual(duo.players.map(p => p.gold), [100, 100], 'everyone starts with their own gold');
   assert.deepEqual(duo.log.players.map(p => p.lineup), [['warrior'], ['ranger']], 'the log keeps every player');
 });

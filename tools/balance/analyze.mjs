@@ -13,7 +13,7 @@
    Team values map to the 0-100 scale with 0 points at 50 and TEAM_SCALE points at 0 or 100.
    Synergy of a pair: how much better (or worse) the teams with both do than their two team values add up to. */
 import { HEROES, RELICS, STAGES } from '../../js/content/data.js';
-import { RELIC_SETUP, FORM_SETUP, COMP_SETUP, GEAR_STAGE } from './suites.mjs';
+import { RELIC_SETUP, FORM_SETUP, COMP_SETUP, GEAR_STAGE, PROGRESSION, TARGET } from './suites.mjs';
 import { roleOf, SOLO_WEIGHT } from './roles.mjs';
 const SOLO = FORM_SETUP.solo;
 /* team value points that map to the 0 and 100 ends of the team half of power */
@@ -147,6 +147,14 @@ export function analyze(data) {
   const G = by('gear'), gears = ['none', 'common', 'rare', 'epic'].filter(g => G.some(r => r.gear === g)), glevels = [...new Set(G.map(r => r.level))].sort((a, b) => a - b);
   out.gear = { gears, levels: glevels, cells: glevels.map(L => gears.map(g => { const rs = G.filter(r => r.level === L && r.gear === g); return { win: pct(rs.map(r => r.won)), wave: r1(mean(rs.map(r => r.waves))), progress: r1((mean(rs.map(r => progress({ ...r, stage: GEAR_STAGE }))) ?? 0) * 100) }; })) };
 
+  /* ---- the difficulty curve: each level at its progression setup, weakest and strongest tenth of teams ---- */
+  const CV = by('curve');
+  out.target = TARGET;
+  out.curve = STAGES.map(st => { const rs = CV.filter(r => r.stage === st.n), g = k => rs.filter(r => r.group === k);
+    return { stage: st.n, name: st.name, ...PROGRESSION[st.n], weak: pct(g('weak').map(r => r.won)), strong: pct(g('strong').map(r => r.won)),
+      worst: pct(g('worst').map(r => r.won)), best: pct(g('best').map(r => r.won)), n: g('weak').length + g('strong').length,
+      wave: r1(mean(g('weak').map(r => r.cleared ?? r.waves))) }; }).filter(c => c.weak !== null);
+
   out.flags = flags(out);
   return out;
 }
@@ -162,6 +170,8 @@ function flags(o) {
     if (x.role === 'damage' && x.bossEsc !== null && x.bossEsc >= 50) add('mid', 'Bosses', `${x.formName} alone lets ${x.bossEsc}% of bosses through.`);
   }
   for (const h of o.heroes) if (h.spread !== null && h.spread > 35) add('mid', 'Heroes', `${h.name}'s forms are far apart: ${h.best} vs ${h.worst} (${h.spread} points of power).`);
+  for (const c of o.curve || []) if (Math.abs(c.weak - o.target.weak) > 10)
+    add('high', 'Levels', `Level ${c.stage} (${c.name}) at player level ${c.level} with ${c.gear === 'none' ? 'no' : c.gear} gear: the weakest tenth of teams clears it ${c.weak}% of the time (target ${o.target.weak}%).`);
   for (let i = 0; i < o.difficulty.length; i++) {
     const d = o.difficulty[i], top = d.cells[d.cells.length - 1], low = d.cells[0];
     if (top && top.win !== null && top.win < 50) add('high', 'Levels', `Level ${d.stage} (${d.name}) is won ${top.win}% of the time even at player level ${top.level} with ${o.levels.length > 1 ? 'the best gear' : 'this setup'}.`);

@@ -21,7 +21,7 @@ import './kits/index.js';
 import { cleanPaths, pathChoice, pathDef, previewMods, syncPreview, updatePreview, previewHit } from './preview.js';   /* the newer heroes' behaviors, ultimates and zones register themselves */
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
-export const ENGINE_VERSION = 18;     /* bump when a rule change would make old command logs play out differently */
+export const ENGINE_VERSION = 19;     /* bump when a rule change would make old command logs play out differently */
 
 function genPath(rng) {
   let x = 0, y = 1 + rng.int(ROWS - 2); const p = [[x, y]];

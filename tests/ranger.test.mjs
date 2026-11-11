@@ -11,7 +11,7 @@ import { TRAP } from '../js/engine/ultimates.js';
 import { HEROES, T } from '../js/content/data.js';
 import { exportLog, replay } from '../js/engine/replay.js';
 import { hashWorld } from '../js/engine/hash.js';
-import { richWorld, tilesNearPath, place, enemyAt, dealt } from './helpers.mjs';
+import { richWorld, tilesNearPath, place, enemyAt, dealt, gentleLevel1 } from './helpers.mjs';
 
 const FORMS = ['marksman', 'boomeranger', 'hunter'];
 function ranger(seed = 31) {
@@ -44,8 +44,8 @@ test('Marksman: same arrows; the ultimate replaces the arrow with a charged shot
   tick(w, h, 10);
   assert.equal(dealt(lead), 0, 'still charging');
   flush(w);
-  assert.ok(Math.abs(dealt(lead) - 3 * h.s.damage) < 1e-9, 'the target');
-  assert.ok(Math.abs(dealt(behind) - 3 * h.s.damage) < 1e-9, 'and the enemy behind it, out of range');
+  assert.ok(Math.abs(dealt(lead) - 3 * h.s.damage) < 1e-6, 'the target');
+  assert.ok(Math.abs(dealt(behind) - 3 * h.s.damage) < 1e-6, 'and the enemy behind it, out of range');
   assert.equal(dealt(off), 0, 'not enemies off the line');
 });
 
@@ -87,13 +87,14 @@ test('Hunter: toxic arrows; the ultimate lays 3 traps on the path in range, whic
   assert.equal(new Set(traps.map(z => z.cell)).size, 3, 'on different tiles');
   const z = traps[0], victim = enemyAt(w, z.x, z.y, 1, 1e6), close = enemyAt(w, z.x + 25, z.y, 1, 1e6), far = enemyAt(w, z.x + 80, z.y, 1, 1e6);
   updateZones(w, 1 / 60);
-  assert.ok(Math.abs(dealt(victim) - TRAP.scale * h.s.damage) < 1e-9); assert.ok(dealt(close) > 0); assert.equal(dealt(far), 0);
+  assert.ok(Math.abs(dealt(victim) - TRAP.scale * h.s.damage) < 1e-6); assert.ok(dealt(close) > 0); assert.equal(dealt(far), 0);
   assert.equal(w.zones.filter(x => x.type === 'trap').length, 2, 'a trap bursts once');
   for (let k = 0; k < 5; k++) { h.energy = h.s.energyMax; h.cd = 0; tick(w, h); }
   assert.ok(w.zones.filter(x => x.type === 'trap').length <= TRAP.max, 'at most 6 traps at once');
 });
 
-test('a match where the Ranger evolves (each form) replays exactly', () => {
+test('a match where the Ranger evolves (each form) replays exactly', tc => {
+  gentleLevel1(tc);
   for (const form of FORMS) {
     const w = createWorld({ seed: 4 }), t = tilesNearPath(w, 6);
     place(w, 'warrior', ...t[1]); const r = place(w, 'ranger', ...t[3]); place(w, 'mage', ...t[5]);

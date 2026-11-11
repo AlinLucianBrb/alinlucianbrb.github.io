@@ -39,10 +39,11 @@ test('curses: Hex, Doom and Verdict make an enemy take more damage (bosses half 
   const w = createWorld({ seed: 1 }), e = enemyAt(w, 0, 0), b = enemyAt(w, 0, 0, 0, 1e6, 'boss');
   assert.equal(damageTaken(e), 1);
   applyEffect(e, 'hex', { t: 1 }); applyEffect(b, 'hex', { t: 1 });
-  assert.ok(Math.abs(damageTaken(e) - 1.2) < 1e-9); assert.ok(Math.abs(damageTaken(b) - 1.1) < 1e-9);
+  const hx = EFFECTS.hex.taken;
+  assert.ok(Math.abs(damageTaken(e) - (1 + hx)) < 1e-9); assert.ok(Math.abs(damageTaken(b) - (1 + hx / 2)) < 1e-9);
   e.fx.verdict = { t: 5, n: 4 };
-  assert.ok(Math.abs(damageTaken(e) - 1.4) < 1e-9, 'Verdict: +5% a stack');
-  w.hit(null, e, 100); assert.ok(Math.abs(dealt(e) - 140) < 1e-9, 'the damage function applies it');
+  assert.ok(Math.abs(damageTaken(e) - (1.2 + hx)) < 1e-9, 'Verdict: +5% a stack');
+  w.hit(null, e, 100); assert.ok(Math.abs(dealt(e) - 100 * (1.2 + hx)) < 1e-9, 'the damage function applies it');
   assert.equal(tickEffects(w, e, 0.1), EFFECTS.hex.speedMult, 'Hex slows by 15%');
 });
 

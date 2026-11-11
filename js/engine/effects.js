@@ -11,7 +11,7 @@ const EXTRA = {
   oiled: { name: 'Oiled', kind: 'slow', speedMult: 0.5, tint: '#8a6d3b' },
   /* Curses (put there by abilities, not by damage types or chance rolls). taken: extra damage the enemy takes from everything
      (they add up; bosses take half, see damageTaken). One of each kind; a stronger one replaces a weaker one. */
-  hex:     { name: 'Hex', kind: 'curse', taken: 0.2, speedMult: 0.85, tint: '#6b3fa0' },          /* Occult's aura */
+  hex:     { name: 'Hex', kind: 'curse', taken: 0.25, speedMult: 0.85, tint: '#6b3fa0' },         /* Occult's aura (0.2 before the Nov 11 balance pass) */
   doom:    { name: 'Doom', kind: 'curse', taken: 0.5, tint: '#3c1460' },                          /* Occult's ultimate: explodes on death */
   verdict: { name: 'Verdict', kind: 'curse', perStack: 0.05, maxStacks: 10, tint: '#ffe08a' },   /* Inquisitor: +5% per stack */
   purge:   { name: 'Purged', kind: 'curse', tint: '#fff6c8' },                                     /* no armor, resistances down */

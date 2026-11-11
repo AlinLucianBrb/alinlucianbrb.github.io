@@ -3,6 +3,7 @@
 import { HEROES } from '../js/content/data.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { gentleLevel1 } from './helpers.mjs';
 import { installFakeDom } from './fake-dom.mjs';
 
 const dom = installFakeDom();
@@ -295,7 +296,8 @@ test('the run log handed to the Play screen replays to the same result', async (
   } finally { Object.assign(stage, saved); }
 });
 
-test('catches up after the browser pauses, and keeps running in a hidden tab', async () => {
+test('catches up after the browser pauses, and keeps running in a hidden tab', async tc => {
+  gentleLevel1(tc);
   byId.newRun.onclick(); dom.frames(2);
   const t = freeTiles(3);
   dom.heroButton(1).onclick(); click(...t[0]); dom.heroButton(2).onclick(); click(...t[2]);

@@ -1,0 +1,73 @@
+{
+ "at": "2026-11-11T15:00:19.105Z",
+ "rows": [
+  {
+   "stage": 2,
+   "weak": 47,
+   "strong": 100,
+   "worst": 38,
+   "best": 100,
+   "waves": {
+    "weak": 18.9,
+    "strong": 20,
+    "worst": 19.9,
+    "best": 20
+   },
+   "n": {
+    "weak": 90,
+    "strong": 90
+   }
+  },
+  {
+   "stage": 3,
+   "weak": 44,
+   "strong": 100,
+   "worst": 38,
+   "best": 100,
+   "waves": {
+    "weak": 24.1,
+    "strong": 25,
+    "worst": 24.9,
+    "best": 25
+   },
+   "n": {
+    "weak": 90,
+    "strong": 90
+   }
+  },
+  {
+   "stage": 4,
+   "weak": 46,
+   "strong": 100,
+   "worst": 38,
+   "best": 100,
+   "waves": {
+    "weak": 29.2,
+    "strong": 30,
+    "worst": 29.5,
+    "best": 30
+   },
+   "n": {
+    "weak": 90,
+    "strong": 90
+   }
+  },
+  {
+   "stage": 5,
+   "weak": 46,
+   "strong": 99,
+   "worst": 13,
+   "best": 100,
+   "waves": {
+    "weak": 34.1,
+    "strong": 35,
+    "worst": 33.8,
+    "best": 35
+   },
+   "n": {
+    "weak": 90,
+    "strong": 90
+   }
+  }
+ ]
+}

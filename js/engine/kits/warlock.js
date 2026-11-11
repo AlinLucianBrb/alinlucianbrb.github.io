@@ -1,5 +1,5 @@
 /* The Warlock: shadow bolts that Corrupt (shadow damage over time that grows with every stack), and Soul drain. At level 10:
-   - Occult: an aura (js/engine/aura.js) that Hexes every enemy inside (+20% damage taken from everything, 15% slower); Doom
+   - Occult: an aura (js/engine/aura.js) that Hexes every enemy inside (+25% damage taken from everything, 15% slower); Doom
      makes Hexed enemies take +50% more and explode in shadow when they die;
    - Summoner: each cast summons an imp (up to 3, 10 s each) that throws small bolts; Demon gate brings a Greater Demon;
    - Infernalist: Hellfire, a fireball that bursts and leaves burning ground; burns jump to the next enemy when the burning

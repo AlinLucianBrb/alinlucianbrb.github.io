@@ -2,7 +2,7 @@
 import { createWorld } from '../js/engine/world.js';
 import { apply } from '../js/engine/commands.js';
 import { ENEMIES } from '../js/engine/enemies.js';
-import { HEROES, HERO_ARCHIVE, T } from '../js/content/data.js';
+import { HEROES, HERO_ARCHIVE, T, STAGES } from '../js/content/data.js';
 import { heroStats } from '../js/engine/stats.js';
 
 export const heroIndex = id => HEROES.findIndex(h => h.id === id);
@@ -44,6 +44,13 @@ export function enemyAt(w, x, y, d = 0, hp = 1e6, type = 'grunt') {
 }
 /* Damage taken so far, rounded to 6 decimals so float noise never matters (hero damage includes +1% per attribute point). */
 export const dealt = e => Math.round((e.max - e.hp) * 1e6) / 1e6;
+
+/* Level 1 as gentle as it was before the Nov 11 balance pass (enemy health x1, not x5.25), for tests that need a few heroes
+   with no relics to live long enough to level up and evolve; the difficulty itself is tested in bot.test.mjs. */
+export function gentleLevel1(t) {
+  const old = STAGES[0].hpMult; STAGES[0].hpMult = 1;
+  t.after(() => { STAGES[0].hpMult = old; });
+}
 
 /* Runs fn with a temporary change to an object, then puts it back. */
 export function withTemp(obj, changes, fn) {

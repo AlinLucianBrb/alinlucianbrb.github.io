@@ -24,8 +24,9 @@ test('the bot finishes a run for every strategy and the result is consistent', (
 });
 
 /* A guard rail, not a balance target: if level 1 suddenly becomes unwinnable or trivial, something broke. */
-test('level 1 stays winnable for the bot with the full lineup', () => {
+test('level 1 at player level 1 is a real challenge: the bot neither always wins nor always loses', () => {
+  /* Tuned (Nov 11) so the weakest tenth of teams clears it about 40% of the time (npm run balance:tune). */
   let wins = 0;
-  for (let seed = 1; seed <= 6; seed++) if (playRun({ seed, stage: 1, strategy: 'trio' }).result.won) wins++;
-  assert.ok(wins >= 3, 'trio bot won only ' + wins + ' of 6 level 1 runs');
+  for (let seed = 1; seed <= 8; seed++) if (playRun({ seed, stage: 1, lineup: ['warrior', 'ranger', 'mage'] }).result.won) wins++;
+  assert.ok(wins >= 1 && wins <= 7, 'the classic trio won ' + wins + ' of 8 level 1 runs');
 });

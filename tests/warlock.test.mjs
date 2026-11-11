@@ -9,7 +9,7 @@ import { updateProjectiles } from '../js/engine/projectiles.js';
 import { updateZones } from '../js/engine/zones.js';
 import { levelMods } from '../js/engine/levels.js';
 import { ULTIMATES } from '../js/engine/ultimates.js';
-import { damageTaken, tickEffects } from '../js/engine/effects.js';
+import { damageTaken, tickEffects, EFFECTS } from '../js/engine/effects.js';
 import { inflict } from '../js/engine/combat.js';
 import { DRAIN, DOOM, IMP, DEMON, HELLFIRE, INFERNAL } from '../js/engine/kits/warlock.js';
 import { HEROES, RELICS, T } from '../js/content/data.js';
@@ -57,18 +57,18 @@ test('his bolts Corrupt; Soul drain drains the toughest enemy for 5x over 2 seco
   assert.ok(small.dead); assert.equal(ally.energy, Math.min(ally.s.energyMax, before + DRAIN.energy));
 });
 
-test('Occult: no attack; the aura Hexes everything inside (+20% damage taken, slower); Doom adds +50% and explosions on death', () => {
+test('Occult: no attack; the aura Hexes everything inside (+25% damage taken, slower); Doom adds +50% and explosions on death', () => {
   const { w, h } = setup(['warlock']);
   evolveTo(w, h, 'occult');
   const a = enemyAt(w, h.x + 20, h.y, 10), out = enemyAt(w, h.x + h.s.range + 40, h.y, 5);
   tick(w, h, 40);
   assert.ok(a.fx && a.fx.hex, 'hexed'); assert.ok(!out.fx || !out.fx.hex);
-  assert.ok(Math.abs(damageTaken(a) - 1.2) < 1e-9);
+  assert.ok(Math.abs(damageTaken(a) - (1 + EFFECTS.hex.taken)) < 1e-9);
   assert.equal(w.projs.length, 0);
   /* Doom */
   full(h); h.cd = 0; tick(w, h, 1);
   assert.ok(h.auraCurse && h.auraCurse.id === 'doom');
-  assert.ok(a.fx.doom, 'doomed'); assert.ok(Math.abs(damageTaken(a) - 1.7) < 1e-9);
+  assert.ok(a.fx.doom, 'doomed'); assert.ok(Math.abs(damageTaken(a) - (1.5 + EFFECTS.hex.taken)) < 1e-9);
   const neighbour = enemyAt(w, a.x + 10, a.y, 9), nb = dealt(neighbour);
   w.hit(h, a, a.hp + 10);
   assert.ok(a.dead);

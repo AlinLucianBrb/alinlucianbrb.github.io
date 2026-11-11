@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorld, step, recalc } from '../js/engine/world.js';
 import { apply } from '../js/engine/commands.js';
-import { RELICS } from '../js/content/data.js';
+import { RELICS, FORM_TUNING } from '../js/content/data.js';
 import { levelMods } from '../js/engine/levels.js';
 import { pathTo } from '../js/content/talents.js';
 import { richWorld, tilesNearPath, place, heroIndex } from './helpers.mjs';
@@ -45,8 +45,10 @@ test('evolving needs level 10 and costs gold, gives +25% to all the base stats, 
   assert.ok(apply(w, { type: 'evolve', id: h.id, choice: 2 }).ok);
   assert.equal(g - w.gold, 150); assert.equal(h.tier, 1);
   const near = (a, b) => Math.abs(a - b) < 1e-9;
-  for (const k of ['strength', 'dexterity', 'intellect', 'speed']) assert.ok(near(h.s[k], before[k] * 1.25), k);
-  assert.ok(near(h.s.damage, 28 * (1 + h.s.strength * 0.01) * 1.25), 'damage: +25%, with the higher strength');
+  const tune = Math.sqrt(FORM_TUNING.sentinel || 1);   /* the balance pass's extra damage and speed for the Sentinel */
+  for (const k of ['strength', 'dexterity', 'intellect']) assert.ok(near(h.s[k], before[k] * 1.25), k);
+  assert.ok(near(h.s.speed, before.speed * 1.25 * tune), 'speed');
+  assert.ok(near(h.s.damage, 28 * (1 + h.s.strength * 0.01) * 1.25 * tune), 'damage: +25%, with the higher strength');
   assert.ok(near(h.s.range, 60 * (1 + h.s.strength * 0.0025) * 1.25), 'range: +25%, with the higher strength');
   assert.equal(apply(w, { type: 'evolve', id: h.id, choice: 2 }).reason, 'fully evolved');
   assert.equal(w.evolveCost(h), null);
@@ -63,7 +65,7 @@ test('evolution stacks with relics and Bulk order makes it cheaper', () => {
   recalc(w);
   assert.equal(w.evolveCost(h), Math.round(150 * (1 - 0.0225 * 2)), 'Uncommon Bulk order: -4.5%');
   apply(w, { type: 'evolve', id: h.id, choice: 2 });
-  assert.ok(Math.abs(h.s.damage - 28 * (1 + 0.0375 + (10 + 3 * 9) * 1.25 * 0.01) * 1.25) < 1e-9, 'relic, strength and level bonuses add up, then evolution multiplies');
+  assert.ok(Math.abs(h.s.damage - 28 * (1 + 0.0375 + (10 + 3 * 9) * 1.25 * 0.01) * 1.25 * Math.sqrt(FORM_TUNING.sentinel || 1)) < 1e-9, 'relic, strength and level bonuses add up, then evolution multiplies');
 });
 
 test('moving needs a free tile and briefly delays the next attack', () => {

@@ -10,7 +10,7 @@ import { levelMods } from '../js/engine/levels.js';
 import { HEROES } from '../js/content/data.js';
 import { exportLog, replay } from '../js/engine/replay.js';
 import { hashWorld } from '../js/engine/hash.js';
-import { richWorld, tilesNearPath, place, enemyAt, dealt } from './helpers.mjs';
+import { richWorld, tilesNearPath, place, enemyAt, dealt, gentleLevel1 } from './helpers.mjs';
 
 const FORMS = ['firemage', 'coldmage', 'lightningmage'];
 /* A level-10 Mage ready to evolve, on a free tile in the middle of the map. */
@@ -89,7 +89,8 @@ test('Lightning Mage ultimate (Storm): strikes and shocks everything around the 
   assert.ok(dealt(lead) > 0);
 });
 
-test('a match where the Mage evolves replays exactly', () => {
+test('a match where the Mage evolves replays exactly', tc => {
+  gentleLevel1(tc);
   const w = createWorld({ seed: 2 }), t = tilesNearPath(w, 6);
   place(w, 'warrior', ...t[1]); place(w, 'ranger', ...t[3]); const m = place(w, 'mage', ...t[5]);
   apply(w, { type: 'auto', on: true });

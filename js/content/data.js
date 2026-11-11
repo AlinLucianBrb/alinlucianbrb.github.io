@@ -171,7 +171,7 @@ export const HEROES = [
     evolutions: [{ level: 10, cost: 150, choices: [
       { id: 'occult', name: 'Occult', color: '#7a4fc0', kind: 'aura', ultimate: 'doom', tags: ['aura', 'curse'],
         stats: { damage: 4, range: 110, cooldown: 0.5, energyPerAttack: 0.5 }, mods: evolved, aura: { curse: 'hex', harmless: true },
-        short: 'No attack and no damage: a shadow aura Hexes every enemy inside, so they take 20% more damage from everyone and move 15% slower.' },
+        short: 'No attack and no damage: a shadow aura Hexes every enemy inside, so they take 25% more damage from everyone and move 15% slower.' },
       { id: 'summoner', name: 'Summoner', color: '#c46aff', kind: 'imps', ultimate: 'demongate', tags: ['minion'], stats: { cooldown: 1.6 }, mods: evolved,
         short: 'Each cast summons an imp (up to 3, 10 seconds each) that throws small bolts at the enemies near it.' },
       { id: 'infernalist', name: 'Infernalist', color: '#ff6a3a', kind: 'hellfire', damageType: 'fire', ultimate: 'infernal', tags: ['fire', 'area'],
@@ -262,13 +262,37 @@ export const HERO_ARCHIVE = [
 HERO_ARCHIVE.forEach(h => h.tags.push(h.id));
 export const heroIndex = id => HEROES.findIndex(h => h.id === id);
 
-/* The five levels. Each has a wave count (15, then 5 more each), an enemy health multiplier and a per-wave growth rate. */
+/* Balance pass (Nov 11): forms that fell behind get more damage output, on top of the evolution bonus. The number is how
+   much more damage per second, split evenly between damage per hit and attack (or cast) speed: 1.44 = 20% more damage
+   and 20% faster attacks (a hero that already kills in one hit needs speed, not damage). Found with the balance tools
+   (npm run balance:report, balance:tune). The Occult deals no damage: its knob is how much more damage Hexed enemies
+   take (EFFECTS.hex in js/engine/effects.js). */
+export const FORM_TUNING = {
+  marksman: 1.6, hunter: 1.6, crusader: 1.6, sentinel: 1.5, boomeranger: 1.4, toxicologist: 1.35,
+  witchdoctor: 1.25, inquisitor: 1.2, gospel: 1.1, commander: 1.05, archangel: 1.05
+};
+/* Applies a tuning table to the forms (the balance tools use it to try one in memory; the game applies FORM_TUNING). */
+export function applyFormTuning(table = FORM_TUNING) {
+  for (const h of HEROES) for (const st of h.evolutions) for (const c of st.choices) {
+    if (!c.baseMods) Object.defineProperty(c, 'baseMods', { value: c.mods || [], enumerable: false });
+    const m = table[c.id];
+    const k = m && m !== 1 ? Math.sqrt(m) - 1 : 0;
+    c.mods = k ? [...c.baseMods, ...['damage', 'speed', 'castSpeed'].map(stat => ({ stat, type: 'more', value: k, scope: ['all'] }))] : c.baseMods;
+  }
+}
+applyFormTuning();
+
+/* The five levels. Each has a wave count (15, then 5 more each), an enemy health multiplier and a per-wave growth rate.
+   Tuned (Nov 11) so that at its point on the progression curve (PROGRESSION in tools/balance/suites.mjs: level 1 at player
+   level 1 with no gear, up to level 5 at player level 30 with epic gear) the weakest tenth of teams clears a level about
+   40% of the time. Each level starts a little tougher than the one before and grows more gently, so its last waves
+   are the hardest of all; before: hpMult 1 / 1.2 / 1.5 / 2 / 2.5, growth 1.14 / 1.15 / 1.16 / 1.17 / 1.18. */
 export const STAGES = [
-  { n: 1, name: 'Green Meadow', waves: 15, hpMult: 1,   growth: 1.14 },   /* name: shown with the level's picture (assets/level_<n>.png) */
-  { n: 2, name: 'Deep Forest',  waves: 20, hpMult: 1.2, growth: 1.15 },
-  { n: 3, name: 'Mire',         waves: 25, hpMult: 1.5, growth: 1.16 },
-  { n: 4, name: 'Red Canyon',   waves: 30, hpMult: 2,   growth: 1.17 },
-  { n: 5, name: 'Ashlands',     waves: 35, hpMult: 2.5, growth: 1.18 }
+  { n: 1, name: 'Green Meadow', waves: 15, hpMult: 5.2,  growth: 1.14 },    /* name: shown with the level's picture (assets/level_<n>.png) */
+  { n: 2, name: 'Deep Forest',  waves: 20, hpMult: 5.2,  growth: 1.118 },
+  { n: 3, name: 'Mire',         waves: 25, hpMult: 5.35, growth: 1.105 },
+  { n: 4, name: 'Red Canyon',   waves: 30, hpMult: 6.1,  growth: 1.103 },
+  { n: 5, name: 'Ashlands',     waves: 35, hpMult: 6.55, growth: 1.105 }
 ];
 
 export const STAT_LABELS = {

@@ -1,6 +1,6 @@
 /* The balance experiments: each suite is a list of jobs (playRun options plus what the job is about). The runner
    (run.mjs) plays them all, analyze.mjs turns the results into the numbers the report shows.
-   - forms:      every evolution form alone (levels 2 and 3), taken as an evolution path, at player level 10 with rare gear:
+   - forms:      every evolution form alone (levels 1 and 2), taken as an evolution path, at player level 30 with epic gear:
                  who holds up alone, who kills bosses;
    - comps:      every team of three different heroes with every combination of their forms (84 hero teams, 2268 form
                  teams) on level 5: how well each form's teams do against the average team, overall, next to strong
@@ -24,10 +24,18 @@ export const LINEUPS = {
   cunning: ['rogue', 'priest', 'shaman']
 };
 export const GEAR_BY_LEVEL = { 1: 'none', 10: 'common', 20: 'rare', 30: 'epic' };
+/* The progression curve: the player level and gear a player usually has on reaching each level. Each level is tuned at
+   its point here (tune.mjs), so that the weakest tenth of teams clears it about TARGET.weak % of the time and the
+   strongest tenth about TARGET.strong %, the single worst and best team within TARGET.spread points of their tenth. */
+export const PROGRESSION = { 1: { level: 1, gear: 'none' }, 2: { level: 5, gear: 'none' }, 3: { level: 10, gear: 'common' }, 4: { level: 20, gear: 'rare' }, 5: { level: 30, gear: 'epic' } };
+/* exclude: forms whose teams are left out of the targets. Lunar Druid and Earthcaller slow and stun whole crowds, which
+   helps the entire team more than any damage buff to the others can make up for; teams with them clear far more often. */
+export const TARGET = { weak: 40, strong: 60, spread: 5, exclude: ['lunar', 'earthcaller'] };
 /* Relics: each one in `comps` teams it does something for, `seeds` runs each, with and without it. */
 export const RELIC_SETUP = { stage: 5, level: 10, gear: 'common', copies: [2, 2], comps: 6, seeds: 2 };
 /* Forms alone on two levels; every team on a harder one (hard enough that they do not all win). */
-export const FORM_SETUP = { solo: [2, 3], level: 10, gear: 'rare' };
+/* Forms alone: one hero on a level made for three, so at player level 30 with epic gear (lower, nearly every form loses). */
+export const FORM_SETUP = { solo: [1, 2], level: 30, gear: 'epic' };
 /* Teams on the last level, where even the best teams rarely win: a clean win is the top score, so on an easier level
    what a support adds to a strong team would be cut off. */
 export const COMP_SETUP = { stage: 5, level: 10, gear: 'rare' };

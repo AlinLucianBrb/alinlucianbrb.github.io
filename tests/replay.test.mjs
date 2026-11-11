@@ -6,7 +6,7 @@ import { exportLog, replay, verify } from '../js/engine/replay.js';
 import { hashWorld } from '../js/engine/hash.js';
 import { playRun } from '../tools/bot.mjs';
 import { pathTo } from '../js/content/talents.js';
-import { tilesNearPath, heroIndex } from './helpers.mjs';
+import { tilesNearPath, heroIndex, gentleLevel1 } from './helpers.mjs';
 
 test('a whole bot run replays to the identical final state', () => {
   const { world, log } = playRun({ seed: 3, stage: 1, strategy: 'trio' });
@@ -15,7 +15,8 @@ test('a whole bot run replays to the identical final state', () => {
   assert.equal(verify(log).ok, true);
 });
 
-test('replay covers every command type: place, move, evolve, reroll, banish, choose, auto, wave', () => {
+test('replay covers every command type: place, move, evolve, reroll, banish, choose, auto, wave', tc => {
+  gentleLevel1(tc);
   /* Everything goes through commands: gold is earned by playing, never set directly, or the replay could not reproduce it. */
   const gear = { ranger: [{ type: 'power_charm', rarity: 2, bonuses: ['Quick hands', 'Keen edge'], ranks: [3, 2] }, { type: 'boots', rarity: 0, bonuses: ['Fine arrows'], ranks: [1] }] };
   const w = createWorld({ seed: 21, stage: 1, items: gear, talents: pathTo(new Set(), 't4_relics_s') });   /* a reroll and a banish */
