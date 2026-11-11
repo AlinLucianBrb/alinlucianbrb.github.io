@@ -10,8 +10,9 @@
      LOOKAHEAD.seconds; the copy that lost the fewest lives, killed its boss and dealt the most damage (damage to bosses
      counting LOOKAHEAD.bossWeight times) wins, so a form that clears crowds but cannot kill bosses is not picked;
    - after an evolution changes a hero's range, it moves to a better tile if one is clearly better;
-   - supports stand where they help the others, not where they cover the most path: a curse aura (Occult) where the
-     other heroes' ranges overlap the path inside it, a blessing aura (Incantation) and the forms that help the heroes
+   - supports stand where they help the others, not where they cover the most path: a curse aura (Occult) and the
+     Inquisitor (whose Verdict stacks pay off only when the others hit the same enemies) where the other heroes' ranges
+     overlap the path inside theirs, a blessing aura (Incantation) and the forms that help the heroes
      around them (Gospel's energy) among as many heroes as possible; they are checked again after every evolution, since
      the others move too. */
 import { T, COLS, ROWS, RARITIES } from '../../js/content/data.js';
@@ -121,7 +122,7 @@ export function betterSpot(w, h) {
 /* What kind of help a form gives: 'curse' (enemies in its aura take more from everyone), 'allies' (heroes near it get
    faster or get energy), or null. */
 export function supportKind(def) {
-  if (def.aura && def.aura.curse) return 'curse';
+  if ((def.aura && def.aura.curse) || def.kind === 'verdict') return 'curse';   /* Hex, and the Inquisitor's Verdict stacks */
   if ((def.aura && def.aura.bless) || def.kind === 'psalm') return 'allies';
   return null;
 }

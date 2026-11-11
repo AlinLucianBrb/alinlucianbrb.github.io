@@ -4,11 +4,17 @@
    two wins can still be told apart.
    Team value of a form: how much further the teams with it get than the average team (in points of progress), over
    every team of three it can be in (the comps suite). It counts everything a hero adds, not just its own damage:
-   curses, slows, buffs, energy, a turned-back enemy. Power (0 to 100): half how far it gets alone, half its team value
-   (scaled so the average team is 50); a support-only form (no damage of its own) is judged by its team value alone.
+   curses, slows, buffs, energy, a turned-back enemy. Split by how strong the other two are (their own team values
+   added up): as a partner (the strongest third of its teams) and as a carry (the weakest third), each measured
+   against the other forms in the same spot, so 0 is an ordinary form there. A multiplier (Verdict, Hex, Heresy) shows
+   up as a partner: it has little to multiply next to weak heroes.
+   Power (0 to 100) depends on the form's role (roles.mjs): damage forms, half alone and half team value over every
+   team; semi-supports, a quarter alone and three quarters value as a partner; supports, value as a partner only.
+   Team values map to the 0-100 scale with 0 points at 50 and TEAM_SCALE points at 0 or 100.
    Synergy of a pair: how much better (or worse) the teams with both do than their two team values add up to. */
 import { HEROES, RELICS, STAGES } from '../../js/content/data.js';
 import { RELIC_SETUP, FORM_SETUP, COMP_SETUP, GEAR_STAGE } from './suites.mjs';
+import { roleOf, SOLO_WEIGHT } from './roles.mjs';
 const SOLO = FORM_SETUP.solo;
 /* team value points that map to the 0 and 100 ends of the team half of power */
 export const TEAM_SCALE = 20;
@@ -32,6 +38,16 @@ export function analyze(data) {
   const withForm = id => CP.filter(r => r.forms.includes(id));
   const value = {};   /* form id -> team value in points */
   for (const h of HEROES) for (const c of h.evolutions[0].choices) { const rs = withForm(c.id); value[c.id] = rs.length ? (mean(rs.map(r => r.p)) - avg) * 100 : null; }
+  /* as a partner / as a carry: the strongest and the weakest third of each form's teams, by its partners' team values */
+  const partner = {}, carry = {};
+  for (const id of Object.keys(value)) {
+    const rs = withForm(id).map(r => ({ p: r.p, s: r.forms.filter(x => x !== id).reduce((a, x) => a + (value[x] ?? 0), 0) })).sort((a, b) => b.s - a.s);
+    const k = Math.floor(rs.length / 3);
+    partner[id] = k ? (mean(rs.slice(0, k).map(x => x.p)) - avg) * 100 : null;
+    carry[id] = k ? (mean(rs.slice(-k).map(x => x.p)) - avg) * 100 : null;
+  }
+  const centre = o => { const m = mean(Object.values(o).filter(v => v !== null)); for (const k in o) if (o[k] !== null) o[k] -= m; };
+  centre(partner); centre(carry);
   out.compSetup = COMP_SETUP;
   out.compAvg = { progress: r1((avg ?? 0) * 100), win: pct(CP.map(r => r.won)), n: CP.length };
 
@@ -42,17 +58,19 @@ export function analyze(data) {
     if (!solo.length && !team.length) continue;
     const share = team.map(r => { const tot = r.heroes.reduce((a, x) => a + x.damage, 0); const me = r.heroes.find(x => x.id === h.id); return tot > 0 && me ? me.damage / tot : 0; });
     const bossT = solo.flatMap(r => r.perWave.filter(v => v.boss !== null).map(v => (v.boss === 'escaped' ? 999 : v.boss)));
-    const soloP = mean(solo.map(progress)), sh = mean(share), tv = value[c.id], support = !!(c.aura && c.aura.harmless);
-    const teamScore = tv === null ? null : Math.max(0, Math.min(100, 50 + tv / TEAM_SCALE * 50));
-    const power = support ? teamScore : teamScore === null ? 100 * (soloP ?? 0) / 1.25 : 0.5 * 100 * (soloP ?? 0) / 1.25 + 0.5 * teamScore;
+    const soloP = mean(solo.map(progress)), sh = mean(share), tv = value[c.id], role = roleOf(c.id), support = role === 'support';
+    const judged = role === 'damage' ? tv : partner[c.id];   /* the team value a form of this role is judged by */
+    const teamScore = judged === null || judged === undefined ? null : Math.max(0, Math.min(100, 50 + judged / TEAM_SCALE * 50));
+    const sw = SOLO_WEIGHT[role];
+    const power = teamScore === null ? 100 * (soloP ?? 0) / 1.25 : sw * 100 * Math.min(1, (soloP ?? 0) / 1.25) + (1 - sw) * teamScore;
     forms.push({ hero: h.id, heroName: h.name, form: c.id, formName: c.name,
       solo1: pct(solo.filter(r => r.stage === SOLO[0]).map(r => r.won)), solo2: pct(solo.filter(r => r.stage === SOLO[1]).map(r => r.won)),
-      soloWave: r1(mean(solo.map(r => r.waves / maxWave(r.stage) * 100))), team: pct(team.map(r => r.won)), teams: team.length, value: r1(tv), share: r1((sh ?? 0) * 100),
+      soloWave: r1(mean(solo.map(r => r.waves / maxWave(r.stage) * 100))), team: pct(team.map(r => r.won)), teams: team.length, value: r1(tv), partner: r1(partner[c.id]), carry: r1(carry[c.id]), role, share: r1((sh ?? 0) * 100),
       boss: bossT.length ? r1(mean(bossT.filter(x => x < 999))) : null, bossEsc: bossT.length ? Math.round(bossT.filter(x => x >= 999).length / bossT.length * 100) : null,
       ults: r1(mean([...solo, ...team].map(r => (r.heroes.find(x => x.id === h.id) || {}).ults || 0))), power: r1(power), support, amp: (c.tags || []).includes('curse') });
   }
   out.forms = forms.sort((a, b) => b.power - a.power);
-  out.heroes = HEROES.map(h => { const f = forms.filter(x => x.hero === h.id && !x.support);   /* support-only forms are judged by their team, not by power */ return { hero: h.id, name: h.name, power: r1(mean(f.map(x => x.power))), best: f[0] && f.reduce((a, b) => (b.power > a.power ? b : a)).formName, worst: f[0] && f.reduce((a, b) => (b.power < a.power ? b : a)).formName, spread: f.length ? r1(Math.max(...f.map(x => x.power)) - Math.min(...f.map(x => x.power))) : null }; })
+  out.heroes = HEROES.map(h => { const f = forms.filter(x => x.hero === h.id); return { hero: h.id, name: h.name, power: r1(mean(f.map(x => x.power))), best: f[0] && f.reduce((a, b) => (b.power > a.power ? b : a)).formName, worst: f[0] && f.reduce((a, b) => (b.power < a.power ? b : a)).formName, spread: f.length ? r1(Math.max(...f.map(x => x.power)) - Math.min(...f.map(x => x.power))) : null }; })
     .filter(x => x.power !== null).sort((a, b) => b.power - a.power);
 
   /* hero teams: the 84 teams of three heroes, each over every combination of their forms */
@@ -136,13 +154,12 @@ export function analyze(data) {
 /* Red flags: what stands out enough to look at. */
 function flags(o) {
   const f = [], add = (level, area, text) => f.push({ level, area, text });
-  const P = o.forms.filter(x => !x.support).map(x => x.power), m = median(P);
+  const P = o.forms.map(x => x.power), m = median(P), sg = v => (v >= 0 ? '+' : '') + v;
   for (const x of o.forms) {
-    if (x.support) { add('info', 'Forms', `${x.formName} deals no damage by design, so its power is its team value alone (${x.value >= 0 ? '+' : ''}${x.value} points against the average team).`); continue; }
-    if (x.amp && x.value !== null) add('info', 'Forms', `${x.formName} makes the others hit harder: its own damage share is ${x.share}%, but its teams do ${x.value >= 0 ? '+' : ''}${x.value} points against the average team.`);
-    if (m && x.power < m * 0.6) add('high', 'Forms', `${x.formName} (${x.heroName}) is weak: power ${x.power} against a median of ${r1(m)}; alone it wins ${x.solo1 ?? '–'}% of level ${SOLO[0]}.`);
+    if (x.role !== 'damage' && x.partner !== null) add('info', 'Forms', `${x.formName} (${x.role === 'support' ? 'support' : 'semi-support'}) is judged as a partner: ${sg(x.partner)} points next to strong heroes, ${sg(x.carry)} next to weak ones (0 is an ordinary form there).`);
+    if (m && x.power < m * 0.6) add('high', 'Forms', `${x.formName} (${x.heroName}) is weak: power ${x.power} against a median of ${r1(m)}` + (x.role === 'damage' ? `; alone it wins ${x.solo1 ?? '–'}% of level ${SOLO[0]}.` : `; even next to strong heroes it adds ${sg(x.partner)} points.`));
     else if (m && x.power > m * 1.45) add('high', 'Forms', `${x.formName} (${x.heroName}) is strong: power ${x.power} against a median of ${r1(m)}.`);
-    if (x.bossEsc !== null && x.bossEsc >= 50) add('mid', 'Bosses', `${x.formName} alone lets ${x.bossEsc}% of bosses through.`);
+    if (x.role === 'damage' && x.bossEsc !== null && x.bossEsc >= 50) add('mid', 'Bosses', `${x.formName} alone lets ${x.bossEsc}% of bosses through.`);
   }
   for (const h of o.heroes) if (h.spread !== null && h.spread > 35) add('mid', 'Heroes', `${h.name}'s forms are far apart: ${h.best} vs ${h.worst} (${h.spread} points of power).`);
   for (let i = 0; i < o.difficulty.length; i++) {
@@ -159,7 +176,7 @@ function flags(o) {
     if (r.effect !== null && r.effect <= 0.3) add('low', 'Relics', `${r.name} made no measurable difference (${r.effect >= 0 ? '+' : ''}${r.effect} progress) in the relic test.`);
     if (r.picks === 0) add('low', 'Relics', `The smart bot never picked ${r.name}.`);
   }
-  for (const x of o.forms) if (x.value !== null && x.value <= -8) add('mid', 'Teams', `Teams with ${x.formName} (${x.heroName}) do ${x.value} points worse than the average team.`);
+  for (const x of o.forms) if (x.role === 'damage' && x.value !== null && x.value <= -8) add('mid', 'Teams', `Teams with ${x.formName} (${x.heroName}) do ${x.value} points worse than the average team.`);
   for (const pr of o.bestPairs.slice(0, 3)) if (pr.synergy >= 4) add('info', 'Teams', `${pr.names} work well together: +${pr.synergy} points beyond what each adds alone.`);
   for (const pr of o.worstPairs.slice(0, 3)) if (pr.synergy <= -4) add('low', 'Teams', `${pr.names} work badly together: ${pr.synergy} points below what each adds alone.`);
   const best = o.relics.filter(r => r.effect !== null);

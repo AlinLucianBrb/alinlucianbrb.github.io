@@ -3,8 +3,9 @@
    - forms:      every evolution form alone (levels 2 and 3), taken as an evolution path, at player level 10 with rare gear:
                  who holds up alone, who kills bosses;
    - comps:      every team of three different heroes with every combination of their forms (84 hero teams, 2268 form
-                 teams) on level 4: how well each form's teams do against the average team (so supports, whose worth
-                 is in what they add to the others, are judged fairly), the best and worst teams and pairs;
+                 teams) on level 5: how well each form's teams do against the average team, overall, next to strong
+                 partners and next to weak ones (so supports, whose worth is in what they add to the others, are judged
+                 fairly), the best and worst teams and pairs;
    - difficulty: every level at player levels 1, 10, 20 and 30 (gear growing with them: none, common, rare, epic) with three
                  different lineups: win rate, how far runs get, where they fail, leaks per wave;
    - relics:     every relic, one at a time, given at the start (two Rare copies) to several teams it does something for,
@@ -27,7 +28,9 @@ export const GEAR_BY_LEVEL = { 1: 'none', 10: 'common', 20: 'rare', 30: 'epic' }
 export const RELIC_SETUP = { stage: 5, level: 10, gear: 'common', copies: [2, 2], comps: 6, seeds: 2 };
 /* Forms alone on two levels; every team on a harder one (hard enough that they do not all win). */
 export const FORM_SETUP = { solo: [2, 3], level: 10, gear: 'rare' };
-export const COMP_SETUP = { stage: 4, level: 10, gear: 'rare' };
+/* Teams on the last level, where even the best teams rarely win: a clean win is the top score, so on an easier level
+   what a support adds to a strong team would be cut off. */
+export const COMP_SETUP = { stage: 5, level: 10, gear: 'rare' };
 
 /* Every team of three different heroes, with every combination of their forms: [{ heroes: [ids], forms: [ids] }]. */
 export function formTeams() {

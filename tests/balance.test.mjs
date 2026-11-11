@@ -77,3 +77,20 @@ test('analysis and report work on synthetic results', () => {
   assert.ok(o.forms.find(f => f.form === 'occult').value > 0);   /* a support is credited for what its team does */
   assert.match(html, /Teams of heroes/);
 });
+
+test('supports are judged as partners: their power does not depend on playing alone', async () => {
+  const { roleOf, SOLO_WEIGHT } = await import('../tools/balance/roles.mjs');
+  assert.equal(roleOf('occult'), 'support');
+  assert.equal(roleOf('inquisitor'), 'semi');
+  assert.equal(roleOf('berserker'), 'damage');
+  assert.equal(SOLO_WEIGHT.support, 0);
+  /* six teams: the Occult next to strong and weak partners; it never plays alone */
+  const run = (forms, ids, cleared) => ({ suite: 'comps', ids, forms, stage: 5, seed: 1, won: false, waves: 30, cleared, lives: 0, minutes: 5, perWave: [], heroes: ids.map(id => ({ id, damage: 10, ults: 0 })), relics: [] });
+  const data = { at: new Date().toISOString(), engine: 0, seeds: 1, runs: [
+    run(['occult', 'lunar', 'earthcaller'], ['warlock', 'druid', 'shaman'], 34), run(['infernalist', 'lunar', 'earthcaller'], ['warlock', 'druid', 'shaman'], 32),
+    run(['occult', 'animalic', 'witchdoctor'], ['warlock', 'druid', 'shaman'], 20), run(['infernalist', 'animalic', 'witchdoctor'], ['warlock', 'druid', 'shaman'], 24),
+    run(['occult', 'naturist', 'totemist'], ['warlock', 'druid', 'shaman'], 26), run(['infernalist', 'naturist', 'totemist'], ['warlock', 'druid', 'shaman'], 27)] };
+  const o = analyze(data), occ = o.forms.find(f => f.form === 'occult');
+  assert.equal(occ.role, 'support');
+  assert.ok(occ.partner > 0 && occ.carry < 0, `partner ${occ.partner}, carry ${occ.carry}`);
+});

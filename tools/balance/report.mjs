@@ -55,12 +55,14 @@ export function buildReport(data, prevData = null) {
   const flagsHtml = a.flags.length ? `<ul class="flags">${a.flags.map(f => `<li class="${f.level}"><b>${esc(f.area)}</b> ${esc(f.text)}</li>`).join('')}</ul>` : '<p>Nothing stands out.</p>';
 
   const formsTable = table('forms', [
-    { label: 'Form', get: r => r.formName, html: r => `<b>${esc(r.formName)}</b>${r.support ? ' <span class="tag">support</span>' : ''}` },
+    { label: 'Form', get: r => r.formName, html: r => `<b>${esc(r.formName)}</b>${r.role !== 'damage' ? ` <span class="tag">${r.role === 'support' ? 'support' : 'semi-support'}</span>` : ''}` },
     { label: 'Hero', get: r => r.heroName },
-    { label: 'Power', num: true, tip: 'Half how far it gets alone, half its team value (0-100); support-only forms: team value alone', get: r => r.power, html: r => fmt(r.power) + delta(r.power, (pf(r.form) || {}).power) },
+    { label: 'Power', num: true, tip: 'Damage forms: half alone, half team value. Semi-supports: a quarter alone, three quarters value as a partner. Supports: value as a partner (0-100)', get: r => r.power, html: r => fmt(r.power) + delta(r.power, (pf(r.form) || {}).power) },
     { label: 'Alone L' + FS.solo[0] + ' win', num: true, get: r => r.solo1, html: r => fmt(r.solo1, '%') + delta(r.solo1, (pf(r.form) || {}).solo1, { unit: '%' }), bg: r => heat(r.solo1) },
     { label: 'Alone L' + FS.solo[1] + ' win', num: true, get: r => r.solo2, html: r => fmt(r.solo2, '%') + delta(r.solo2, (pf(r.form) || {}).solo2, { unit: '%' }), bg: r => heat(r.solo2) },
     { label: 'Team value', num: true, tip: 'How much further the teams with it get than the average team, over every team it can be in (points of progress)', get: r => r.value, html: r => (r.value > 0 ? '+' : '') + fmt(r.value) + delta(r.value, (pf(r.form) || {}).value), bg: r => (r.value === null ? 'transparent' : heat(50 + r.value / TEAM_SCALE * 50)) },
+    { label: 'As partner', num: true, tip: 'Next to strong heroes (the strongest third of its teams), against other forms in that spot: 0 is ordinary', get: r => r.partner, html: r => (r.partner > 0 ? '+' : '') + fmt(r.partner) + delta(r.partner, (pf(r.form) || {}).partner), bg: r => (r.partner === null || r.partner === undefined ? 'transparent' : heat(50 + r.partner / TEAM_SCALE * 50)) },
+    { label: 'As carry', num: true, tip: 'Next to weak heroes (the weakest third of its teams), against other forms in that spot: 0 is ordinary', get: r => r.carry, html: r => (r.carry > 0 ? '+' : '') + fmt(r.carry) + delta(r.carry, (pf(r.form) || {}).carry), bg: r => (r.carry === null || r.carry === undefined ? 'transparent' : heat(50 + r.carry / TEAM_SCALE * 50)) },
     { label: 'Best with', tip: 'The partner it works best with (synergy points)', get: r => r.bestWith, html: r => `<small>${esc(r.bestWith || '–')}</small>` },
     { label: 'Worst with', tip: 'The partner it works worst with (synergy points)', get: r => r.worstWith, html: r => `<small>${esc(r.worstWith || '–')}</small>` },
     { label: 'Teams won', num: true, tip: 'Share of its teams that won', get: r => r.team, html: r => fmt(r.team, '%') + delta(r.team, (pf(r.form) || {}).team, { unit: '%' }) },
@@ -69,7 +71,9 @@ export function buildReport(data, prevData = null) {
     { label: 'Bosses through', num: true, get: r => r.bossEsc, html: r => fmt(r.bossEsc, '%') },
     { label: 'Ultimates', num: true, tip: 'Ultimates a run', get: r => r.ults }
   ], a.forms);
-  const powerChart = bars(a.forms.map(f => ({ label: f.formName + ' (' + f.heroName + ')', value: f.power, support: f.support })), { max: 100, color: x => (x.support ? 'var(--muted)' : 'var(--c1)') });
+  const roleColor = { damage: 'var(--c1)', semi: 'var(--s2)', support: 'var(--s3)' };
+  const powerChart = bars(a.forms.map(f => ({ label: f.formName + ' (' + f.heroName + ')', value: f.power, role: f.role })), { max: 100, color: x => roleColor[x.role] || 'var(--c1)' })
+    + `<div class="legend"><span><i style="background:var(--c1)"></i>damage</span><span><i style="background:var(--s2)"></i>semi-support</span><span><i style="background:var(--s3)"></i>support</span></div>`;
   const heroesTable = table('heroes', [
     { label: 'Hero', get: r => r.name, html: r => `<b>${esc(r.name)}</b>` }, { label: 'Average power', num: true, get: r => r.power },
     { label: 'Best form', get: r => r.best }, { label: 'Weakest form', get: r => r.worst }, { label: 'Gap', num: true, tip: 'Power between its best and weakest form', get: r => r.spread }
@@ -95,7 +99,8 @@ export function buildReport(data, prevData = null) {
     { label: 'Forms', get: r => r.names }, { label: 'Progress', num: true, get: r => r.progress }, { label: 'Won', num: true, get: r => r.win, html: r => fmt(r.win, '%') },
     { label: 'Wave', num: true, get: r => r.wave }, { label: 'Lives', num: true, get: r => r.lives }], list || []);
   const pairChart = (list) => bars((list || []).map(x => ({ label: x.names, value: x.synergy })), { width: 760, lw: 250, color: x => (x.value >= 0 ? 'var(--c1)' : 'var(--bad)') }).replace('<svg class="chart"', '<svg class="chart pairs"');
-  const valueChart = bars([...a.forms].sort((x, y) => (y.value ?? -99) - (x.value ?? -99)).map(f => ({ label: f.formName + ' (' + f.heroName + ')', value: f.value, support: f.support })), { color: x => (x.value >= 0 ? (x.support ? 'var(--muted)' : 'var(--c1)') : 'var(--bad)') });
+  const valueChart = bars([...a.forms].sort((x, y) => (y.value ?? -99) - (x.value ?? -99)).map(f => ({ label: f.formName + ' (' + f.heroName + ')', value: f.value })), { color: x => (x.value >= 0 ? 'var(--c1)' : 'var(--bad)') });
+  const partnerChart = bars([...a.forms].filter(f => f.partner !== null && f.partner !== undefined).sort((x, y) => y.partner - x.partner).map(f => ({ label: f.formName + ' (' + f.heroName + ')', value: f.partner, role: f.role })), { color: x => (x.value >= 0 ? roleColor[x.role] || 'var(--c1)' : 'var(--bad)') });
   const C = a.compSetup || {};
 
   const relicChart = bars(a.relics.filter(r => r.effect !== null).map(r => ({ label: r.name, value: r.effect })), { unit: '', color: x => (x.value > 0 ? 'var(--c1)' : 'var(--bad)') });
@@ -137,12 +142,13 @@ table.grid td{text-align:center;min-width:120px}table.grid td small,table.grid t
 <section><h2 style="margin-top:0">What stands out</h2>${flagsHtml}</section>
 
 <section><h2 style="margin-top:0">Heroes and forms</h2>
-<p class="note">Each form is taken as an evolution path, at player level ${FS.level} with ${FS.gear} gear: alone on levels ${FS.solo.join(' and ')}, and in every team of three it can be in on level ${C.stage} (see Teams). <b>Team value</b> is how much further its teams get than the average team, so it counts everything the form adds (curses, slows, buffs, energy), not only its own damage. <b>Power</b> (0 to 100) is half how far it gets alone and half its team value (the average team is 50; ±${TEAM_SCALE} points is 0 or 100). Support-only forms (grey) are judged by team value alone.</p>
+<p class="note">Each form is taken as an evolution path, at player level ${FS.level} with ${FS.gear} gear: alone on levels ${FS.solo.join(' and ')}, and in every team of three it can be in on level ${C.stage} (see Teams). <b>Team value</b> is how much further its teams get than the average team, so it counts everything the form adds (curses, slows, buffs, energy), not only its own damage. <b>As partner</b> and <b>as carry</b> split that by how strong its two teammates are (the strongest and the weakest third of its teams), each against the other forms in the same spot: a multiplier (Verdict, Hex, Heresy, Rally) shines as a partner and has little to multiply as a carry. <b>Power</b> (0 to 100) depends on the role (set in tools/balance/roles.mjs): damage forms, half alone and half team value; semi-supports, a quarter alone and three quarters as a partner; supports, as a partner only (0 points is 50, ±${TEAM_SCALE} points is 0 or 100).</p>
 ${powerChart}<h3>Every form</h3>${formsTable}<h3>By hero</h3>${heroesTable}</section>
 
 <section><h2 style="margin-top:0">Teams</h2>
 <p class="note">Every team of three different heroes (${(a.heroTeams || []).length}) with every combination of their forms (${fmt(a.compAvg && a.compAvg.n)} games), on level ${C.stage} at player level ${C.level} with ${esc(C.gear)} gear. The average team reaches ${fmt(a.compAvg && a.compAvg.progress)} progress and ${fmt(a.compAvg && a.compAvg.win, '%')} of the games are won; ${a.teamWins ? a.teamWins.won + ' of ' + a.teamWins.all : '–'} form teams won at least once.</p>
 <h3>Team value of each form</h3>${valueChart}
+<h3>Value as a partner (next to strong heroes)</h3><p class="note">Coloured by role: damage, <span style="color:var(--s2)">semi-support</span>, <span style="color:var(--s3)">support</span>.</p>${partnerChart}
 <h3>Teams of heroes</h3>${heroTeamsTable}
 <h3>Best form teams</h3>${teamList(a.bestTeams)}<h3>Worst form teams</h3>${teamList(a.worstTeams)}
 <h3>Pairs that work well together</h3><p class="note">Synergy: how much better the teams with both do than their two team values add up to (points). Pairs of two forms so strong that their teams win almost every time are left out: the score stops at a clean win, so they cannot show synergy.</p>${pairChart(a.bestPairs)}
