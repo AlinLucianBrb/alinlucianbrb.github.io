@@ -353,7 +353,7 @@ function clickCell(cx, cy) {
     ui.renderInspector(w, v);
   }
 }
-/* A hero can be placed if it is in the lineup and not on the map yet (one of each, free). */
+/* A hero can be placed if it is in the lineup and not on the map yet (one of each, for HERO_COST gold). */
 const unitOf = i => w.unitOf(i);   /* your hero of that class (in co-op others may have one too) */
 const canPlace = i => i >= 0 && w.lineup.includes(HEROES[i].id) && !unitOf(i) && !pendingPlace(HEROES[i].id);
 

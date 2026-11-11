@@ -3,7 +3,7 @@
    best tile it can find, then spends gold on evolutions and relics. With skill 'smart' (the default) it plays like a good
    player (tools/balance/smart.mjs); 'simple' is the first, plainer bot. The experiments and the HTML report built on it are
    in tools/balance/ (npm run balance:report). */
-import { HEROES, RARITIES, STAGES, T } from '../js/content/data.js';
+import { HEROES, RARITIES, STAGES, T, HERO_COST } from '../js/content/data.js';
 import { TREES, TREE_ID, pathTo, pointsFor } from '../js/content/talents.js';
 import { createWorld, step, summary } from '../js/engine/world.js';
 import { apply } from '../js/engine/commands.js';
@@ -73,14 +73,22 @@ export function playRun({ seed = 1, stage = 1, strategy = 'trio', lineup = null,
   const w = createWorld({ seed, stage, talents: talentsFor(level, team), lineup: team, items: items || gearFor(team, gear, way), paths: way, relics: startRelics });
   const rec = collect ? attach(w) : null;
   const rangeOf = id => heroStats(playedDef(id, way[id]), w.mods).range;
-  /* Place every hero once, the shortest range first, so it gets the tiles right next to the path. */
+  /* Place the heroes, the shortest range first, so it gets the tiles right next to the path. Each costs HERO_COST gold:
+     the first at the start, the others as soon as there is gold for them (before relics and evolutions). */
   const order = [...team].sort((a, b) => rangeOf(a) - rangeOf(b));
-  for (const id of order) {
-    const def = playedDef(id, way[id]);
-    for (const s of (smart ? spotsFor(w, rangeOf(id), def) : simpleSpots(w, rangeOf(id)))) if (apply(w, { type: 'place', hero: id, cx: s.cx, cy: s.cy }).ok) break;
+  const unplaced = g => order.filter(id => !g.heroes.some(h => h.base.id === id && (h.owner || 0) === 0));
+  function placeNext(g) {
+    for (const id of unplaced(g)) {
+      if (g.gold < HERO_COST) return;
+      const def = playedDef(id, way[id]);
+      for (const s of (smart ? spotsFor(g, rangeOf(id), def) : simpleSpots(g, rangeOf(id)))) if (apply(g, { type: 'place', hero: id, cx: s.cx, cy: s.cy }).ok) { if (rec && g === w) rec.spend('hero', HERO_COST); break; }
+    }
   }
+  placeNext(w);
   const evolveCost = h => w.evolveCost(h);
   function spend(g = w) {
+    placeNext(g);
+    if (unplaced(g).length) return;   /* saving for the next hero */
     for (const h of g.heroes) {
       const st = h.base.evolutions[h.tier];
       if (!st || h.level < g.evolveLevel(h) || g.gold < g.evolveCost(h)) continue;
@@ -112,6 +120,7 @@ export function playRun({ seed = 1, stage = 1, strategy = 'trio', lineup = null,
   }
   /* What the copies in a look ahead do between waves: the simple rules, so the look ahead stays quick. */
   function spendSimple(g) {
+    placeNext(g);
     for (const h of g.heroes) { const st = h.base.evolutions[h.tier]; if (st && h.level >= g.evolveLevel(h) && g.gold >= g.evolveCost(h)) apply(g, { type: 'evolve', id: h.id, choice: h.preview ? undefined : 0 }); }
   }
   while (w.phase !== 'over' && w.tick < maxTicks) {

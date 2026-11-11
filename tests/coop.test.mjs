@@ -2,6 +2,7 @@
    items, gold and relics. Enemies have as many times the life as there are players. */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { START_GOLD } from '../js/content/data.js';
 import { createWorld, step, playerView } from '../js/engine/world.js';
 import { apply } from '../js/engine/commands.js';
 import { exportLog, replay } from '../js/engine/replay.js';
@@ -19,7 +20,7 @@ test('co-op worlds: one player per lobby member, enemy life x players, shared li
   for (const w of [solo, duo, four]) { w.wave = 3; spawnEnemy(w, 'grunt'); }
   assert.ok(Math.abs(duo.enemies[0].max - 2 * solo.enemies[0].max) <= 1, '2 players: x2 life (rounded)');
   assert.ok(Math.abs(four.enemies[0].max - 4 * solo.enemies[0].max) <= 2, '4 players: x4 life (rounded)');
-  assert.deepEqual(duo.players.map(p => p.gold), [100, 100], 'everyone starts with their own gold');
+  assert.deepEqual(duo.players.map(p => p.gold), [START_GOLD, START_GOLD], 'everyone starts with their own gold');
   assert.deepEqual(duo.log.players.map(p => p.lineup), [['warrior'], ['ranger']], 'the log keeps every player');
 });
 
@@ -37,7 +38,7 @@ test('each player places, moves and evolves only their own heroes, and pays with
   /* relics: each player's own gold, choice and relics */
   assert.ok(apply(w, { type: 'buyRelic', p: 1 }).ok);
   assert.equal(w.players[1].picking, true); assert.equal(w.players[0].picking, false);
-  assert.ok(w.players[1].gold < 100 && w.players[0].gold === 100);
+  assert.ok(w.players[1].gold < START_GOLD && w.players[0].gold === START_GOLD);
   const before = w.tick; step(w); assert.equal(w.tick, before + 1, 'a co-op match never waits for one player\'s relic choice');
   assert.equal(apply(w, { type: 'move', id: ran.id, cx: t[3][0], cy: t[3][1], p: 1 }).reason, 'busy', 'that player finishes choosing first');
   assert.ok(apply(w, { type: 'move', id: war.id, cx: t[3][0], cy: t[3][1], p: 0 }).ok, 'the other player is not held up');
@@ -72,7 +73,7 @@ test('a player\'s view shows that player\'s gold and relics on the shared world;
   apply(w, { type: 'place', hero: 'ranger', cx: t[2][0], cy: t[2][1], p: 1 });
   apply(w, { type: 'buyRelic', p: 1 });
   const v1 = playerView(w, 1), v0 = playerView(w, 0);
-  assert.equal(v1.gold, w.players[1].gold); assert.equal(v0.gold, 100); assert.equal(v1.picking, true); assert.equal(v0.picking, false);
+  assert.equal(v1.gold, w.players[1].gold); assert.equal(v0.gold, START_GOLD); assert.equal(v1.picking, true); assert.equal(v0.picking, false);
   assert.equal(v1.heroes, w.heroes, 'the map is shared'); assert.equal(v1.relicCost(), w.relicCost(w.players[1]));
   apply(w, { type: 'choose', index: 1, p: 1 });
   apply(w, { type: 'auto', on: true, p: 0 }); apply(w, { type: 'auto', on: true, p: 1 });

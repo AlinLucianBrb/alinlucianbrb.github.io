@@ -2,7 +2,7 @@
    can only move or evolve its own heroes, and spends its own gold. Commands: place, move, evolve, wave, leave, auto, buyRelic, reroll, banish, choose. apply() checks it, changes the world and, if it worked, records it
    in world.log with the tick it happened on. A failed command changes nothing and is not recorded.
    To add an action, add an entry to COMMANDS. */
-import { HEROES, RARITIES, RELICS, rollRarity, COLS, ROWS, T, evolvedDef, HERO_LEVELS } from '../content/data.js';
+import { HEROES, RARITIES, RELICS, rollRarity, COLS, ROWS, T, evolvedDef, HERO_LEVELS, HERO_COST, PAY_FOR_HEROES } from '../content/data.js';
 import { pathChoice, pathDef, startPreview, endPreview } from './preview.js';
 import { affected } from './stats.js';
 import { levelMods } from './levels.js';
@@ -48,7 +48,7 @@ function offerCount(w, p) {
 }
 
 export const COMMANDS = {
-  /* Heroes are free to place, one of each, and only those in the match lineup. */
+  /* Placing a hero costs HERO_COST gold, one of each, and only those in the match lineup. */
   place(w, c) {
     const p = playerOf(w, c); if (!p) return fail('no such player');
     const b = blocked(w, p); if (b) return b;
@@ -57,6 +57,9 @@ export const COMMANDS = {
     if (!p.lineup.includes(def.id)) return fail('not in lineup');
     if (w.heroes.some(h => h.type === type && (h.owner || 0) === p.i)) return fail('already placed');
     if (!isFree(w, c.cx, c.cy)) return fail('blocked');
+    const price = PAY_FOR_HEROES.on ? HERO_COST : 0;
+    if (p.gold < price) return fail('gold');
+    p.gold -= price;
     const level = Math.min(HERO_LEVELS.max, 1 + p.gs.heroStartLevel);   /* Training talents: heroes start at a higher level */
     const h = { id: w.nextHeroId++, owner: p.i, type, def, base: def, path: [], cx: c.cx, cy: c.cy, x: (c.cx + 0.5) * T, y: (c.cy + 0.5) * T,
       cd: 0, ramp: 0, lock: null, proj: null, dealt: 0, kills: 0, energy: 0, ults: 0, tier: 0, mods: [], level, xp: 0, lvlMods: levelMods(level), s: null };

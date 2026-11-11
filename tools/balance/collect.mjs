@@ -17,7 +17,7 @@ function lastWave(cur) {
 }
 
 export function attach(w) {
-  const waves = [], rec = { relicGold: 0, evolveGold: 0 };
+  const waves = [], rec = { relicGold: 0, evolveGold: 0, heroGold: 0 };
   let cur = null, lastGold = w.gold;
   w.ev.on('waveStart', ({ wave }) => { cur = { wave, start: w.tick, lives: w.lives, leaks: 0, boss: null, bossT: null, enemies: 0, total: waveCount(wave) }; waves.push(cur); });
   w.ev.on('escape', ({ enemy }) => { if (!cur) return; cur.leaks += enemy.def.leak; if (enemy.def.boss) cur.boss = 'escaped'; });
@@ -39,7 +39,7 @@ export function attach(w) {
         won: r.won, waves: r.waves, lives: r.lives, ticks: r.ticks, minutes: +(r.ticks * STEP / 60).toFixed(2), failWave: r.won ? null : r.waves,
         perWave: waves.map(v => ({ wave: v.wave, leaks: v.leaks, secs: v.secs, boss: v.boss })),
         heroes: w.heroes.map(h => ({ id: h.base.id, form: h.def.form || null, path: h.preview ? h.preview.form : null, damage: Math.round(h.dealt), kills: h.kills, ults: h.ults, level: h.level, evolvedAt: h._evolvedAt || null })),
-        gold: { left: w.gold, relics: rec.relicGold, evolutions: rec.evolveGold },
+        gold: { left: w.gold, heroes: rec.heroGold, relics: rec.relicGold, evolutions: rec.evolveGold },
         relics: w.relics.map(x => ({ name: x.name, rarity: RARITIES[x.r].name }))
       };
     }

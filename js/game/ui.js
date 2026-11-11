@@ -1,5 +1,5 @@
 /* All DOM work for the game screen. Values are only written when they change, to avoid needless page updates. */
-import { HEROES, RARITIES, RELICS, STAT_LABELS, rarityOdds, HERO_LEVELS, ATTRIBUTES, ATTRIBUTE_EFFECTS } from '../content/data.js';
+import { HEROES, RARITIES, RELICS, STAT_LABELS, rarityOdds, HERO_LEVELS, ATTRIBUTES, ATTRIBUTE_EFFECTS, HERO_COST } from '../content/data.js';
 /* Attribute short names and colours: strength red, dexterity green, intellect blue. */
 export const ATTR_SHORT = { strength: 'Str', dexterity: 'Dex', intellect: 'Int' };
 export const ATTR_COLOR = { strength: '#e5645a', dexterity: '#5fd46f', intellect: '#5aa9ff' };
@@ -86,7 +86,7 @@ export function initUI(callbacks) {
       lines.push({ text: 'Tags: ' + tagLine(cur) + ' (relics, talents and items for these tags work on it)', color: '#9db3a3' });
       lines.push({ text: 'Damage: ' + DAMAGE_LABEL[cur.damageType || 'physical'] + (ail ? ' · inflicts ' + ail : ''), color: '#9db3a3' });
       lines.push({ text: 'Attack and ultimate: hover the two icons under its name.', color: '#9db3a3' });
-      lines.push(info.unit ? { text: 'Click to select it. Click and hold it on the map to move it.', color: '#9db3a3' } : { text: 'Free to place: one per match · key ' + b._key.textContent, color: '#9db3a3' });
+      lines.push(info.unit ? { text: 'Click to select it. Click and hold it on the map to move it.', color: '#9db3a3' } : { text: 'Costs ' + HERO_COST + ' gold to place: one per match · key ' + b._key.textContent, color: '#9db3a3' });
       if (info.unit) lines.push({ text: 'Level ' + info.unit.level + ': heroes gain XP from every kill while on the field.', color: '#8fd3ff' });
       if (info.path) lines.push({ text: 'Path: ' + info.path.name + '. Before it evolves: ' + PREVIEWS[info.path.id].desc, color: info.path.color || '#dcc6ff' });
       if (info.evo) {
@@ -174,7 +174,8 @@ export function renderHUD(g, v) {
     }
     setText(b._nm, unit ? (unit.tier ? '★ ' : '') + unit.def.name : d.name);
     setText(b._lv, unit ? 'Lv ' + unit.level : '');
-    setText(b._status, unit ? '' : 'Free · place it');
+    setText(b._status, unit ? '' : HERO_COST + ' gold · place it');
+    b.classList.toggle('poor', !unit && g.gold < HERO_COST);   /* not enough gold yet: the price shows red */
     const hc = unit ? unit.def.color : d.color, pn = heroSprite(unit ? unit.def : d);
     if (b._picName !== pn) { b._picName = pn; b._pic.src = spriteUrl(pn); }   /* evolved: its new form */
     if (b._hc !== hc) { b._hc = hc; b.style.setProperty?.('--hc', hc); }

@@ -60,14 +60,20 @@ export const EVOLVE_BONUS = 0.25;
 const evolved = ['damage', 'range', 'speed', 'castSpeed', 'strength', 'dexterity', 'intellect'].map(stat => ({ stat, type: 'more', value: EVOLVE_BONUS, scope: ['all'] }));
 const always = stat => ({ stat, type: 'flat', value: 1, scope: ['all'] });   /* a 100% chance */
 
-/* The playable heroes. A player brings up to LINEUP_SIZE of them into a match, one of each, free to place.
+/* Gold in a match (Nov 11 design notes): it starts at START_GOLD (Wealth talents add to it), placing a hero costs
+   HERO_COST, and an evolution EVOLVE_COST (Gate talents make evolutions cheaper). */
+export const START_GOLD = 150, HERO_COST = 150, EVOLVE_COST = 500;
+/* PAY_FOR_HEROES.on: placing costs HERO_COST (tests turn it off to set up a board freely; commands.test.mjs turns it back on). */
+export const PAY_FOR_HEROES = { on: true };
+
+/* The playable heroes. A player brings up to LINEUP_SIZE of them into a match, one of each, placed for HERO_COST gold.
    archetype: melee | range | spell. Every hero's tags include its archetype and its own id.
    To add a hero: add an entry here and a talent tree in talents.js. A new "kind" also needs a behavior in behaviors.js. */
 export const LINEUP_SIZE = 3;
 export const HEROES = [
   { id: 'warrior', name: 'Warrior', archetype: 'melee', attribute: 'strength', kind: 'swing', damageType: 'physical', color: '#c7ced6', shape: [5, -Math.PI / 2], tags: ['melee', 'attack', 'physical'],
     arc: 120, stats: withEnergy({ damage: 28, range: 60, cooldown: 0.8, speed: 1 }, { strength: 10, dexterity: 4, intellect: 2 }), ultimate: 'empowered',
-    evolutions: [{ level: 10, cost: 150, choices: [
+    evolutions: [{ level: 10, cost: EVOLVE_COST, choices: [
       { id: 'berserker', name: 'Berserker', color: '#e5645a', kind: 'doubleswing', ultimate: 'frenzy', mods: [...evolved, always('bleedChance')],
         short: 'Swings twice in quick succession, and every hit makes enemies bleed.' },
       { id: 'commander', name: 'Commander', color: '#7fb3ff', kind: 'launch', ultimate: 'rally', tags: ['projectile'], stats: { range: 110 }, mods: evolved,
@@ -80,7 +86,7 @@ export const HEROES = [
   { id: 'ranger', name: 'Hunter', archetype: 'range', attribute: 'dexterity', kind: 'bolt', projLook: 'arrow', projSpeed: 620, damageType: 'physical', color: '#f2b84b', shape: [0, 0],
     tags: ['range', 'projectile', 'attack', 'physical'],
     stats: withEnergy({ damage: 16, range: 120, cooldown: 0.5, speed: 1 }, { strength: 4, dexterity: 10, intellect: 3 }), ultimate: 'empowered',
-    evolutions: [{ level: 10, cost: 150, choices: [
+    evolutions: [{ level: 10, cost: EVOLVE_COST, choices: [
       { id: 'marksman', name: 'Ranger', color: '#ffd76a', ultimate: 'piercing', mods: evolved,
         short: 'The same arrows, stronger.' },
       { id: 'boomeranger', name: 'Boomerang', color: '#8be28b', kind: 'boom', ultimate: 'orbit', tags: ['thrown'], mods: evolved,
@@ -93,7 +99,7 @@ export const HEROES = [
   { id: 'mage', name: 'Mage', archetype: 'spell', attribute: 'intellect', kind: 'bolt', damageType: 'arcane', color: '#c39bf2', shape: [4, -Math.PI / 2], tags: ['spell', 'projectile', 'arcane'],
     rate: 'castSpeed', stats: withEnergy({ damage: 26, range: 110, cooldown: 1, castSpeed: 1, targets: 1 }, { strength: 2, dexterity: 4, intellect: 10 }), ultimate: 'empowered',
     /* At level 10 the Mage picks an element. The slow is the Frost Mage's old chill effect, kept for exactly this. */
-    evolutions: [{ level: 10, cost: 150, choices: [
+    evolutions: [{ level: 10, cost: EVOLVE_COST, choices: [
       { id: 'firemage', name: 'Fire Mage', color: '#ff7a45', damageType: 'fire', ultimate: 'inferno', tags: ['fire'],
         mods: [...evolved, always('burnChance')],
         short: 'Bolts deal fire damage and set enemies on fire.' },
@@ -111,7 +117,7 @@ export const HEROES = [
   { id: 'rogue', name: 'Rogue', archetype: 'melee', attribute: 'dexterity', kind: 'doubleswing', damageType: 'physical', color: '#4fb3a9', shape: [3, -Math.PI / 2],
     tags: ['melee', 'attack', 'physical'],
     arc: 100, stats: withEnergy({ damage: 17, range: 60, cooldown: 0.75, speed: 1 }, { strength: 4, dexterity: 10, intellect: 3, critChance: 0.1 }), ultimate: 'mark',
-    evolutions: [{ level: 10, cost: 150, choices: [
+    evolutions: [{ level: 10, cost: EVOLVE_COST, choices: [
       { id: 'assassin', name: 'Assassin', color: '#9b6bd6', kind: 'assassin', ultimate: 'clones', stats: { range: 130 },
         mods: [...evolved, { stat: 'damage', type: 'more', value: 1, scope: ['all'] }],
         short: 'Teleports behind the strongest, toughest enemy in range and strikes once, for double damage.' },
@@ -130,7 +136,7 @@ export const HEROES = [
   { id: 'druid', name: 'Druid', archetype: 'spell', attribute: 'intellect', kind: 'bolt', projLook: 'seed', projSpeed: 460, damageType: 'physical', color: '#8fbf5a',
     shape: [6, 0], tags: ['spell', 'projectile', 'physical', 'nature'], rate: 'castSpeed',
     stats: withEnergy({ damage: 24, range: 115, cooldown: 0.85, castSpeed: 1, targets: 1 }, { strength: 3, dexterity: 4, intellect: 10, rootChance: 0.15 }), ultimate: 'grasp',
-    evolutions: [{ level: 10, cost: 150, choices: [
+    evolutions: [{ level: 10, cost: EVOLVE_COST, choices: [
       { id: 'animalic', name: 'Animalic Druid', color: '#c98a4b', kind: 'wolf', ultimate: 'enrage', attribute: 'dexterity', tags: ['melee', 'minion'], stats: { range: 130 },
         mods: [...evolved, always('bleedChance'), { stat: 'damage', type: 'more', value: 0.25, scope: ['all'] }],
         short: 'A wolf runs after the enemy furthest along the path and bites everything in front of it; its bites bleed.' },
@@ -149,7 +155,7 @@ export const HEROES = [
   { id: 'priest', name: 'Priest', archetype: 'spell', attribute: 'intellect', kind: 'bolt', projLook: 'holy', projSpeed: 440, damageType: 'holy', color: '#f4e7b0',
     shape: [8, 0], tags: ['spell', 'projectile', 'holy'], rate: 'castSpeed',
     stats: withEnergy({ damage: 22, range: 115, cooldown: 0.9, castSpeed: 1, targets: 1 }, { strength: 2, dexterity: 3, intellect: 10 }), ultimate: 'blessing',
-    evolutions: [{ level: 10, cost: 150, choices: [
+    evolutions: [{ level: 10, cost: EVOLVE_COST, choices: [
       { id: 'incantation', name: 'Incantation', color: '#ffd76a', kind: 'aura', ultimate: 'crescendo', tags: ['aura'],
         stats: { damage: 7, range: 70, cooldown: 0.5, energyPerAttack: 0.5 }, mods: evolved,
         aura: { bless: { id: 'hymn', name: 'Hymn', mods: [{ stat: 'speed', type: 'inc', value: 0.15 }, { stat: 'castSpeed', type: 'inc', value: 0.15 }] } },
@@ -168,7 +174,7 @@ export const HEROES = [
   { id: 'warlock', name: 'Warlock', archetype: 'spell', attribute: 'intellect', kind: 'bolt', projSpeed: 420, damageType: 'shadow', color: '#9a5cd6',
     shape: [5, Math.PI / 2], tags: ['spell', 'projectile', 'shadow'], rate: 'castSpeed',
     stats: withEnergy({ damage: 18, range: 115, cooldown: 0.9, castSpeed: 1, targets: 1 }, { strength: 2, dexterity: 3, intellect: 10, corruptionChance: 0.5 }), ultimate: 'souldrain',
-    evolutions: [{ level: 10, cost: 150, choices: [
+    evolutions: [{ level: 10, cost: EVOLVE_COST, choices: [
       { id: 'occult', name: 'Occult', color: '#7a4fc0', kind: 'aura', ultimate: 'doom', tags: ['aura', 'curse'],
         stats: { damage: 4, range: 110, cooldown: 0.5, energyPerAttack: 0.5 }, mods: evolved, aura: { curse: 'hex', harmless: true },
         short: 'No attack and no damage: a shadow aura Hexes every enemy inside, so they take 25% more damage from everyone and move 15% slower.' },
@@ -186,7 +192,7 @@ export const HEROES = [
   { id: 'paladin', name: 'Paladin', archetype: 'melee', attribute: 'strength', kind: 'swing', damageType: 'physical', convert: { holy: 0.3 }, color: '#e8d27a',
     shape: [6, Math.PI / 6], tags: ['melee', 'attack', 'physical', 'holy'],
     arc: 120, stats: withEnergy({ damage: 36, range: 60, cooldown: 0.95, speed: 1 }, { strength: 10, dexterity: 3, intellect: 4 }), ultimate: 'consecration',
-    evolutions: [{ level: 10, cost: 150, choices: [
+    evolutions: [{ level: 10, cost: EVOLVE_COST, choices: [
       { id: 'heretic', name: 'Heretic', color: '#b04a3a', damageType: 'shadow', convert: { fire: 0.5 }, bloodPrice: 0.03, ultimate: 'heresy', tags: ['shadow', 'fire'],
         mods: [...evolved, always('burnChance')],
         short: 'A burning shadow flail (always burns), 3% stronger for every life lost this run.' },
@@ -203,7 +209,7 @@ export const HEROES = [
   { id: 'shaman', name: 'Shaman', archetype: 'spell', attribute: 'strength', kind: 'chain', damageType: 'lightning', color: '#7ad0e0',
     shape: [3, Math.PI / 2], tags: ['spell', 'projectile', 'lightning', 'chain'], rate: 'castSpeed',
     stats: withEnergy({ damage: 15, range: 110, cooldown: 0.9, castSpeed: 1, jumps: 2 }, { strength: 10, dexterity: 3, intellect: 6, shockChance: 0.1 }), ultimate: 'ancestral',
-    evolutions: [{ level: 10, cost: 150, choices: [
+    evolutions: [{ level: 10, cost: EVOLVE_COST, choices: [
       { id: 'witchdoctor', name: 'Witch Doctor', color: '#8ad04b', kind: 'darts', damageType: 'toxic', ultimate: 'locusts', tags: ['projectile', 'toxic', 'curse'],
         stats: { damage: 11, cooldown: 0.55 }, mods: [...evolved, always('poisonChance')],
         short: 'Fast poison darts (always poison) at an enemy not linked yet; each Voodoo-links its target with 2 enemies near it: 30% of the damage one takes goes to the others.' },
@@ -285,14 +291,16 @@ applyFormTuning();
 /* The five levels. Each has a wave count (15, then 5 more each), an enemy health multiplier and a per-wave growth rate.
    Tuned (Nov 11) so that at its point on the progression curve (PROGRESSION in tools/balance/suites.mjs: level 1 at player
    level 1 with no gear, up to level 5 at player level 30 with epic gear) the weakest tenth of teams cleared a level about
-   40% of the time; since relic offers fit the match (Nov 11), teams are stronger and it clears about 50-65%. Each level starts a little tougher than the one before and grows more gently, so its last waves
+   40% of the time; since relic offers fit the match (Nov 11), teams are stronger and it clears about 50-65%. With heroes
+   costing gold (Nov 11 evening) enemy health was lowered to keep that (most on levels 1 and 2, where you start with one
+   hero): 3.4 / 4 / 4.95 / 5.65 / 6.2, from 5.2 / 5.2 / 5.35 / 6.1 / 6.55. Each level starts a little tougher than the one before and grows more gently, so its last waves
    are the hardest of all; before: hpMult 1 / 1.2 / 1.5 / 2 / 2.5, growth 1.14 / 1.15 / 1.16 / 1.17 / 1.18. */
 export const STAGES = [
-  { n: 1, name: 'Green Meadow', waves: 15, hpMult: 5.2,  growth: 1.14 },    /* name: shown with the level's picture (assets/level_<n>.png) */
-  { n: 2, name: 'Deep Forest',  waves: 20, hpMult: 5.2,  growth: 1.118 },
-  { n: 3, name: 'Mire',         waves: 25, hpMult: 5.35, growth: 1.105 },
-  { n: 4, name: 'Red Canyon',   waves: 30, hpMult: 6.1,  growth: 1.103 },
-  { n: 5, name: 'Ashlands',     waves: 35, hpMult: 6.55, growth: 1.105 }
+  { n: 1, name: 'Green Meadow', waves: 15, hpMult: 3.4,  growth: 1.14 },    /* name: shown with the level's picture (assets/level_<n>.png) */
+  { n: 2, name: 'Deep Forest',  waves: 20, hpMult: 4,    growth: 1.118 },
+  { n: 3, name: 'Mire',         waves: 25, hpMult: 4.95, growth: 1.105 },
+  { n: 4, name: 'Red Canyon',   waves: 30, hpMult: 5.65, growth: 1.103 },
+  { n: 5, name: 'Ashlands',     waves: 35, hpMult: 6.2,  growth: 1.105 }
 ];
 
 export const STAT_LABELS = {

@@ -2,21 +2,24 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorld, step, recalc } from '../js/engine/world.js';
 import { apply } from '../js/engine/commands.js';
-import { RELICS, FORM_TUNING } from '../js/content/data.js';
+import { RELICS, FORM_TUNING, START_GOLD, HERO_COST, EVOLVE_COST, PAY_FOR_HEROES } from '../js/content/data.js';
 import { levelMods } from '../js/engine/levels.js';
 import { pathTo } from '../js/content/talents.js';
 import { richWorld, tilesNearPath, place, heroIndex } from './helpers.mjs';
 
-test('heroes are free to place, once each, only from the lineup, on a free tile; placing is recorded', () => {
+test('a match starts with 150 gold; placing a hero costs 150, once each, only from the lineup, on a free tile; placing is recorded', t0 => {
+  PAY_FOR_HEROES.on = true; t0.after(() => { PAY_FOR_HEROES.on = false; });
   const w = createWorld({ seed: 1, lineup: ['warrior', 'ranger'] }), t = tilesNearPath(w, 3);
+  assert.equal(w.gold, START_GOLD);
   const r = apply(w, { type: 'place', hero: 'ranger', cx: t[0][0], cy: t[0][1] });
-  assert.ok(r.ok); assert.equal(w.gold, 100, 'free');
+  assert.ok(r.ok); assert.equal(w.gold, START_GOLD - HERO_COST, 'paid for');
   assert.equal(apply(w, { type: 'place', hero: 'ranger', cx: t[1][0], cy: t[1][1] }).reason, 'already placed');
   assert.equal(apply(w, { type: 'place', hero: 'mage', cx: t[1][0], cy: t[1][1] }).reason, 'not in lineup');
   assert.equal(apply(w, { type: 'place', hero: 'warrior', cx: t[0][0], cy: t[0][1] }).reason, 'blocked');
   assert.equal(apply(w, { type: 'place', hero: 'warrior', cx: w.path[3][0], cy: w.path[3][1] }).reason, 'blocked', 'not on the path');
   assert.equal(apply(w, { type: 'place', hero: 'warrior', cx: 16, cy: 0 }).reason, 'blocked', 'not off the map');
   assert.equal(apply(w, { type: 'place', hero: 'thief', cx: 0, cy: 0 }).reason, 'unknown hero', 'archived heroes cannot be placed');
+  assert.equal(apply(w, { type: 'place', hero: 'warrior', cx: t[2][0], cy: t[2][1] }).reason, 'gold', 'the second hero waits for gold');
   assert.equal(w.log.commands.length, 1, 'failed commands are not recorded');
   assert.deepEqual(w.log.commands[0], { type: 'place', hero: 'ranger', cx: t[0][0], cy: t[0][1], t: 0 });
 });
@@ -41,9 +44,9 @@ test('evolving needs level 10 and costs gold, gives +25% to all the base stats, 
   assert.equal(apply(w, { type: 'evolve', id: h.id, choice: 2 }).reason, 'level', 'a fresh hero is level 1');
   h.level = 10;   /* test only: skip the XP (levels are tested in levels.test.mjs) */
   const before = { ...h.s }, g = w.gold;
-  assert.equal(w.evolveCost(h), 150);
+  assert.equal(w.evolveCost(h), EVOLVE_COST);
   assert.ok(apply(w, { type: 'evolve', id: h.id, choice: 2 }).ok);
-  assert.equal(g - w.gold, 150); assert.equal(h.tier, 1);
+  assert.equal(g - w.gold, EVOLVE_COST); assert.equal(h.tier, 1);
   const near = (a, b) => Math.abs(a - b) < 1e-9;
   const tune = Math.sqrt(FORM_TUNING.sentinel || 1);   /* the balance pass's extra damage and speed for the Sentinel */
   for (const k of ['strength', 'dexterity', 'intellect']) assert.ok(near(h.s[k], before[k] * 1.25), k);
@@ -62,7 +65,7 @@ test('evolution stacks with relics', () => {
   h.level = 10; h.lvlMods = levelMods(10);   /* test only: a level-10 hero with its level bonus */
   w.mods.push(...RELICS.find(r => r.name === 'Sharpened rounds').mods(1).map(m => ({ ...m, source: 'x', ri: 0 })));
   recalc(w);
-  assert.equal(w.evolveCost(h), 150);
+  assert.equal(w.evolveCost(h), EVOLVE_COST);
   apply(w, { type: 'evolve', id: h.id, choice: 2 });
   assert.ok(Math.abs(h.s.damage - 28 * (1 + 0.0375 + (10 + 3 * 9) * 1.25 * 0.01) * 1.25 * Math.sqrt(FORM_TUNING.sentinel || 1)) < 1e-9, 'relic, strength and level bonuses add up, then evolution multiplies');
 });

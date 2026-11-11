@@ -1,17 +1,17 @@
 {
- "at": "2026-11-11T17:05:03.334Z",
+ "at": "2026-11-11T18:48:32.565Z",
  "rows": [
   {
    "stage": 1,
-   "weak": 33,
-   "strong": 82,
-   "worst": 13,
-   "best": 100,
+   "weak": 0,
+   "strong": 4,
+   "worst": 0,
+   "best": 0,
    "waves": {
-    "weak": 11.8,
-    "strong": 14,
-    "worst": 12.7,
-    "best": 15
+    "weak": 8.9,
+    "strong": 7.4,
+    "worst": 9.2,
+    "best": 9.4
    },
    "n": {
     "weak": 90,
@@ -20,15 +20,15 @@
   },
   {
    "stage": 2,
-   "weak": 40,
-   "strong": 98,
-   "worst": 13,
-   "best": 100,
+   "weak": 3,
+   "strong": 41,
+   "worst": 0,
+   "best": 13,
    "waves": {
-    "weak": 18.7,
-    "strong": 19.7,
-    "worst": 17.4,
-    "best": 20
+    "weak": 12.5,
+    "strong": 12.1,
+    "worst": 13.3,
+    "best": 12
    },
    "n": {
     "weak": 90,
@@ -37,14 +37,14 @@
   },
   {
    "stage": 3,
-   "weak": 34,
-   "strong": 100,
+   "weak": 41,
+   "strong": 98,
    "worst": 13,
    "best": 100,
    "waves": {
-    "weak": 24,
-    "strong": 25,
-    "worst": 22.2,
+    "weak": 22.8,
+    "strong": 24.6,
+    "worst": 19.5,
     "best": 25
    },
    "n": {
@@ -54,14 +54,14 @@
   },
   {
    "stage": 4,
-   "weak": 41,
+   "weak": 39,
    "strong": 100,
-   "worst": 0,
+   "worst": 13,
    "best": 100,
    "waves": {
-    "weak": 29.1,
+    "weak": 29,
     "strong": 30,
-    "worst": 26.2,
+    "worst": 25.8,
     "best": 30
    },
    "n": {
@@ -71,14 +71,14 @@
   },
   {
    "stage": 5,
-   "weak": 33,
+   "weak": 38,
    "strong": 100,
    "worst": 0,
    "best": 100,
    "waves": {
-    "weak": 33.9,
+    "weak": 34.1,
     "strong": 35,
-    "worst": 30.4,
+    "worst": 31,
     "best": 35
    },
    "n": {

@@ -83,7 +83,7 @@ test('Evolutions tab: the base hero, then its three forms', () => {
   const tree = byId.hrBody.children[0];
   assert.equal(tree.className, 'evotree');
   assert.equal(tree.children[0].children[0]._text, 'Hunter');
-  assert.equal(tree.children[1]._text, 'Level 10 · 150 gold · choose one now (a path) or in the match');
+  assert.equal(tree.children[1]._text, 'Level 10 · 500 gold · choose one now (a path) or in the match');
   assert.deepEqual(tree.children[2].children.map(n => n.children[0]._text), ['Ranger', 'Boomerang', 'Poacher']);
   assert.ok(texts(tree).some(t => /^Ultimate: /.test(t)));
   assert.ok(texts(tree).some(t => /^Before level 10: Every 5th arrow pierces/.test(t)), 'each form says what its preview does');

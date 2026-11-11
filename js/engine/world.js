@@ -1,7 +1,7 @@
 /* The simulation. A world holds all game state and advances in fixed steps; players change it only through commands (commands.js).
    Nothing in js/engine touches the page, the clock or Math.random, so a world can run in a browser, in Node (tests, the balance bot)
    or on a server, and the same seed plus the same commands always gives the same result. */
-import { HEROES, STAGES, COLS, ROWS, LINEUP_SIZE, RELICS, RARITIES } from '../content/data.js';
+import { HEROES, STAGES, COLS, ROWS, LINEUP_SIZE, RELICS, RARITIES, START_GOLD } from '../content/data.js';
 import { itemMods, asItem } from '../content/items.js';
 import { createBus } from '../core/bus.js';
 import { talentMods } from '../content/talents.js';
@@ -21,7 +21,7 @@ import './kits/index.js';
 import { cleanPaths, pathChoice, pathDef, previewMods, syncPreview, updatePreview, previewHit } from './preview.js';   /* the newer heroes' behaviors, ultimates and zones register themselves */
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
-export const ENGINE_VERSION = 20;     /* bump when a rule change would make old command logs play out differently */
+export const ENGINE_VERSION = 21;     /* bump when a rule change would make old command logs play out differently */
 
 function genPath(rng) {
   let x = 0, y = 1 + rng.int(ROWS - 2); const p = [[x, y]];
@@ -51,7 +51,7 @@ function makePlayer(i, { talents = [], lineup = null, items = {}, paths = {}, re
   const wearerOf = id => { const d = HEROES.find(x => x.id === id), c = path[id] && pathChoice(id, path[id]); return d && { tags: c ? pathDef(d, c).tags : d.tags, rate: d.rate || 'speed' }; };
   const mods = [...talentMods(talents), ...itemMods(equipped, wearerOf)];
   return {
-    i, talents: [...talents], lineup: team, paths: path, items: equipped, mods, startRelics: cleanRelics(relics), gold: 100 + resolve(0, 'startGold', mods), gs: null,
+    i, talents: [...talents], lineup: team, paths: path, items: equipped, mods, startRelics: cleanRelics(relics), gold: START_GOLD + resolve(0, 'startGold', mods), gs: null,
     relics: [], relicsBought: 0, banned: new Set(), picking: false, pick: null, playOnPick: false, auto: false, ready: false,
     /* Free relic rerolls and banishes for this match: they come only from talents. */
     rerolls: Math.round(resolve(0, 'rerolls', mods)), banishes: Math.round(resolve(0, 'banishes', mods))

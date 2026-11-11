@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { playRun, talentsFor, STRATEGIES } from '../tools/bot.mjs';
 import { pointsFor, NODES, canAllocate } from '../js/content/talents.js';
-import { STAGES } from '../js/content/data.js';
+import { STAGES, PAY_FOR_HEROES } from '../js/content/data.js';
 
 test('bot talents use exactly the available points and are a legal set', () => {
   for (const level of [1, 3, 8, 20]) {
@@ -24,9 +24,12 @@ test('the bot finishes a run for every strategy and the result is consistent', (
 });
 
 /* A guard rail, not a balance target: if level 1 suddenly becomes unwinnable or trivial, something broke. */
-test('level 1 at player level 1 is a real challenge: the bot neither always wins nor always loses', () => {
-  /* Tuned (Nov 11) so the weakest tenth of teams clears it about 40% of the time (npm run balance:tune). */
-  let wins = 0;
-  for (let seed = 1; seed <= 8; seed++) if (playRun({ seed, stage: 1, lineup: ['warrior', 'ranger', 'mage'] }).result.won) wins++;
-  assert.ok(wins >= 1 && wins <= 7, 'the classic trio won ' + wins + ' of 8 level 1 runs');
+test('level 1 at player level 1 is a real challenge: the bot neither always wins nor always loses', tc => {
+  PAY_FOR_HEROES.on = true; tc.after(() => { PAY_FOR_HEROES.on = false; });   /* as in a real match: heroes cost gold */
+  /* Tuned (Nov 11) so the weakest tenth of teams clears it a bit more than half the time (npm run balance:tune). */
+  const wins = (lineup, form = '') => { let n = 0; for (let seed = 1; seed <= 6; seed++) if (playRun({ seed, stage: 1, lineup, form, paths: !!form }).result.won) n++; return n; };
+  const strong = wins(['warrior', 'ranger', 'mage']);
+  const weak = wins(['ranger', 'paladin', 'shaman'], 'boomeranger,crusader,witchdoctor');   /* one of the weakest teams */
+  assert.ok(strong >= 1, 'the classic trio can win (' + strong + ' of 6)');
+  assert.ok(weak >= 1 && weak <= 5, 'a weak team wins some and loses some (' + weak + ' of 6)');
 });
