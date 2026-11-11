@@ -1,9 +1,10 @@
 /* The balance runner: plays every experiment (suites.mjs) on worker threads, saves the results and builds the HTML report.
 
-   npm run balance:report                    the full set (3 seeds; several minutes)
-   npm run balance:report -- --quick         one seed and fewer settings (a minute or two)
+   npm run balance:report                    the full set (3 seeds, every team once; about 3000 games)
+   npm run balance:report -- --quick         one seed, fewer settings, a sample of the teams (a few minutes)
+   npm run balance:report -- --comp-seeds 2  every team twice
    npm run balance:report -- --seeds 5       steadier numbers, slower
-   npm run balance:report -- --only forms    one suite (forms, difficulty, relics, gear); the others keep last time's results
+   npm run balance:report -- --only forms    one suite (forms, comps, difficulty, relics, gear); the others keep last time's results
    --workers N                               threads (default: one per CPU core)
 
    Writes tools/balance/out/results.json (the previous one becomes results.prev.json, so the report can show what changed)
@@ -37,7 +38,7 @@ export async function runJobs(jobs, workers = cpus().length, onProgress = () => 
 
 async function main() {
   const quick = !!args.quick, seeds = +(args.seeds || 3), only = args.only && String(args.only).split(',');
-  let jobs = suites({ seeds, quick });
+  let jobs = suites({ seeds, quick, compSeeds: +(args['comp-seeds'] || 1) });
   if (only) jobs = jobs.filter(j => only.includes(j.suite));
   const t0 = Date.now(), workers = +(args.workers || cpus().length);
   console.log(`Balance run: ${jobs.length} games on ${workers} threads${quick ? ' (quick)' : ''}…`);

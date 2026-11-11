@@ -3,6 +3,7 @@
    column. buildReport(data, prev) returns the HTML. */
 import { analyze } from './analyze.mjs';
 import { FORM_SETUP as FS, GEAR_STAGE } from './suites.mjs';
+import { TEAM_SCALE } from './analyze.mjs';
 
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const fmt = (x, unit = '') => (x === null || x === undefined ? '–' : x + unit);
@@ -23,13 +24,13 @@ function table(id, cols, rows) {
 }
 
 /* Horizontal bars, sorted, with an optional zero line for values that can be negative. */
-function bars(items, { max = null, unit = '', width = 640, label = x => x.label, value = x => x.value, color = () => 'var(--c1)' } = {}) {
+function bars(items, { max = null, unit = '', width = 640, lw = 150, label = x => x.label, value = x => x.value, color = () => 'var(--c1)' } = {}) {
   const vals = items.map(value).filter(v => v !== null), hi = max ?? Math.max(1, ...vals.map(Math.abs)), lo = Math.min(0, ...vals);
-  const lw = 150, row = 20, W = width, plot = W - lw - 50, zero = lw + (lo < 0 ? plot * (-lo / (hi - lo)) : 0), scale = plot / (hi - lo);
+  const row = 20, W = width, plot = W - lw - 50, zero = lw + (lo < 0 ? plot * (-lo / (hi - lo)) : 0), scale = plot / (hi - lo);
   const g = items.map((x, i) => {
     const v = value(x); if (v === null) return '';
     const y = i * row, x0 = v >= 0 ? zero : zero + v * scale, w = Math.max(1, Math.abs(v) * scale);
-    return `<g><text x="${lw - 6}" y="${y + 14}" class="bl">${esc(label(x))}</text><rect x="${x0}" y="${y + 4}" width="${w}" height="${row - 7}" rx="2" fill="${color(x)}"><title>${esc(label(x))}: ${v}${unit}</title></rect><text x="${v >= 0 ? x0 + w + 4 : x0 - 4}" y="${y + 14}" class="bv" text-anchor="${v >= 0 ? 'start' : 'end'}">${v}${unit}</text></g>`;
+    return `<g><text x="${lw - 6}" y="${y + 14}" class="bl">${esc(label(x))}</text><rect x="${x0}" y="${y + 4}" width="${w}" height="${row - 7}" rx="2" fill="${color(x)}"><title>${esc(label(x))}: ${v}${unit}</title></rect><text x="${v >= 0 ? x0 + w + 4 : zero + 4}" y="${y + 14}" class="bv" text-anchor="start">${v}${unit}</text></g>`;
   }).join('');
   return `<svg class="chart" viewBox="0 0 ${W} ${items.length * row + 4}" role="img">${lo < 0 ? `<line x1="${zero}" x2="${zero}" y1="0" y2="${items.length * row}" class="axis"/>` : ''}${g}</svg>`;
 }
@@ -56,11 +57,14 @@ export function buildReport(data, prevData = null) {
   const formsTable = table('forms', [
     { label: 'Form', get: r => r.formName, html: r => `<b>${esc(r.formName)}</b>${r.support ? ' <span class="tag">support</span>' : ''}` },
     { label: 'Hero', get: r => r.heroName },
-    { label: 'Power', num: true, tip: 'Half how far it gets alone, half how much it carries a team (0-100)', get: r => r.power, html: r => fmt(r.power) + delta(r.power, (pf(r.form) || {}).power) },
+    { label: 'Power', num: true, tip: 'Half how far it gets alone, half its team value (0-100); support-only forms: team value alone', get: r => r.power, html: r => fmt(r.power) + delta(r.power, (pf(r.form) || {}).power) },
     { label: 'Alone L' + FS.solo[0] + ' win', num: true, get: r => r.solo1, html: r => fmt(r.solo1, '%') + delta(r.solo1, (pf(r.form) || {}).solo1, { unit: '%' }), bg: r => heat(r.solo1) },
     { label: 'Alone L' + FS.solo[1] + ' win', num: true, get: r => r.solo2, html: r => fmt(r.solo2, '%') + delta(r.solo2, (pf(r.form) || {}).solo2, { unit: '%' }), bg: r => heat(r.solo2) },
-    { label: 'Team L' + FS.team + ' win', num: true, get: r => r.team, html: r => fmt(r.team, '%') + delta(r.team, (pf(r.form) || {}).team, { unit: '%' }), bg: r => heat(r.team) },
-    { label: 'Team damage', num: true, tip: 'Its share of its team\'s damage (a third is a fair share)', get: r => r.share, html: r => fmt(r.share, '%') + delta(r.share, (pf(r.form) || {}).share, { unit: '%' }) },
+    { label: 'Team value', num: true, tip: 'How much further the teams with it get than the average team, over every team it can be in (points of progress)', get: r => r.value, html: r => (r.value > 0 ? '+' : '') + fmt(r.value) + delta(r.value, (pf(r.form) || {}).value), bg: r => (r.value === null ? 'transparent' : heat(50 + r.value / TEAM_SCALE * 50)) },
+    { label: 'Best with', tip: 'The partner it works best with (synergy points)', get: r => r.bestWith, html: r => `<small>${esc(r.bestWith || '–')}</small>` },
+    { label: 'Worst with', tip: 'The partner it works worst with (synergy points)', get: r => r.worstWith, html: r => `<small>${esc(r.worstWith || '–')}</small>` },
+    { label: 'Teams won', num: true, tip: 'Share of its teams that won', get: r => r.team, html: r => fmt(r.team, '%') + delta(r.team, (pf(r.form) || {}).team, { unit: '%' }) },
+    { label: 'Team damage', num: true, tip: 'Its share of its team\'s damage (a third is a fair share; supports deal less by design)', get: r => r.share, html: r => fmt(r.share, '%') + delta(r.share, (pf(r.form) || {}).share, { unit: '%' }) },
     { label: 'Boss kill (s)', num: true, tip: 'Seconds to kill a boss alone (lower is better)', get: r => r.boss, html: r => fmt(r.boss) + delta(r.boss, (pf(r.form) || {}).boss, { invert: true }) },
     { label: 'Bosses through', num: true, get: r => r.bossEsc, html: r => fmt(r.bossEsc, '%') },
     { label: 'Ultimates', num: true, tip: 'Ultimates a run', get: r => r.ults }
@@ -78,12 +82,30 @@ export function buildReport(data, prevData = null) {
   const leaks = `<div class="multiples">${a.survival.map(s => lines(s.curves.map(c => ({ name: 'Player level ' + c.level, values: c.leaks })), { waves: s.curves[0] ? s.curves[0].leaks.length : 1, title: 'Level ' + s.stage + ': lives lost per wave', yMax: Math.ceil(leakMax), unit: '' })).join('')}</div>${legend(levelNames)}`;
   const fails = `<ul class="plain">${a.failWaves.filter(f => f.lost).map(f => `<li>Level ${f.stage}: ${f.lost} runs lost, ${f.onBoss} of them to a boss; most often on wave ${f.top.map(t => t.wave + ' (' + t.n + ')').join(', ')}.</li>`).join('') || '<li>No run was lost.</li>'}</ul>`;
 
+  /* teams */
+  const ph = k => p && (p.heroTeams || []).find(x => x.heroes.join() === k);
+  const heroTeamsTable = table('heroteams', [
+    { label: 'Team', get: r => r.names, html: r => `<b>${esc(r.names)}</b>` },
+    { label: 'Progress', num: true, tip: 'Average over every combination of their forms', get: r => r.progress, html: r => fmt(r.progress) + delta(r.progress, (ph(r.heroes.join()) || {}).progress), bg: r => heat((r.progress - 60) * 2) },
+    { label: 'Won', num: true, get: r => r.win, html: r => fmt(r.win, '%') },
+    { label: 'Best forms', get: r => r.best, html: r => esc(r.best) + ` <small class="note">${fmt(r.bestP)}</small>` },
+    { label: 'Worst forms', get: r => r.worst, html: r => esc(r.worst) + ` <small class="note">${fmt(r.worstP)}</small>` }
+  ], a.heroTeams || []);
+  const teamList = (list) => table('t' + Math.random().toString(36).slice(2, 7), [
+    { label: 'Forms', get: r => r.names }, { label: 'Progress', num: true, get: r => r.progress }, { label: 'Won', num: true, get: r => r.win, html: r => fmt(r.win, '%') },
+    { label: 'Wave', num: true, get: r => r.wave }, { label: 'Lives', num: true, get: r => r.lives }], list || []);
+  const pairChart = (list) => bars((list || []).map(x => ({ label: x.names, value: x.synergy })), { width: 760, lw: 250, color: x => (x.value >= 0 ? 'var(--c1)' : 'var(--bad)') }).replace('<svg class="chart"', '<svg class="chart pairs"');
+  const valueChart = bars([...a.forms].sort((x, y) => (y.value ?? -99) - (x.value ?? -99)).map(f => ({ label: f.formName + ' (' + f.heroName + ')', value: f.value, support: f.support })), { color: x => (x.value >= 0 ? (x.support ? 'var(--muted)' : 'var(--c1)') : 'var(--bad)') });
+  const C = a.compSetup || {};
+
   const relicChart = bars(a.relics.filter(r => r.effect !== null).map(r => ({ label: r.name, value: r.effect })), { unit: '', color: x => (x.value > 0 ? 'var(--c1)' : 'var(--bad)') });
   const relicsTable = table('relics', [
     { label: 'Relic', get: r => r.name, html: r => `<b>${esc(r.name)}</b>` },
     { label: 'Effect', num: true, tip: 'Progress gained over the same runs with no relic (percentage points of the level)', get: r => r.effect, html: r => fmt(r.effect) + delta(r.effect, (pr(r.name) || {}).effect) },
+    { label: 'Helped', num: true, tip: 'Share of the test runs that got further with it than without', get: r => r.better, html: r => fmt(r.better, '%') },
     { label: 'Wave reached', num: true, get: r => r.wave }, { label: 'Win', num: true, get: r => r.win, html: r => fmt(r.win, '%') },
-    { label: 'Picked', num: true, tip: 'How often the smart bot took it in the other experiments', get: r => r.picks }, { label: 'Per run', num: true, get: r => r.perRun }
+    { label: 'Picked', num: true, tip: 'How often the smart bot took it in the other experiments', get: r => r.picks }, { label: 'Per run', num: true, get: r => r.perRun },
+    { label: 'Tested with', get: r => r.teams.join(' · '), html: r => `<small class="note">${esc(r.teams.join(' · '))}</small>` }
   ], a.relics);
 
   const gearTable = `<div class="tw"><table class="grid"><thead><tr><th>Player level</th>${a.gear.gears.map(g => `<th>${esc(g[0].toUpperCase() + g.slice(1))} gear</th>`).join('')}</tr></thead><tbody>${a.gear.levels.map((L, i) => `<tr><th>${L}</th>${a.gear.cells[i].map(c => `<td style="background:${heat(c.progress)}"><b>${fmt(c.win, '%')}</b><small>wave ${fmt(c.wave)} · progress ${fmt(c.progress)}</small></td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
@@ -104,7 +126,7 @@ th{font-weight:600;color:var(--muted);white-space:nowrap}table.sortable th{curso
 table.grid td{text-align:center;min-width:120px}table.grid td small,table.grid th small{display:block;color:var(--muted);font-weight:400}
 .d{font-size:.8em;font-weight:600;margin-left:3px}.d.up{color:var(--up)}.d.down{color:var(--down)}.tag{font-size:.75em;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 4px}
 .chart{width:100%;height:auto;display:block}.chart .bl{font-size:11px;fill:var(--text);text-anchor:end}.chart .bv,.chart .tick{font-size:10px;fill:var(--muted)}.chart .ct{font-size:11px;fill:var(--text);font-weight:600}
-.chart .grid,.chart .axis{stroke:var(--line)}.chart.small{max-width:360px}
+.chart .grid,.chart .axis{stroke:var(--line)}.chart.small{max-width:360px}.chart.pairs .bl{font-size:10px}
 .multiples{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}.legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:.85em;margin-top:6px}
 .legend i{display:inline-block;width:12px;height:3px;vertical-align:middle;margin-right:5px}.plain{margin:6px 0;padding-left:18px}.note{color:var(--muted);font-size:.9em}
 @media (max-width:600px){main{padding:16px 12px}section{padding:12px}}
@@ -115,15 +137,23 @@ table.grid td{text-align:center;min-width:120px}table.grid td small,table.grid t
 <section><h2 style="margin-top:0">What stands out</h2>${flagsHtml}</section>
 
 <section><h2 style="margin-top:0">Heroes and forms</h2>
-<p class="note">Each form is taken as an evolution path, at player level ${FS.level} with ${FS.gear} gear: alone on levels ${FS.solo.join(' and ')}, and with two partners on level ${FS.team}. <b>Power</b> (0 to 100) is half how far it gets alone and half how much it carries a team.</p>
+<p class="note">Each form is taken as an evolution path, at player level ${FS.level} with ${FS.gear} gear: alone on levels ${FS.solo.join(' and ')}, and in every team of three it can be in on level ${C.stage} (see Teams). <b>Team value</b> is how much further its teams get than the average team, so it counts everything the form adds (curses, slows, buffs, energy), not only its own damage. <b>Power</b> (0 to 100) is half how far it gets alone and half its team value (the average team is 50; ±${TEAM_SCALE} points is 0 or 100). Support-only forms (grey) are judged by team value alone.</p>
 ${powerChart}<h3>Every form</h3>${formsTable}<h3>By hero</h3>${heroesTable}</section>
+
+<section><h2 style="margin-top:0">Teams</h2>
+<p class="note">Every team of three different heroes (${(a.heroTeams || []).length}) with every combination of their forms (${fmt(a.compAvg && a.compAvg.n)} games), on level ${C.stage} at player level ${C.level} with ${esc(C.gear)} gear. The average team reaches ${fmt(a.compAvg && a.compAvg.progress)} progress and ${fmt(a.compAvg && a.compAvg.win, '%')} of the games are won; ${a.teamWins ? a.teamWins.won + ' of ' + a.teamWins.all : '–'} form teams won at least once.</p>
+<h3>Team value of each form</h3>${valueChart}
+<h3>Teams of heroes</h3>${heroTeamsTable}
+<h3>Best form teams</h3>${teamList(a.bestTeams)}<h3>Worst form teams</h3>${teamList(a.worstTeams)}
+<h3>Pairs that work well together</h3><p class="note">Synergy: how much better the teams with both do than their two team values add up to (points). Pairs of two forms so strong that their teams win almost every time are left out: the score stops at a clean win, so they cannot show synergy.</p>${pairChart(a.bestPairs)}
+<h3>Pairs that work badly together</h3>${pairChart(a.worstPairs)}</section>
 
 <section><h2 style="margin-top:0">Difficulty</h2>
 <p class="note">Every level with three lineups (Warrior, Hunter, Mage · Paladin, Druid, Warlock · Rogue, Priest, Shaman); gear grows with the player level (none, common, rare, epic). Hover a cell for each lineup.</p>
 ${diffTable}<h3>How far runs get</h3>${survival}<h3>Where lives are lost</h3>${leaks}<h3>Lost runs</h3>${fails}</section>
 
 <section><h2 style="margin-top:0">Relics</h2>
-<p class="note">Each relic given twice (Rare) before wave 1, the bot shopping as usual, on level ${R.stage}, player level ${R.level}, ${R.gear} gear, ${esc(R.lineup.join(', '))} (paths ${esc(R.form.replace(/,/g, ', '))}). <b>Effect</b> is how much further those runs got than the same runs with no relic (${fmt(a.relicBase.progress)} progress, wave ${fmt(a.relicBase.wave)}, ${fmt(a.relicBase.win, '%')} wins). Picks come from the smart bot in the other experiments. Relics that do nothing for this lineup show no effect.</p>
+<p class="note">Every relic given twice (Rare) before wave 1 to ${R.comps} teams it does something for (relics for some heroes only go to teams with one of them), ${R.seeds} runs each, the bot shopping as usual, on level ${R.stage}, player level ${R.level}, ${R.gear} gear. <b>Effect</b> is how much further those runs got than the same team and seed with no relic given (points of progress; without relics the test teams average ${fmt(a.relicBase.progress)} progress, wave ${fmt(a.relicBase.wave)}). <b>Helped</b>: the share of runs it improved. Picks come from the smart bot in the other experiments.</p>
 ${relicChart}${relicsTable}</section>
 
 <section><h2 style="margin-top:0">Gear and talents</h2>

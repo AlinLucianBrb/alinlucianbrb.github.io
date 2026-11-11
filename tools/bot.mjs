@@ -9,7 +9,7 @@ import { createWorld, step, summary } from '../js/engine/world.js';
 import { apply } from '../js/engine/commands.js';
 import { exportLog } from '../js/engine/replay.js';
 import { affected, heroStats } from '../js/engine/stats.js';
-import { spotsFor, offerValue, bestForm, betterSpot } from './balance/smart.mjs';
+import { spotsFor, offerValue, bestForm, betterSpot, supportKind } from './balance/smart.mjs';
 import { gearFor, playedDef } from './balance/gear.mjs';
 import { attach } from './balance/collect.mjs';
 
@@ -92,6 +92,8 @@ export function playRun({ seed = 1, stage = 1, strategy = 'trio', lineup = null,
         if (rec) rec.spend('evolve', gold - g.gold);
         const to = smart && betterSpot(g, h);
         if (to) apply(g, { type: 'move', id: h.id, cx: to.cx, cy: to.cy });
+        /* the others moved or changed: supports find their best spot again */
+        if (smart) for (const o of g.heroes) if (o !== h && o.tier > 0 && supportKind(o.def)) { const t = betterSpot(g, o); if (t) apply(g, { type: 'move', id: o.id, cx: t.cx, cy: t.cy }); }
       }
     }
     /* Relics: keep the gold an evolution coming up soon will need. */

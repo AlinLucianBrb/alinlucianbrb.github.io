@@ -40,9 +40,11 @@ export function waveEnemyType(w, i, stage) {
   return 'grunt';
 }
 
-/* Writes the pixel position for path progress i (in cells) into out.x / out.y without allocating. */
+/* Writes the pixel position for path progress i (in cells) into out.x / out.y without allocating. Progress past either end
+   of the path is held at that end (the Earthcaller's crack can reach a little past an enemy at the gate). */
 export function pathPos(path, i, out) {
-  const k = Math.floor(i), a = path[k], b = path[k + 1], f = i - k;
+  const last = path.length - 1, c = Math.max(0, Math.min(last, i));
+  const k = Math.min(Math.floor(c), Math.max(0, last - 1)), a = path[k], b = path[Math.min(last, k + 1)], f = c - k;
   out.x = (a[0] + 0.5 + (b[0] - a[0]) * f) * T;
   out.y = (a[1] + 0.5 + (b[1] - a[1]) * f) * T;
 }

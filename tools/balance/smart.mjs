@@ -9,7 +9,11 @@
      into one form and plays on through the next boss wave (if one comes within LOOKAHEAD.bossWithin waves) or for
      LOOKAHEAD.seconds; the copy that lost the fewest lives, killed its boss and dealt the most damage (damage to bosses
      counting LOOKAHEAD.bossWeight times) wins, so a form that clears crowds but cannot kill bosses is not picked;
-   - after an evolution changes a hero's range, it moves to a better tile if one is clearly better. */
+   - after an evolution changes a hero's range, it moves to a better tile if one is clearly better;
+   - supports stand where they help the others, not where they cover the most path: a curse aura (Occult) where the
+     other heroes' ranges overlap the path inside it, a blessing aura (Incantation) and the forms that help the heroes
+     around them (Gospel's energy) among as many heroes as possible; they are checked again after every evolution, since
+     the others move too. */
 import { T, COLS, ROWS, RARITIES } from '../../js/content/data.js';
 import { resume, exportLog } from '../../js/engine/replay.js';
 import { step } from '../../js/engine/world.js';
@@ -42,7 +46,7 @@ export function coverage(w, x, y, range) {
   return s;
 }
 
-/* A hero's damage per second, roughly: a hit (with added damage, crits and extra targets) times hits per second, times how
+/* A hero's damage per second, roughly: a hit (with added damage, crits and some of its extra targets) times hits per second, times how
    much path it covers. Minion forms use their minion multiplier. Enough to compare one relic with another. */
 export function dps(w, h) {
   const s = h.s, d = h.def;
@@ -51,7 +55,7 @@ export function dps(w, h) {
   if (d.tags.includes('minion')) hit *= s.minionDamage || 1;
   const rate = (d.rate === 'castSpeed' ? s.castSpeed : s.speed) / Math.max(0.05, s.cooldown || 1);
   const crit = 1 + Math.min(1, s.critChance || 0) * ((s.critDamage || 1.5) - 1);
-  return hit * rate * crit * Math.max(1, s.targets || 1) * Math.sqrt(1 + coverage(w, h.x, h.y, s.range));
+  return hit * rate * crit * (1 + 0.35 * (Math.max(1, s.targets || 1) - 1)) * Math.sqrt(1 + coverage(w, h.x, h.y, s.range));   /* extra targets: often there is no second enemy in range */
 }
 export const power = (w, p = w.players[0]) => w.heroes.filter(h => (h.owner || 0) === p.i).reduce((a, h) => a + dps(w, h), 0);
 
@@ -109,6 +113,41 @@ export function bestForm(w, h, spend) {
 
 /* After an evolution: a better tile for the new range, if it beats the current one by a fifth. */
 export function betterSpot(w, h) {
+  if (supportKind(h.def)) return betterSupportSpot(w, h);
   const here = coverage(w, h.x, h.y, h.s.range), best = spotsFor(w, h.s.range, h.def)[0];
   return best && best.score > here * 1.2 + 0.5 ? best : null;
+}
+
+/* What kind of help a form gives: 'curse' (enemies in its aura take more from everyone), 'allies' (heroes near it get
+   faster or get energy), or null. */
+export function supportKind(def) {
+  if (def.aura && def.aura.curse) return 'curse';
+  if ((def.aura && def.aura.bless) || def.kind === 'psalm') return 'allies';
+  return null;
+}
+/* How much a support helps from (x, y): curse, path inside its range weighted by how many other heroes reach it; allies,
+   other heroes inside its range (plus a little path, for the auras that also hurt enemies). */
+export function supportScore(w, h, x, y) {
+  const R2 = h.s.range * h.s.range, others = w.heroes.filter(o => o !== h);
+  if (supportKind(h.def) === 'curse') {
+    let s = 0;
+    for (const [cx, cy] of w.path) { const px = (cx + 0.5) * T, py = (cy + 0.5) * T;
+      if ((px - x) ** 2 + (py - y) ** 2 > R2) continue;
+      s += others.filter(o => (o.x - px) ** 2 + (o.y - py) ** 2 <= o.s.range * o.s.range).length; }
+    return s;
+  }
+  const near = others.filter(o => (o.x - x) ** 2 + (o.y - y) ** 2 <= R2).length;
+  return near * 10 + (h.def.aura ? coverage(w, x, y, h.s.range) * 0.5 : 0);
+}
+function betterSupportSpot(w, h) {
+  const onPath = !!(h.def.flying || h.def.onPath), taken = new Set(w.heroes.map(o => o.cx + ',' + o.cy).concat(w.zones.filter(z => z.blocks).map(z => z.cx + ',' + z.cy)));
+  const here = supportScore(w, h, h.x, h.y);
+  let best = null;
+  for (let cx = 0; cx < COLS; cx++) for (let cy = 0; cy < ROWS; cy++) {
+    const key = cx + ',' + cy;
+    if (taken.has(key) || (w.pathSet.has(key) && !onPath)) continue;
+    const sc = supportScore(w, h, (cx + 0.5) * T, (cy + 0.5) * T);
+    if (!best || sc > best.score) best = { cx, cy, score: sc };
+  }
+  return best && best.score > here * 1.15 + 0.5 ? best : null;
 }

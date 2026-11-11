@@ -135,3 +135,9 @@ test('a match with each Shaman form replays exactly, and every form uses its ult
     assert.equal(hashWorld(replay(exportLog(w))), hashWorld(w), form);
   }
 });
+
+test('the Earthcaller does not crash when the leading enemy is at the gate (crack past the path end)', async () => {
+  const { playRun } = await import('../tools/bot.mjs');
+  const r = playRun({ seed: 1, stage: 4, lineup: ['ranger', 'priest', 'shaman'], level: 10, gear: 'rare', form: 'hunter,gospel,earthcaller', paths: true });
+  assert.ok(r.result);
+});

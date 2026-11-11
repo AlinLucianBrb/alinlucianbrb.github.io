@@ -4,7 +4,8 @@ import assert from 'node:assert/strict';
 import { createWorld } from '../js/engine/world.js';
 import { replay, resume, exportLog } from '../js/engine/replay.js';
 import { playRun } from '../tools/bot.mjs';
-import { suites, RELIC_SETUP } from '../tools/balance/suites.mjs';
+import { suites, RELIC_SETUP, formTeams, relicTeams, relicApplies } from '../tools/balance/suites.mjs';
+import { RELICS } from '../js/content/data.js';
 import { analyze, progress } from '../tools/balance/analyze.mjs';
 import { buildReport } from '../tools/balance/report.mjs';
 import { gearFor } from '../tools/balance/gear.mjs';
@@ -34,9 +35,27 @@ test('gear tiers grow and suit the hero', () => {
 
 test('the experiments cover every suite, and the quick set is smaller', () => {
   const full = suites({ seeds: 2 }), quick = suites({ quick: true });
-  for (const s of ['forms', 'difficulty', 'relics', 'gear']) assert.ok(quick.some(j => j.suite === s), s);
+  for (const s of ['forms', 'comps', 'difficulty', 'relics', 'gear']) assert.ok(quick.some(j => j.suite === s), s);
   assert.ok(quick.length < full.length);
   assert.ok(full.filter(j => j.suite === 'relics').every(j => j.opts.stage === RELIC_SETUP.stage));
+});
+
+test('every team of three heroes with every form combination is tested', () => {
+  const t = formTeams();
+  assert.equal(t.length, 2268);   /* 84 hero teams x 27 form combinations */
+  assert.equal(new Set(t.map(x => x.heroes.join())).size, 84);
+  assert.equal(suites({ seeds: 1 }).filter(j => j.suite === 'comps').length, 2268);
+});
+
+test('every relic is tested on teams it does something for, each with a no-relic twin', () => {
+  const jobs = suites({ seeds: 1 }).filter(j => j.suite === 'relics');
+  for (const rel of RELICS) {
+    const mine = jobs.filter(j => j.relic === rel.name);
+    assert.ok(mine.length > 0, rel.name);
+    for (const j of mine) assert.ok(jobs.some(b => !b.relic && b.team === j.team && b.seed === j.seed), rel.name + ' twin');
+  }
+  const pact = RELICS.find(r => r.name === 'Dark pact');
+  assert.ok(relicTeams(pact).every(t => relicApplies(pact, t)));
 });
 
 test('analysis and report work on synthetic results', () => {
@@ -44,12 +63,17 @@ test('analysis and report work on synthetic results', () => {
   const data = { at: new Date().toISOString(), engine: 0, seeds: 1, runs: [
     run({ suite: 'forms', mode: 'solo', hero: 'warrior', form: 'berserker', stage: 2 }),
     run({ suite: 'difficulty', stage: 1, level: 1, lineup: 'classic', won: true, waves: 15, lives: 20 }),
-    run({ suite: 'relics', relic: null }), run({ suite: 'relics', relic: 'Keen edge', cleared: 12 }),
+    run({ suite: 'comps', ids: ['warrior', 'mage', 'warlock'], forms: ['berserker', 'firemage', 'occult'], stage: 4, cleared: 29.5 }),
+    run({ suite: 'comps', ids: ['warrior', 'mage', 'warlock'], forms: ['berserker', 'firemage', 'summoner'], stage: 4, cleared: 28 }),
+    run({ suite: 'relics', relic: null, team: 'a,b,c', forms: ['berserker', 'firemage', 'occult'] }),
+    run({ suite: 'relics', relic: 'Keen edge', cleared: 12, team: 'a,b,c', forms: ['berserker', 'firemage', 'occult'] }),
     run({ suite: 'gear', level: 1, gear: 'none' })] };
   const o = analyze(data);
-  assert.ok(o.forms.length === 1 && o.relics.find(r => r.name === 'Keen edge').effect > 0);
+  assert.ok(o.forms.some(f => f.form === 'berserker') && o.relics.find(r => r.name === 'Keen edge').effect > 0);
   assert.ok(progress({ stage: 1, won: true, waves: 15, lives: 20 }) > 1);
   const html = buildReport(data, null);
   assert.match(html, /<!DOCTYPE html>/i);
   assert.match(html, /Berserker/);
+  assert.ok(o.forms.find(f => f.form === 'occult').value > 0);   /* a support is credited for what its team does */
+  assert.match(html, /Teams of heroes/);
 });
