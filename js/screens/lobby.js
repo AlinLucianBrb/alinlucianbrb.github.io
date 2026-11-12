@@ -28,7 +28,7 @@ function show(v) {
 }
 function fillStages(sel, value) {
   sel.textContent = '';
-  for (const s of unlocked()) { const o = el('option', '', 'Level ' + s.n + ' · ' + s.waves + ' waves'); o.value = s.n; sel.append(o); }
+  for (const s of unlocked()) { const o = el('option', '', 'Level ' + s.code + ' · ' + s.name + ' · ' + s.waves + ' waves'); o.value = s.n; sel.append(o); }
   sel.value = String(Math.min(value || unlocked().length, unlocked().length));
 }
 

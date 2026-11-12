@@ -111,18 +111,19 @@ export function analyze(data) {
   /* ---- difficulty ---- */
   const D = by('difficulty'), levels = [...new Set(D.map(r => r.level))].sort((a, b) => a - b), lineups = [...new Set(D.map(r => r.lineup))];
   out.levels = levels;
-  out.difficulty = STAGES.map(st => ({ stage: st.n, name: st.name, waves: st.waves, cells: levels.map(L => {
+  const LV = STAGES.filter(st => D.some(r => r.stage === st.n));   /* the levels the difficulty runs covered */
+  out.difficulty = LV.map(st => ({ stage: st.n, name: st.name, waves: st.waves, cells: levels.map(L => {
     const rs = D.filter(r => r.stage === st.n && r.level === L);
     return { level: L, win: pct(rs.map(r => r.won)), wave: r1(mean(rs.map(r => r.waves))), lives: r1(mean(rs.map(r => r.lives))), minutes: r1(mean(rs.map(r => r.minutes))), n: rs.length,
       lineups: Object.fromEntries(lineups.map(n => [n, pct(rs.filter(r => r.lineup === n).map(r => r.won))])) };
   }) }));
   /* Survival: the share of runs still going at the start of each wave; leaks: lives lost per wave (average). */
-  out.survival = STAGES.map(st => ({ stage: st.n, curves: levels.map(L => {
+  out.survival = LV.map(st => ({ stage: st.n, curves: levels.map(L => {
     const rs = D.filter(r => r.stage === st.n && r.level === L);
     return { level: L, alive: Array.from({ length: st.waves }, (_, i) => (rs.length ? Math.round(rs.filter(r => r.waves >= i + 1).length / rs.length * 100) : null)),   /* still going at the start of wave i + 1 */
       leaks: Array.from({ length: st.waves }, (_, i) => r1(mean(rs.map(r => (r.perWave[i] ? r.perWave[i].leaks : 0))))) };
   }) }));
-  out.failWaves = STAGES.map(st => {
+  out.failWaves = LV.map(st => {
     const lost = D.filter(r => r.stage === st.n && !r.won), counts = {};
     for (const r of lost) counts[r.failWave] = (counts[r.failWave] || 0) + 1;
     return { stage: st.n, lost: lost.length, onBoss: lost.filter(r => r.perWave.some(v => v.wave === r.failWave && v.boss === 'escaped')).length, top: Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([w, n]) => ({ wave: +w, n })) };
@@ -150,7 +151,7 @@ export function analyze(data) {
   /* ---- the difficulty curve: each level at its progression setup, weakest and strongest tenth of teams ---- */
   const CV = by('curve');
   out.target = TARGET;
-  out.curve = STAGES.map(st => { const rs = CV.filter(r => r.stage === st.n), g = k => rs.filter(r => r.group === k);
+  out.curve = STAGES.filter(st => PROGRESSION[st.n]).map(st => { const rs = CV.filter(r => r.stage === st.n), g = k => rs.filter(r => r.group === k);
     return { stage: st.n, name: st.name, ...PROGRESSION[st.n], weak: pct(g('weak').map(r => r.won)), strong: pct(g('strong').map(r => r.won)),
       worst: pct(g('worst').map(r => r.won)), best: pct(g('best').map(r => r.won)), n: g('weak').length + g('strong').length,
       wave: r1(mean(g('weak').map(r => r.cleared ?? r.waves))) }; }).filter(c => c.weak !== null);

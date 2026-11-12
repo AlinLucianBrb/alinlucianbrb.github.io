@@ -17,8 +17,8 @@ test('every asset the page names (frames, logo, scene, icons, font) exists', () 
   assert.ok(html.includes("font-family:'TBD Pixel'"));
 });
 
-test('each level has its picture and name; each talent cluster has its icon', () => {
-  for (const s of STAGES) { assert.ok(has('level_' + s.n + '.png'), 'level ' + s.n); assert.ok(s.name, 'level ' + s.n + ' name'); }
+test('each zone has its picture and name (its levels show them); each talent cluster has its icon', () => {
+  for (const s of STAGES) { assert.ok(has('level_' + s.zone + '.png'), 'level ' + s.code); assert.ok(s.name, 'level ' + s.code + ' name'); }
   for (const t of Object.values(TREES)) for (const c of t.clusters || []) assert.ok(has('icon_talent_' + c.key + '.png'), c.key);
   for (const n of ['strength', 'dexterity', 'intellect', 'damage', 'range', 'speed', 'castspeed', 'crit', 'energy']) assert.ok(has('icon_' + n + '.png'), n);
 });

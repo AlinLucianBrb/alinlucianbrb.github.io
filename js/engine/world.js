@@ -2,6 +2,7 @@
    Nothing in js/engine touches the page, the clock or Math.random, so a world can run in a browser, in Node (tests, the balance bot)
    or on a server, and the same seed plus the same commands always gives the same result. */
 import { HEROES, STAGES, COLS, ROWS, LINEUP_SIZE, RELICS, RARITIES, START_GOLD } from '../content/data.js';
+import { MAPS } from '../content/maps.js';
 import { itemMods, asItem } from '../content/items.js';
 import { createBus } from '../core/bus.js';
 import { talentMods } from '../content/talents.js';
@@ -21,19 +22,7 @@ import './kits/index.js';
 import { cleanPaths, pathChoice, pathDef, previewMods, syncPreview, updatePreview, previewHit } from './preview.js';   /* the newer heroes' behaviors, ultimates and zones register themselves */
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
-export const ENGINE_VERSION = 21;     /* bump when a rule change would make old command logs play out differently */
-
-function genPath(rng) {
-  let x = 0, y = 1 + rng.int(ROWS - 2); const p = [[x, y]];
-  while (x < COLS - 1) {
-    const nx = Math.min(COLS - 1, x + 2 + rng.int(3));
-    while (x < nx) { x++; p.push([x, y]); }
-    if (x >= COLS - 1) break;
-    let ny; do { ny = rng.int(ROWS); } while (Math.abs(ny - y) < 2);
-    while (y !== ny) { y += Math.sign(ny - y); p.push([x, y]); }
-  }
-  return p;
-}
+export const ENGINE_VERSION = 22;     /* bump when a rule change would make old command logs play out differently */
 
 /* Checks a lineup: up to LINEUP_SIZE different, playable heroes. Returns a clean copy, or the full roster if it is empty. */
 export function cleanLineup(lineup) {
@@ -72,7 +61,7 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
   if (!def) throw new Error('Unknown stage ' + stage);
   const root = createRng(seed), rng = { path: root.fork('path'), relic: root.fork('relic'), combat: root.fork('combat'), gold: root.fork('gold') };
   const ps = (players && players.length ? players : [{ talents, lineup, items, paths, relics }]).map((p, i) => makePlayer(i, p));
-  const path = genPath(rng.path), coop = ps.length > 1;
+  const path = MAPS[def.n - 1].map(c => [...c]), coop = ps.length > 1;   /* each level's fixed map (maps.js) */
   const w = {
     seed: seed >>> 0, stageN: stage, stage: def, maxWave: def.waves, rng, path, pathSet: new Set(path.map(c => c.join(','))),
     tick: 0, phase: 'build', won: false, autoT: 3, players: ps, coop, hpMult: coopHpMult(ps.length),

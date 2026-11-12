@@ -14,10 +14,10 @@
 import { Worker } from 'node:worker_threads';
 import { cpus } from 'node:os';
 import { mkdirSync, writeFileSync, readFileSync, existsSync, copyFileSync } from 'node:fs';
-import { suites } from './suites.mjs';
 import { buildReport } from './report.mjs';
 import { ENGINE_VERSION } from '../../js/engine/world.js';
 import { rankTeams, tuneJobs } from './tune.mjs';
+import { suites, PROGRESSION } from './suites.mjs';
 import { STAGES } from '../../js/content/data.js';
 
 const args = Object.fromEntries(process.argv.slice(2).reduce((a, x, i, all) => (x.startsWith('--') ? [...a, [x.slice(2), all[i + 1] && !all[i + 1].startsWith('--') ? all[i + 1] : true]] : a), []));
@@ -56,7 +56,7 @@ async function main() {
     const comps = runs.some(r => r.suite === 'comps') ? runs : existsSync(file0) ? JSON.parse(readFileSync(file0, 'utf8')).runs : [];
     const ranked = rankTeams({ runs: comps.filter(r => !r.error) });
     if (ranked.length) {
-      const cj = STAGES.flatMap(st => tuneJobs(ranked, st.n, { every: quick ? 6 : 2, extreme: quick ? 2 : 6 })).map(j => ({ ...j, suite: 'curve' }));
+      const cj = STAGES.filter(st => PROGRESSION[st.n]).flatMap(st => tuneJobs(ranked, st.n, { every: quick ? 6 : 2, extreme: quick ? 2 : 6 })).map(j => ({ ...j, suite: 'curve' }));
       console.log(`  Difficulty curve: ${cj.length} games…`);
       runs.push(...await runJobs(cj, workers));
     }

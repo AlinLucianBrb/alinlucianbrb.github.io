@@ -86,7 +86,7 @@ test('the server knows every bonus and item type, and rolls with the shared rule
   assert.match(sql, /where t\.slot <> s\.key\) then\s+raise exception 'that item does not go in that slot'/, 'save_loadout checks slots');
   assert.match(sql, /jsonb_build_object\('trinket', e\.value\)/, 'old equipment becomes a trinket');
   assert.match(sql, /add column if not exists bonus_ranks int\[\]/);
-  assert.match(sql, /insert into public\.player_items \(user_id, item_type, rarity, bonuses, bonus_ranks\)/);
+  assert.match(sql, /insert into public\.player_items \(user_id, item_type, rarity, bonuses, bonus_ranks, ilvl\)/);
 });
 
 test('archetype items: every slot has a melee, projectile, spell and minion item that leans toward its bonuses', async () => {
@@ -125,3 +125,24 @@ test('attribute bonuses: named attributes and the main attribute can be item bon
   const { ITEM_BONUSES } = await import('../js/content/items.js');
   for (const n of ['Brawn', 'Finesse', 'Insight', 'Prowess']) assert.ok(ITEM_BONUSES.includes(n), n);
 });
+
+test("item level: an item's stats count 0.5 + 0.05 x its item level times; items from before item levels count as 10", async () => {
+  const { itemMods, itemBonusLines, ILVL, ilvlMult } = await import('../js/content/items.js');
+  const it = il => ({ item_type: 'power_charm', rarity: 2, bonuses: ['Keen edge'], bonus_ranks: [3], ...(il ? { ilvl: il } : {}) });
+  const crit = il => itemMods({ warrior: [it(il)] }).find(m => m.stat === 'critChance').value, flat = il => itemMods({ warrior: [it(il)] }).find(m => m.stat === 'damage').value;
+  assert.equal(ILVL.old, 10); assert.equal(ilvlMult(10), 1);
+  assert.ok(Math.abs(crit(undefined) - crit(10)) < 1e-12, 'no item level: as before, like item level 10');
+  assert.ok(Math.abs(crit(5) / crit(10) - 0.75) < 1e-12, 'item level 5: 75%');
+  assert.ok(Math.abs(crit(25) / crit(10) - 1.75) < 1e-12, 'item level 25: 175%');
+  assert.ok(Math.abs(flat(1) - 5 * 0.55) < 1e-12, "the item's own stat too (Power Charm: +5 damage at level 10)");
+  assert.equal(itemBonusLines(it(20))[0].text, 'Item level 20 · stats ×1.5');
+});
+
+test('the server gives a dropped item 3 x the level beaten (on a loss, the level below), and older items 10', async () => {
+  const { ILVL } = await import('../js/content/items.js');
+  assert.equal(ILVL.perLevel, 3);
+  const sql = readFileSync(new URL('../supabase-update.sql', import.meta.url), 'utf8');
+  assert.match(sql, /ilvl int not null default 10/);
+  assert.match(sql, /il := 3 \* \(case when p_won then r\.stage else greatest\(1, r\.stage - 1\) end\);/);
+});
+

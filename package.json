@@ -7,6 +7,7 @@
     "balance": "node tools/balance-report.mjs",
     "sql": "node tools/build-sql.mjs",
     "balance:report": "node tools/balance/run.mjs",
-    "balance:tune": "node tools/balance/tune.mjs"
+    "balance:tune": "node tools/balance/tune.mjs",
+    "maps": "node tools/maps.mjs"
   }
 }

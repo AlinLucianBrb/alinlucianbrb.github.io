@@ -142,7 +142,7 @@ export function renderHUD(g, v) {
   $('relic').classList.toggle('poor', g.gold < g.relicCost());
   /* Boss waves: shown during the wave, and in the build phase before one. */
   const boss = g.phase === 'wave' ? isBossWave(g.wave, g.stage) : g.phase === 'build' && isBossWave(g.wave + 1, g.stage);
-  setText($('wave'), g.wave + ' / ' + g.maxWave + (boss ? (g.phase === 'wave' ? ' · Boss' : ' · Boss next') : '')); setText($('stage'), g.stage.n);
+  setText($('wave'), g.wave + ' / ' + g.maxWave + (boss ? (g.phase === 'wave' ? ' · Boss' : ' · Boss next') : '')); setText($('stage'), g.stage.code || g.stage.n);
   $('wave').classList.toggle('boss', !!boss);
   if (coop) {
     /* Co-op: the wave starts when everyone is ready (or on Auto-start). */

@@ -9,19 +9,25 @@ import { richWorld, tilesNearPath, place, heroIndex } from './helpers.mjs';
 
 const runFor = (w, ticks) => { for (let i = 0; i < ticks && step(w); i++); return w; };
 
-test('the same seed gives the same map; different seeds give different maps', () => {
-  const a = createWorld({ seed: 11 }), b = createWorld({ seed: 11 }), c = createWorld({ seed: 12 });
-  assert.deepEqual(a.path, b.path);
-  assert.notDeepEqual(a.path, c.path);
+test('every level has its own fixed map: the same whatever the seed, different from the other levels', () => {
+  for (const s of STAGES) assert.deepEqual(createWorld({ seed: 11, stage: s.n }).path, createWorld({ seed: 12, stage: s.n }).path, 'level ' + s.code);
+  const keys = STAGES.map(s => JSON.stringify(createWorld({ seed: 1, stage: s.n }).path));
+  assert.equal(new Set(keys).size, STAGES.length, 'no two levels share a map');
 });
 
-test('every generated path runs from the left edge to the right edge in single steps', () => {
-  for (let seed = 1; seed <= 300; seed++) {
-    const p = createWorld({ seed }).path;
+test('every map runs from the left edge to the right edge in single steps, never touching itself; lower levels turn more', () => {
+  const turns = p => { let n = 0; for (let i = 2; i < p.length; i++) if (p[i][0] - p[i - 1][0] !== p[i - 1][0] - p[i - 2][0] || p[i][1] - p[i - 1][1] !== p[i - 1][1] - p[i - 2][1]) n++; return n; };
+  const t = [];
+  for (const s of STAGES) {
+    const p = createWorld({ seed: 1, stage: s.n }).path, at = new Map(p.map((c, i) => [c.join(), i]));
     assert.equal(p[0][0], 0); assert.equal(p.at(-1)[0], 15);
-    for (let i = 1; i < p.length; i++) assert.equal(Math.abs(p[i][0] - p[i - 1][0]) + Math.abs(p[i][1] - p[i - 1][1]), 1, 'seed ' + seed);
+    for (let i = 1; i < p.length; i++) assert.equal(Math.abs(p[i][0] - p[i - 1][0]) + Math.abs(p[i][1] - p[i - 1][1]), 1, 'level ' + s.code);
     assert.ok(p.every(([x, y]) => x >= 0 && x < 16 && y >= 0 && y < 10));
+    p.forEach(([x, y], i) => { for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) { const j = at.get((x + dx) + ',' + (y + dy)); assert.ok(j === undefined || Math.abs(j - i) <= 2, 'level ' + s.code + ' touches itself'); } });
+    t.push(turns(p));
   }
+  for (let i = 1; i < t.length; i++) assert.ok(t[i] <= t[i - 1], 'level ' + STAGES[i].code + ' has no more turns than the one before');
+  assert.ok(t[0] > t.at(-1) + 6, 'the first level twists far more than the last');
 });
 
 test('same seed and same commands give exactly the same game', () => {

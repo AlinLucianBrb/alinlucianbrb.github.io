@@ -192,7 +192,7 @@ language plpgsql security definer set search_path = public as $$
 declare me public.profiles; r public.runs; cap int; frontier boolean; elapsed numeric; done_waves int; dropped text := null;
         drops jsonb := '[]'; b_gold numeric; b_xp numeric; b_loot numeric; chance numeric; n int; boss_cap int;
         rar int; nb int; bon text[]; b_rar numeric; b_extra numeric; rks int[];
-        aff text; pick text;
+        aff text; pick text; il int;
 begin
   if auth.uid() is null then raise exception 'not signed in'; end if;
   select * into r from public.runs where id = p_run and user_id = auth.uid() and finished_at is null for update;
@@ -239,6 +239,7 @@ begin
         frontier_wave = case when p_won and r.stage > x.levels_cleared then 0
                              when r.stage = x.levels_cleared + 1 then greatest(x.frontier_wave, p_waves) else x.frontier_wave end,
         levels_cleared = case when p_won then greatest(x.levels_cleared, r.stage) else x.levels_cleared end;
+  il := 3 * (case when p_won then r.stage else greatest(1, r.stage - 1) end);   -- item level: 3 x the level beaten (on a loss, the one below); ILVL.perLevel in items.js
   chance := public.rule_drop_chance(p_won, p_waves, r.stage) * (1 + b_loot);
   n := p_bosses + floor(chance)::int + (case when random() < chance - floor(chance) then 1 else 0 end);
   for i in 1 .. n loop
@@ -263,8 +264,8 @@ begin
     -- each bonus's rank (rule_rank: rarer items roll higher ranks more often)
     rks := '{}';
     for k in 1 .. coalesce(array_length(bon, 1), 0) loop rks := rks || public.rule_rank(rar, random()::numeric); end loop;
-    insert into public.player_items (user_id, item_type, rarity, bonuses, bonus_ranks) values (auth.uid(), dropped, rar, bon, rks);
-    drops := drops || jsonb_build_array(jsonb_build_object('item_type', dropped, 'rarity', rar, 'bonuses', to_jsonb(bon), 'bonus_ranks', to_jsonb(rks)));
+    insert into public.player_items (user_id, item_type, rarity, bonuses, bonus_ranks, ilvl) values (auth.uid(), dropped, rar, bon, rks, il);
+    drops := drops || jsonb_build_array(jsonb_build_object('item_type', dropped, 'rarity', rar, 'bonuses', to_jsonb(bon), 'bonus_ranks', to_jsonb(rks), 'ilvl', il));
   end loop;
   return jsonb_build_object('profile', to_jsonb(me), 'drop', drops -> 0 ->> 'item_type', 'drops', drops);
 end;

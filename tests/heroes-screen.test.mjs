@@ -119,9 +119,9 @@ test('Inventory: every item as an icon on a grid, with a tooltip saying what it 
   assert.ok(full[0]._cls.has('worn') && full[1]._cls.has('worn') && !full[2]._cls.has('worn'), 'worn items first, marked');
   full[0].fire('pointerenter', { clientX: 5, clientY: 5 });
   let tip = dom.made.filter(e => e.className === 'tip').at(-1);
-  assert.deepEqual(tip.children.map(c => c._text), ['Rare Helm', 'Helm', '+11.25% damage (all heroes)  · rank 3', '+13.5% damage to melee heroes  · rank 3',
+  assert.deepEqual(tip.children.map(c => c._text), ['Rare Helm', 'Helm', 'Item level 10 · stats ×1', '+11.25% damage (all heroes)  · rank 3', '+13.5% damage to melee heroes  · rank 3',
     'Prospector: no longer works on gear', 'Equipped on the Warrior', 'Sells for 85 gold (click to select)'], 'each bonus with its rank; gold bonuses no longer work on gear; the sell price');
-  assert.equal(tip.children[2].style.color, '#5aa9ff', 'a rank 3 bonus in the rank colour (blue)');
+  assert.equal(tip.children[3].style.color, '#5aa9ff', 'a rank 3 bonus in the rank colour (blue)');
   full[2].fire('pointerenter', { clientX: 5, clientY: 5 });
   tip = dom.made.filter(e => e.className === 'tip').at(-1);
   assert.equal(tip.children.at(-2)._text, 'Not equipped');
@@ -149,7 +149,7 @@ test('Levels: picking a level asks for the heroes (none picked to start, 1 to 3 
   assert.equal(byId.lvChoose.hidden, false); assert.equal(byId.lvPick.hidden, true);
   assert.equal(byId.lvList.children[2].disabled, true, 'level 3 is locked');
   byId.lvList.children[1].onclick();
-  assert.equal(byId.lvPick.hidden, false); assert.equal(byId.lvPickTitle._text, 'Level 2: choose your heroes');
+  assert.equal(byId.lvPick.hidden, false); assert.equal(byId.lvPickTitle._text, 'Level 1-2: choose your heroes');
   assert.equal(byId.lvCount._text, '0 / 3', 'none picked to start with'); assert.equal(byId.lvStart.disabled, true, 'Start waits for a hero');
   const cards = () => byId.lvHeroes.children;
   cards()[0].onclick(); cards()[2].onclick();
@@ -167,7 +167,7 @@ test('Levels: picking a level asks for the heroes (none picked to start, 1 to 3 
 
 test('Levels: "Next level" after a win comes straight to choosing heroes; Back returns to the level list', async () => {
   await levels.mount(null, { stage: 2 });
-  assert.equal(byId.lvPick.hidden, false); assert.equal(byId.lvPickTitle._text, 'Level 2: choose your heroes');
+  assert.equal(byId.lvPick.hidden, false); assert.equal(byId.lvPickTitle._text, 'Level 1-2: choose your heroes');
   byId.lvBack.onclick();
   assert.equal(byId.lvChoose.hidden, false);
   failNext = true; navs.length = 0;

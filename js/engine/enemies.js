@@ -74,9 +74,9 @@ export function updateEnemies(g, dt) {
   }
 }
 /* Knockback (Crusader, Earthcaller): pushes an enemy back along the path by px pixels, never past the entrance. Bosses move
-   a quarter of it, and each enemy can be pushed back at most KNOCKBACK.perWave pixels per wave, so knockback can never hold
+   KNOCKBACK.boss of it, and each enemy can be pushed back at most KNOCKBACK.perWave pixels per wave, so knockback can never hold
    a wave forever. Returns how far it moved. */
-export const KNOCKBACK = { perWave: 2 * T, boss: 0.25 };
+export const KNOCKBACK = { perWave: 3 * T, boss: 0.35 };   /* Nov 12: knockbacks 50% stronger, up to 3 tiles a wave (was 2), bosses 35% (was 25%) */
 export function knockback(g, e, px) {
   if (e.dead || !(px > 0)) return 0;
   if (e.def.boss) px *= KNOCKBACK.boss;

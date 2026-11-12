@@ -78,7 +78,7 @@ export function suites({ seeds = 3, quick = false, compSeeds = 1 } = {}) {
   for (const [n, t] of all.entries()) if (!quick || n % 12 === 0) for (let seed = 1; seed <= (quick ? 1 : compSeeds); seed++)
     jobs.push({ suite: 'comps', ids: t.heroes, forms: t.forms, seed, opts: { seed, stage: C.stage, lineup: t.heroes, level: C.level, gear: C.gear, form: t.forms.join(','), paths: true } });
   /* difficulty */
-  for (const st of STAGES) for (const level of quick ? [10] : [1, 10, 20, 30]) for (const name of quick ? ['classic'] : Object.keys(LINEUPS)) for (const seed of S)
+  for (const st of STAGES.filter(s => PROGRESSION[s.n])) for (const level of quick ? [10] : [1, 10, 20, 30])   /* the tuned zone */ for (const name of quick ? ['classic'] : Object.keys(LINEUPS)) for (const seed of S)
     jobs.push({ suite: 'difficulty', stage: st.n, level, lineup: name, seed, opts: { seed, stage: st.n, lineup: LINEUPS[name], level, gear: GEAR_BY_LEVEL[level] } });
   /* relics */
   const R = RELIC_SETUP;

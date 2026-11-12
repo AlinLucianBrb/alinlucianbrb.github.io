@@ -23,12 +23,16 @@ alter table public.talent_links enable row level security;
 create table if not exists public.runs (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade,
-  stage int not null check (stage between 1 and 5),
+  stage int not null check (stage >= 1),   -- start_run checks the upper end against rule_stage_count()
   started_at timestamptz not null default now(),
   finished_at timestamptz
 );
 create index if not exists runs_user_idx on public.runs (user_id, finished_at);
 alter table public.runs enable row level security;
+-- Zones (Nov 12): 25 levels, not 5. Older projects had "stage between 1 and 5" on this table; the upper end is now
+-- checked by start_run against rule_stage_count(), so the table only needs a level of at least 1.
+alter table public.runs drop constraint if exists runs_stage_check;
+alter table public.runs add constraint runs_stage_check check (stage >= 1);
 alter table public.runs add column if not exists loadout jsonb;   -- the lineup and equipment a run started with (for future checks)
 
 -- ===== Heroes and items (so the server can check lineups and equipment) =====
@@ -55,6 +59,9 @@ alter table public.player_items add column if not exists bonuses text[] not null
 -- Each bonus's rank (1 to 4), in the same order as bonuses. Items from before ranks have none: each bonus counts at the
 -- item's rarity (rank = rarity + 1).
 alter table public.player_items add column if not exists bonus_ranks int[] not null default '{}';
+-- Item level (Nov 12): 3 x the level beaten when it dropped (on a loss, the level below); its stats count 0.5 + 0.05 x ilvl times.
+-- Items from before item levels get 10, which keeps their values as they were.
+alter table public.player_items add column if not exists ilvl int not null default 10 check (ilvl >= 1);
 -- The relics an item bonus can be (generated from js/content/items.js).
 create table if not exists public.item_bonuses (
   id text primary key

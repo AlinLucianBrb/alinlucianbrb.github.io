@@ -61,6 +61,11 @@ export const ROLL = { maxBonuses: 4, extraChance: 0.3, guaranteed: r => r + 1,
   /* The chance of each bonus rank (1 to 4), in %, by the item's rarity (Common, Uncommon, Rare, Epic). */
   rankWeights: [[70, 22, 7, 1], [45, 35, 15, 5], [25, 35, 28, 12], [10, 25, 35, 30]] };
 export const RANKS = 4;
+/* Item level (Nov 12): ILVL.perLevel x the level you beat (on a loss, the level below): 3 for level 1-1, 6 for 1-2... 75
+   for 5-5. Every stat on an item counts ILVL.base + ILVL.per x its item level times: item level 3 gives 65%, 10 gives 100%
+   (the values before item levels), 30 gives 200%, 75 gives 425%. Items from before item levels count as level ILVL.old. */
+export const ILVL = { base: 0.5, per: 0.05, old: 10, perLevel: 3 };
+export const ilvlMult = ilvl => ILVL.base + ILVL.per * (ilvl || ILVL.old);
 /* A rank as words and colour (the rarity colours: rank 1 white, 2 green, 3 blue, 4 purple). */
 export const rankColor = r => RARITIES[Math.max(1, Math.min(RANKS, r)) - 1].color;
 
@@ -78,7 +83,9 @@ export function asItem(it) {
     if (seen.has(b) || bonuses.length >= ROLL.maxBonuses) return;
     seen.add(b); bonuses.push(b); ranks.push(Math.max(1, Math.min(RANKS, (given[i] | 0) || rarity + 1)));
   });
-  return { type: it.type || it.item_type, rarity, bonuses, ranks };
+  const out = { type: it.type || it.item_type, rarity, bonuses, ranks };
+  if (it.ilvl) out.ilvl = Math.max(1, it.ilvl | 0);   /* items from before item levels have none: they count as ILVL.old */
+  return out;
 }
 
 export const itemName = it => { const i = asItem(it), t = ITEMS[i.type]; return RARITIES[i.rarity].name + ' ' + (t ? t.name : i.type); };
@@ -89,13 +96,14 @@ export function itemLines(it) {
 }
 /* The same, for tooltips: { text, color, desc, rank, works }, each bonus in its rank's colour with its rank. */
 export function itemBonusLines(it) {
-  const i = asItem(it), t = ITEMS[i.type], out = [];
-  if (t && t.desc) out.push({ text: t.desc, desc: t.desc, color: '#ecf1e8', rank: 0, works: true });
+  const i = asItem(it), t = ITEMS[i.type], out = [], lk = ilvlMult(i.ilvl);
+  out.push({ text: 'Item level ' + (i.ilvl || ILVL.old) + ' · stats ×' + (+lk.toFixed(2)), desc: '', color: '#9db3a3', rank: 0, works: false, meta: true });
+  if (t && t.desc) { const d = t.desc.replace(/\+(\d+(?:\.\d+)?)/, (_, n) => '+' + +(n * lk).toFixed(1)); out.push({ text: d, desc: d, color: '#ecf1e8', rank: 0, works: true }); }   /* its own stat, scaled too */
   i.bonuses.forEach((name, k) => {
     const r = relicByName(name), rank = i.ranks[k];
     if (!r) return;
     if (!onGear.has(name)) { out.push({ text: name + ': no longer works on gear', desc: name, color: '#6f7d74', rank, works: false }); return; }
-    const desc = r.desc(rank);
+    const desc = r.desc(rank * lk);   /* the bonus at its rank, scaled by the item level */
     out.push({ text: desc + '  · rank ' + rank, desc, color: rankColor(rank), rank, works: true });
   });
   return out;
@@ -132,11 +140,11 @@ export function itemMods(equipped = {}, wearerOf = null) {
       if (!raw) continue;
       const it = asItem(raw), type = ITEMS[it.type];
       if (!type) continue;
-      const source = itemName(it);
-      for (const m of type.mods) out.push({ ...m, scope: [heroId], source, ri: -2 });
+      const source = itemName(it), lk = ilvlMult(it.ilvl);   /* every stat on the item scales with its item level */
+      for (const m of type.mods) out.push({ ...m, value: m.value * lk, scope: [heroId], source, ri: -2 });
       it.bonuses.forEach((name, k) => {
         if (!onGear.has(name)) return;   /* gold, XP and lives bonuses no longer work on gear */
-        const r = relicByName(name), mods = r && bonusMods(r, it.ranks[k]);
+        const r = relicByName(name), mods = r && bonusMods(r, it.ranks[k] * ilvlMult(it.ilvl));
         const from = source + ': ' + name;   /* each bonus is its own line in the hero panel, e.g. "Epic Helm: Whetstone" */
         if (mods) for (const m of mods) { const fit = fitMod({ ...m, need: heroId, source: from, ri: -2 }, wearerOf && wearerOf(heroId)); if (fit) out.push(fit); }
       });

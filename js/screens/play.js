@@ -2,6 +2,7 @@ import { startGame, stopGame, snapshot } from '../game/game.js';
 import { saveRun, loadRun, clearRun } from '../game/saved-run.js';
 import { startRun, finishRun, getItems } from '../services/api.js';
 import { itemName } from '../content/items.js';
+import { STAGES } from '../content/data.js';
 import { wornItems } from './loadout.js';
 import { runRewards } from '../core/rules.js';
 import { rewardBonus } from '../content/talents.js';
@@ -59,7 +60,7 @@ export default {
       if (drops.length) state.items = null;   /* reload the inventory next time it is needed */
       const r = runRewards(waves, kills, rewardBonus(before.talents));
       const names = drops.map(d => itemName(d));
-      return (won ? 'Level ' + stage + ' cleared! ' : '') + '+' + r.xp + ' XP, +' + r.gold + ' gold.' +
+      return (won ? 'Level ' + (STAGES[stage - 1] ? STAGES[stage - 1].code : stage) + ' cleared! ' : '') + '+' + r.xp + ' XP, +' + r.gold + ' gold.' +
         (names.length ? ' You found ' + (names.length > 1 ? names.length + ' items: ' : 'an item: ') + names.join(', ') + '! Equip ' + (names.length > 1 ? 'them' : 'it') + ' on the Heroes screen.' : '') +
         (profile.level > before.level ? ' Level up! You are now level ' + profile.level + '.' : '');
     }

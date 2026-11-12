@@ -4,6 +4,7 @@
    ignored after 24 hours (the server no longer accepts the result then) or after an update that changed the rules
    (ENGINE_VERSION). Solo runs only. */
 import { ENGINE_VERSION } from '../engine/world.js';
+import { STAGES } from '../content/data.js';
 
 const KEY = id => 'tbd.run.' + (id || 'guest');
 const MAX_AGE = 24 * 3600 * 1000;
@@ -24,4 +25,4 @@ export function loadRun(userId) {
 }
 export function clearRun(userId) { const s = store(); if (s) try { s.removeItem(KEY(userId)); } catch (e) { /* ignore */ } }
 /* What the menu shows: "Level 2, wave 7". */
-export const describeRun = d => 'Level ' + d.log.stage + ', wave ' + ((d.log.result && d.log.result.waves) || 0);
+export const describeRun = d => 'Level ' + ((STAGES[d.log.stage - 1] || {}).code || d.log.stage) + ', wave ' + ((d.log.result && d.log.result.waves) || 0);

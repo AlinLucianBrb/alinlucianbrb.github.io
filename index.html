@@ -391,6 +391,15 @@ input:not([type=checkbox]),select,.field input,.joinrow input{border:6px solid t
 .choose:hover:not(:disabled){border-image-source:url(assets/ui_panel_light.png);filter:brightness(1.15)}
 .relicname{font-size:18px;line-height:28px}
 .relicchip{border:none;border-radius:0;background:rgba(0,0,0,.25);box-shadow:inset 0 0 0 2px currentColor;padding:2px 6px}
+/* Zones: a row of five, each with its picture; the chosen one's levels below */
+.zones{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;width:min(1100px,100%);margin-bottom:10px}
+.zones .zone{display:flex;flex-direction:column;align-items:stretch;padding:0;overflow:hidden;text-align:left;font-family:inherit;font-size:inherit;line-height:1.25;color:#ecf1e8;font-weight:400}
+.zones .zone img{display:block;width:100%;aspect-ratio:3/1;object-fit:cover;image-rendering:pixelated;border-bottom:2px solid #0e1410}
+.zones .zone b{font-family:var(--pixel);font-weight:400;font-size:16px;line-height:20px;color:#ffe08a;padding:4px 8px 0}
+.zones .zone small{color:#cfe0d2;padding:0 8px 6px}
+.zones .zone.on{outline:3px solid #ffe08a;outline-offset:-3px}
+.zones .zone:disabled{filter:grayscale(.8) brightness(.6)}
+@media (max-width:700px){.zones{grid-template-columns:repeat(3,minmax(0,1fr))}}
 /* Level cards: each level's scene on top */
 .levels{grid-template-columns:repeat(auto-fit,minmax(190px,1fr));width:min(1100px,100%)}
 .levels .lvl{color:#ecf1e8;font-weight:400}
@@ -457,11 +466,12 @@ input:not([type=checkbox]),select,.field input,.joinrow input{border:6px solid t
 <section id="screen-levels" class="screen scene" hidden>
   <div id="lvChoose" class="lvstep">
     <h1>Choose a level</h1>
+    <div class="zones" id="lvZones"></div>
     <div class="levels" id="lvList"></div>
   </div>
   <div id="lvPick" class="lvstep" hidden>
     <h1 id="lvPickTitle">Choose your heroes</h1>
-    <p class="muted">Bring up to three heroes (<b id="lvCount"></b>). Each one is placed once, for free.</p>
+    <p class="muted">Bring up to three heroes (<b id="lvCount"></b>). Each one is placed once, for 150 gold (you start a match with 150).</p>
     <div class="hgrid" id="lvHeroes"></div>
     <button class="go big" id="lvStart">Start</button>
   </div>

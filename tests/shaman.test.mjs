@@ -10,7 +10,7 @@ import { updateZones } from '../js/engine/zones.js';
 import { tickEffects } from '../js/engine/effects.js';
 import { levelMods } from '../js/engine/levels.js';
 import { ULTIMATES } from '../js/engine/ultimates.js';
-import { pathPos } from '../js/engine/enemies.js';
+import { pathPos, KNOCKBACK } from '../js/engine/enemies.js';
 import { ANCESTRAL, LINK, LOCUSTS, TOTEM, SURGE, FISSURE, TECTONIC, voodoo } from '../js/engine/kits/shaman.js';
 import { nearestPathD } from '../js/engine/kits/paladin.js';
 import { HEROES, T } from '../js/content/data.js';
@@ -133,8 +133,8 @@ test('Earthcaller: Fissure hits and stuns everyone on the stretch behind the lea
   const before = [a.d, b.d, boss.d];
   full(h); h.cd = 0; tick(w, h, 1);
   assert.ok(Math.abs(before[0] - a.d - TECTONIC.knock) < 1e-6 || before[0] - a.d >= FISSURE.length * 0, 'pushed back');
-  assert.ok(before[1] - b.d >= TECTONIC.knock - 1e-6, '1.5 tiles');
-  assert.ok(Math.abs(before[2] - boss.d - TECTONIC.knock * 0.25) < 1e-6, 'a boss a quarter');
+  assert.ok(before[1] - b.d >= TECTONIC.knock - 1e-6, 'the full push');
+  assert.ok(Math.abs(before[2] - boss.d - TECTONIC.knock * KNOCKBACK.boss) < 1e-6, 'a boss only part of it');
   assert.ok(dealt(a) > 0 && dealt(b) > 0);
 });
 

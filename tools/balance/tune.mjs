@@ -60,7 +60,7 @@ async function main() {
   if (!existsSync(rankFile)) { console.error('No team ranking: run npm run balance:report first (or --rank FILE).'); process.exit(1); }
   const ranked = rankTeams(JSON.parse(readFileSync(rankFile, 'utf8')));
   if (!ranked.length) { console.error('The results have no comps runs to rank teams by.'); process.exit(1); }
-  const levels = args.levels ? String(args.levels).split(',').map(Number) : STAGES.map(s => s.n);
+  const levels = args.levels ? String(args.levels).split(',').map(Number) : STAGES.filter(s => PROGRESSION[s.n]).map(s => s.n);
   const overrides = args.try ? JSON.parse(readFileSync(String(args.try), 'utf8')) : undefined;
   const jobs = levels.flatMap(st => tuneJobs(ranked, st, { every: +(args.every || 3), seeds: +(args.seeds || 1), extreme: +(args.extreme || 8) })).map(j => ({ ...j, overrides }));
   const t0 = Date.now();

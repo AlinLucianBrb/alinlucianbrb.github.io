@@ -38,7 +38,7 @@ test('the saved run is kept per account, cleared on demand, and forgotten after 
   assert.equal(loadRun('u2'), null, 'another account has none');
   const got = loadRun('u1');
   assert.equal(got.runId, 'r1'); assert.equal(got.log.ticks, log.ticks);
-  assert.match(describeRun(got), /^Level 1, wave \d+$/);
+  assert.match(describeRun(got), /^Level 1-1, wave \d+$/);
   const old = JSON.parse(mem['tbd.run.u1']); old.savedAt -= 25 * 3600 * 1000; mem['tbd.run.u1'] = JSON.stringify(old);
   assert.equal(loadRun('u1'), null, 'too old: the server would not accept it any more');
   saveRun('u1', { log: { ...log, ver: log.ver - 1 }, runId: 'r1' });

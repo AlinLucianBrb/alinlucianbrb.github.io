@@ -70,10 +70,11 @@ registerUltimate('purge', { name: 'Purge', desc: 'Every enemy in range loses 30%
   } });
 
 /* ---- Crusader ---- */
-/* The charge: ride from the post to the nearest point of the path within range, then CHARGE.length along it toward the
-   entrance (where the enemies come from), then straight back. Every enemy within CHARGE.reach of the rider during the ride
-   is hit once and knocked back. t.ride = { phase: 'out' | 'ride' | 'back', x, y, d, to, hit } while away. */
-export const CHARGE = { speed: 260, length: 3 * T, reach: 24, knock: 0.5 * T };
+/* The charge: ride from the post to the nearest point of the path within range, then along the path to the LAST enemy in
+   range (the one furthest from the gate, so he tramples the whole group on the way; at most CHARGE.length), then back to
+   his post. Every enemy within CHARGE.reach of the rider during the ride is hit once and knocked back.
+   t.ride = { phase: 'out' | 'ride' | 'back', x, y, d, to, hit } while away. */
+export const CHARGE = { speed: 260, length: 6 * T, reach: 24, knock: 0.75 * T };
 /* The path point nearest a spot, as progress d in pixels (cached per hero tile). */
 export function nearestPathD(g, x, y) {
   let best = 0, bd = Infinity;
@@ -91,12 +92,17 @@ registerBehavior('charge', {
     if (!tg) return;
     if (t._pdAt !== t.cx + ',' + t.cy) { t._pdAt = t.cx + ',' + t.cy; t._pd = nearestPathD(g, t.x, t.y); }
     if (t._pd.dist > t.s.range) return;
-    const mult = strike(g, t, tg);
+    /* the last enemy in range: the furthest from the gate (smallest progress d) */
+    let last = tg; const R2 = t.s.range * t.s.range;
+    for (const e of g.enemies) if (!e.dead && !e.escaped && (e.x - t.x) ** 2 + (e.y - t.y) ** 2 <= R2 && e.d < last.d) last = e;
+    const mult = strike(g, t, last);
     if (mult === 0) { rearm(t); charge(g, t); return; }
     pathPos(g.path, t._pd.d / T, rp);
+    const end = (g.path.length - 1.001) * T, home = t._pd.d;
+    const to = Math.max(0, Math.min(end, Math.max(home - CHARGE.length, Math.min(home + CHARGE.length, last.d))));   /* at most CHARGE.length either way */
     /* Standing on the path, he only ever rides along it: straight into the charge, and back the same way. */
     const onPath = !!g.pathSet && g.pathSet.has(t.cx + ',' + t.cy);
-    t.ride = { phase: onPath ? 'ride' : 'out', onPath, home: t._pd.d, x: onPath ? rp.x : t.x, y: onPath ? rp.y : t.y, d: t._pd.d, to: Math.max(0, t._pd.d - CHARGE.length), tx: rp.x, ty: rp.y, hit: new Set(), mult, face: rp.x < t.x ? -1 : 1 };
+    t.ride = { phase: onPath ? 'ride' : 'out', onPath, home, x: onPath ? rp.x : t.x, y: onPath ? rp.y : t.y, d: home, to, tx: rp.x, ty: rp.y, hit: new Set(), mult, face: rp.x < t.x ? -1 : 1 };
     charge(g, t);
   }
 });
@@ -110,17 +116,17 @@ function ride(g, t, r, dt) {
   const step = CHARGE.speed * dt;
   if (r.phase === 'out') { if (moveTo(r, r.tx, r.ty, step)) r.phase = 'ride'; return; }
   if (r.phase === 'back') {
-    if (r.onPath) {                       /* back up the path to his tile */
-      const before = r.x; r.d = Math.min(r.home, r.d + step); pathPos(g.path, r.d / T, r);
+    if (r.onPath) {                       /* back along the path to his tile */
+      const before = r.x; r.d = r.d < r.home ? Math.min(r.home, r.d + step) : Math.max(r.home, r.d - step); pathPos(g.path, r.d / T, r);
       if (Math.abs(r.x - before) > 0.5) r.face = r.x < before ? -1 : 1;
-      if (r.d >= r.home) { t.ride = null; rearm(t); }
+      if (r.d === r.home) { t.ride = null; rearm(t); }
       return;
     }
     if (moveTo(r, t.x, t.y, step)) { t.ride = null; rearm(t); }
     return;
   }
   const before = r.x;
-  r.d = Math.max(r.to, r.d - step);
+  r.d = r.to < r.d ? Math.max(r.to, r.d - step) : Math.min(r.to, r.d + step);   /* toward the last enemy, either way along the path */
   pathPos(g.path, r.d / T, r);
   if (Math.abs(r.x - before) > 0.5) r.face = r.x < before ? -1 : 1;
   const r2 = CHARGE.reach * CHARGE.reach;
@@ -130,11 +136,11 @@ function ride(g, t, r, dt) {
     g.attack(t, e, r.mult);
     knockback(g, e, CHARGE.knock);
   }
-  if (r.d <= r.to) r.phase = 'back';
+  if (r.d === r.to) r.phase = 'back';
 }
 /* Cavalry: three phantom riders gallop the whole path from the gate back to the entrance, hitting every enemy once for 2x a
-   hit and pushing it back a tile. */
-export const CAVALRY = { speed: 320, reach: 26, scale: 2, knock: T, riders: 3 };
+   hit and pushing it back 1.5 tiles. */
+export const CAVALRY = { speed: 320, reach: 26, scale: 2, knock: 1.5 * T, riders: 3 };
 registerUltimate('cavalry', { name: 'Cavalry', desc: 'Three phantom riders gallop the whole path from the gate to the entrance, hitting every enemy once and pushing it back.', damageMult: 1,
   onFire(w, h) { w.projs.push({ type: 'cavalry', owner: h, d: (w.path.length - 1.001) * T, x: 0, y: 0, hit: new Set() }); } });
 PROJECTILES.cavalry = {

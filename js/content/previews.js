@@ -23,7 +23,7 @@ export const PREVIEW_LEVELS = [1, 9];   /* the levels the [at 1, at 9] values be
 export const PREVIEWS = {
   berserker:     { mods: { bleedChance: [0.1, 0.35] }, desc: 'Swings can make enemies bleed (10% to 35%).' },
   commander:     { every: [5, 3], desc: 'Every 5th swing throws the sword in a line (every 3rd by level 9).' },
-  sentinel:      { knock: [0.08, 0.2], desc: 'Swings push enemies back a little (further with each level).' },
+  sentinel:      { knock: [0.12, 0.3], desc: 'Swings push enemies back a little (further with each level).' },
   marksman:      { every: [5, 3], act: 'pierce', desc: 'Every 5th arrow pierces through a line of enemies (every 3rd by level 9).' },
   boomeranger:   { every: [5, 3], desc: 'Every 5th shot is a boomerang (every 3rd by level 9).' },
   hunter:        { convert: { toxic: [0.2, 0.5] }, chance: { poisonChance: [0.15, 0.4] }, desc: 'Part of the damage is toxic (20% to 50%), with a chance to poison.' },

@@ -148,9 +148,9 @@ EFFECT_HOOKS.death.burn = (w, e, f) => {
   if (best) { applyEffect(best, 'burn', { t: AILMENTS.burn.duration, dps: f.dps, src: f.src }, f.src); w.fx?.beam(e.x, e.y, best.x, best.y, 0.15, '#ff8a3d', 2); }
 };
 /* Infernal: a meteor falls on the biggest group in range (the enemy with the most others within 60 px) for 6x a hit and
-   knocks every enemy it hits back a tile (a boss a quarter of that). */
-export const INFERNAL = { fall: 0.6, radius: 60, scale: 6, knock: T };
-registerUltimate('infernal', { name: 'Infernal', desc: 'A meteor crashes into the biggest group of enemies for {6} and knocks them back a tile.', damageMult: 1,
+   knocks every enemy it hits back 1.5 tiles (a boss 35% of that). */
+export const INFERNAL = { fall: 0.6, radius: 60, scale: 6, knock: 1.5 * T };
+registerUltimate('infernal', { name: 'Infernal', desc: 'A meteor crashes into the biggest group of enemies for {6} and knocks them back 1.5 tiles.', damageMult: 1,
   onFire(w, h) {
     let best = null, most = -1;
     for (const e of w.enemies) {

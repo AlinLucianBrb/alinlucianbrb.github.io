@@ -92,7 +92,7 @@ test('Inquisitor: hits the toughest enemy in range, stacking Verdict up to 10; P
   assert.equal(PURGE.seconds, 6);
 });
 
-test('Crusader: rides onto the path and down it toward the enemies, hitting and knocking back each one once, then rides back', () => {
+test('Crusader: rides onto the path and along it to the last enemy in range, hitting and knocking back each one once, then rides back', () => {
   const { w, h } = setup(['paladin']);
   evolveTo(w, h, 'crusader');
   w.wave = 2;
@@ -100,12 +100,20 @@ test('Crusader: rides onto the path and down it toward the enemies, hitting and 
   const d0 = [near.d, far.d, behind.d];
   h.cd = 0; tick(w, h, 1);
   assert.ok(h.ride && h.ride.phase === 'out', 'off he goes');
+  assert.ok(Math.abs(h.ride.to - d0[1]) < 1e-6, 'to the last enemy in range: the one furthest from the gate');
   for (let i = 0; i < 240 && h.ride; i++) tick(w, h, 1);
   assert.equal(h.ride, null, 'back at his post');
   assert.ok(dealt(near) > 0 && dealt(far) > 0, 'trampled on the way down');
   assert.ok(near.d < d0[0] && far.d < d0[1], 'knocked back');
-  assert.ok(d0[0] - near.d <= CHARGE.knock + 1e-9, 'half a tile each');
+  assert.ok(d0[0] - near.d <= CHARGE.knock + 1e-9, 'CHARGE.knock each');
   assert.equal(dealt(behind), 0, 'enemies already past his stretch are not hit');
+  /* the only enemy in range is closer to the gate: he rides that way, and back */
+  w.enemies.length = 0; w.wave = 4;
+  const ahead = onPath(w, h, 1.5 * T), dA = ahead.d;
+  h.cd = 0; tick(w, h, 1);
+  assert.ok(h.ride && h.ride.to > h.ride.home, 'toward the gate this time');
+  for (let i = 0; i < 240 && h.ride; i++) tick(w, h, 1);
+  assert.equal(h.ride, null, 'back at his post'); assert.ok(dealt(ahead) > 0 && ahead.d < dA, 'trampled and knocked back');
   /* Cavalry: the whole path, every enemy once */
   w.enemies.length = 0; w.wave = 3;
   const a = onPath(w, h, -4 * T), b = onPath(w, h, 3 * T);

@@ -91,6 +91,6 @@ test('boss kills are counted (each guarantees an item), and the server caps them
   assert.equal(w.bossKills, 1);
   assert.deepEqual([bossWavesUpTo(STAGES[0], 14), bossWavesUpTo(STAGES[0], 15), bossWavesUpTo(STAGES[2], 13), bossWavesUpTo(STAGES[2], 25), bossWavesUpTo(STAGES[4], 17)], [0, 1, 1, 2, 0]);
   /* The SQL rule, written out: the last wave, plus the middle wave (rounded half up) from level 3 on. */
-  const sqlCap = (stage, waves) => { const cap = 10 + 5 * stage; return (waves >= cap ? 1 : 0) + (stage >= 3 && waves >= Math.round(cap / 2) ? 1 : 0); };
+  const sqlCap = (stage, waves) => { const cap = STAGES[stage - 1].waves; return (waves >= cap ? 1 : 0) + (stage >= 3 && waves >= Math.round(cap / 2) ? 1 : 0); };
   for (const s of STAGES) for (let n = 1; n <= s.waves; n++) assert.equal(sqlCap(s.n, n), bossWavesUpTo(s, n), 'level ' + s.n + ' wave ' + n);
 });

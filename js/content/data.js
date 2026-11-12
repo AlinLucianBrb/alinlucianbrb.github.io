@@ -4,6 +4,8 @@
 import { COMBAT_STATS, COMBAT_LABELS } from './combat.js';
 
 export const COLS = 16, ROWS = 10, T = 40;
+import { ZONES, LEVELS, zoneOf, levelCode } from './zones.js';
+export { ZONES, LEVELS, zoneOf, levelCode };
 
 /* Energy: every hero has a bar that fills as it attacks (and/or over time). When it is full, the next attack is the hero's
    ultimate (see js/engine/ultimates.js). These are the defaults; a hero can override them, and talents, relics and items
@@ -199,7 +201,7 @@ export const HEROES = [
       { id: 'inquisitor', name: 'Inquisitor', color: '#f2e2a0', kind: 'verdict', damageType: 'holy', ultimate: 'purge', stats: { range: 100, cooldown: 0.8 }, mods: evolved,
         short: 'A long chain flail at the toughest enemy in range; each hit adds a stack of Verdict (+5% damage taken from everything, up to 10).' },
       { id: 'crusader', name: 'Crusader', color: '#d9b25a', kind: 'charge', mounted: true, onPath: true, ultimate: 'cavalry', tags: ['mounted'], stats: { range: 140, cooldown: 1.8, damage: 44 }, mods: evolved,
-        short: 'Charges on his horse down the nearest stretch of path toward the enemies, trampling and knocking back each one, then rides back. He can stand on the path, and then rides only along it.' }
+        short: 'Charges on his horse along the path to the last enemy in range (the one furthest from the gate), trampling and knocking back each one, then rides back. He can stand on the path, and then rides only along it.' }
     ] }],
     desc: 'Paladin (melee): a heavy hammer, part of it holy, and Consecration. Evolves into a Heretic, Inquisitor or Crusader.',
     short: 'A heavy hammer swing at close range, 30% of it holy.' },
@@ -216,7 +218,7 @@ export const HEROES = [
       { id: 'totemist', name: 'Totemist', color: '#d9a35a', kind: 'totems', ultimate: 'surge', tags: ['minion', 'totem'], stats: { cooldown: 2 }, mods: evolved,
         short: 'Each cast plants a missing totem near him (up to 3, one of each: Flame, Frost, Storm; 12 seconds each). Totems take up their tile.' },
       { id: 'earthcaller', name: 'Earthcaller', color: '#b08a5a', kind: 'fissure', damageType: 'physical', ultimate: 'tectonic', tags: ['physical', 'area'],
-        stats: { range: 120, damage: 20 }, mods: evolved,
+        stats: { range: 120, damage: 20, cooldown: 1.15 }, mods: evolved,   /* slower casts than the Shaman's 0.9 (Nov 12) */
         short: 'Fissure: the path cracks behind the leading enemy, hitting everyone on that stretch and stunning them for a moment.' }
     ] }],
     desc: 'Shaman (spell): chain lightning that jumps to 2 more enemies, and Ancestral call. Evolves into a Witch Doctor, Totemist or Earthcaller.',
@@ -288,20 +290,39 @@ export function applyFormTuning(table = FORM_TUNING) {
 }
 applyFormTuning();
 
-/* The five levels. Each has a wave count (15, then 5 more each), an enemy health multiplier and a per-wave growth rate.
-   Tuned (Nov 11) so that at its point on the progression curve (PROGRESSION in tools/balance/suites.mjs: level 1 at player
-   level 1 with no gear, up to level 5 at player level 30 with epic gear) the weakest tenth of teams cleared a level about
-   40% of the time; since relic offers fit the match (Nov 11), teams are stronger and it clears about 50-65%. With heroes
-   costing gold (Nov 11 evening) enemy health was lowered to keep that (most on levels 1 and 2, where you start with one
-   hero): 3.4 / 4 / 4.95 / 5.65 / 6.2, from 5.2 / 5.2 / 5.35 / 6.1 / 6.55. Each level starts a little tougher than the one before and grows more gently, so its last waves
-   are the hardest of all; before: hpMult 1 / 1.2 / 1.5 / 2 / 2.5, growth 1.14 / 1.15 / 1.16 / 1.17 / 1.18. */
-export const STAGES = [
-  { n: 1, name: 'Green Meadow', waves: 15, hpMult: 3.4,  growth: 1.14 },    /* name: shown with the level's picture (assets/level_<n>.png) */
-  { n: 2, name: 'Deep Forest',  waves: 20, hpMult: 4,    growth: 1.118 },
-  { n: 3, name: 'Mire',         waves: 25, hpMult: 4.95, growth: 1.105 },
-  { n: 4, name: 'Red Canyon',   waves: 30, hpMult: 5.65, growth: 1.103 },
-  { n: 5, name: 'Ashlands',     waves: 35, hpMult: 6.2,  growth: 1.105 }
+/* The levels: LEVELS of them in ZONES (zones.js). Each has a wave count, an enemy health multiplier and a per-wave growth rate;
+   name is its zone's (shown with the zone's picture, assets/level_<zone>.png) and code its "zone-level" label ("1-3").
+   Waves: 15 on the first level, 5 more each level, up to 55 (from level 9 on every level has 55).
+   The first five (zone 1, Green Meadow) were tuned (Nov 11) at their point on the progression curve (PROGRESSION in
+   tools/balance/suites.mjs: level 1 at player level 1 with no gear, up to level 5 at player level 30 with epic gear), so the
+   weakest tenth of teams clears each a bit more than half the time: hpMult 3.4 / 4 / 4.95 / 5.65 / 6.2, each starting a
+   little tougher than the one before and growing more gently, so its last waves are the hardest of all. The others (Nov 12)
+   follow a formula, not balanced yet: the last wave of each level is LATER.lastWave tougher than the one before, its first
+   wave LATER.firstWave tougher, and the growth in between is whatever joins the two. */
+const TUNED = [
+  { hpMult: 3.4,  growth: 1.14 },
+  { hpMult: 4,    growth: 1.118 },
+  { hpMult: 4.95, growth: 1.105 },
+  { hpMult: 5.65, growth: 1.103 },
+  { hpMult: 6.2,  growth: 1.105 }
 ];
+export const LEVEL_WAVES = { first: 15, step: 5, max: 55 };
+export const LATER = { lastWave: 1.12, firstWave: 1.04 };
+const wavesOf = n => Math.min(LEVEL_WAVES.max, LEVEL_WAVES.first + LEVEL_WAVES.step * (n - 1));
+export const STAGES = (() => {
+  const out = [];
+  for (let n = 1; n <= LEVELS; n++) {
+    const waves = wavesOf(n), z = zoneOf(n);
+    let hp;
+    if (n <= TUNED.length) hp = TUNED[n - 1];
+    else {
+      const prev = out[n - 2], last = prev.hpMult * Math.pow(prev.growth, prev.waves - 1) * LATER.lastWave, hpMult = +(prev.hpMult * LATER.firstWave).toFixed(3);
+      hp = { hpMult, growth: +Math.pow(last / hpMult, 1 / (waves - 1)).toFixed(4) };
+    }
+    out.push({ n, zone: z.n, code: levelCode(n), name: z.name, waves, ...hp });
+  }
+  return out;
+})();
 
 export const STAT_LABELS = {
   damage: 'Damage', range: 'Range', speed: 'Attacks per second', chillTime: 'Chill duration (s)', jumps: 'Chain jumps',

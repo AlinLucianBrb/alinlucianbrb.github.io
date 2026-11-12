@@ -2,5 +2,5 @@
    (major.minor.patch); the engine version next to it comes from the engine and only changes with the rules. */
 import { ENGINE_VERSION } from '../engine/world.js';
 
-export const GAME_VERSION = '0.18.0';
+export const GAME_VERSION = '0.19.0';
 export const versionText = () => 'v' + GAME_VERSION + ' · engine ' + ENGINE_VERSION;

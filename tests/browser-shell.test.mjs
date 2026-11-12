@@ -58,7 +58,7 @@ test('the screen comes alive: hero cards, gold and HUD values, no drawing errors
   assert.equal(dom.heroButton(3).hidden, true, 'the Rogue has a card, hidden: it is not in this lineup');
   assert.equal(dom.heroButton(4).hidden, true, 'the Druid too');
   assert.equal(dom.heroButton(HEROES.length), undefined, 'only the playable heroes have cards');
-  assert.equal(byId.gold._v, '150'); assert.equal(byId.wave._v, '0 / 15'); assert.equal(byId.stage._v, '1'); assert.equal(byId.lives._v, '20');
+  assert.equal(byId.gold._v, '150'); assert.equal(byId.wave._v, '0 / 15'); assert.equal(byId.stage._v, '1-1'); assert.equal(byId.lives._v, '20');
   assert.equal(byId.heroPanel.hidden, true, 'the hero panel only appears when a hero is selected');
   assert.equal(byId.relics.hidden, true, 'the relic strip is hidden until you own a relic');
 });

@@ -64,12 +64,16 @@ alter table public.talent_links enable row level security;
 create table if not exists public.runs (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade,
-  stage int not null check (stage between 1 and 5),
+  stage int not null check (stage >= 1),   -- start_run checks the upper end against rule_stage_count()
   started_at timestamptz not null default now(),
   finished_at timestamptz
 );
 create index if not exists runs_user_idx on public.runs (user_id, finished_at);
 alter table public.runs enable row level security;
+-- Zones (Nov 12): 25 levels, not 5. Older projects had "stage between 1 and 5" on this table; the upper end is now
+-- checked by start_run against rule_stage_count(), so the table only needs a level of at least 1.
+alter table public.runs drop constraint if exists runs_stage_check;
+alter table public.runs add constraint runs_stage_check check (stage >= 1);
 alter table public.runs add column if not exists loadout jsonb;   -- the lineup and equipment a run started with (for future checks)
 
 -- ===== Heroes and items (so the server can check lineups and equipment) =====
@@ -96,6 +100,9 @@ alter table public.player_items add column if not exists bonuses text[] not null
 -- Each bonus's rank (1 to 4), in the same order as bonuses. Items from before ranks have none: each bonus counts at the
 -- item's rarity (rank = rarity + 1).
 alter table public.player_items add column if not exists bonus_ranks int[] not null default '{}';
+-- Item level (Nov 12): 3 x the level beaten when it dropped (on a loss, the level below); its stats count 0.5 + 0.05 x ilvl times.
+-- Items from before item levels get 10, which keeps their values as they were.
+alter table public.player_items add column if not exists ilvl int not null default 10 check (ilvl >= 1);
 -- The relics an item bonus can be (generated from js/content/items.js).
 create table if not exists public.item_bonuses (
   id text primary key
@@ -835,10 +842,10 @@ delete from public.item_bonuses where id <> all (array['Sharpened rounds', 'Long
 -- ===== Game rules (generated from js/content by tools/rules-sql.mjs; do not edit by hand) =====
 -- How many levels there are.
 create or replace function public.rule_stage_count() returns int
-language sql immutable set search_path = public as $$ select 5 $$;
+language sql immutable set search_path = public as $$ select 25 $$;
 -- Waves in a level.
 create or replace function public.rule_stage_waves(p_stage int) returns int
-language sql immutable set search_path = public as $$ select (array[15, 20, 25, 30, 35])[p_stage] $$;
+language sql immutable set search_path = public as $$ select (array[15, 20, 25, 30, 35, 40, 45, 50, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55])[p_stage] $$;
 -- Heroes a player can bring into a match.
 create or replace function public.rule_lineup_max() returns int
 language sql immutable set search_path = public as $$ select 3 $$;
@@ -1088,7 +1095,7 @@ language plpgsql security definer set search_path = public as $$
 declare me public.profiles; r public.runs; cap int; frontier boolean; elapsed numeric; done_waves int; dropped text := null;
         drops jsonb := '[]'; b_gold numeric; b_xp numeric; b_loot numeric; chance numeric; n int; boss_cap int;
         rar int; nb int; bon text[]; b_rar numeric; b_extra numeric; rks int[];
-        aff text; pick text;
+        aff text; pick text; il int;
 begin
   if auth.uid() is null then raise exception 'not signed in'; end if;
   select * into r from public.runs where id = p_run and user_id = auth.uid() and finished_at is null for update;
@@ -1135,6 +1142,7 @@ begin
         frontier_wave = case when p_won and r.stage > x.levels_cleared then 0
                              when r.stage = x.levels_cleared + 1 then greatest(x.frontier_wave, p_waves) else x.frontier_wave end,
         levels_cleared = case when p_won then greatest(x.levels_cleared, r.stage) else x.levels_cleared end;
+  il := 3 * (case when p_won then r.stage else greatest(1, r.stage - 1) end);   -- item level: 3 x the level beaten (on a loss, the one below); ILVL.perLevel in items.js
   chance := public.rule_drop_chance(p_won, p_waves, r.stage) * (1 + b_loot);
   n := p_bosses + floor(chance)::int + (case when random() < chance - floor(chance) then 1 else 0 end);
   for i in 1 .. n loop
@@ -1159,8 +1167,8 @@ begin
     -- each bonus's rank (rule_rank: rarer items roll higher ranks more often)
     rks := '{}';
     for k in 1 .. coalesce(array_length(bon, 1), 0) loop rks := rks || public.rule_rank(rar, random()::numeric); end loop;
-    insert into public.player_items (user_id, item_type, rarity, bonuses, bonus_ranks) values (auth.uid(), dropped, rar, bon, rks);
-    drops := drops || jsonb_build_array(jsonb_build_object('item_type', dropped, 'rarity', rar, 'bonuses', to_jsonb(bon), 'bonus_ranks', to_jsonb(rks)));
+    insert into public.player_items (user_id, item_type, rarity, bonuses, bonus_ranks, ilvl) values (auth.uid(), dropped, rar, bon, rks, il);
+    drops := drops || jsonb_build_array(jsonb_build_object('item_type', dropped, 'rarity', rar, 'bonuses', to_jsonb(bon), 'bonus_ranks', to_jsonb(rks), 'ilvl', il));
   end loop;
   return jsonb_build_object('profile', to_jsonb(me), 'drop', drops -> 0 ->> 'item_type', 'drops', drops);
 end;

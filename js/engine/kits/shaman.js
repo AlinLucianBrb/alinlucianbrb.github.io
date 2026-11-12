@@ -169,7 +169,7 @@ registerUltimate('surge', { name: 'Totem surge', desc: 'Every totem stands its f
 /* ---- Earthcaller ---- */
 /* Fissure: the ground cracks along the path from the leading enemy in range back FISSURE.length toward the entrance; every
    enemy on that stretch takes a hit and is stunned for 0.25 s. */
-export const FISSURE = { length: 2 * T, stun: 0.25, show: 0.45 };
+export const FISSURE = { length: 2 * T, stun: 0.15, show: 0.45 };   /* stun 0.25 s before Nov 12 */
 registerBehavior('fissure', {
   update(g, t, dt) {
     if (!ready(t, dt)) return;
@@ -193,10 +193,10 @@ registerBehavior('fissure', {
   }
 });
 ZONES.fissure = { update: (g, z, dt) => (z.t -= dt) > 0 };   /* only drawn */
-/* Tectonic shift: every enemy on the map takes 2x a hit and is pushed back 1.5 tiles (bosses a quarter of it; no enemy more
-   than 2 tiles a wave, see KNOCKBACK). */
-export const TECTONIC = { scale: 2, knock: 1.5 * T };
-registerUltimate('tectonic', { name: 'Tectonic shift', desc: 'The ground heaves: every enemy on the map takes {2} and is pushed back 1.5 tiles.', damageMult: 1,
+/* Tectonic shift: every enemy on the map takes 2x a hit and is pushed back 2.25 tiles (bosses 35% of it; no enemy more
+   than 3 tiles a wave, see KNOCKBACK). */
+export const TECTONIC = { scale: 2, knock: 2.25 * T };   /* knockbacks 50% stronger (Nov 12): was 1.5 tiles */
+registerUltimate('tectonic', { name: 'Tectonic shift', desc: 'The ground heaves: every enemy on the map takes {2} and is pushed back 2.25 tiles.', damageMult: 1,
   onFire(w, h) {
     for (const e of [...w.enemies]) { if (e.dead) continue; w.attack(h, e, TECTONIC.scale); knockback(w, e, TECTONIC.knock); }
     w.ev.emit('tectonic', { hero: h });

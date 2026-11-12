@@ -18,7 +18,7 @@ async function load() {
   rows.forEach(r => {
     const li = document.createElement('li'), a = document.createElement('span'), b = document.createElement('b');
     a.textContent = r.username + ' · Lv ' + r.level;
-    b.textContent = r.levels_cleared >= STAGES.length ? 'All levels cleared' : 'Level ' + (r.levels_cleared + 1) + ' · wave ' + r.frontier_wave;
+    b.textContent = r.levels_cleared >= STAGES.length ? 'All levels cleared' : 'Level ' + STAGES[r.levels_cleared].code + ' · wave ' + r.frontier_wave;
     li.append(a, b); list.append(li);
   });
 }
