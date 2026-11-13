@@ -148,6 +148,21 @@ select{font:inherit;background:#101813;color:var(--text);border:2px solid var(--
 .iconbtn:hover{border-color:var(--accent)}
 .iconbtn .itemicon{width:34px;height:34px;font-size:.75em}
 .hslot .buff{color:#cfd8cf;font-size:.85em;width:100%}
+/* Hero page gear: one compact line per slot; clicking one opens its item chooser over the page */
+.hbody.info{position:relative}
+.hgear{display:flex;flex-direction:column;gap:6px}
+.hslot.compact{flex-wrap:nowrap;margin-top:0;padding:4px 8px;gap:10px;width:100%;text-align:left;cursor:pointer;font:inherit;color:inherit}
+.hslot.compact:hover,.hslot.compact.open{filter:brightness(1.18)}
+.hslot.compact .itemicon{width:34px;height:34px;flex:none}
+.hslot.compact .itemicon.emptyslot{background:#0d140f;border-color:#2c3a32;border-style:dashed}
+.hslot.compact .slottxt{display:grid;grid-template-columns:auto 1fr;column-gap:8px;flex:1;min-width:0;line-height:1.25}
+.hslot.compact .slottxt small{width:auto;white-space:nowrap}
+.hslot.compact .slottxt small:last-child{text-align:right;overflow:hidden;text-overflow:ellipsis;font-size:.8em;align-self:center}
+.hslot.compact .slottxt .itemname{grid-column:1 / -1}
+.hslot.compact .itemname{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slotpop{position:absolute;z-index:5;left:14px;top:14px;width:min(420px,calc(100% - 28px));max-height:calc(100% - 28px);overflow:auto;padding:12px;background:#17211b;border:6px solid transparent;border-image:url(assets/ui_panel.png) 10 fill / 10px stretch;box-shadow:0 10px 30px rgba(0,0,0,.6)}
+.slotpophead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+.slotgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:6px;margin-bottom:8px}
 .slotitem .itemicon{width:32px;height:32px;font-size:.75em}
 /* Talent tree: the SVG scales to whatever space is left. */
 #screen-talents{justify-content:flex-start}

@@ -51,31 +51,42 @@ test('Heroes: one card per playable hero; clicking opens its page on the Informa
   assert.ok(st.includes('+10% from Strength'));
 });
 
-/* The gear column: one box per slot, in SLOTS order. */
+/* The gear column: one compact line per slot, in SLOTS order; clicking one opens its item chooser over the page. */
 const slotBox = slot => byId.hrBody.children[0].children[1 + ['helm', 'body', 'legs', 'boots', 'trinket'].indexOf(slot)];
+const chooser = () => byId.hrBody.children.find(c => c.className === 'slotpop');
 const iconBtns = box => findAll(box, e => e.className === 'iconbtn');
+const open = slot => { slotBox(slot).onclick(); return chooser(); };
+const tipOf = node => { node.fire('pointerenter', { clientX: 5, clientY: 5 }); return dom.made.filter(e => e.className === 'tip').at(-1).children.map(c => c._text); };
 
-test('Information: five gear slots; an empty slot offers the free items that fit, best first; equipping shows its bonuses and stats', async () => {
-  assert.deepEqual(byId.hrBody.children[0].children.slice(1).map(b => b.children[0]._text), ['Helm', 'Body armour', 'Legs', 'Boots', 'Trinket']);
-  assert.equal(iconBtns(slotBox('helm')).length, 2, 'two helms to choose from');
-  assert.equal(iconBtns(slotBox('body')).length, 0); assert.ok(texts(slotBox('body')).includes('Empty: no free item for this slot'));
-  iconBtns(slotBox('helm'))[0].onclick();                /* the Rare helm comes first */
+test('Information: five gear slots, one line each; clicking a slot lists the items that fit (best first); hover for stats', async () => {
+  assert.deepEqual(byId.hrBody.children[0].children.slice(1).map(b => b.children[1].children[0]._text), ['Helm', 'Body armour', 'Legs', 'Boots', 'Trinket']);
+  assert.equal(chooser(), undefined, 'no chooser until a slot is clicked');
+  assert.ok(texts(slotBox('helm')).includes('2 to choose from'));
+  assert.ok(texts(slotBox('body')).includes('None free'));
+  assert.equal(iconBtns(open('helm')).length, 2, 'two helms to choose from');
+  iconBtns(chooser())[0].onclick();                       /* the Rare helm comes first */
   assert.deepEqual(state.profile.equipment, { warrior: { helm: 'i2' } });
+  assert.equal(chooser(), undefined, 'equipping closes the chooser');
   const helm = slotBox('helm');
-  assert.ok(texts(helm).includes('Rare Helm')); assert.ok(btn(helm, /^Remove$/));
-  assert.ok(texts(helm).includes('+11.25% damage (rank 3)') && texts(helm).includes('+13.5% damage to melee heroes (rank 3)'), 'its bonuses: an item from before ranks counts them at its rarity (Rare: rank 3)');
+  assert.ok(texts(helm).includes('Rare Helm'));
+  assert.ok(!texts(helm).includes('+11.25% damage (rank 3)'), 'its bonuses are not listed on the page...');
+  const tip = tipOf(helm);
+  assert.ok(tip.includes('+11.25% damage (rank 3)') && tip.includes('+13.5% damage to melee heroes (rank 3)'), '...but on hover (an item from before ranks counts them at its rarity: Rare, rank 3)');
   assert.ok(texts(byId.hrBody).includes('Stats (with gear)'));
   const avg = 28 * (1 + 0.1 + 0.1125 + 0.135), mm = +(avg * 0.75).toFixed(2) + '–' + +(avg * 1.25).toFixed(2);
   assert.ok(texts(byId.hrBody).includes(mm), 'strength, Sharpened rounds and Whetstone add up');
-  iconBtns(slotBox('trinket'))[0].onclick();
+  iconBtns(open('trinket'))[0].onclick();
   assert.deepEqual(state.profile.equipment, { warrior: { helm: 'i2', trinket: 'i1' } });
   await wait(700);
   assert.deepEqual(saves.at(-1), { lineup: ['warrior', 'ranger', 'mage'], equipment: { warrior: { helm: 'i2', trinket: 'i1' } } });
-  byId.hrBack.onclick();                                 /* back to the list */
+  byId.hrBack.onclick();                                  /* back to the list */
   assert.equal(byId.hrPage.hidden, true);
   assert.ok(texts(byId.hrGrid.children[0]).includes('Gear 2 / 5'));
   byId.hrGrid.children[1].onclick();
-  assert.equal(iconBtns(slotBox('helm')).length, 1, 'one helm left for the Ranger'); assert.equal(iconBtns(slotBox('trinket')).length, 0);
+  assert.equal(iconBtns(open('helm')).length, 1, 'one helm left for the Ranger');
+  chooser().children[0].children[1].onclick();            /* Close */
+  assert.equal(chooser(), undefined);
+  assert.equal(iconBtns(open('trinket')).length, 0); chooser().children[0].children[1].onclick();
 });
 
 test('Evolutions tab: the base hero, then its three forms', () => {
@@ -101,7 +112,7 @@ test('choosing a path on the Evolutions tab saves it; clicking it again clears i
 test('a failed save puts back the last saved equipment and says why', async () => {
   byId.hrTabs.children[0].onclick();
   failNext = true;
-  iconBtns(slotBox('helm'))[0].onclick();
+  iconBtns(open('helm'))[0].onclick();
   await wait(700);
   assert.deepEqual(state.profile.equipment, { warrior: { helm: 'i2', trinket: 'i1' } });
   assert.match(byId.hrMsg._text, /^Could not save: boom/);

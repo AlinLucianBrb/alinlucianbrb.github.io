@@ -20,11 +20,10 @@ import { el, cap, items, itemById, equipment, gearOf, setGear, freeFor, wornItem
 
 const $ = id => document.getElementById(id);
 const f = x => +x.toFixed(2);
-let bound = false, hero = null, tab = 'info', saved = {}, timer = 0, back = null;   /* back: where Back goes when opened from elsewhere (choosing heroes for a level) */
+let bound = false, hero = null, tab = 'info', saved = {}, timer = 0, back = null, openSlot = null;   /* openSlot: the gear slot whose item chooser is open */   /* back: where Back goes when opened from elsewhere (choosing heroes for a level) */
 
 const say = (t, bad) => { $('hrMsg').textContent = t || ''; $('hrMsg').classList.toggle('warn', !!bad); };
 const copy = x => JSON.parse(JSON.stringify(x));
-const SHOW_FREE = 8;   /* free items shown per empty slot; the rest are counted */
 
 function changed() {
   say('Saving…'); clearTimeout(timer); timer = setTimeout(flush, 600);
@@ -69,36 +68,45 @@ function renderList() {
   }
 }
 
+/* The item chooser for one gear slot, over the page: every free item that fits the slot (best first) as icons; hover one
+   for its stats, click it to equip. Remove takes off what the slot holds. */
+function slotChooser(h, slot) {
+  const pop = el('div', 'slotpop'), head = el('div', 'slotpophead'), close = el('button', 'linkbtn', 'Close'), cur = itemById(gearOf(h.id)[slot]), free = freeFor(slot);
+  head.append(el('b', '', SLOT_LABEL[slot] + (cur ? ': ' + itemName(cur) : ': empty')), close);
+  close.onclick = () => { openSlot = null; render(); };
+  pop.append(head);
+  if (!free.length) pop.append(el('p', 'muted', items().length ? 'No free item for this slot.' : 'Items drop at the end of matches.'));
+  else {
+    const grid = el('div', 'slotgrid');
+    for (const it of free) {
+      const b = el('button', 'iconbtn'); b.append(itemIcon(it)); b.setAttribute('aria-label', 'Equip ' + itemName(it));
+      bindTip(b, () => { const t = itemTip(it); t.lines.push({ text: 'Click to equip', color: '#f2b84b' }); return t; });
+      b.onclick = () => { setGear(h.id, slot, it.id); openSlot = null; changed(); };
+      grid.append(b);
+    }
+    pop.append(grid);
+  }
+  if (cur) { const off = el('button', 'linkbtn', 'Remove ' + itemName(cur)); off.onclick = () => { setGear(h.id, slot, null); openSlot = null; changed(); }; pop.append(off); }
+  return pop;
+}
+
 /* Information tab: gear | picture | stats. */
 function renderInfo(box, h) {
   const gear = el('div', 'hgear'), pic = el('div', 'hpic'), stats = el('div', 'hstatbox');
   gear.append(el('h3', '', 'Gear'));
+  /* Each slot is one line: its item (icon and name; hover for its stats) or Empty. Click a slot to choose its item. */
   for (const slot of SLOTS) {
-    const box = el('div', 'hslot'), row = itemById(gearOf(h.id)[slot]);
-    box.append(el('small', 'muted', SLOT_LABEL[slot]));
-    if (row) {
-      const line = el('div', 'slotitem'), off = el('button', 'linkbtn', 'Remove'), icon = itemIcon(row), name = el('span', 'itemname', itemName(row));
-      name.style.color = itemColor(row); bindTip(icon, () => itemTip(row)); bindTip(name, () => itemTip(row));
-      off.onclick = () => { setGear(h.id, slot, null); changed(); };
-      line.append(icon, name, off); box.append(line);
-      for (const l of itemBonusLines(row)) { const d = el('div', 'buff', l.text); d.style.color = l.color; box.append(d); }   /* each bonus in its rank's colour */
-    } else {
-      const free = freeFor(slot);
-      if (!free.length) box.append(el('span', 'muted', items().length ? 'Empty: no free item for this slot' : 'Empty: items drop at the end of matches'));
-      else {
-        const pick = el('div', 'slotpick');
-        for (const it of free.slice(0, SHOW_FREE)) {
-          const b = el('button', 'iconbtn'); b.append(itemIcon(it)); b.setAttribute('aria-label', 'Equip ' + itemName(it));
-          bindTip(b, () => { const t = itemTip(it); t.lines.push({ text: 'Click to equip', color: '#f2b84b' }); return t; });
-          b.onclick = () => { setGear(h.id, slot, it.id); changed(); };
-          pick.append(b);
-        }
-        if (free.length > SHOW_FREE) pick.append(el('small', 'muted', '+' + (free.length - SHOW_FREE) + ' more'));
-        box.append(el('span', 'muted', 'Empty: click an item to equip it'), pick);
-      }
-    }
-    gear.append(box);
+    const row = itemById(gearOf(h.id)[slot]), free = freeFor(slot), b = el('button', 'hslot compact' + (openSlot === slot ? ' open' : ''));
+    if (row) b.append(itemIcon(row)); else b.append(el('span', 'itemicon emptyslot'));
+    const txt = el('span', 'slottxt'), name = el('span', 'itemname', row ? itemName(row) : 'Empty');
+    if (row) name.style.color = itemColor(row);
+    txt.append(el('small', 'muted', SLOT_LABEL[slot]), name, el('small', 'muted', free.length ? free.length + ' to choose from' : row ? '' : items().length ? 'None free' : 'Drops after matches'));
+    b.append(txt);
+    if (row) bindTip(b, () => { const t = itemTip(row); t.lines.push({ text: 'Click to change or remove', color: '#f2b84b' }); return t; });
+    b.onclick = () => { openSlot = openSlot === slot ? null : slot; render(); };
+    gear.append(b);
   }
+  if (openSlot) box.append(slotChooser(h, openSlot));
   /* The picture: the hero's sprite on a glow in its colour (its initial if the picture cannot load). */
   const art = el('div', 'hart art'), img = spriteImg('hero_' + h.id, 'pix');
   art.style.setProperty('--hc', h.color); art.append(el('span', '', h.name[0]), img);
@@ -170,11 +178,11 @@ function render() {
 export default {
   async mount(_el, params = {}) {
     if (!bound) {
-      $('hrBack').onclick = () => { if (back) bus.emit('nav', back); else if (hero) { hero = null; render(); } else bus.emit('nav', { to: 'menu' }); };
-      for (const b of $('hrTabs').children) b.onclick = () => { tab = b.dataset.tab; render(); };
+      $('hrBack').onclick = () => { openSlot = null; if (back) bus.emit('nav', back); else if (hero) { hero = null; render(); } else bus.emit('nav', { to: 'menu' }); };
+      for (const b of $('hrTabs').children) b.onclick = () => { tab = b.dataset.tab; openSlot = null; render(); };
       bound = true;
     }
-    hero = params.hero ? HEROES.find(h => h.id === params.hero) || null : null; tab = 'info'; back = params.back || null;
+    hero = params.hero ? HEROES.find(h => h.id === params.hero) || null : null; tab = 'info'; back = params.back || null; openSlot = null;
     saved = copy(equipment()); say('');
     render();
     if (!state.items) { say('Loading your items…'); const err = await ensureItems(); say(err, !!err); saved = copy(equipment()); render(); }
