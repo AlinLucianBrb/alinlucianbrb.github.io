@@ -34,7 +34,7 @@ export const relicIcon = name => 'relic_' + name.toLowerCase().replace(/[^a-z0-9
    an entry (and every evolved form, for now) uses its old two-frame sprite. portrait: the still image for the menus. */
 export const HERO_ANIM = {
   warrior: { frame: 192, foot: [91, 191], height: 114, tiles: 1.45, portrait: 'portrait_warrior',
-    idle: { name: 'anim_warrior_idle', frames: 4, fps: 5 }, attack: { name: 'anim_warrior_attack', frames: 8, fps: 12, swings: 'right' } }
+    idle: { name: 'anim_warrior_idle', frames: 4, fps: 5 }, attack: { name: 'anim_warrior_attack', frames: 4, fps: 12, swings: 'left' } }
 };
 export const heroAnim = def => (def.form || def.mounted ? null : HERO_ANIM[def.id] || null);
 /* The image of a hero for the menus: its portrait when it has one, otherwise its sprite. */
