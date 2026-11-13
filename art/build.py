@@ -30,4 +30,11 @@ for f in sorted(os.listdir(OUT)):
         with open(os.path.join(OUT, f), 'rb') as a, open(os.path.join(ASSETS, f), 'wb') as b:   # plain copy (sendfile fails on some mounts)
             b.write(a.read())
         n += 1
+# Art made with Pixel Lab (the 128 px heroes: portraits and animation sheets) is kept as finished files in art/pixellab/.
+PIXELLAB = os.path.join(ART, 'pixellab')
+for f in sorted(os.listdir(PIXELLAB)) if os.path.isdir(PIXELLAB) else []:
+    if f.endswith('.png'):
+        with open(os.path.join(PIXELLAB, f), 'rb') as a, open(os.path.join(ASSETS, f), 'wb') as b:
+            b.write(a.read())
+        n += 1
 print(n, 'files copied to assets/')

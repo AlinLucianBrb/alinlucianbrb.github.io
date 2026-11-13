@@ -28,9 +28,21 @@ export const attackIcon = def => 'ability_' + (ATTACK_ICON[def.form || def.id] |
 export const ultimateIcon = def => 'ability_ult_' + def.ultimate;
 /* A relic's icon (art/relics.py): relic_ and its name in lower case, every run of other characters turned into "_". */
 export const relicIcon = name => 'relic_' + name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+/* Animated heroes (the 128 px style, made with Pixel Lab; the source files are in art/pixellab/). Each animation is a sheet of
+   square frames side by side, the figure facing left. foot: where the feet touch the ground on a frame (the hero stands on
+   that point); attack.swings: which way the attack art swings; height: the figure's height in frame pixels; tiles: how tall it is drawn on the map, in tiles. A hero without
+   an entry (and every evolved form, for now) uses its old two-frame sprite. portrait: the still image for the menus. */
+export const HERO_ANIM = {
+  warrior: { frame: 192, foot: [91, 191], height: 114, tiles: 1.45, portrait: 'portrait_warrior',
+    idle: { name: 'anim_warrior_idle', frames: 4, fps: 5 }, attack: { name: 'anim_warrior_attack', frames: 8, fps: 12, swings: 'right' } }
+};
+export const heroAnim = def => (def.form || def.mounted ? null : HERO_ANIM[def.id] || null);
+/* The image of a hero for the menus: its portrait when it has one, otherwise its sprite. */
+export const heroPortrait = id => (HERO_ANIM[id] ? HERO_ANIM[id].portrait : 'hero_' + id);
 const heroIds = HEROES.flatMap(h => [h.id, ...(h.evolutions || []).flatMap(s => s.choices.map(c => c.id))]);
 export const SPRITES = [...new Set([
   ...heroIds.flatMap(id => ['hero_' + id, 'hero_' + id + '_2']),            /* _2: the second animation frame */
+  ...Object.values(HERO_ANIM).flatMap(a => [a.portrait, a.idle.name, a.attack.name]),
   ...Object.keys(ENEMIES).flatMap(id => ['enemy_' + id, 'enemy_' + id + '_2']),
   ...Object.keys(ITEMS).flatMap(id => [0, 1, 2, 3].map(r => 'item_' + id + '_' + r)),
   ...['arrow', 'arrow_gold', 'arrow_toxic', 'bolt_arcane', 'fireball', 'ice_shard', 'spark', 'dagger_toxic', 'flask_fire', 'flask_toxic',

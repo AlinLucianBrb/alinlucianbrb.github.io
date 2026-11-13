@@ -63,7 +63,7 @@ function swingAt(g, t, tg, mult, ttl) {
     if (da > Math.PI) da = 2 * Math.PI - da;
     if (da <= half) g.attack(t, e, mult);
   }
-  g.fx?.slash(t.x, t.y, ang, half, t.s.range, ttl, look(t, mult));
+  g.fx?.slash(t.x, t.y, ang, half, t.s.range, ttl, look(t, mult), t);   /* t: the screen plays the hero's attack */
 }
 
 registerBehavior('swing', {

@@ -1,7 +1,7 @@
 /* Canvas drawing. The world is drawn through the camera; the board is cheap enough to draw every frame, which keeps it sharp at any zoom. */
 import { COLS, ROWS, T, HEROES } from '../content/data.js';
 import { tintOf } from '../engine/effects.js';
-import { get as sprite, tiles as tileSheet, drawSprite, heroSprite, frameOf } from './sprites.js';
+import { get as sprite, tiles as tileSheet, drawSprite, heroSprite, frameOf, heroAnim } from './sprites.js';
 import { drawAuras, drawMinions, drawMounted, KIT_PROJ, KIT_ZONE, KIT_AIL_ICON, BUFF_COLOR } from './kit-art.js';
 
 const MAP_W = COLS * T, MAP_H = ROWS * T;
@@ -394,7 +394,7 @@ export function draw(ctx, g, v) {
     ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fill();
     if (mv) {
       ctx.globalAlpha = 0.5;
-      if (!drawSprite(ctx, heroSprite(mv.def), (h[0] + 0.5) * T, (h[1] + 0.5) * T + HERO_DY, HERO_S)) {
+      if (!drawHeroStill(ctx, mv.def, (h[0] + 0.5) * T, (h[1] + 0.5) * T)) {
         ctx.fillStyle = mv.def.color; ctx.beginPath(); ctx.arc((h[0] + 0.5) * T, (h[1] + 0.5) * T, 13, 0, 7); ctx.fill();
       }
       ctx.globalAlpha = 1;
@@ -416,7 +416,7 @@ export function draw(ctx, g, v) {
     if (!d) continue;
     const x = (c.cx + 0.5) * T, y = (c.cy + 0.5) * T;
     ctx.globalAlpha = 0.5;
-    if (!drawSprite(ctx, heroSprite(d), x, y + HERO_DY, HERO_S)) { ctx.fillStyle = d.color; ctx.beginPath(); ctx.arc(x, y, 13, 0, 7); ctx.fill(); }
+    if (!drawHeroStill(ctx, d, x, y)) { ctx.fillStyle = d.color; ctx.beginPath(); ctx.arc(x, y, 13, 0, 7); ctx.fill(); }
     ctx.globalAlpha = 1;
   }
   const slashArt = sprite('fx_slash');
@@ -501,8 +501,11 @@ function drawHero(ctx, g, v, t) {
     }
     ctx.globalAlpha = t === v.moving ? 0.4 : 1;
   }
-  /* Idle animation: two frames, each hero on its own beat (the game clock, so it pauses with the game). */
+  /* Idle animation: two frames, each hero on its own beat (the game clock, so it pauses with the game). Animated heroes
+     (HERO_ANIM) play their idle loop and their attack instead. */
+  const anim = heroAnim(d);
   const art = d.mounted ? drawMounted(ctx, g, t, HERO_S, HERO_DY)   /* the Crusader: on his horse, wherever he rides */
+    : anim ? drawAnimated(ctx, g, v, t, anim)
     : drawSprite(ctx, frameOf(heroSprite(d), ((g.tick + t.id * 17) / 30 | 0) % 2 === 1), t.x, t.y + HERO_DY, HERO_S);
   if (!art) {
     if (n) poly(ctx, t.x, t.y, 15, n, rot); else { ctx.beginPath(); ctx.arc(t.x, t.y, 13, 0, 7); }
@@ -512,6 +515,39 @@ function drawHero(ctx, g, v, t) {
     ctx.beginPath(); ctx.arc(t.x, t.y, 18, 0, 7); ctx.strokeStyle = '#f2b84b'; ctx.lineWidth = 2.5; ctx.stroke();
   }
   ctx.globalAlpha = 1;
+}
+
+/* An animated hero (sprites.js HERO_ANIM): the attack plays from its last swing (v.swings, set by the swing's effect),
+   otherwise the idle loop, each hero on its own beat. It faces its last target: the art faces left, so it is mirrored when
+   the target was to the right; the attack is mirrored so its swing goes toward the target. Drawn standing on the tile's lower part, scaled smoothly (the art is finer than the map). */
+const FOOT_DY = T * 0.42;
+function drawAnimated(ctx, g, v, t, A) {
+  const sw = v.swings && v.swings.get(t.id);
+  const right = !!sw && Math.cos(sw.ang) > 0;
+  let part = A.idle, f = Math.floor((g.tick + t.id * 17) / 60 * A.idle.fps) % A.idle.frames, face = right ? 1 : -1;
+  if (sw) {
+    if (sw.start < 0 || sw.start > g.tick) sw.start = g.tick;
+    const af = Math.floor((g.tick - sw.start) / 60 * A.attack.fps);
+    /* the attack art swings toward A.attack.swings ('right' or 'left'): mirrored when the target is on the other side */
+    if (af < A.attack.frames) { part = A.attack; f = af; face = right === (A.attack.swings === 'right') ? -1 : 1; }
+  }
+  return drawAnimFrame(ctx, A, part, f, t.x, t.y, face);
+}
+function drawAnimFrame(ctx, A, part, f, x, y, face) {
+  const img = sprite(part.name);
+  if (!img) return false;
+  const k = (T * A.tiles) / A.height;
+  ctx.save();
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  ctx.translate(x, y + FOOT_DY); ctx.scale(face > 0 ? -k : k, k);
+  ctx.drawImage(img, f * A.frame, 0, A.frame, A.frame, -A.foot[0], -A.foot[1], A.frame, A.frame);
+  ctx.restore();
+  return true;
+}
+/* A hero standing still on a tile (placing or moving it): the first idle frame of an animated hero, else its sprite. */
+function drawHeroStill(ctx, def, x, y) {
+  const A = heroAnim(def);
+  return A ? drawAnimFrame(ctx, A, A.idle, 0, x, y, -1) : drawSprite(ctx, heroSprite(def), x, y + HERO_DY, HERO_S);
 }
 
 /* What a path preview's echo shows of the form: the wolf pup, a ghost rider charging down the path, the Assassin's blink. */

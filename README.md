@@ -199,6 +199,9 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## New art style (Nov 13)
+- **The Warrior in the 128 px style** (made with Pixel Lab, see Art): a knight in steel and gold with a red cape. On the map he plays a 4-frame idle loop and an 8-frame sword swing (0.67 s, inside his 0.8 s attack) every time he attacks, faces his target and stands a little taller than the old sprites. His portrait shows on the Heroes page and when choosing heroes for a level. His evolved forms and the other heroes keep their old sprites for now. Game version 0.22.0.
+
 ## Polish (Nov 13)
 - **Relic offers follow the heroes on the map** (with none placed yet: the lineup). A form takes priority: an evolved hero, or one with a path, counts only as its form; a basic hero with no path as itself and every form it could become. So with only a Warrior placed you never see spell relics, even with a Mage in the lineup (`relicFits` in `js/engine/commands.js`).
 - **Relic picker:** no Reroll button without rerolls, no gold line, a big icon above each name, cards in their rarity's colour.
@@ -319,6 +322,7 @@ Everything in combat flows through `hit()` in `js/engine/world.js`, which emits 
 - **New status effect:** add it to `EFFECTS` in `js/engine/effects.js`, then list it in a hero's `applies` field.
 - **New projectile:** add it to `PROJECTILES` in `js/engine/projectiles.js` (and its look to `PROJ_DRAW` in `js/game/render.js`: a sprite from `art/effects.py`, added to `SPRITES` in `js/game/sprites.js`, with a shape as fallback) and spawn it from a behavior.
 - **New hero or evolution art:** add an entry to `HEROES` in `art/heroes.py` with the same id, run `python3 art/build.py`; the game picks it up by id.
+- **Animated hero (the new 128 px style):** made with Pixel Lab. Put `portrait_<id>.png` (the still image for the menus) and the sheets `anim_<id>_idle.png` and `anim_<id>_attack.png` (square frames side by side, the figure facing left) in `art/pixellab/` (`art/build.py` copies them into `assets/`), then add the hero to `HERO_ANIM` in `js/game/sprites.js`: frame size, where the feet are on a frame, the figure's height, frames and speed of each animation, and which way the attack swings. The hero then plays its idle loop on the map, plays its attack on every swing, faces its target, and shows its portrait in the menus. Evolved forms keep their old sprites for now.
 - **New enemy:** add it to `ENEMIES` in `js/engine/enemies.js` (with its armor and resistance per point of threat) and return it from `waveEnemyType`.
 - **New talent:** change a cluster in `K` in `talents.js`, or where it goes in `RING` (keep inner and outer alternating so the tree stays symmetrical), then run `npm run sql` and run `supabase-update.sql` in Supabase (a test fails until the SQL files are rebuilt).
 

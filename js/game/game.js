@@ -26,8 +26,9 @@ let net = null, coopInfo = null, netDead = false;
 let last = -1, acc = 0, active = false, raf = 0, hooks = {}, uiT = 0, stageN = 1, bgWorker = null, bgTimer = 0, drawErr = false;
 /* Screen-only state: chosen hero button, hover, selection, speed, pause, camera, canvas size and visual effects. */
 const v = { sel: 0, hover: null, selected: null, moving: null, speed: 1, paused: false, needFit: true,
-  cam: createCamera(), dpr: 1, cw: MAP_W, ch: MAP_H, vfx: { beams: [], slashes: [], anims: [] }, fx: null };
-v.fx = { beam: (...a) => addBeam(v.vfx, ...a), slash: (...a) => addSlash(v.vfx, ...a),
+  cam: createCamera(), dpr: 1, cw: MAP_W, ch: MAP_H, vfx: { beams: [], slashes: [], anims: [] }, fx: null,
+  swings: new Map() };   /* hero id -> its last swing { ang, start } (render.js plays the attack animation and faces it) */
+v.fx = { beam: (...a) => addBeam(v.vfx, ...a), slash: (...a) => { addSlash(v.vfx, ...a); if (a[7] && !a[7].echoOf) v.swings.set(a[7].id, { ang: a[2], start: -1 }); },
   /* The Lightning Mage's storm: a bolt from the sky onto the enemy (a plain beam while the art is not loaded). */
   strike: (x, y) => { if (sprite('fx_strike')) addAnim(v.vfx, 'fx_strike', x, y - 34, 72, 0.28, 3); else addBeam(v.vfx, x + 6, y - 70, x, y, 0.12, '#ffe45c', 3); } };
 
@@ -58,7 +59,7 @@ function newRun(resumeLog = null) {
   w.ev.on('kill', ({ enemy }) => { if (w.fx && !enemy.escaped) addAnim(v.vfx, 'fx_hit', enemy.x, enemy.y - 6, 26 + enemy.def.radius, 0.24, 4); });
   w.ev.on('explode', ({ zone }) => { if (w.fx) addAnim(v.vfx, 'fx_explosion', zone.x, zone.y, 96, 0.45, 5); });
   w.ev.on('moonfall', ({ zone }) => { if (w.fx) addAnim(v.vfx, 'fx_moonburst', zone.x, zone.y, zone.r * 2.3, 0.45, 5); });
-  pend.length = 0; v.selected = v.moving = v.evo = null; ui.hideEvoPick(); if (v.speed > 2) v.speed = 1; v.vfx.beams.length = 0; v.vfx.slashes.length = 0; v.vfx.anims.length = 0; v.needFit = true;
+  pend.length = 0; v.selected = v.moving = v.evo = null; ui.hideEvoPick(); if (v.speed > 2) v.speed = 1; v.vfx.beams.length = 0; v.vfx.slashes.length = 0; v.vfx.anims.length = 0; v.swings.clear(); v.needFit = true;
   if (!c && !resumeLog && playOnPickSaved()) apply(world, { type: 'playOnPick', on: true });   /* logged, so the replay plays the same way */
   v.sel = heroIndex(w.lineup[0]);
   ui.setLineup(w);

@@ -7,7 +7,7 @@ import { state } from '../core/state.js';
 import { STAGES, HEROES, LINEUP_SIZE, STAT_LABELS, ZONES, zoneOf } from '../content/data.js';
 import { SLOTS } from '../content/items.js';
 import { el, cap, gearCount, ensureItems, saveNow, sqlHint } from './loadout.js';
-import { spriteImg } from '../game/sprites.js';
+import { spriteImg, heroPortrait } from '../game/sprites.js';
 import { pathChoice } from '../engine/preview.js';
 
 const $ = id => document.getElementById(id);
@@ -67,7 +67,7 @@ function renderPick() {
     const foot = el('div', 'pickfoot'); foot.append(gear, el('span', 'pickmark', on ? '✓ ' + (lineup.indexOf(h.id) + 1) : 'Add'));
     const info = el('small', 'muted', 'Gear ' + gearCount(h.id) + ' / ' + SLOTS.length + ' · ');
     info.append(el('span', c ? 'pathline' : '', c ? 'Path: ' + c.name : 'No path'));
-    card.append(spriteImg('hero_' + h.id, 'pix hcardart'), head, el('p', 'hdesc', h.short), info, foot);
+    card.append(spriteImg(heroPortrait(h.id), 'pix hcardart'), head, el('p', 'hdesc', h.short), info, foot);
     card.onclick = () => toggle(h.id);
     card.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault?.(); toggle(h.id); } };
     grid.append(card);

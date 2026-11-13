@@ -12,7 +12,7 @@ import { SLOTS, SLOT_LABEL, itemMods, itemName, itemColor, itemBonusLines } from
 import { DAMAGE_LABEL } from '../content/combat.js';
 import { ULTIMATES, ultDesc } from '../engine/ultimates.js';
 import { heroStats, attributeDamage } from '../engine/stats.js';
-import { spriteImg } from '../game/sprites.js';
+import { spriteImg, heroPortrait } from '../game/sprites.js';
 import { PREVIEWS } from '../content/previews.js';
 import { pathChoice, pathDef } from '../engine/preview.js';
 import { savePaths } from '../services/api.js';
@@ -62,7 +62,7 @@ function renderList() {
     head.append(el('b', '', h.name), el('small', 'muted', cap(h.archetype) + ' · ' + STAT_LABELS[h.attribute]));
     const n = gearCount(h.id), c = pathOf(h.id);
     card.append(head, el('p', 'hdesc', h.short), el('small', 'muted', 'Gear ' + n + ' / ' + SLOTS.length),
-      el('small', c ? 'pathline' : 'muted', c ? 'Path: ' + c.name : 'No path: choose in the match'), spriteImg('hero_' + h.id, 'pix hcardart'));
+      el('small', c ? 'pathline' : 'muted', c ? 'Path: ' + c.name : 'No path: choose in the match'), spriteImg(heroPortrait(h.id), 'pix hcardart'));
     card.onclick = () => { hero = h; tab = 'info'; render(); };
     grid.append(card);
   }
@@ -108,7 +108,7 @@ function renderInfo(box, h) {
   }
   if (openSlot) box.append(slotChooser(h, openSlot));
   /* The picture: the hero's sprite on a glow in its colour (its initial if the picture cannot load). */
-  const art = el('div', 'hart art'), img = spriteImg('hero_' + h.id, 'pix');
+  const art = el('div', 'hart art'), img = spriteImg(heroPortrait(h.id), 'pix');
   art.style.setProperty('--hc', h.color); art.append(el('span', '', h.name[0]), img);
   img.onerror = () => { img.remove(); art.classList.remove('art'); };
   pic.append(art, el('p', 'hdesc', h.short));
@@ -142,7 +142,7 @@ function renderEvolutions(box, h) {
   root.style.setProperty('--hc', h.color);
   root.append(el('b', '', h.name), el('small', 'muted', 'Level 1 · ' + DAMAGE_LABEL[h.damageType] + ' damage'), el('p', '', h.short));
   if (u) root.append(el('small', '', 'Ultimate: ' + u.name));
-  root.append(spriteImg('hero_' + h.id, 'pix evoart'));   /* last in the DOM; CSS shows it first */
+  root.append(spriteImg(heroPortrait(h.id), 'pix evoart'));   /* last in the DOM; CSS shows it first */
   tree.append(root);
   for (const step of h.evolutions) {
     tree.append(el('div', 'evolink', 'Level ' + step.level + ' · ' + step.cost + ' gold · choose one now (a path) or in the match'));
