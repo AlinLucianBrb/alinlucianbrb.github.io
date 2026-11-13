@@ -55,7 +55,7 @@ test('explain lists the modifiers behind a stat', () => {
 
 test('rarities are whole multiples of Common: 1x, 2x, 3x, 4x, and relics are 15% of their old strength', () => {
   assert.deepEqual(RARITIES.map(r => r.mult), [1, 2, 3, 4]);
-  assert.deepEqual(RARITIES.map(r => R('Sharpened rounds').desc(r.mult)), ['+3.75% damage (all heroes)', '+7.5% damage (all heroes)', '+11.25% damage (all heroes)', '+15% damage (all heroes)']);
+  assert.deepEqual(RARITIES.map(r => R('Sharpened rounds').desc(r.mult)), ['+3.75% damage', '+7.5% damage', '+11.25% damage', '+15% damage']);
   assert.deepEqual(RARITIES.map(r => R('Reinforced gate').desc(r.mult)), ['+1 life', '+2 lives', '+2 lives', '+3 lives'], 'whole lives, at least 1');
   assert.deepEqual(RARITIES.map(r => R('Compound interest').mods(r.mult)[1].value), [60, 120, 180, 240], 'Compound interest keeps its full strength');
   assert.deepEqual(RARITIES.map(r => R('Prospector').desc(r.mult)), ['25% chance of +2 gold per kill', '50% chance of +2 gold per kill', '75% chance of +2 gold per kill', '+2 gold per kill (100%)']);
@@ -95,7 +95,7 @@ test('relic indicator lists only the hero types that would be affected', () => {
 });
 
 test('relic descriptions scale with rarity', () => {
-  assert.equal(R('Sharpened rounds').desc(1), '+3.75% damage (all heroes)');
+  assert.equal(R('Sharpened rounds').desc(1), '+3.75% damage');
   assert.equal(R('Split bolt').desc(2), 'Spell attacks: 30% chance to hit 1 more target');
   assert.equal(fmtMod({ stat: 'damage', type: 'inc', value: 0.04, scope: ['all'] }), '+4% damage');
   assert.equal(fmtMod({ stat: 'evolveCost', type: 'more', value: -0.05, scope: 'global' }), '×0.95 evolution cost');

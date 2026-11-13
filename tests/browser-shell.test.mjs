@@ -85,7 +85,7 @@ test('placing is once per hero; cards then select the hero; click and hold to mo
   assert.ok(dom.made.some(e => e.tag === 'b' && e._text === 'Hunter · Lv 1'), 'the panel title shows the level');
   assert.ok(dom.made.some(e => e.className === 'lvl' && e._v === 'XP 0/10'), 'XP shown');
   assert.equal(dom.button('Sell'), undefined, 'no selling');
-  assert.equal(dom.made.some(e => e.tag === 'div' && /^When full: Empowered strike/.test(e._text)), true, 'the panel explains the ultimate');
+  assert.equal(dom.made.some(e => e.tag === 'div' && /^When full:/.test(e._text || '')), false, 'what the ultimate does is on its icon, not in the panel');
 });
 
 test('the land outside the map cannot hold heroes, and shows a not-allowed cursor there', () => {
@@ -170,22 +170,27 @@ test('hero panel: a hint on moving comes first, bonuses from the same source are
   const [t] = freeTiles(1);
   dom.heroButton(0).onclick(); click(...t); click(...t); dom.frames(1);
   const kids = byId.inspect.children;
-  /* Title, then XP right under it, then the attributes, then energy as x/max. No move or evolve text. */
-  assert.equal(kids[1].children[0].className, 'lvl'); assert.match(kids[1].children[0]._v, /^XP \d+\/10$/);
-  assert.equal(kids[2].className, 'attrs');
-  assert.deepEqual(kids[2].children.map(a => a.children.map(c => c._text).join(' ')), ['Str 10', 'Dex 4', 'Int 2']);
-  assert.equal(kids[2].children[0].className, 'attr a-strength main', 'strength is the main one (a-strength: its icon)'); assert.equal(kids[2].children[0].style.color, '#e5645a', 'in red');
-  assert.equal(kids[2].children[1].className, 'attr a-dexterity');
-  assert.match(kids[3].children[0]._v, /^Energy \d+\/100$/, 'energy as x/max before its bar');
+  /* Title; under it damage dealt, kills and ultimates; then XP, energy right under it, then the attributes. No move or evolve text. */
+  assert.equal(kids[1].className, 'tally');
+  assert.deepEqual(kids[1].children.map(c => c.children[1]._v), ['0', '0', '0'], 'damage dealt, kills, ultimates');
+  assert.equal(kids[2].children[0].className, 'lvl'); assert.match(kids[2].children[0]._v, /^XP \d+\/10$/);
+  assert.match(kids[3].children[0]._v, /^Energy \d+\/100$/, 'energy as x/max, right under XP');
+  assert.equal(kids[4].className, 'attrs');
+  assert.deepEqual(kids[4].children.map(a => a.children.map(c => c._text).join(' ')), ['Str 10', 'Dex 4', 'Int 2']);
+  assert.equal(kids[4].children[0].className, 'attr a-strength main', 'strength is the main one (a-strength: its icon)'); assert.equal(kids[4].children[0].style.color, '#e5645a', 'in red');
+  assert.equal(kids[4].children[1].className, 'attr a-dexterity');
   assert.equal(dom.made.some(e => /click and hold|Evolves at level/.test(e._text || '') && byId.inspect.children.includes(e)), false, 'no move or evolve text');
-  const lines = dom.made.filter(e => e.className === 'buff').map(e => e._text);
-  assert.ok(lines.includes('+15% · Sharpened rounds ×2 (Relic)'), 'stacked across rarities (3.75% + 11.25%): ' + lines.join(' | '));
+  assert.equal(dom.made.filter(e => e.className === 'buff' && byId.inspect.children.includes(e)).length, 0, 'no breakdown lines in the panel: they are on hover');
+  const dmgRow = kids.find(k => k.className === 'srow srt');
+  dmgRow.fire('pointerenter', { clientX: 5, clientY: 5 });
+  const lines = dom.made.filter(e => e.className === 'tip').at(-1).children.map(c => c._text);
+  assert.ok(lines.includes('+15% · Sharpened rounds ×2 (Relic)'), 'stacked across rarities (3.75% + 11.25%), on hover: ' + lines.join(' | '));
   const chips = byId.relics.children;
   assert.equal(chips.length, 1, 'one relic chip, whatever the rarities');
   assert.equal(chips[0].children[1]._text, 'Sharpened rounds ×2'); assert.match(chips[0].children[0].src, /relic_sharpened_rounds\.png$/, 'its icon');
   chips[0].fire('pointerenter', { clientX: 10, clientY: 10 });
   const tip = dom.made.filter(e => e.className === 'tip').at(-1);
-  assert.deepEqual(tip.children.map(c => c._text), ['Sharpened rounds ×2', 'Common + Rare', 'Together: +15% damage (all heroes)']);
+  assert.deepEqual(tip.children.map(c => c._text), ['Sharpened rounds ×2', 'Common + Rare', 'Together: +15% damage']);
   assert.ok(dom.made.some(e => e._text === 'Damage (Physical)'));
   const more = stackMods([{ stat: 'x', type: 'more', value: 0.5, source: 'E', ri: -3 }, { stat: 'x', type: 'more', value: 0.5, source: 'E', ri: -3 }]);
   assert.equal(more.length, 1); assert.equal(more[0].value, 1.25, '"more" bonuses multiply: 1.5 x 1.5 = 2.25');
@@ -199,14 +204,15 @@ test('talent bonuses are stacked into one "Talents" line per stat', async () => 
   startGame({ ...hooks, talents: pathTo(new Set(), 't4_might_a2') }); dom.frames(2);
   const [t] = freeTiles(1);
   dom.heroButton(0).onclick(); click(...t); click(...t); dom.frames(1);
-  const lines = dom.made.filter(e => e.className === 'buff' && / · Talents/.test(e._text)).map(e => e._text);
+  byId.inspect.children.find(k => k.className === 'srow srt').fire('pointerenter', { clientX: 5, clientY: 5 });   /* the damage line's tip */
+  const lines = dom.made.filter(e => e.className === 'tip').at(-1).children.map(c => c._text);
   assert.ok(lines.includes('+8% · Talents ×3'), 'one line: ' + lines.join(' | '));
   assert.ok(Math.abs(world().heroes[0].s.damage - 28 * 1.20) < 1e-9, 'talents +8% and 12 strength +12%');
-  assert.ok(dom.made.some(e => e.className === 'buff' && e._text === '+12% · Strength (attribute)'), 'the attribute bonus is listed');
+  assert.ok(lines.includes('+12% · Strength (attribute)'), 'the attribute bonus is listed');
   /* Level the Warrior up twice: +6 strength, shown on the Strength chip and explained in its tooltip. */
   const { gainXp } = await import('../js/engine/levels.js');
   gainXp(world(), world().heroes[0], 22); dom.frames(20);
-  const str = byId.inspect.children[2].children[0];
+  const str = byId.inspect.children[4].children[0];
   assert.equal(str.children[1]._text, '18');
   str.fire('pointerenter', { clientX: 5, clientY: 5 });
   const tip = dom.made.filter(e => e.className === 'tip').at(-1).children.map(c => c._text);

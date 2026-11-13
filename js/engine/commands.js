@@ -18,23 +18,29 @@ const blocked = (w, p) => w.phase === 'over' ? fail('over') : p.picking ? fail('
 const playerOf = (w, c) => w.players[c.p | 0];
 
 /* Does a relic do anything for this player's heroes? Economy and gate relics always do. A hero relic must touch one of the
-   lineup's heroes as it can play in this match: the basic hero, and its chosen path's form (or, with no path chosen, any of
-   its forms). Relics limited to some heroes (lineup) also need one of them. */
-export function relicFits(r, p) {
-  if (r.lineup && !r.lineup.some(id => p.lineup.includes(id))) return false;
+   heroes ON THE MAP (with none placed yet: the lineup), as it plays: a form takes priority, so an evolved hero, or one with
+   a path chosen, counts only as that form; a basic hero with no path counts as itself and every form it could become.
+   Relics limited to some heroes (r.lineup) also need one of them there. */
+export function relicFits(r, p, w = null) {
+  const mine = w ? w.heroes.filter(h => (h.owner || 0) === p.i) : [];
+  const heroes = mine.length ? mine.map(h => ({ id: h.base.id, h })) : p.lineup.map(id => ({ id, h: null }));
+  if (r.lineup && !r.lineup.some(id => heroes.some(x => x.id === id))) return false;
   const defs = [];
-  for (const id of p.lineup) {
-    const base = HEROES.find(h => h.id === id);
+  for (const { id, h } of heroes) {
+    const base = HEROES.find(x => x.id === id);
     if (!base) continue;
-    defs.push(base);
-    for (const st of base.evolutions) for (const c of st.choices) if (!p.paths[id] || p.paths[id] === c.id) defs.push(pathDef(base, c), evolvedDef(base, c));
+    if (h && h.tier > 0) { defs.push(h.def); continue; }   /* evolved: its form only */
+    const path = (h && h.preview && h.preview.form) || p.paths[id];
+    const forms = base.evolutions.flatMap(st => st.choices).filter(c => !path || c.id === path);
+    if (!path) defs.push(base);
+    for (const c of forms) defs.push(evolvedDef(base, c));
   }
   const a = affected(r, 1, defs.map((def, k) => ({ type: k, def })));
   return !!(a.global || a.types.size);
 }
 
 function drawRelics(w, p, n, taken) {
-  const pool = RELICS.filter(r => !p.banned.has(r.name) && !taken.includes(r.name) && relicFits(r, p)), out = [];   /* only relics for this match's heroes */
+  const pool = RELICS.filter(r => !p.banned.has(r.name) && !taken.includes(r.name) && relicFits(r, p, w)), out = [];   /* only relics for the heroes on the map */
   while (out.length < n && pool.length) out.push({ relic: pool.splice(w.rng.relic.int(pool.length), 1)[0], ri: rollRarity(w.rng.relic.next(), p.gs.relicLuck) });
   return out;
 }

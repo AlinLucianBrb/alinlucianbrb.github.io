@@ -20,7 +20,7 @@ import { el, cap, items, itemById, equipment, gearOf, setGear, freeFor, wornItem
 
 const $ = id => document.getElementById(id);
 const f = x => +x.toFixed(2);
-let bound = false, hero = null, tab = 'info', saved = {}, timer = 0;
+let bound = false, hero = null, tab = 'info', saved = {}, timer = 0, back = null;   /* back: where Back goes when opened from elsewhere (choosing heroes for a level) */
 
 const say = (t, bad) => { $('hrMsg').textContent = t || ''; $('hrMsg').classList.toggle('warn', !!bad); };
 const copy = x => JSON.parse(JSON.stringify(x));
@@ -170,11 +170,11 @@ function render() {
 export default {
   async mount(_el, params = {}) {
     if (!bound) {
-      $('hrBack').onclick = () => { if (hero) { hero = null; render(); } else bus.emit('nav', { to: 'menu' }); };
+      $('hrBack').onclick = () => { if (back) bus.emit('nav', back); else if (hero) { hero = null; render(); } else bus.emit('nav', { to: 'menu' }); };
       for (const b of $('hrTabs').children) b.onclick = () => { tab = b.dataset.tab; render(); };
       bound = true;
     }
-    hero = params.hero ? HEROES.find(h => h.id === params.hero) || null : null; tab = 'info';
+    hero = params.hero ? HEROES.find(h => h.id === params.hero) || null : null; tab = 'info'; back = params.back || null;
     saved = copy(equipment()); say('');
     render();
     if (!state.items) { say('Loading your items…'); const err = await ensureItems(); say(err, !!err); saved = copy(equipment()); render(); }

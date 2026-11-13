@@ -38,3 +38,17 @@ test('a Fire Mage gets no melee relics; a caster team gets the spell ones', () =
   for (const name of ['Quick hands', 'Whetstone']) assert.ok(!relicFits(RELICS.find(r => r.name === name), mage), name);
   assert.ok(relicFits(RELICS.find(r => r.name === 'Arcane focus'), mage));
 });
+
+test('offers follow the heroes on the map, not the whole lineup; an evolved hero counts only as its form', () => {
+  const w = richWorld({ seed: 4, lineup: ['warrior', 'mage'] }), p = w.players[0];
+  const fits = name => relicFits(RELICS.find(r => r.name === name), p, w);
+  assert.ok(fits('Arcane focus'), 'nothing placed yet: the lineup (a Mage) counts');
+  let t; for (let cx = 4; !t && cx < 12; cx++) for (let cy = 2; cy < 8; cy++) if (!w.pathSet.has(cx + ',' + cy)) t = [cx, cy];
+  const h = place(w, 'warrior', ...t);
+  assert.ok(!fits('Arcane focus'), 'only the Warrior on the map: no spell relics');
+  assert.ok(fits('Fine arrows'), 'a basic Warrior with no path could still become a Commander (projectile)');
+  h.level = 10; assert.ok(apply(w, { type: 'evolve', id: h.id, choice: 0 }).ok);   /* Berserker */
+  assert.ok(!fits('Fine arrows'), 'evolved: only the Berserker counts');
+  assert.ok(fits('Prospector'), 'economy relics always');
+});
+

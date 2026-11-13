@@ -63,7 +63,7 @@ test('Information: five gear slots; an empty slot offers the free items that fit
   assert.deepEqual(state.profile.equipment, { warrior: { helm: 'i2' } });
   const helm = slotBox('helm');
   assert.ok(texts(helm).includes('Rare Helm')); assert.ok(btn(helm, /^Remove$/));
-  assert.ok(texts(helm).includes('+11.25% damage (all heroes)  · rank 3') && texts(helm).includes('+13.5% damage to melee heroes  · rank 3'), 'its bonuses: an item from before ranks counts them at its rarity (Rare: rank 3)');
+  assert.ok(texts(helm).includes('+11.25% damage (rank 3)') && texts(helm).includes('+13.5% damage to melee heroes (rank 3)'), 'its bonuses: an item from before ranks counts them at its rarity (Rare: rank 3)');
   assert.ok(texts(byId.hrBody).includes('Stats (with gear)'));
   const avg = 28 * (1 + 0.1 + 0.1125 + 0.135), mm = +(avg * 0.75).toFixed(2) + '–' + +(avg * 1.25).toFixed(2);
   assert.ok(texts(byId.hrBody).includes(mm), 'strength, Sharpened rounds and Whetstone add up');
@@ -119,7 +119,7 @@ test('Inventory: every item as an icon on a grid, with a tooltip saying what it 
   assert.ok(full[0]._cls.has('worn') && full[1]._cls.has('worn') && !full[2]._cls.has('worn'), 'worn items first, marked');
   full[0].fire('pointerenter', { clientX: 5, clientY: 5 });
   let tip = dom.made.filter(e => e.className === 'tip').at(-1);
-  assert.deepEqual(tip.children.map(c => c._text), ['Rare Helm', 'Helm', 'Item level 10 · stats ×1', '+11.25% damage (all heroes)  · rank 3', '+13.5% damage to melee heroes  · rank 3',
+  assert.deepEqual(tip.children.map(c => c._text), ['Rare Helm', 'Helm', 'Item level 10 · stats ×1', '+11.25% damage (rank 3)', '+13.5% damage to melee heroes (rank 3)',
     'Prospector: no longer works on gear', 'Equipped on the Warrior', 'Sells for 85 gold (click to select)'], 'each bonus with its rank; gold bonuses no longer work on gear; the sell price');
   assert.equal(tip.children[3].style.color, '#5aa9ff', 'a rank 3 bonus in the rank colour (blue)');
   full[2].fire('pointerenter', { clientX: 5, clientY: 5 });

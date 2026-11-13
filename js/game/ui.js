@@ -11,6 +11,7 @@ import { explain, affected, attributeDamage } from '../engine/stats.js';
 import { bindTip } from '../core/tooltip.js';
 import { spriteImg, spriteUrl, heroSprite, attackIcon, ultimateIcon, relicIcon } from './sprites.js';
 import { isBossWave } from '../engine/enemies.js';
+import { ITEMS, itemName, itemColor, itemBonusLines } from '../content/items.js';
 import { COOP } from '../content/rules.js';
 import { PREVIEWS } from '../content/previews.js';
 import { PLAYER_COLORS } from './render.js';
@@ -265,7 +266,7 @@ const isChance = key => /Chance$/.test(key);
    "+100% · Sharpened rounds ×2 (Relic)". All talent nodes count as one source, "Talents". inc and flat values add up;
    more values multiply. The line takes the colour of the rarest copy. */
 const kindOf = ri => (ri >= 0 ? 'relic' : String(ri));
-const sourceOf = m => (m.ri === -1 ? 'Talents' : m.source);
+const sourceOf = m => (m.ri === -1 ? 'Talents' : m.ri === -2 ? 'Items' : m.source);   /* talents and items each count as one source */
 export function stackMods(mods) {
   const groups = new Map();
   for (const m of mods) {
@@ -282,6 +283,7 @@ export function stackMods(mods) {
 function describe(m, key) {
   const v = m.type === 'inc' ? '+' + pct(m.value) : m.type === 'flat' ? '+' + (isChance(key) ? pct(m.value) : f(m.value)) : '×' + f(1 + m.value);
   if (m.ri === -1) return v + ' · Talents' + (m.n > 1 ? ' ×' + m.n : '');   /* the name already says where it comes from */
+  if (m.ri === -2) return v + ' · Items' + (m.n > 1 ? ' ×' + m.n : '');
   if (m.ri === -4) return v + ' · Hero level';
   return v + ' · ' + m.source + (m.n > 1 ? ' ×' + m.n : '') + ' (' + (m.ri >= 0 ? 'Relic' : SOURCE[m.ri] || 'Talent') + ')';
 }
@@ -296,15 +298,21 @@ export function renderInspector(g, v) {
   $('heroPanel').hidden = !t;
   if (!t) { box._k = 'none'; box._t = null; return; }
   const bk = (t.buffs || []).map(b => b.id).join(',');   /* rebuild when a buff starts or ends */
-  const ownerMods = g.players ? g.players[t.owner || 0].mods : g.mods;   /* the modifiers of the hero's owner */
+  const owner = g.players ? g.players[t.owner || 0] : null, ownerMods = owner ? owner.mods : g.mods;   /* the modifiers of the hero's owner */
   if (box._t !== t || box._m !== ownerMods.length || box._tier !== t.tier || box._lv !== t.level || box._bk !== bk) {
     box._k = 't'; box._t = t; box._m = ownerMods.length; box._tier = t.tier; box._lv = t.level; box._bk = bk; box.textContent = '';
     const d = t.def, head = el('div', 'srow'), title = el('b', '', (t.tier ? '★ ' : '') + d.name + ' · Lv ' + t.level + (coop && (t.owner || 0) !== coop.me ? ' · ' + coop.names[t.owner || 0] + "'s" : '')), close = el('button', 'linkbtn', 'Close');
     title.style.color = d.color; close.onclick = cb.onCloseInspector; head.append(title, close); box.append(head);
-    /* XP, right under the name. */
-    const lr = el('div', 'srow'), lv = el('span', 'lvl'), xbar = el('span', 'ebar wide xpbar'), xfill = el('i');
-    xbar.append(xfill); lr.append(lv, xbar); box.append(lr); box._lvl = lv; box._xfill = xfill; box._xbar = xbar;
-    /* Attributes, right under XP; the hero's own one in its colour. */
+    /* Right under the name: what the hero has done this match. */
+    const tally = el('div', 'tally'), tv = k => { const sp = el('span', 'tv'), b = el('b'); sp.append(spriteImg('icon_' + k, 'pix ico'), b); tally.append(sp); return b; };
+    box._tDealt = tv('damage'); box._tKills = tv('kills'); box._tUlts = tv('ultimate');
+    bindTip(tally, () => ({ title: 'This match', lines: ['Damage dealt: ' + num(t.dealt), 'Kills: ' + t.kills, 'Ultimates: ' + t.ults] }));
+    box.append(tally);
+    /* XP, with energy right under it (what the ultimate does is on its icon in the hero's card). */
+    const bar = (cls, k) => { const r = el('div', 'srow'), lbl = el('span', 'lvl' + cls), b = el('span', 'ebar wide' + (k === 'xp' ? ' xpbar' : '')), fill = el('i'); b.append(fill); r.append(lbl, b); box.append(r); return { lbl, b, fill }; };
+    const xp = bar('', 'xp'), en = bar(' energy', 'energy');
+    box._lvl = xp.lbl; box._xfill = xp.fill; box._xbar = xp.b; box._elbl = en.lbl; box._efill = en.fill; box._ebar = en.b;
+    /* Attributes. */
     const all = ownerMods.concat(t.mods, t.lvlMods || [], ...(t.buffs || []).map(b => b.mods));
     const ar = el('div', 'attrs');
     for (const a of ATTRIBUTES) {
@@ -318,11 +326,9 @@ export function renderInspector(g, v) {
       ar.append(sp);
     }
     box.append(ar);
-    /* Energy as x/max, then the ultimate. */
-    const u = ULTIMATES[d.ultimate], er = el('div', 'srow'), el2 = el('span', 'lvl energy'), ebar = el('span', 'ebar wide'), efill = el('i');
-    ebar.append(efill); er.append(el2, ebar); box.append(er);
-    if (u) box.append(el('div', 'buff', 'When full: ' + u.name + ' (' + ultDesc(u, t.s) + ')'));
-    box._elbl = el2; box._efill = efill; box._ebar = ebar;
+    /* Stats: one line each, with its icon; where the value comes from (attribute, talents, items, relics, level, buffs) shows
+       on hover, so the window stays short. */
+    box.append(el('div', 'sec', 'Stats'));
     for (const key in d.stats) {
       if (key === 'cooldown' || key === 'energyMax' || ATTRIBUTES.includes(key)) continue;
       if (!t.s[key] && !d.stats[key]) continue;          /* unused stats (most combat stats for now) stay hidden */
@@ -334,17 +340,33 @@ export function renderInspector(g, v) {
       const value = isRate ? t.s[key] / t.s.cooldown : t.s[key];
       const base = isRate ? d.stats[key] / d.stats.cooldown : d.stats[key];
       const show = x => (isChance(key) ? pct(x) : f(x));
-      const span = key === 'damage' && t.s.spread > 0 ? ' (' + f(value * (1 - t.s.spread)) + '–' + f(value * (1 + t.s.spread)) + ' a hit)' : '';
-      const row = el('div', 'srow'); row.append(el('span', '', label), el('span', '', show(value) + span + (f(value) !== f(base) ? '  (base ' + show(base) + ')' : '')));
-      box.append(row);
-      if (key === 'damage' && attributeDamage(d, t.s) > 0) {   /* the hero's own attribute: +1% damage per point */
-        const line = el('div', 'buff', '+' + pct(attributeDamage(d, t.s)) + ' · ' + STAT_LABELS[d.attribute] + ' (attribute)'); line.style.color = ATTR_COLOR[d.attribute]; box.append(line);
-      }
-      for (const m of stackMods(explain(d, key, all))) { const line = el('div', 'buff', describe(m, key)); line.style.color = m.ri >= 0 ? RARITIES[m.ri].color : SOURCE_COLOR[m.ri] || '#f2b84b'; box.append(line); }
+      const span = key === 'damage' && t.s.spread > 0 ? ' (' + f(value * (1 - t.s.spread)) + '–' + f(value * (1 + t.s.spread)) + ')' : '';
+      const row = el('div', 'srow srt'), name = el('span', 'sname'), icon = STAT_ICON[key];
+      if (icon) name.append(spriteImg('icon_' + icon, 'pix ico')); else name.append(el('i', 'ico'));
+      name.append(el('span', '', label));
+      const val = el('span', 'sval', show(value) + span); if (f(value) !== f(base)) val.classList.add('up');
+      row.append(name, val); box.append(row);
+      const mods = stackMods(explain(d, key, all));
+      bindTip(row, () => ({ title: label, lines: [{ text: 'Base ' + show(base), color: '#9db3a3' },
+        ...(key === 'damage' && attributeDamage(d, t.s) > 0 ? [{ text: '+' + pct(attributeDamage(d, t.s)) + ' · ' + STAT_LABELS[d.attribute] + ' (attribute)', color: ATTR_COLOR[d.attribute] }] : []),
+        ...mods.map(m => ({ text: describe(m, key), color: m.ri >= 0 ? RARITIES[m.ri].color : SOURCE_COLOR[m.ri] || '#f2b84b' })),
+        ...(mods.length || f(value) !== f(base) ? [] : [{ text: 'Nothing changes it yet', color: '#6f7d74' }])] }));
     }
-    box._dealt = el('p', 'muted'); box.append(box._dealt);
+    /* Items: the hero's gear as icons; hover one for its stats (all of them together show as "Items" in each stat's tip). */
+    const gear = owner && owner.items ? owner.items[t.base.id] || [] : [];
+    if (gear.length) {
+      box.append(el('div', 'sec', 'Items'));
+      const row = el('div', 'gearrow');
+      for (const it of gear) {
+        const known = ITEMS[it.type], cell = el('span', 'gearicon'); cell.style.setProperty('--rc', itemColor(it));
+        if (known) cell.append(spriteImg('item_' + it.type + '_' + it.rarity, 'pix')); else cell.textContent = String(it.type).slice(0, 2).toUpperCase();
+        bindTip(cell, () => ({ title: itemName(it), color: itemColor(it), lines: itemBonusLines(it).map(l => ({ text: l.text, color: l.color })) }));
+        row.append(cell);
+      }
+      box.append(row);
+    }
   }
-  setText(box._dealt, 'Damage dealt: ' + num(t.dealt) + ' · Kills: ' + t.kills + ' · Ultimates: ' + t.ults);
+  setText(box._tDealt, num(t.dealt)); setText(box._tKills, String(t.kills)); setText(box._tUlts, String(t.ults));
   setText(box._elbl, 'Energy ' + Math.floor(t.energy) + '/' + f(t.s.energyMax));
   const pctE = Math.round(t.energy / t.s.energyMax * 100) + '%';
   if (box._efill.style.width !== pctE) box._efill.style.width = pctE;
@@ -354,6 +376,9 @@ export function renderInspector(g, v) {
   const xp = maxed ? '100%' : Math.round(t.xp / need * 100) + '%';
   if (box._xfill.style.width !== xp) box._xfill.style.width = xp;
 }
+/* Each stat's icon in the hero window (assets/icon_<name>.png). */
+const STAT_ICON = { damage: 'damage', range: 'range', speed: 'speed', castSpeed: 'castspeed', critChance: 'crit', critDamage: 'crit',
+  energyPerAttack: 'energy', energyPerSecond: 'energy', armorPen: 'pen', resPen: 'pen' };
 
 /* The evolution picker: like the relic picker, it covers the game (which pauses) and offers the hero's forms side by side. */
 export function showEvoPick(g, h) {
@@ -390,9 +415,9 @@ export function showPick(g) {
   const box = $('choices'); box.textContent = ''; banishBtns = [];
   g.pick.offers.forEach((o, i) => {
     const rar = RARITIES[o.ri], card = el('div', 'card'), b = el('button', 'choose'), tag = el('small', 'rar', rar.name), ban = el('button', 'linkbtn');
-    tag.style.color = rar.color; b.style.borderColor = rar.color;
-    const nm = el('b', 'relicname'); nm.append(spriteImg(relicIcon(o.relic.name), 'pix relicico big'), el('span', '', o.relic.name));
-    b.append(el('small', 'pickkey', 'Key ' + (i + 1)), nm, tag, el('small', '', o.relic.desc(rar.mult)), indicator(g, o.relic, rar.mult));
+    tag.style.color = rar.color; b.classList.add('relicard'); b.style.setProperty('--rc', rar.color);   /* the card in its rarity's colour */
+    const nm = el('b', 'relicname', o.relic.name);
+    b.append(el('small', 'pickkey', 'Key ' + (i + 1)), spriteImg(relicIcon(o.relic.name), 'pix relicico top'), nm, tag, el('small', '', o.relic.desc(rar.mult)), indicator(g, o.relic, rar.mult));
     b.onclick = () => cb.onChoose(i); ban.onclick = () => cb.onBanish(i);
     ban.title = 'Remove this relic from your pool for the rest of the run, and draw another';
     card.append(b, ban); box.append(card); banishBtns.push(ban);
@@ -413,9 +438,8 @@ export function updatePick(g) {
     if (g.gs.relicLuck > 0) box.append(' (luck +' + f(g.gs.relicLuck * 100) + '%)');
   }
   /* Rerolls and banishes are free; how many you have comes from talents. */
-  setText($('reroll'), 'Reroll all · ' + g.rerolls + ' left'); $('reroll').disabled = !(g.rerolls > 0);
-  $('reroll').title = g.rerolls > 0 ? 'Draw three new offers (free)' : 'Relic talents give free rerolls';
-  setText($('pickGold'), 'Gold: ' + g.gold);
+  setText($('reroll'), 'Reroll all · ' + g.rerolls + ' left'); $('reroll').hidden = !(g.rerolls > 0);   /* only when you have one */
+  $('reroll').title = 'Draw three new offers (free)';
   $('pick').classList.toggle('live', !!g.playOnPick || !!coop);   /* lighter backdrop, so the match shows through */
   banishBtns.forEach(b => { setText(b, 'Banish · ' + g.banishes + ' left'); b.disabled = !(g.banishes > 0); b.hidden = !(g.banishes > 0); });
 }

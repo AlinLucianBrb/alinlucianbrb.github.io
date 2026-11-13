@@ -69,6 +69,8 @@ GLYPHS = {
     'strength': FIST, 'dexterity': FEATHER, 'intellect': EYE,
     # stats
     'damage': SWORD, 'range': BOW, 'speed': BOOT, 'castspeed': HOURGLASS, 'crit': CRIT, 'energy': ENERGY, 'pen': PEN,
+    # a hero's tally in the match (hero window): kills and ultimates
+    'kills': SKULL, 'ultimate': STAR,
     # main menu
     'play': PLAY, 'lobby': PEOPLE, 'join': KEY, 'heroes': HELMET, 'inventory': CHEST, 'talents': TREE, 'leaderboard': TROPHY,
     'settings': GEAR, 'logout': DOOR, 'back': BACK, 'resume': HOURGLASS,

@@ -380,7 +380,7 @@ const prospect = pct => {
 };
 const lives = m => Math.max(1, Math.round(P(5) * m));
 export const RELICS = [
-  { name: 'Sharpened rounds',  desc: m => '+' + f(P(25) * m) + '% damage (all heroes)',  mods: m => [hero('damage', 'inc', P(0.25) * m, ['all'])] },
+  { name: 'Sharpened rounds',  desc: m => '+' + f(P(25) * m) + '% damage',  mods: m => [hero('damage', 'inc', P(0.25) * m, ['all'])] },
   { name: 'Long barrels',      desc: m => '+' + f(P(15) * m) + '% range',               mods: m => [hero('range', 'inc', P(0.15) * m, ['all'])] },
   { name: 'Quick hands',       desc: m => '+' + f(P(20) * m) + '% attack speed',        mods: m => [hero('speed', 'inc', P(0.2) * m, ['all'])] },
   { name: 'Four-leaf clover',  desc: m => '+' + f(P(50) * m) + '% relic luck: rarer relics turn up more often', label: 'Relic luck', mods: m => [glob('relicLuck', 'flat', P(0.5) * m)] },

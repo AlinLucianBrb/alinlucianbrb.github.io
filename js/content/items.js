@@ -104,7 +104,7 @@ export function itemBonusLines(it) {
     if (!r) return;
     if (!onGear.has(name)) { out.push({ text: name + ': no longer works on gear', desc: name, color: '#6f7d74', rank, works: false }); return; }
     const desc = r.desc(rank * lk);   /* the bonus at its rank, scaled by the item level */
-    out.push({ text: desc + '  · rank ' + rank, desc, color: rankColor(rank), rank, works: true });
+    out.push({ text: desc + ' (rank ' + rank + ')', desc, color: rankColor(rank), rank, works: true });
   });
   return out;
 }
