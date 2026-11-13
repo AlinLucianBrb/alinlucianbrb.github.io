@@ -40,7 +40,7 @@ const freeTiles = n => {
   const w = world(), out = [];
   for (const [x, y] of w.path.slice(3)) for (const [dx, dy] of [[0, 1], [0, -1]]) {
     const c = [x + dx, y + dy];
-    if (c[1] >= 0 && c[1] < 10 && !w.pathSet.has(c.join(',')) && !out.some(o => o.join() === c.join())) out.push(c);
+    if (c[1] >= 0 && c[1] < 8 && !w.pathSet.has(c.join(',')) && !out.some(o => o.join() === c.join())) out.push(c);
   }
   return out.slice(0, n);
 };

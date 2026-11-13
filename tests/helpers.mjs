@@ -15,7 +15,7 @@ export function tilesNearPath(w, count = 10) {
   const out = [];
   for (const [x, y] of w.path.slice(2)) for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
     const c = [x + dx, y + dy];
-    if (c[0] >= 0 && c[1] >= 0 && c[0] < 16 && c[1] < 10 && !w.pathSet.has(c.join(',')) && !out.some(o => o.join() === c.join())) out.push(c);
+    if (c[0] >= 0 && c[1] >= 0 && c[0] < 12 && c[1] < 8 && !w.pathSet.has(c.join(',')) && !out.some(o => o.join() === c.join())) out.push(c);
   }
   return out.slice(0, count);
 }

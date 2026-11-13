@@ -8,6 +8,8 @@ import { ENEMIES } from '../engine/enemies.js';
 import { ULTIMATES } from '../engine/ultimates.js';
 import '../engine/kits/index.js';   /* the hero kits register their ultimates (their icons are listed below) */
 
+import { TILT } from './camera.js';
+
 const BASE = new URL('../../assets/', import.meta.url);
 export const spriteUrl = name => new URL(name + '.png', BASE).href;
 
@@ -33,7 +35,7 @@ export const relicIcon = name => 'relic_' + name.toLowerCase().replace(/[^a-z0-9
    that point); attack.swings: which way the attack art swings; height: the figure's height in frame pixels; tiles: how tall it is drawn on the map, in tiles. A hero without
    an entry (and every evolved form, for now) uses its old two-frame sprite. portrait: the still image for the menus. */
 export const HERO_ANIM = {
-  warrior: { frame: 192, foot: [91, 191], height: 114, tiles: 1.45, portrait: 'portrait_warrior',
+  warrior: { frame: 192, foot: [91, 191], height: 114, tiles: 1.6, portrait: 'portrait_warrior',
     idle: { name: 'anim_warrior_idle', frames: 4, fps: 5 }, attack: { name: 'anim_warrior_attack', frames: 4, fps: 12, swings: 'left' } }
 };
 export const heroAnim = def => (def.form || def.mounted ? null : HERO_ANIM[def.id] || null);
@@ -88,13 +90,26 @@ export function tiles() {
 /* Starts loading everything, so the art is there by the time a match begins. */
 export function preload() { if (canLoad()) { for (const n of SPRITES) get(n); tiles(); } }
 
-/* Draws a sprite centred on (x, y) at size s (square), turned by angle a; returns false when it is not loaded. */
+/* The board is drawn tilted (camera.js TILT: depth squashed), but characters and other sprites stand upright on it.
+   upright(ctx, x, y, fn) undoes the squash around the ground point (x, y) while fn draws (a unit with its health bar,
+   say); drawSprite does it by itself around the sprite's centre unless it is already inside upright(). */
+let standing = 0;
+export const unsquash = () => (standing ? 1 : 1 / TILT);
+export function upright(ctx, x, y, fn) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(1, 1 / TILT); ctx.translate(-x, -y);
+  standing++;
+  try { fn(); } finally { standing--; ctx.restore(); }
+}
+
+/* Draws a sprite centred on (x, y) at size s (square), upright, turned by angle a; returns false when it is not loaded. */
 export function drawSprite(ctx, name, x, y, s, a = 0, frame = -1, frames = 1) {
   const img = get(name);
   if (!img) return false;
-  const fw = img.naturalWidth / frames, fh = img.naturalHeight, sx = frame < 0 ? 0 : Math.min(frames - 1, frame) * fw;
-  if (a) { ctx.save(); ctx.translate(x, y); ctx.rotate(a); ctx.drawImage(img, sx, 0, fw, fh, -s / 2, -s / 2, s, s); ctx.restore(); }
-  else ctx.drawImage(img, sx, 0, fw, fh, x - s / 2, y - s / 2, s, s);
+  const fw = img.naturalWidth / frames, fh = img.naturalHeight, sx = frame < 0 ? 0 : Math.min(frames - 1, frame) * fw, u = unsquash();
+  if (a || u !== 1) {
+    ctx.save(); ctx.translate(x, y); if (u !== 1) ctx.scale(1, u); if (a) ctx.rotate(a);
+    ctx.drawImage(img, sx, 0, fw, fh, -s / 2, -s / 2, s, s); ctx.restore();
+  } else ctx.drawImage(img, sx, 0, fw, fh, x - s / 2, y - s / 2, s, s);
   return true;
 }
 

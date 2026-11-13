@@ -23,7 +23,7 @@ const FORMS = ['heretic', 'inquisitor', 'crusader'];
 function setup(lineup = ['paladin', 'warrior'], seed = 5) {
   const w = richWorld({ seed, lineup });
   let h;
-  for (const [x, y] of w.path.slice(5)) { for (const dy of [1, -1]) { if (!h && x >= 0 && x < 16 && y + dy >= 0 && y + dy < 10 && apply(w, { type: 'place', hero: 'paladin', cx: x, cy: y + dy }).ok) h = w.heroes.at(-1); } if (h) break; }
+  for (const [x, y] of w.path.slice(5)) { for (const dy of [1, -1]) { if (!h && x >= 0 && x < 12 && y + dy >= 0 && y + dy < 8 && apply(w, { type: 'place', hero: 'paladin', cx: x, cy: y + dy }).ok) h = w.heroes.at(-1); } if (h) break; }
   h.level = 10; h.lvlMods = levelMods(10); w.statsFor(h);
   return { w, h };
 }
@@ -54,7 +54,7 @@ test('the Paladin: melee, strength, 30% of his damage holy; Consecration; three 
 test('Heretic: burns, grows with lives lost; Heresy empowers every hero, twice as much when it pays a life (never at 5 lives or fewer)', () => {
   const { w, h } = setup(['paladin', 'warrior']);
   evolveTo(w, h, 'heretic');
-  const ally = place(w, 'warrior', ...(() => { for (let cx = 1; cx < 15; cx++) for (let cy = 1; cy < 9; cy++) if (!w.pathSet.has(cx + ',' + cy) && !w.heroes.some(o => o.cx === cx && o.cy === cy)) return [cx, cy]; })());
+  const ally = place(w, 'warrior', ...(() => { for (let cx = 1; cx < 11; cx++) for (let cy = 1; cy < 8; cy++) if (!w.pathSet.has(cx + ',' + cy) && !w.heroes.some(o => o.cx === cx && o.cy === cy)) return [cx, cy]; })());
   const e = onPath(w, h); tick(w, h, 2);
   assert.ok(e.fx && e.fx.burn, 'always burns');
   const lives = w.lives;

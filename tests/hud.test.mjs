@@ -34,7 +34,7 @@ test('the remembered setting turns on "keep playing while choosing" at the start
 test('hero buttons stay as indicators: the basic attack sweeps through its cooldown, the ultimate fills with energy', () => {
   startGame(hooks); dom.frames(2);
   const w = _debug().world, t = [];
-  for (const [x, y] of w.path.slice(2)) if (y + 1 < 10 && !w.pathSet.has(x + ',' + (y + 1))) t.push([x, y + 1]);
+  for (const [x, y] of w.path.slice(2)) if (y + 1 < 8 && !w.pathSet.has(x + ',' + (y + 1))) t.push([x, y + 1]);
   const card = dom.heroButton(1);
   assert.ok(card._abil._cls.has('idle'), 'dim until the hero is on the map');
   assert.ok(apply(w, { type: 'place', hero: 'ranger', cx: t[0][0], cy: t[0][1] }).ok);

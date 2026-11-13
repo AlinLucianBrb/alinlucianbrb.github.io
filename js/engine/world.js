@@ -22,7 +22,7 @@ import './kits/index.js';
 import { cleanPaths, pathChoice, pathDef, previewMods, syncPreview, updatePreview, previewHit } from './preview.js';   /* the newer heroes' behaviors, ultimates and zones register themselves */
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
-export const ENGINE_VERSION = 23;     /* bump when a rule change would make old command logs play out differently */
+export const ENGINE_VERSION = 24;     /* bump when a rule change would make old command logs play out differently */
 
 /* Checks a lineup: up to LINEUP_SIZE different, playable heroes. Returns a clean copy, or the full roster if it is empty. */
 export function cleanLineup(lineup) {

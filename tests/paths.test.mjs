@@ -132,7 +132,7 @@ test('the Sentinel pushes, the Inquisitor stacks Verdict up to the cap, the Gosp
   {
     const { w, h } = withPath('priest', 'gospel', 1, 5, ['warrior']);
     let ally;
-    for (let cx = 0; cx < 16 && !ally; cx++) for (let cy = 0; cy < 10 && !ally; cy++)
+    for (let cx = 0; cx < 12 && !ally; cx++) for (let cy = 0; cy < 8 && !ally; cy++)
       if (Math.hypot((cx + 0.5) * T - h.x, (cy + 0.5) * T - h.y) < 90 && apply(w, { type: 'place', hero: 'warrior', cx, cy }).ok) ally = w.heroes.at(-1);
     onPath(w, h, 0); const before = ally.energy; h.cd = 0; step(w); step(w);
     assert.ok(ally.energy >= before + at(PREVIEWS.gospel.energy, 1) - 1e-9, 'energy for the hero nearby');

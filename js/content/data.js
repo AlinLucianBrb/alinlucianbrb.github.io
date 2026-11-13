@@ -3,7 +3,7 @@
    To add a hero: add an entry here. A new "kind" also needs a behavior in behaviors.js. */
 import { COMBAT_STATS, COMBAT_LABELS } from './combat.js';
 
-export const COLS = 16, ROWS = 10, T = 40;
+export const COLS = 12, ROWS = 8, T = 40;
 import { ZONES, LEVELS, zoneOf, levelCode } from './zones.js';
 export { ZONES, LEVELS, zoneOf, levelCode };
 

@@ -19,7 +19,7 @@ import { richWorld, place, enemyAt, dealt } from './helpers.mjs';
 const FORMS = ['incantation', 'archangel', 'gospel'];
 function setup(lineup = ['priest', 'warrior'], seed = 5) {
   const w = richWorld({ seed, lineup });
-  const free = []; for (let cx = 3; cx < 13; cx++) for (let cy = 1; cy < 9; cy++) if (!w.pathSet.has(cx + ',' + cy)) free.push([cx, cy]);
+  const free = []; for (let cx = 3; cx < 11; cx++) for (let cy = 1; cy < 8; cy++) if (!w.pathSet.has(cx + ',' + cy)) free.push([cx, cy]);
   const h = place(w, 'priest', ...free[0]);
   h.level = 10; h.lvlMods = levelMods(10); w.statsFor(h);
   return { w, h, free };
@@ -83,10 +83,10 @@ test('Archangel: a lance pierces every enemy in a line; she can be moved onto th
   const a = enemyAt(w, h.x + 40, h.y, 10), b = enemyAt(w, h.x + 80, h.y, 5);
   tick(w, h, 30);
   assert.ok(dealt(a) > 0 && dealt(b) > 0, 'both enemies in the line');
-  const path = w.path.find(([x, y]) => x >= 0 && y >= 0 && x < 16 && y < 10 && !w.heroes.some(o => o.cx === x && o.cy === y));
+  const path = w.path.find(([x, y]) => x >= 0 && y >= 0 && x < 12 && y < 8 && !w.heroes.some(o => o.cx === x && o.cy === y));
   assert.ok(apply(w, { type: 'move', id: h.id, cx: path[0], cy: path[1] }).ok, 'onto the path');
   const war = place(w, 'warrior', ...free[5]);
-  const path2 = w.path.find(([x, y]) => x >= 0 && y >= 0 && x < 16 && y < 10 && !(x === path[0] && y === path[1]));
+  const path2 = w.path.find(([x, y]) => x >= 0 && y >= 0 && x < 12 && y < 8 && !(x === path[0] && y === path[1]));
   assert.equal(apply(w, { type: 'move', id: war.id, cx: path2[0], cy: path2[1] }).reason, 'blocked');
   /* Judgement */
   w.enemies.length = 0; w.projs.length = 0;

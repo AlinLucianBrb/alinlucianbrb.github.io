@@ -61,7 +61,7 @@ test('the Druid\'s bolts root with their chance (15%), on the seeded combat stre
 
 test("Nature's grasp: heroes near the Druid (and the Druid) gain +10% root chance for 6 seconds", () => {
   const w = richWorld({ seed: 3, lineup: ['druid', 'warrior', 'ranger'] });
-  const spots = []; for (let cx = 2; cx < 14; cx++) for (let cy = 1; cy < 9; cy++) if (!w.pathSet.has(cx + ',' + cy)) spots.push([cx, cy]);
+  const spots = []; for (let cx = 2; cx < 11; cx++) for (let cy = 1; cy < 8; cy++) if (!w.pathSet.has(cx + ',' + cy)) spots.push([cx, cy]);
   const d = place(w, 'druid', ...spots[20]);
   const near = spots.find(([x, y]) => Math.hypot(x - d.cx, y - d.cy) * T < 120 && (x !== d.cx || y !== d.cy));
   const far = spots.find(([x, y]) => Math.hypot(x - d.cx, y - d.cy) * T > 260);
@@ -115,11 +115,11 @@ test('Naturist Druid: thorns grow on the path ahead of the enemy and hurt whatev
   const { w: w2, h: h2 } = hero(); evolveTo(w2, h2, 'naturist'); noRoot(h2); w2.statsFor(h2);
   const e2 = enemyAt(w2, h2.x + 40, h2.y, 4 * T);
   tick(w2, h2, 1);
-  const p = w2.zones.find(x => x.type === 'thorns'); e2.x = p.x; e2.y = p.y;
-  const hp0 = dealt(e2);
+  const p = w2.zones.find(x => x.type === 'thorns'), inPatch = enemyAt(w2, p.x, p.y, 4 * T);   /* e2 stays the target, in range */
+  const hp0 = dealt(inPatch);
   h2.energy = h2.s.energyMax; h2.cd = 0;
   BEHAVIORS.thorns.update(w2, h2, 1 / 60);
-  const spikeHit = dealt(e2) - hp0;
+  const spikeHit = dealt(inPatch) - hp0;
   assert.ok(spikeHit > 0, 'the eruption hits the enemy standing in a patch');
   assert.ok(w2.zones.filter(x => x.type === 'thorns').every(x => x.spikeT > 0), 'every patch shows spikes');
   const ref = enemyAt(w2, 0, 0); w2.attack(h2, ref, 1);

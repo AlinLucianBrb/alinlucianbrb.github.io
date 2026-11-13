@@ -1,7 +1,8 @@
 /* Canvas drawing. The world is drawn through the camera; the board is cheap enough to draw every frame, which keeps it sharp at any zoom. */
 import { COLS, ROWS, T, HEROES } from '../content/data.js';
 import { tintOf } from '../engine/effects.js';
-import { get as sprite, tiles as tileSheet, drawSprite, heroSprite, frameOf, heroAnim } from './sprites.js';
+import { get as sprite, tiles as tileSheet, drawSprite, heroSprite, frameOf, heroAnim, upright, unsquash } from './sprites.js';
+import { TILT } from './camera.js';
 import { drawAuras, drawMinions, drawMounted, KIT_PROJ, KIT_ZONE, KIT_AIL_ICON, BUFF_COLOR } from './kit-art.js';
 
 const MAP_W = COLS * T, MAP_H = ROWS * T;
@@ -319,14 +320,25 @@ function boardFor(g) {
   return b;
 }
 
+/* The 2.5D board's front edge: the map is a slab of earth seen from a tilted camera, so its near side shows as a strip of
+   soil under the bottom row (EDGE screen px tall at zoom 1, drawn upright), darker toward the bottom. */
+const EDGE = 12;
+function boardEdge(ctx) {
+  const h = EDGE / TILT;
+  ctx.fillStyle = '#4a3423'; ctx.fillRect(0, MAP_H, MAP_W, h);
+  ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(0, MAP_H + h * 0.5, MAP_W, h * 0.5);
+  ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fillRect(0, MAP_H, MAP_W, 1.5 / TILT);
+  ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(0, MAP_H + h, MAP_W, 6 / TILT);   /* its shadow on the land in front */
+}
+
 /* The playable map, plus land that carries on past its edges so the world does not stop at a hard line.
    Only the map itself can hold heroes; the land outside is darker, has no grid, and has scenery on it. */
 function drawBoard(ctx, g, v) {
   const b = boardFor(g);
   if (b) {
     const { cam } = v, end = g.path[g.path.length - 1];
-    const x0 = Math.floor(-cam.x / cam.z / T) - 1, y0 = Math.floor(-cam.y / cam.z / T) - 1;
-    const x1 = Math.ceil((v.cw - cam.x) / cam.z / T) + 1, y1 = Math.ceil((v.ch - cam.y) / cam.z / T) + 1;
+    const x0 = Math.floor(-cam.x / cam.z / T) - 1, y0 = Math.floor(-cam.y / (cam.z * TILT) / T) - 1;
+    const x1 = Math.ceil((v.cw - cam.x) / cam.z / T) + 1, y1 = Math.ceil((v.ch - cam.y) / (cam.z * TILT) / T) + 1;
     ctx.fillStyle = '#1c3823'; ctx.fillRect(x0 * T, y0 * T, (x1 - x0) * T, (y1 - y0) * T);   /* past the painted margin */
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(b.c, b.x0 * T, b.y0 * T, b.w * T, b.h * T);
@@ -339,11 +351,12 @@ function drawBoard(ctx, g, v) {
     ctx.fillStyle = '#e5645a'; ctx.fillRect(end[0] * T + T - 6, end[1] * T, 6, T);
     ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 6; ctx.strokeRect(-3, -3, MAP_W + 6, MAP_H + 6);
     ctx.strokeStyle = 'rgba(255,255,255,.22)'; ctx.lineWidth = 2; ctx.strokeRect(0, 0, MAP_W, MAP_H);
+    boardEdge(ctx);
     return;
   }
   const { cam } = v, seed = g.seed || 1;
-  const x0 = Math.floor(-cam.x / cam.z / T) - 1, y0 = Math.floor(-cam.y / cam.z / T) - 1;
-  const x1 = Math.ceil((v.cw - cam.x) / cam.z / T) + 1, y1 = Math.ceil((v.ch - cam.y) / cam.z / T) + 1;
+  const x0 = Math.floor(-cam.x / cam.z / T) - 1, y0 = Math.floor(-cam.y / (cam.z * TILT) / T) - 1;
+  const x1 = Math.ceil((v.cw - cam.x) / cam.z / T) + 1, y1 = Math.ceil((v.ch - cam.y) / (cam.z * TILT) / T) + 1;
   const start = g.path[0], end = g.path[g.path.length - 1];
   ctx.fillStyle = '#243a2b'; ctx.fillRect(x0 * T, y0 * T, (x1 - x0) * T, (y1 - y0) * T);
   /* The road comes in from the far left and carries on past the gate. */
@@ -368,6 +381,7 @@ function drawBoard(ctx, g, v) {
   /* The edge of the buildable area: a soft shadow outside and a light line on it. */
   ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 6; ctx.strokeRect(-3, -3, MAP_W + 6, MAP_H + 6);
   ctx.strokeStyle = 'rgba(255,255,255,.22)'; ctx.lineWidth = 2; ctx.strokeRect(0, 0, MAP_W, MAP_H);
+  boardEdge(ctx);
 }
 
 /* Health bars go from green (full) through yellow to red (almost dead). */
@@ -378,7 +392,7 @@ export const PLAYER_COLORS = ['#4aa3ff', '#ff9a3c', '#7ad85b', '#e06bff'];
 
 export function draw(ctx, g, v) {
   const { dpr, cam } = v;
-  ctx.setTransform(dpr * cam.z, 0, 0, dpr * cam.z, dpr * cam.x, dpr * cam.y);
+  ctx.setTransform(dpr * cam.z, 0, 0, dpr * cam.z * TILT, dpr * cam.x, dpr * cam.y);   /* the tilted board (camera.js) */
   ctx.imageSmoothingEnabled = false;           /* sharp pixel art at any zoom */
   drawBoard(ctx, g, v);
   const h = v.hover, inside = h && h[0] >= 0 && h[1] >= 0 && h[0] < COLS && h[1] < ROWS;
@@ -406,7 +420,12 @@ export function draw(ctx, g, v) {
      drawn like the form's own. */
   const echoes = g.heroes.filter(t => t.echo).map(t => t.echo), withEchoes = echoes.length ? { heroes: g.heroes.concat(echoes), tick: g.tick } : g;
   drawAuras(ctx, withEchoes);
-  for (const t of g.heroes) if (!t.def.flying) drawHero(ctx, g, v, t);
+  /* Heroes and enemies stand on the board front to back: whoever is lower on the map (nearer) is drawn over the ones behind. */
+  const units = [];
+  for (const t of g.heroes) if (!t.def.flying) units.push({ y: t.y, hero: t });
+  for (const e of g.enemies) units.push({ y: e.y, enemy: e });
+  units.sort((a, b) => a.y - b.y);
+  for (const u of units) { if (u.hero) drawHero(ctx, g, v, u.hero); else upright(ctx, u.enemy.x, u.enemy.y, () => drawEnemy(ctx, u.enemy)); }
   for (const t of g.heroes) if (t.wolf && t.def.kind === 'wolf') drawWolf(ctx, t);
   for (const e of echoes) drawEcho(ctx, g, e);
   drawMinions(ctx, withEchoes);
@@ -441,30 +460,32 @@ export function draw(ctx, g, v) {
   }
   for (const b of v.vfx.beams) { ctx.strokeStyle = b.c; ctx.lineWidth = b.w; ctx.beginPath(); ctx.moveTo(b.x1, b.y1); ctx.lineTo(b.x2, b.y2); ctx.stroke(); }
   for (const p of g.projs) PROJ_DRAW[p.type](ctx, p);
-  for (const e of g.enemies) {
-    /* Walk animation: the frame changes every 9 px along the path, so faster enemies step faster and held ones stand still. */
-    const look = ENEMY_ART[e.type], art = look && drawSprite(ctx, frameOf('enemy_' + e.type, (e.d / 9 | 0) % 2 === 1), e.x, e.y - look.s * 0.2, look.s);
-    if (art) {
-      const top = e.y - look.s * 0.7 + look.s * look.top, f = e.hp / e.max, bw = Math.max(22, e.def.radius * 2.2);
-      ctx.fillStyle = 'rgba(0,0,0,.75)'; ctx.fillRect(e.x - bw / 2 - 1, top - 7, bw + 2, 6);
-      ctx.fillStyle = hpColor(f); ctx.fillRect(e.x - bw / 2, top - 6, bw * Math.max(0, f), 4);
-      ailmentIcons(ctx, e, e.x - bw / 2, top - 18);
-      continue;
-    }
-    ctx.beginPath(); ctx.arc(e.x, e.y, e.def.radius, 0, 7); ctx.fillStyle = tintOf(e) || e.def.color; ctx.fill();
-    if (e.def.boss) {                      /* bosses: a gold rim and a crown */
-      ctx.strokeStyle = '#ffd84a'; ctx.lineWidth = 3; ctx.stroke();
-      const r = e.def.radius, cy = e.y - r * 0.15;
-      ctx.beginPath(); ctx.moveTo(e.x - r * 0.55, cy); ctx.lineTo(e.x - r * 0.55, cy - r * 0.5); ctx.lineTo(e.x - r * 0.27, cy - r * 0.25);
-      ctx.lineTo(e.x, cy - r * 0.6); ctx.lineTo(e.x + r * 0.27, cy - r * 0.25); ctx.lineTo(e.x + r * 0.55, cy - r * 0.5); ctx.lineTo(e.x + r * 0.55, cy); ctx.closePath();
-      ctx.fillStyle = '#ffd84a'; ctx.fill();
-    }
-    const f = e.hp / e.max, bw = e.def.radius * 2.2, by = e.y - e.def.radius - 7;
-    ctx.fillStyle = 'rgba(0,0,0,.75)'; ctx.fillRect(e.x - bw / 2 - 1, by - 1, bw + 2, 6);
-    ctx.fillStyle = hpColor(f); ctx.fillRect(e.x - bw / 2, by, bw * Math.max(0, f), 4);
-  }
   for (const t of g.heroes) if (t.def.flying) drawHero(ctx, g, v, t);   /* the Archangel flies over the enemies on the path */
   for (const a of v.vfx.anims || []) drawSprite(ctx, a.name, a.x, a.y, a.s, 0, Math.floor(a.t / a.dur * a.frames), a.frames);
+}
+
+/* One enemy, upright around its feet: its sprite (walk animation), health bar and ailment icons, or a plain shape. */
+function drawEnemy(ctx, e) {
+  /* Walk animation: the frame changes every 9 px along the path, so faster enemies step faster and held ones stand still. */
+  const look = ENEMY_ART[e.type], art = look && drawSprite(ctx, frameOf('enemy_' + e.type, (e.d / 9 | 0) % 2 === 1), e.x, e.y - look.s * 0.2, look.s);
+  if (art) {
+    const top = e.y - look.s * 0.7 + look.s * look.top, f = e.hp / e.max, bw = Math.max(22, e.def.radius * 2.2);
+    ctx.fillStyle = 'rgba(0,0,0,.75)'; ctx.fillRect(e.x - bw / 2 - 1, top - 7, bw + 2, 6);
+    ctx.fillStyle = hpColor(f); ctx.fillRect(e.x - bw / 2, top - 6, bw * Math.max(0, f), 4);
+    ailmentIcons(ctx, e, e.x - bw / 2, top - 18);
+    return;
+  }
+  ctx.beginPath(); ctx.arc(e.x, e.y, e.def.radius, 0, 7); ctx.fillStyle = tintOf(e) || e.def.color; ctx.fill();
+  if (e.def.boss) {                      /* bosses: a gold rim and a crown */
+    ctx.strokeStyle = '#ffd84a'; ctx.lineWidth = 3; ctx.stroke();
+    const r = e.def.radius, cy = e.y - r * 0.15;
+    ctx.beginPath(); ctx.moveTo(e.x - r * 0.55, cy); ctx.lineTo(e.x - r * 0.55, cy - r * 0.5); ctx.lineTo(e.x - r * 0.27, cy - r * 0.25);
+    ctx.lineTo(e.x, cy - r * 0.6); ctx.lineTo(e.x + r * 0.27, cy - r * 0.25); ctx.lineTo(e.x + r * 0.55, cy - r * 0.5); ctx.lineTo(e.x + r * 0.55, cy); ctx.closePath();
+    ctx.fillStyle = '#ffd84a'; ctx.fill();
+  }
+  const f = e.hp / e.max, bw = e.def.radius * 2.2, by = e.y - e.def.radius - 7;
+  ctx.fillStyle = 'rgba(0,0,0,.75)'; ctx.fillRect(e.x - bw / 2 - 1, by - 1, bw + 2, 6);
+  ctx.fillStyle = hpColor(f); ctx.fillRect(e.x - bw / 2, by, bw * Math.max(0, f), 4);
 }
 
 /* One hero: range ring when selected, buff rings, its co-op ring, ultimate glow, the Assassin's blink copy, the sprite. */
@@ -539,7 +560,7 @@ function drawAnimFrame(ctx, A, part, f, x, y, face) {
   const k = (T * A.tiles) / A.height;
   ctx.save();
   ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-  ctx.translate(x, y + FOOT_DY); ctx.scale(face > 0 ? -k : k, k);
+  ctx.translate(x, y + FOOT_DY); ctx.scale(face > 0 ? -k : k, k * unsquash());   /* upright on the tilted board */
   ctx.drawImage(img, f * A.frame, 0, A.frame, A.frame, -A.foot[0], -A.foot[1], A.frame, A.frame);
   ctx.restore();
   return true;

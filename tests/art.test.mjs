@@ -45,7 +45,7 @@ test('with the art loaded the game draws sprites, the painted board and effects 
     dom.frames(2); await new Promise(r => setTimeout(r, 0)); dom.frames(2);
     const { world: w, view: v } = _debug();
     const free = [];
-    for (const [x, y] of w.path.slice(2)) for (const dy of [-1, 1]) if (y + dy >= 0 && y + dy < 10 && !w.pathSet.has(x + ',' + (y + dy))) free.push([x, y + dy]);
+    for (const [x, y] of w.path.slice(2)) for (const dy of [-1, 1]) if (y + dy >= 0 && y + dy < 8 && !w.pathSet.has(x + ',' + (y + dy))) free.push([x, y + dy]);
     ['warrior', 'ranger', 'mage'].forEach((hero, i) => apply(w, { type: 'place', hero, cx: free[i * 4][0], cy: free[i * 4][1] }));
     for (const t of ['runner', 'grunt', 'brute', 'boss']) spawnEnemy(w, t);
     w.enemies[0].fx = { bleed: { t: 2 }, poison: { stacks: [{ t: 1 }] } };

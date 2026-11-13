@@ -149,7 +149,7 @@ test('a whole match with every ailment switched on runs, and every ailment happe
   for (const id in AILMENTS) w.mods.push(mod(id + 'Chance', 0.25));
   w.mods.push(mod('fireDamage', 3), mod('coldDamage', 3), mod('lightningDamage', 3), mod('toxicDamage', 2));
   recalc(w);
-  const free = []; for (const [x, y] of w.path.slice(3)) for (const dy of [-1, 1]) { const c = [x, y + dy]; if (c[1] >= 0 && c[1] < 10 && !w.pathSet.has(c.join())) free.push(c); }
+  const free = []; for (const [x, y] of w.path.slice(3)) for (const dy of [-1, 1]) { const c = [x, y + dy]; if (c[1] >= 0 && c[1] < 8 && !w.pathSet.has(c.join())) free.push(c); }
   place(w, 'warrior', ...free[0]); place(w, 'ranger', ...free[6]); place(w, 'mage', ...free[12]);
   let seen = new Set(); w.ev.on('ailment', a => seen.add(a.id));
   w.auto = true;

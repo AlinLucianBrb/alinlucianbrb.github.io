@@ -8,8 +8,9 @@ import { COLS, ROWS } from '../js/content/data.js';
 import { LEVELS } from '../js/content/zones.js';
 
 export const SEED = 20261112;
-/* Turns in level n's path (1 = the first level): from 14 on level 1 down to 4 on the last. */
-export const TURNS = n => Math.round(14 - (n - 1) * 10 / Math.max(1, LEVELS - 1));
+/* Turns in level n's path (1 = the first level): from 10 on level 1 down to 4 on the last (on the 12 x 8 grid). Always even:
+   the road starts and ends going right. */
+export const TURNS = n => 2 * Math.round((10 - (n - 1) * 6 / Math.max(1, LEVELS - 1)) / 2);
 
 function rng(seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
 const DIRS = [[1, 0], [0, 1], [0, -1], [-1, 0]];
@@ -63,22 +64,25 @@ function attempt(r, want) {
   return null;
 }
 
-/* The path for level n: many attempts, keep the one with the turn count closest to TURNS(n), then the longest. */
-export function designPath(n) {
-  const want = TURNS(n), r = rng(SEED + n * 7919);
-  let best = null;
+/* The path for level n: many attempts; of those with the turn count closest to TURNS(n), one of the longest (within 3
+   tiles of the longest, picked by the seed) that no earlier level uses, so no two levels share a map. */
+export function designPath(n, used = new Set()) {
+  const want = TURNS(n), r = rng(SEED + n * 7919), found = new Map();
   for (let i = 0; i < 20000; i++) {
     const p = attempt(r, want);
-    if (!p) continue;
-    const score = -Math.abs(turnsOf(p) - want) * 1000 + p.length;
-    if (!best || score > best.score) best = { p, score };
-    if (best && turnsOf(best.p) === want && i > 2000) break;
+    if (p) found.set(JSON.stringify(p), p);
   }
-  return best.p;
+  const all = [...found.values()].filter(p => !used.has(JSON.stringify(p)));
+  const best = Math.min(...all.map(p => Math.abs(turnsOf(p) - want)));
+  const close = all.filter(p => Math.abs(turnsOf(p) - want) === best);
+  const longest = Math.max(...close.map(p => p.length));
+  const pick = close.filter(p => p.length >= longest - 3).sort((a, b) => JSON.stringify(a) < JSON.stringify(b) ? -1 : 1);
+  return pick[Math.floor(r() * pick.length)];
 }
 
 if (process.argv[1] && process.argv[1].endsWith('maps.mjs')) {
-  const maps = Array.from({ length: LEVELS }, (_, i) => designPath(i + 1));
+  const used = new Set(), maps = [];
+  for (let i = 0; i < LEVELS; i++) { const p = designPath(i + 1, used); used.add(JSON.stringify(p)); maps.push(p); }
   const body = maps.map((p, i) => `  /* ${i + 1}: ${turnsOf(p)} turns, ${p.length} tiles */ [${p.map(c => '[' + c + ']').join(',')}]`).join(',\n');
   writeFileSync(new URL('../js/content/maps.js', import.meta.url),
 `/* The preset maps: one fixed path per level, as [x, y] tiles from the entrance (left edge) to the gate (right edge).

@@ -4,7 +4,7 @@ import { createWorld, step, summary, recalc, STEP } from '../js/engine/world.js'
 import { apply } from '../js/engine/commands.js';
 import { hashWorld } from '../js/engine/hash.js';
 import { waveEnemyType, ENEMIES } from '../js/engine/enemies.js';
-import { STAGES, RELICS } from '../js/content/data.js';
+import { STAGES, RELICS, COLS, ROWS } from '../js/content/data.js';
 import { richWorld, tilesNearPath, place, heroIndex } from './helpers.mjs';
 
 const runFor = (w, ticks) => { for (let i = 0; i < ticks && step(w); i++); return w; };
@@ -20,14 +20,14 @@ test('every map runs from the left edge to the right edge in single steps, never
   const t = [];
   for (const s of STAGES) {
     const p = createWorld({ seed: 1, stage: s.n }).path, at = new Map(p.map((c, i) => [c.join(), i]));
-    assert.equal(p[0][0], 0); assert.equal(p.at(-1)[0], 15);
+    assert.equal(p[0][0], 0); assert.equal(p.at(-1)[0], COLS - 1);
     for (let i = 1; i < p.length; i++) assert.equal(Math.abs(p[i][0] - p[i - 1][0]) + Math.abs(p[i][1] - p[i - 1][1]), 1, 'level ' + s.code);
-    assert.ok(p.every(([x, y]) => x >= 0 && x < 16 && y >= 0 && y < 10));
+    assert.ok(p.every(([x, y]) => x >= 0 && x < COLS && y >= 0 && y < ROWS));
     p.forEach(([x, y], i) => { for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) { const j = at.get((x + dx) + ',' + (y + dy)); assert.ok(j === undefined || Math.abs(j - i) <= 2, 'level ' + s.code + ' touches itself'); } });
     t.push(turns(p));
   }
   for (let i = 1; i < t.length; i++) assert.ok(t[i] <= t[i - 1], 'level ' + STAGES[i].code + ' has no more turns than the one before');
-  assert.ok(t[0] > t.at(-1) + 6, 'the first level twists far more than the last');
+  assert.ok(t[0] >= t.at(-1) + 6, 'the first level twists far more than the last');
 });
 
 test('same seed and same commands give exactly the same game', () => {
