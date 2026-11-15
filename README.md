@@ -115,7 +115,7 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 |---|---|---|
 | Choose a hero to place, or select a placed one | click its card | 1-3 |
 | Place it / select a hero | click a tile | |
-| Move a hero | click and hold it on the map, then let go on a free tile | M, then click a tile |
+| Move a hero | click and hold it on the map, then let go on a free tile (or on another of your heroes: the two swap places) | M, then click a tile |
 | Evolve a hero | the ▲ Evolve button above its card (it shows the cost), then a form in the picker | E (selected hero) |
 | Move the map | drag (any mouse button), or drag with one finger | arrows or WASD |
 | Zoom | mouse wheel, pinch, or the + / − buttons | + / − |
@@ -199,6 +199,14 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Texts:** attack descriptions describe only the attack, ultimate tooltips only the ultimate, and the hero tooltip the hero (its attribute, delivery and source, tags, damage type). Ultimates that deal damage of their own write it as `{N}` in their description; `ultDesc()` shows it as the number it deals with the hero's stats ("about 156 damage"); "x2 damage" is kept for boosts to an attack the hero already makes. "At level 10, choose a path" is gone from the descriptions.
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
+
+## Camera and quality of life (Nov 15)
+- **The camera travels over the board:** dragging the map (or the arrow keys) moves the camera across and into the board at the same height, as a real camera would: going forward brings the far side closer and bigger. It used to slide the picture up and down. Fit returns to the start. (`cam.ox`, `cam.oy` in `js/game/camera.js`, limited so the board stays in view.)
+- **The land goes on:** more land is painted around the map (12 tiles to the sides, 16 behind, 8 in front), and past it the forest carries on to the horizon, so the world never ends on screen. The board is drawn for the camera's view and redrawn only when the camera moves.
+- **Hovering a hero** lights it up with a gold glow around its figure (as in WoW); while you carry a hero, the one it would swap with glows blue.
+- **After a move** a hero rests for a second before attacking again; it now pulses, see-through, until it is ready.
+- **Moving a hero onto another of your heroes swaps the two** (both rest for a second). While you carry it, the hero under the pointer glows blue and is shown faded where it would go. In co-op you cannot swap with an ally's hero.
+- Engine version 25 (moving onto your own hero now swaps), game version 0.26.0.
 
 ## True perspective (Nov 15)
 - **The board is seen through a perspective camera:** its far side is smaller and narrower than its near side, and grid lines run toward the far side like on a real table (`project()` in `js/game/camera.js`: a pinhole camera, so straight lines stay straight; `FAR` sets how much smaller the far side is). The painted board is warped into that view once per map; every hero, enemy, ring and effect is drawn with the perspective of the point it stands on (`at()` in `js/game/sprites.js`), and clicks are mapped back through the same camera, so they still land on the right tile.

@@ -22,7 +22,7 @@ import './kits/index.js';
 import { cleanPaths, pathChoice, pathDef, previewMods, syncPreview, updatePreview, previewHit } from './preview.js';   /* the newer heroes' behaviors, ultimates and zones register themselves */
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
-export const ENGINE_VERSION = 24;     /* bump when a rule change would make old command logs play out differently */
+export const ENGINE_VERSION = 25;     /* bump when a rule change would make old command logs play out differently */
 
 /* Checks a lineup: up to LINEUP_SIZE different, playable heroes. Returns a clean copy, or the full roster if it is empty. */
 export function cleanLineup(lineup) {
@@ -228,6 +228,7 @@ export function step(w) {
   updateEnemies(w, STEP);
   for (const h of w.heroes) {
     tickBuffs(w, h, STEP);
+    if (h.settle > 0) h.settle -= STEP;   /* just moved: resting before its next attack (shown on screen) */
     if (h.s.energyPerSecond > 0 && w.phase === 'wave') gainEnergy(h, h.s.energyPerSecond * STEP);
     BEHAVIORS[h.def.kind].update(w, h, STEP);
     if (h.preview) updatePreview(w, h, STEP);

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorld, step, recalc } from '../js/engine/world.js';
 import { apply } from '../js/engine/commands.js';
-import { RELICS, FORM_TUNING, START_GOLD, HERO_COST, EVOLVE_COST, PAY_FOR_HEROES } from '../js/content/data.js';
+import { RELICS, FORM_TUNING, START_GOLD, HERO_COST, EVOLVE_COST, PAY_FOR_HEROES, T } from '../js/content/data.js';
 import { levelMods } from '../js/engine/levels.js';
 import { pathTo } from '../js/content/talents.js';
 import { richWorld, tilesNearPath, place, heroIndex } from './helpers.mjs';
@@ -70,13 +70,17 @@ test('evolution stacks with relics', () => {
   assert.ok(Math.abs(h.s.damage - 28 * (1 + 0.0375 + (10 + 3 * 9) * 1.25 * 0.01) * 1.25 * Math.sqrt(FORM_TUNING.sentinel || 1)) < 1e-9, 'relic, strength and level bonuses add up, then evolution multiplies');
 });
 
-test('moving needs a free tile and briefly delays the next attack', () => {
+test('moving briefly delays the next attack; moving onto your own hero swaps the two; never onto the path', () => {
   const w = richWorld(), t = tilesNearPath(w, 3);
-  const a = place(w, 'ranger', ...t[0]); place(w, 'warrior', ...t[1]);
-  assert.equal(apply(w, { type: 'move', id: a.id, cx: t[1][0], cy: t[1][1] }).reason, 'blocked');
+  const a = place(w, 'ranger', ...t[0]), b = place(w, 'warrior', ...t[1]);
   assert.ok(apply(w, { type: 'move', id: a.id, cx: t[2][0], cy: t[2][1] }).ok);
-  assert.deepEqual([a.cx, a.cy], t[2]); assert.equal(a.cd, 1);
+  assert.deepEqual([a.cx, a.cy], t[2]); assert.equal(a.cd, 1); assert.equal(a.settle, 1, 'resting for a second (the screen shows it)');
   assert.ok(apply(w, { type: 'move', id: a.id, cx: t[2][0], cy: t[2][1] }).ok, 'moving onto its own tile is allowed');
+  assert.ok(apply(w, { type: 'move', id: a.id, cx: t[1][0], cy: t[1][1] }).ok, 'onto your own hero: they swap');
+  assert.deepEqual([a.cx, a.cy], t[1]); assert.deepEqual([b.cx, b.cy], t[2]);
+  assert.equal(b.x, (t[2][0] + 0.5) * T); assert.equal(b.cd, 1); assert.equal(b.settle, 1, 'both moved, both rest');
+  const road = w.path.find(([x, y]) => x >= 0 && y >= 0);
+  assert.equal(apply(w, { type: 'move', id: a.id, cx: road[0], cy: road[1] }).reason, 'blocked', 'still not onto the path');
 });
 
 test('there is no selling: heroes are free', () => {

@@ -108,11 +108,13 @@ test('the land outside the map cannot hold heroes, and shows a not-allowed curso
 
 test('dragging moves the map without placing anything; zoom keeps clicks on the right tile', () => {
   byId.newRun.onclick(); dom.frames(2);
-  const cam = view().cam, x0 = cam.x;
+  const cam = view().cam, x0 = cam.x, y0 = cam.y;
   byId.c.fire('pointerdown', { clientX: 300, clientY: 200, button: 0, pointerId: 1 });
   byId.c.fire('pointermove', { clientX: 340, clientY: 210, pointerId: 1 });
   byId.c.fire('pointerup', { clientX: 340, clientY: 210, button: 0, pointerId: 1 });
-  assert.equal(cam.x, x0 + 40, 'map moved with the drag'); assert.equal(world().heroes.length, 0, 'a drag is not a click');
+  assert.ok(Math.abs(cam.ox + 40 / cam.z) < 1e-9 && cam.oy < 0, 'the camera travelled over the board with the drag (left, and forward)');
+  assert.equal(cam.x, x0); assert.equal(cam.y, y0, 'the picture stays at the same height: the camera moves, not the picture');
+  assert.equal(world().heroes.length, 0, 'a drag is not a click');
   byId.camIn.onclick(); byId.camIn.onclick();
   assert.ok(cam.z > cam.fitZ * 1.5, 'zoomed in');
   const [t] = freeTiles(1);

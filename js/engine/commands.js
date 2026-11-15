@@ -14,6 +14,12 @@ const inBounds = (cx, cy) => Number.isInteger(cx) && Number.isInteger(cy) && cx 
 /* A free tile: on the map, not taken by a hero or a totem, and off the path (unless the hero flies: the Archangel). */
 const isFree = (w, cx, cy, except) => inBounds(cx, cy) && (!w.pathSet.has(cx + ',' + cy) || !!(except && (except.def.flying || except.def.onPath)))
   && !w.heroes.some(h => h !== except && h.cx === cx && h.cy === cy) && !w.zones.some(z => z.blocks && z.cx === cx && z.cy === cy);
+/* Can this hero stand on that tile (ignoring other heroes)? On the map, off the path unless it flies or fights on it, not on a
+   blocking zone. */
+const canStand = (w, h, cx, cy) => inBounds(cx, cy) && (!w.pathSet.has(cx + ',' + cy) || !!(h.def.flying || h.def.onPath))
+  && !w.zones.some(z => z.blocks && z.cx === cx && z.cy === cy);
+/* A hero moved to a tile: it waits 1 second before attacking again (settle: the screen shows it resting meanwhile). */
+const settle = (h, cx, cy) => { h.cx = cx; h.cy = cy; h.x = (cx + 0.5) * T; h.y = (cy + 0.5) * T; h.cd = 1; h.lock = null; h.settle = 1; };
 const blocked = (w, p) => w.phase === 'over' ? fail('over') : p.picking ? fail('busy') : null;
 const playerOf = (w, c) => w.players[c.p | 0];
 
@@ -105,8 +111,17 @@ export const COMMANDS = {
     const b = blocked(w, p); if (b) return b;
     const h = w.heroes.find(x => x.id === c.id);
     if (!h || (h.owner || 0) !== p.i) return fail('no such hero');
+    /* onto another of your own heroes: they swap places (only your own: in co-op an ally's hero stays where it is) */
+    const o = w.heroes.find(x => x !== h && x.cx === c.cx && x.cy === c.cy);
+    if (o) {
+      if ((o.owner || 0) !== p.i) return fail('blocked');
+      if (!canStand(w, h, c.cx, c.cy) || !canStand(w, o, h.cx, h.cy)) return fail('blocked');
+      const [ox, oy] = [h.cx, h.cy];
+      settle(h, c.cx, c.cy); settle(o, ox, oy);
+      return OK;
+    }
     if (!isFree(w, c.cx, c.cy, h)) return fail('blocked');
-    h.cx = c.cx; h.cy = c.cy; h.x = (c.cx + 0.5) * T; h.y = (c.cy + 0.5) * T; h.cd = 1; h.lock = null;
+    settle(h, c.cx, c.cy);
     return OK;
   },
   /* Ready for the next wave. It starts once every player is ready (or has Auto-start on): solo, at once. */

@@ -2,7 +2,7 @@
 import { COLS, ROWS, T, HEROES } from '../content/data.js';
 import { tintOf } from '../engine/effects.js';
 import { get as sprite, tiles as tileSheet, drawSprite, heroSprite, frameOf, heroAnim, upright, unsquash, at, setPicture } from './sprites.js';
-import { project, unproject, scaleAt } from './camera.js';
+import { project, unproject, scaleAt, setView } from './camera.js';
 import { drawAuras, drawMinions, drawMounted, KIT_PROJ, KIT_ZONE, KIT_AIL_ICON, BUFF_COLOR } from './kit-art.js';
 
 const MAP_W = COLS * T, MAP_H = ROWS * T;
@@ -255,7 +255,9 @@ function scenery(ctx, x, y, r) {
    Grass on the map, forest floor outside, the dirt road (autotiled: each road tile picks its mask and edge from which of its
    8 neighbours are road too) and trees, bushes and rocks in the forest. Drawn at the art's 64 pixels per tile into an
    offscreen canvas, then scaled to the map with smoothing off. */
-const MARGIN = 8, TS = 64;
+/* The land painted around the map, in tiles: wide to the sides and far behind, less in front (the camera looks over it).
+   Multiples of 4, the forest texture's repeat, so the board view can carry the forest on past them without a seam. */
+const MARGIN = { side: 12, back: 16, front: 8 }, TS = 64;
 const DECO = [[0.08, 'deco_tree', 1.1], [0.12, 'deco_tree_2', 1.1], [0.17, 'deco_bush', 0.55], [0.2, 'deco_rock', 0.55], [0.24, 'deco_flowers', 0.5], [0.26, 'deco_mushrooms', 0.5]];
 let board = null;
 const mod4 = n => ((n % 4) + 4) % 4;
@@ -275,7 +277,7 @@ function paintBoard(g) {
   if (!sh) return null;
   const deco = DECO.map(d => sprite(d[1]));
   if (deco.some(d => !d)) return null;
-  const x0 = -MARGIN, y0 = -MARGIN, w = COLS + 2 * MARGIN, h = ROWS + 2 * MARGIN;
+  const x0 = -MARGIN.side, y0 = -MARGIN.back, w = COLS + 2 * MARGIN.side, h = ROWS + MARGIN.back + MARGIN.front;
   const c = makeCanvas(w * TS, h * TS), tmp = makeCanvas(TS, TS), mask = makeCanvas(w * TS, h * TS);
   if (!c || !tmp) return null;
   const cx = c.getContext('2d'), tx = tmp.getContext('2d'), mx = mask && mask.getContext('2d');
@@ -392,23 +394,36 @@ function haze(ctx, v) {
   ctx.fillStyle = gr; ctx.fillRect(X0, top, X1 - X0, end - top);
 }
 
-/* The painted board (64 px a tile, flat from above) as seen through the camera: warped once per map into the picture,
-   one row at a time (each row of the picture shows one row of the board, narrowed by the perspective). */
-const PIC_RES = TS / T;   /* picture pixels per world pixel on the near edge, so the near rows keep their full detail */
-function warpBoard(b) {
-  const x0w = b.x0 * T, x1w = (b.x0 + b.w) * T, y0w = b.y0 * T, y1w = (b.y0 + b.h) * T;
-  const top = P(0, y0w)[1], bottom = P(0, y1w)[1], X0 = P(x0w, y1w)[0], X1 = P(x1w, y1w)[0];
-  const W = Math.ceil((X1 - X0) * PIC_RES), H = Math.ceil((bottom - top) * PIC_RES), c = makeCanvas(W, H);
+/* The painted board (64 px a tile, flat from above) as seen through the camera, drawn into a screen-sized canvas one row
+   of the screen at a time: each row shows one row of the board, narrowed by the perspective. Past the painted land the
+   forest carries on (its outermost 4-tile bands repeat sideways, its back and front rows repeat in depth), so the world
+   never ends on screen. Redrawn only when the camera or the screen changes. */
+const PERIOD = 4 * T;
+function boardView(b, v) {
+  const { cam, cw, ch } = v, key = [cam.x, cam.y, cam.z, cam.ox, cam.oy, cw, ch].join();
+  if (b.view && b.view.key === key) return b.view;
+  const W = Math.ceil(cw), H = Math.ceil(ch);
+  let c = b.view && b.view.c;
+  if (!c || c.width !== W || c.height !== H) c = makeCanvas(W, H);
   if (!c) return null;
-  const cx = c.getContext('2d');
-  cx.imageSmoothingEnabled = false;
+  const cx = c.getContext('2d'), src = b.c, k = TS / T, band = PERIOD * k;
+  cx.setTransform(1, 0, 0, 1, 0, 0); cx.clearRect(0, 0, W, H); cx.imageSmoothingEnabled = false;
+  const x0w = b.x0 * T, x1w = (b.x0 + b.w) * T, y0w = b.y0 * T, y1w = (b.y0 + b.h) * T, sx = X => X * cam.z + cam.x;
   for (let j = 0; j < H; j++) {
-    const [, y] = unproject(MAP_W / 2, top + (j + 0.5) / PIC_RES), sy = Math.floor((y - y0w) * PIC_RES);
-    if (sy < 0 || sy >= b.c.height) continue;
-    const L = P(x0w, y)[0], R = P(x1w, y)[0];
-    cx.drawImage(b.c, 0, sy, b.c.width, 1, (L - X0) * PIC_RES, j, (R - L) * PIC_RES, 1);
+    const [, y] = unproject(0, (j + 0.5 - cam.y) / cam.z);
+    if (y < -1e8) continue;                                   /* above the horizon */
+    let yy = y;
+    if (yy < y0w) yy = y0w + ((yy - y0w) % PERIOD + PERIOD) % PERIOD;
+    else if (yy >= y1w) yy = y1w - PERIOD + ((yy - y1w) % PERIOD + PERIOD) % PERIOD;
+    const sy = Math.min(src.height - 1, Math.floor((yy - y0w) * k));
+    const L = Math.round(sx(P(x0w, y)[0])), R = Math.round(sx(P(x1w, y)[0])), bw = (R - L) * PERIOD / (x1w - x0w);
+    if (bw < 0.5) continue;
+    cx.drawImage(src, 0, sy, src.width, 1, L, j, R - L, 1);
+    for (let x = L; x > 0; x -= bw) cx.drawImage(src, 0, sy, band, 1, Math.round(x - bw), j, Math.round(x) - Math.round(x - bw), 1);
+    for (let x = R; x < W; x += bw) cx.drawImage(src, src.width - band, sy, band, 1, Math.round(x), j, Math.round(x + bw) - Math.round(x), 1);
   }
-  return { c, X0, Y0: top, w: W / PIC_RES, h: H / PIC_RES };
+  b.view = { key, c };
+  return b.view;
 }
 
 /* The playable map, plus land that carries on past its edges so the world does not stop at a hard line.
@@ -417,10 +432,10 @@ function drawBoard(ctx, g, v) {
   const { cam } = v, end = g.path[g.path.length - 1], b = boardFor(g);
   const X0 = -cam.x / cam.z, Y0 = -cam.y / cam.z, X1 = (v.cw - cam.x) / cam.z, Y1 = (v.ch - cam.y) / cam.z;
   ctx.fillStyle = b ? '#1c3823' : '#243a2b'; ctx.fillRect(X0, Y0, X1 - X0, Y1 - Y0);   /* past the painted margin */
-  if (b && b.pic === undefined) b.pic = warpBoard(b);
-  if (b && b.pic) {
+  const view = b && boardView(b, v);
+  if (view) {
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(b.pic.c, b.pic.X0, b.pic.Y0, b.pic.w, b.pic.h);
+    ctx.drawImage(view.c, X0, Y0, view.c.width / cam.z, view.c.height / cam.z);   /* the screen-sized view, back in the picture */
   } else {
     /* no art yet: the map and the road as plain shapes */
     ctx.fillStyle = '#2d4636'; quad(ctx, 0, 0, MAP_W, MAP_H); ctx.fill();
@@ -450,6 +465,7 @@ export const PLAYER_COLORS = ['#4aa3ff', '#ff9a3c', '#7ad85b', '#e06bff'];
    world coordinates around its own point with at() (sprites.js), so it gets the perspective of where it stands. */
 export function draw(ctx, g, v) {
   const { dpr, cam } = v, m = [dpr * cam.z, 0, 0, dpr * cam.z, dpr * cam.x, dpr * cam.y];
+  setView(cam.ox, cam.oy);                     /* where the camera is over the board (camera.js) */
   ctx.setTransform(...m); setPicture(m);
   ctx.imageSmoothingEnabled = false;           /* sharp pixel art at any zoom */
   drawBoard(ctx, g, v);
@@ -463,7 +479,12 @@ export function draw(ctx, g, v) {
     const a = P(x + 12, y + 12), b = P(x + T - 12, y + T - 12), c = P(x + T - 12, y + 12), d = P(x + 12, y + T - 12);
     ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.moveTo(c[0], c[1]); ctx.lineTo(d[0], d[1]); ctx.stroke();
   }
-  if (inside && (v.moving || v.placing) && !g.pathSet.has(h[0] + ',' + h[1]) && !g.heroes.some(t => t.cx === h[0] && t.cy === h[1])) {
+  const there = inside && g.heroes.find(t => t.cx === h[0] && t.cy === h[1]);
+  const swapWith = there && v.moving && there !== v.moving && (there.owner || 0) === (v.moving.owner || 0) ? there : null;
+  if (swapWith) {                        /* dropping here swaps the two: the other one shown, faded, where the carried one was */
+    ctx.globalAlpha = 0.45; drawHeroStill(ctx, swapWith.def, v.moving.x, v.moving.y); ctx.globalAlpha = 1;
+  }
+  if (inside && (v.moving || v.placing) && (!g.pathSet.has(h[0] + ',' + h[1]) || swapWith) && (!there || swapWith)) {
     const mv = v.moving, range = mv ? mv.s.range : g.previewRange(v.sel), x = (h[0] + 0.5) * T, y = (h[1] + 0.5) * T;
     at(ctx, x, y, () => { ctx.beginPath(); ctx.arc(x, y, range, 0, 7); ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fill(); });
     if (mv) {
@@ -564,8 +585,13 @@ function drawEnemy(ctx, e) {
 /* One hero: range ring when selected, buff rings, its co-op ring, ultimate glow, the Assassin's blink copy, the sprite. */
 function drawHero(ctx, g, v, t) { at(ctx, t.x, t.y, () => drawHeroHere(ctx, g, v, t)); }
 function drawHeroHere(ctx, g, v, t) {
-  const d = t.def, [n, rot] = d.shape;
-  if (t === v.moving) ctx.globalAlpha = 0.4;
+  const d = t.def, [n, rot] = d.shape, under = v.hover && v.hover[0] === t.cx && v.hover[1] === t.cy;
+  /* just moved: it rests for a second before attacking again, so it pulses, see-through, until it is ready */
+  const base = t === v.moving ? 0.4 : t.settle > 0 ? 0.5 + 0.25 * (1 + Math.sin(g.tick / 4)) : 1;
+  ctx.globalAlpha = base;
+  /* under the pointer: a glow around the figure, like a highlighted unit in WoW (gold; blue when dropping the carried hero
+     here would swap the two) */
+  const glow = under && t !== v.moving ? (v.moving && (v.moving.owner || 0) === (t.owner || 0) ? 'rgba(120,200,255,' : 'rgba(255,214,90,') : null;
   if (t === v.selected) {
     ctx.beginPath(); ctx.arc(t.x, t.y, t.s.range, 0, 7);
     ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
@@ -583,7 +609,7 @@ function drawHeroHere(ctx, g, v, t) {
   if (t.preview) {                       /* a path: the form's colour as trim under its feet, brighter as the preview grows */
     ctx.beginPath(); ctx.ellipse?.(t.x, t.y + 15, 15, 5, 0, 0, 7);
     ctx.globalAlpha = 0.45 + 0.4 * Math.min(1, (t.level - 1) / 8); ctx.strokeStyle = t.preview.color; ctx.lineWidth = 2.5; ctx.stroke();
-    ctx.globalAlpha = t === v.moving ? 0.4 : 1;
+    ctx.globalAlpha = base;
   }
   if (full) {                            /* ultimate ready: a soft gold glow */
     ctx.beginPath(); ctx.arc(t.x, t.y, 21, 0, 7); ctx.fillStyle = 'rgba(255,216,74,.28)'; ctx.fill();
@@ -594,17 +620,32 @@ function drawHeroHere(ctx, g, v, t) {
       if (n) poly(ctx, t.blink.x, t.blink.y, 13, n, rot); else { ctx.beginPath(); ctx.arc(t.blink.x, t.blink.y, 11, 0, 7); }
       ctx.fillStyle = d.color; ctx.fill();
     }
-    ctx.globalAlpha = t === v.moving ? 0.4 : 1;
+    ctx.globalAlpha = base;
   });
   /* Idle animation: two frames, each hero on its own beat (the game clock, so it pauses with the game). Animated heroes
      (HERO_ANIM) play their idle loop and their attack instead. */
   const anim = heroAnim(d);
   let art = false;
-  if (d.mounted) { const r = t.ride; at(ctx, r ? r.x : t.x, r ? r.y : t.y, () => { art = drawMounted(ctx, g, t, HERO_S, HERO_DY); }); }   /* the Crusader: on his horse, wherever he rides */
-  else upright(ctx, t.x, t.y + HERO_FOOT, () => {                /* standing on its tile, smaller further back */
-    art = anim ? drawAnimated(ctx, g, v, t, anim)
-      : drawSprite(ctx, frameOf(heroSprite(d), ((g.tick + t.id * 17) / 30 | 0) % 2 === 1), t.x, t.y + HERO_FOOT - HERO_S * 0.44, HERO_S);
-  });
+  const figure = () => {
+    if (d.mounted) { const r = t.ride; at(ctx, r ? r.x : t.x, r ? r.y : t.y, () => { art = drawMounted(ctx, g, t, HERO_S, HERO_DY); }); }   /* the Crusader: on his horse, wherever he rides */
+    else upright(ctx, t.x, t.y + HERO_FOOT, () => {                /* standing on its tile, smaller further back */
+      art = anim ? drawAnimated(ctx, g, v, t, anim)
+        : drawSprite(ctx, frameOf(heroSprite(d), ((g.tick + t.id * 17) / 30 | 0) % 2 === 1), t.x, t.y + HERO_FOOT - HERO_S * 0.44, HERO_S);
+    });
+  };
+  if (glow) {
+    /* the glow: the figure drawn twice with a soft coloured shadow around its outline (a wide faint one, then a tight
+       bright one), then once more on top, a little brighter, so only the halo shows around it */
+    const k = (v.dpr || 1) * (v.cam ? v.cam.z : 1);
+    ctx.save();
+    ctx.shadowOffsetX = ctx.shadowOffsetY = 0;
+    ctx.shadowColor = glow + '.7)'; ctx.shadowBlur = 18 * k; figure();
+    ctx.shadowColor = glow + '1)'; ctx.shadowBlur = 5 * k; figure(); figure();
+    ctx.restore();
+    if ('filter' in ctx) ctx.filter = 'brightness(1.2)';
+  }
+  figure();
+  if ('filter' in ctx) ctx.filter = 'none';
   if (!art) {
     if (n) poly(ctx, t.x, t.y, 15, n, rot); else { ctx.beginPath(); ctx.arc(t.x, t.y, 13, 0, 7); }
     ctx.fillStyle = d.color; ctx.fill(); ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2; ctx.stroke();
