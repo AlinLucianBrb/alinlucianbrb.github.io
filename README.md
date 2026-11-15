@@ -200,6 +200,9 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Zoom keeps the camera angle (Nov 15)
+- Zooming used to slide the whole picture around the pointer, which moved the horizon and changed the angle the board was seen from depending on where you zoomed. Now the picture is pinned to the screen (at the middle of the map's near edge, where Fit puts it) and zooming moves the camera over the board instead, so the same spot stays under the pointer and the view always has the same angle. Resizing the window keeps your zoom and place. Game version 0.27.0.
+
 ## Camera and quality of life (Nov 15)
 - **The camera travels over the board:** dragging the map (or the arrow keys) moves the camera across and into the board at the same height, as a real camera would: going forward brings the far side closer and bigger. It used to slide the picture up and down. Fit returns to the start. (`cam.ox`, `cam.oy` in `js/game/camera.js`, limited so the board stays in view.)
 - **The land goes on:** more land is painted around the map (12 tiles to the sides, 16 behind, 8 in front), and past it the forest carries on to the horizon, so the world never ends on screen. The board is drawn for the camera's view and redrawn only when the camera moves.

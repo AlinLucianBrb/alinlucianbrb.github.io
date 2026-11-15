@@ -44,33 +44,46 @@ export function mapBounds() {
 /* How far the camera may travel from its start (world px): enough to look at every corner up close, never off the board. */
 const TRAVEL = { x: MAP_W * 0.5, back: MAP_H * 0.35, forward: MAP_H * 0.7 };
 
-export const createCamera = () => ({ x: 0, y: 0, z: 1, fitZ: 1, ox: 0, oy: 0, touched: false });
+export const createCamera = () => ({ x: 0, y: 0, z: 1, fitZ: 1, ox: 0, oy: 0, ax: 0, ay: 0, touched: false });
 
-/* Fits the map inside a rectangle of the screen (the part not covered by the HUD). */
-export function fitCamera(cam, rect) {
+/* The picture is pinned to the screen at one point, the anchor (ax, ay): where the middle of the map's near edge appears
+   when the map is fitted. Zooming and moving never shift it, so the horizon and the angle the camera looks at the board
+   from never change; only the camera's travel over the board (ox, oy) and the zoom do. */
+const NEAR_Y = TILT * MAP_H;   /* the picture's y of the map's near edge with the camera at its start */
+function pin(cam) { cam.x = cam.ax - CX * cam.z; cam.y = cam.ay - NEAR_Y * cam.z; }
+
+/* Fits the map inside a rectangle of the screen (the part not covered by the HUD) and pins the picture there. keep: only
+   re-pin (the window changed size), keeping the zoom and where the camera is. */
+export function fitCamera(cam, rect, keep = false) {
   const b = mapBounds(), w = b.x1 - b.x0, h = b.y1 - b.y0;
   const z = Math.max(0.05, Math.min(rect.w / w, rect.h / h) * FIT_CLOSER);
-  cam.z = cam.fitZ = z;
-  cam.x = rect.x + (rect.w - w * z) / 2 - b.x0 * z;
-  cam.y = rect.y + (rect.h - h * z) / 2 - b.y0 * z;
-  cam.ox = cam.oy = 0;
-  cam.touched = false;
+  cam.fitZ = z;
+  cam.ax = rect.x + (rect.w - w * z) / 2 + (CX - b.x0) * z;
+  cam.ay = rect.y + (rect.h - h * z) / 2 + (NEAR_Y - b.y0) * z;
+  if (!keep) { cam.z = z; cam.ox = cam.oy = 0; cam.touched = false; }
+  pin(cam);
 }
 
-/* Keeps at least a quarter of the map on screen, so it can never be lost, and the camera over the board. */
-export function clampCamera(cam, viewW, viewH) {
+/* Keeps the camera over the board (it can look at every corner up close, never wander off it). */
+export function clampCamera(cam) {
   cam.ox = clamp(cam.ox || 0, -TRAVEL.x, TRAVEL.x); cam.oy = clamp(cam.oy || 0, -TRAVEL.forward, TRAVEL.back);
-  const b = mapBounds(), w = (b.x1 - b.x0) * cam.z, h = (b.y1 - b.y0) * cam.z;
-  cam.x = clamp(cam.x + b.x0 * cam.z, -0.75 * w, viewW - 0.25 * w) - b.x0 * cam.z;
-  cam.y = clamp(cam.y + b.y0 * cam.z, -0.75 * h, viewH - 0.25 * h) - b.y0 * cam.z;
+  pin(cam);
 }
 
 export const zoomLimits = cam => [cam.fitZ * 0.5, Math.max(cam.fitZ * 3, 2)];
 
-/* Zooms by a factor while keeping the point under (px, py) in place. */
+/* Zooms by a factor around the point under (px, py): the picture stays pinned, and the camera travels so the same spot of
+   the ground stays under the pointer (as far as the camera may travel). */
 export function zoomAt(cam, px, py, factor) {
-  const [lo, hi] = zoomLimits(cam), z2 = clamp(cam.z * factor, lo, hi), k = z2 / cam.z;
-  cam.x = px - (px - cam.x) * k; cam.y = py - (py - cam.y) * k; cam.z = z2; cam.touched = true;
+  const [lo, hi] = zoomLimits(cam), z2 = clamp(cam.z * factor, lo, hi);
+  const [wx, wy] = toWorld(cam, px, py);
+  cam.z = z2; pin(cam); cam.touched = true;
+  if (wy < -1e8) return;                                     /* the sky: nothing to keep under the pointer */
+  const X = (px - cam.x) / z2, Y = (py - cam.y) / z2, s = (Y - C) * PERSP_B / TILT;
+  if (s <= 0) return;
+  cam.ox = wx - CX - (X - CX) / s;
+  cam.oy = wy - MAP_H + (1 / s - 1) / PERSP_B;
+  clampCamera(cam);
 }
 /* Moves the camera over the board by a drag of (dx, dy) screen px: the ground under the pointer follows it (exactly on the
    near edge, close to it elsewhere); the picture stays at the same height on screen. */

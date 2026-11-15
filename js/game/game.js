@@ -242,12 +242,12 @@ function freeRect() {
 }
 /* Centres the map on the screen, as large as it can be while staying clear of the HUD on every side
    (the margins are mirrored, so the centre stays in the middle). On screens too small for that, it uses the free space as it is. */
-function fitToScreen() {
+function fitToScreen(keep = false) {
   const r = freeRect(), W = v.cw, H = v.ch;
   const mx = Math.max(r.x, W - (r.x + r.w)), my = Math.max(r.y, H - (r.y + r.h));
   const centred = { x: mx, y: my, w: W - 2 * mx, h: H - 2 * my };
   const ok = centred.w >= W * 0.4 && centred.h >= H * 0.35;
-  fitCamera(v.cam, ok ? centred : r);
+  fitCamera(v.cam, ok ? centred : r, keep);
 }
 function resize() {
   const r = cv.getBoundingClientRect();
@@ -255,7 +255,7 @@ function resize() {
   const dpr = Math.min(2, globalThis.devicePixelRatio || 1), pw = Math.round(r.width * dpr), ph = Math.round(r.height * dpr);
   v.cw = r.width; v.ch = r.height; v.dpr = dpr;
   if (cv.width !== pw || cv.height !== ph) { cv.width = pw; cv.height = ph; }
-  if (!v.cam.touched) fitToScreen(); else clampCamera(v.cam, v.cw, v.ch);
+  fitToScreen(v.cam.touched);   /* a moved or zoomed camera keeps its zoom and place; the picture is re-pinned */
 }
 if (typeof ResizeObserver !== 'undefined') new ResizeObserver(resize).observe(cv);
 const zoomBy = f => { zoomAt(v.cam, v.cw / 2, v.ch / 2, f); clampCamera(v.cam, v.cw, v.ch); };
@@ -405,7 +405,7 @@ $('quitYes').onclick = () => hooks.onExit();
 $('resumeBtn').onclick = closeMenu;
 $('camIn').onclick = () => zoomBy(1.25);
 $('camOut').onclick = () => zoomBy(0.8);
-$('camFit').onclick = fitToScreen;
+$('camFit').onclick = () => fitToScreen();
 $('newRun').onclick = () => { if (!hooks.coop) { newRun(); acc = 0; } };
 $('overNext').onclick = () => hooks.onNext && hooks.onNext();
 $('overMenu').onclick = () => hooks.onExit();
