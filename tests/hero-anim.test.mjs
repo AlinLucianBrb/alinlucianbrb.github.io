@@ -18,16 +18,19 @@ test('every animation sheet holds its frames side by side, square, and is in the
   }
 });
 
-test('the Warrior animates; his evolved forms and heroes without art keep their sprites', () => {
+test('the Warrior and the Hunter animate; evolved forms and heroes without art keep their sprites', () => {
   const w = HEROES.find(h => h.id === 'warrior');
   assert.equal(heroAnim(w), HERO_ANIM.warrior);
   assert.equal(heroAnim(evolvedDef(w, w.evolutions[0].choices[0])), null);
-  assert.equal(heroAnim(HEROES.find(h => h.id === 'ranger')), null);
+  const r = HEROES.find(h => h.id === 'ranger');
+  assert.equal(heroAnim(r), HERO_ANIM.ranger);
+  assert.equal(heroAnim(evolvedDef(r, r.evolutions[0].choices[0])), null);
+  assert.equal(heroAnim(HEROES.find(h => h.id === 'mage')), null);
   assert.equal(heroPortrait('warrior'), 'portrait_warrior');
-  assert.equal(heroPortrait('ranger'), 'hero_ranger');
+  assert.equal(heroPortrait('ranger'), 'portrait_ranger');
+  assert.equal(heroPortrait('mage'), 'hero_mage');
 });
 
-test('one attack fits inside the Warrior\'s attack cooldown', () => {
-  const w = HEROES.find(h => h.id === 'warrior'), A = HERO_ANIM.warrior;
-  assert.ok(A.attack.frames / A.attack.fps <= w.stats.cooldown);
+test('one attack fits inside the hero\'s attack cooldown', () => {
+  for (const [id, A] of Object.entries(HERO_ANIM)) assert.ok(A.attack.frames / A.attack.fps <= HEROES.find(h => h.id === id).stats.cooldown, id);
 });

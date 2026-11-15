@@ -124,6 +124,7 @@ registerBehavior('bolt', {
     if (mult === 0) { rearm(t); charge(g, t); return; }   /* the ultimate replaced this attack */
     for (const tg of list) g.projs.push({ type: 'bolt', owner: t, target: tg, x: t.x, y: t.y, scale: mult, color, size: mult > 1 ? 8 : 5,
       look: t.def.projLook || 'orb', speed: t.def.projSpeed || 0, dx: 1, dy: 0 });
+    g.fx?.shot?.(t, Math.atan2(list[0].y - t.y, list[0].x - t.x));   /* the screen plays the hero's attack */
     rearm(t); charge(g, t);
   }
 });
