@@ -3,7 +3,7 @@
    front of you while characters stand upright on it (render.js draws them unsquashed, see sprites.js upright()).
    screen x = world x * z + x, screen y = world y * z * TILT + y. It knows nothing about the page; game.js feeds it sizes
    and input. FIT_CLOSER: the camera starts a little closer than "the whole map fits", so heroes read bigger. */
-export const TILT = 0.62, FIT_CLOSER = 1.08;
+export const TILT = 0.45, FIT_CLOSER = 1.15;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 export const createCamera = () => ({ x: 0, y: 0, z: 1, fitZ: 1, touched: false });
