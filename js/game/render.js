@@ -276,9 +276,9 @@ function paintBoard(g) {
   const deco = DECO.map(d => sprite(d[1]));
   if (deco.some(d => !d)) return null;
   const x0 = -MARGIN, y0 = -MARGIN, w = COLS + 2 * MARGIN, h = ROWS + 2 * MARGIN;
-  const c = makeCanvas(w * TS, h * TS), tmp = makeCanvas(TS, TS);
+  const c = makeCanvas(w * TS, h * TS), tmp = makeCanvas(TS, TS), mask = makeCanvas(w * TS, h * TS);
   if (!c || !tmp) return null;
-  const cx = c.getContext('2d'), tx = tmp.getContext('2d');
+  const cx = c.getContext('2d'), tx = tmp.getContext('2d'), mx = mask && mask.getContext('2d');
   cx.imageSmoothingEnabled = false; tx.imageSmoothingEnabled = false;
   const tile = (ctx, name, dx, dy) => {
     const i = sh.index[name];
@@ -301,7 +301,9 @@ function paintBoard(g) {
     tx.globalCompositeOperation = 'source-over';
     cx.drawImage(tmp, px, py);
     tile(cx, 'pathedge_' + key, px, py);
+    if (mx) tile(mx, 'pathmask_' + key, px, py);
   }
+  if (mx) roadBanks(cx, mx, w * TS, h * TS);
   /* Scenery in the forest around the map (never on the map or the road). */
   for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) {
     if (inMap(x, y) || on(x, y) || on(x, y - 1) || on(x, y + 1)) continue;
@@ -320,15 +322,61 @@ function boardFor(g) {
   return b;
 }
 
+/* The road lies a little lower than the grass (2.5D): along the road's far edge (where grass is just above the road, in
+   the painted board) the grass bank shows as a strip of dark soil, with a soft shadow falling onto the road below it.
+   Worked out per pixel from the road's mask, so it follows the painted, ragged edge. */
+const BANK = 7, BANK_SHADE = 6;
+function roadBanks(cx, mx, W, H) {
+  let img, m;
+  try { img = cx.getImageData(0, 0, W, H); m = mx.getImageData(0, 0, W, H).data; } catch (e) { return; }
+  const d = img.data, road = i => m[i * 4 + 3] > 127;
+  for (let x = 0; x < W; x++) {
+    let run = 0;   /* road pixels since the last grass pixel above, going down this column */
+    for (let y = 0; y < H; y++) {
+      const i = y * W + x;
+      if (!road(i)) { run = 0; continue; }
+      run++;
+      if (run === 0 || run > BANK + BANK_SHADE) continue;
+      const k = i * 4;
+      if (run <= BANK) {               /* the bank: dark soil, a little lighter at its top lip */
+        const a = run === 1 ? 0.55 : 0.78;
+        d[k] = d[k] * (1 - a) + 58 * a; d[k + 1] = d[k + 1] * (1 - a) + 36 * a; d[k + 2] = d[k + 2] * (1 - a) + 24 * a;
+      } else {                           /* its shadow on the road, fading out */
+        const a = 0.28 * (1 - (run - BANK) / (BANK_SHADE + 1));
+        d[k] *= 1 - a; d[k + 1] *= 1 - a; d[k + 2] *= 1 - a;
+      }
+    }
+  }
+  cx.putImageData(img, 0, 0);
+}
+
+/* Perspective on the tilted board: units further back (smaller y) are drawn a little smaller, from DEPTH_FAR at the back
+   row to full size at the front. HERO_FOOT: where a hero's feet stand, below its tile's centre (world px). */
+const DEPTH_FAR = 0.84, HERO_FOOT = T * 0.3;
+const depthAt = y => DEPTH_FAR + (1 - DEPTH_FAR) * Math.max(0, Math.min(1, y / MAP_H));
+/* A soft oval shadow on the ground (the board's squash makes it flat). */
+function groundShadow(ctx, x, y, r) { ctx.beginPath(); ctx.ellipse?.(x, y, r, r * 0.55, 0, 0, 7); ctx.fill(); }
+/* Air between the camera and the far side of the board: the back rows (and the land behind them) fade into a cool haze, so
+   the board reads as going away from you. Drawn over the ground, under the units. */
+function haze(ctx, v) {
+  const { cam } = v, x0 = -cam.x / cam.z - T, x1 = (v.cw - cam.x) / cam.z + T, top = -cam.y / (cam.z * TILT) - T;
+  const gr = ctx.createLinearGradient?.(0, Math.min(top, -2 * T), 0, MAP_H * 0.75);
+  if (!gr) return;
+  gr.addColorStop(0, 'rgba(22,36,62,.6)'); gr.addColorStop(0.4, 'rgba(22,36,62,.22)'); gr.addColorStop(1, 'rgba(22,36,62,0)');
+  ctx.fillStyle = gr; ctx.fillRect(x0, Math.min(top, -2 * T), x1 - x0, MAP_H * 0.75 - Math.min(top, -2 * T));
+}
+
 /* The 2.5D board's front edge: the map is a slab of earth seen from a tilted camera, so its near side shows as a strip of
    soil under the bottom row (EDGE screen px tall at zoom 1, drawn upright), darker toward the bottom. */
-const EDGE = 12;
+const EDGE = 20;
 function boardEdge(ctx) {
   const h = EDGE / TILT;
-  ctx.fillStyle = '#4a3423'; ctx.fillRect(0, MAP_H, MAP_W, h);
-  ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(0, MAP_H + h * 0.5, MAP_W, h * 0.5);
-  ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fillRect(0, MAP_H, MAP_W, 1.5 / TILT);
-  ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(0, MAP_H + h, MAP_W, 6 / TILT);   /* its shadow on the land in front */
+  ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fillRect(-4, MAP_H + h, MAP_W + 8, 10 / TILT);   /* its shadow on the land in front */
+  ctx.fillStyle = '#6a4a2e'; ctx.fillRect(0, MAP_H, MAP_W, h);                               /* soil, lit from above */
+  ctx.fillStyle = '#4e3522'; ctx.fillRect(0, MAP_H + h * 0.35, MAP_W, h * 0.65);
+  ctx.fillStyle = '#3a2718'; ctx.fillRect(0, MAP_H + h * 0.72, MAP_W, h * 0.28);
+  ctx.fillStyle = '#7fb257'; ctx.fillRect(0, MAP_H, MAP_W, 2.5 / TILT);                      /* the grass lip */
+  ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fillRect(0, MAP_H, MAP_W, 1 / TILT);
 }
 
 /* The playable map, plus land that carries on past its edges so the world does not stop at a hard line.
@@ -395,6 +443,7 @@ export function draw(ctx, g, v) {
   ctx.setTransform(dpr * cam.z, 0, 0, dpr * cam.z * TILT, dpr * cam.x, dpr * cam.y);   /* the tilted board (camera.js) */
   ctx.imageSmoothingEnabled = false;           /* sharp pixel art at any zoom */
   drawBoard(ctx, g, v);
+  haze(ctx, v);
   const h = v.hover, inside = h && h[0] >= 0 && h[1] >= 0 && h[0] < COLS && h[1] < ROWS;
   if (h && !inside) {                    /* outside the map: show that heroes cannot go here */
     ctx.strokeStyle = 'rgba(229,100,90,.7)'; ctx.lineWidth = 2;
@@ -425,7 +474,13 @@ export function draw(ctx, g, v) {
   for (const t of g.heroes) if (!t.def.flying) units.push({ y: t.y, hero: t });
   for (const e of g.enemies) units.push({ y: e.y, enemy: e });
   units.sort((a, b) => a.y - b.y);
-  for (const u of units) { if (u.hero) drawHero(ctx, g, v, u.hero); else upright(ctx, u.enemy.x, u.enemy.y, () => drawEnemy(ctx, u.enemy)); }
+  /* every unit's soft shadow on the ground first, so no shadow ever lies over another unit's body */
+  ctx.fillStyle = 'rgba(6,14,10,.42)';
+  for (const u of units) {
+    if (u.hero) groundShadow(ctx, u.hero.x + 3, u.hero.y + HERO_FOOT + 2, 19 * depthAt(u.hero.y));
+    else { const e = u.enemy, look = ENEMY_ART[e.type]; groundShadow(ctx, e.x + 2, e.y + 3, (look ? look.s * 0.36 : e.def.radius) * depthAt(e.y)); }
+  }
+  for (const u of units) { if (u.hero) drawHero(ctx, g, v, u.hero); else upright(ctx, u.enemy.x, u.enemy.y, () => drawEnemy(ctx, u.enemy), depthAt(u.enemy.y)); }
   for (const t of g.heroes) if (t.wolf && t.def.kind === 'wolf') drawWolf(ctx, t);
   for (const e of echoes) drawEcho(ctx, g, e);
   drawMinions(ctx, withEchoes);
@@ -467,9 +522,10 @@ export function draw(ctx, g, v) {
 /* One enemy, upright around its feet: its sprite (walk animation), health bar and ailment icons, or a plain shape. */
 function drawEnemy(ctx, e) {
   /* Walk animation: the frame changes every 9 px along the path, so faster enemies step faster and held ones stand still. */
-  const look = ENEMY_ART[e.type], art = look && drawSprite(ctx, frameOf('enemy_' + e.type, (e.d / 9 | 0) % 2 === 1), e.x, e.y - look.s * 0.2, look.s);
+  /* standing on its point of the path: the sprite's feet (a few px above its bottom edge) at the enemy's position */
+  const look = ENEMY_ART[e.type], art = look && drawSprite(ctx, frameOf('enemy_' + e.type, (e.d / 9 | 0) % 2 === 1), e.x, e.y - look.s * 0.44, look.s);
   if (art) {
-    const top = e.y - look.s * 0.7 + look.s * look.top, f = e.hp / e.max, bw = Math.max(22, e.def.radius * 2.2);
+    const top = e.y - look.s * 0.94 + look.s * look.top, f = e.hp / e.max, bw = Math.max(22, e.def.radius * 2.2);
     ctx.fillStyle = 'rgba(0,0,0,.75)'; ctx.fillRect(e.x - bw / 2 - 1, top - 7, bw + 2, 6);
     ctx.fillStyle = hpColor(f); ctx.fillRect(e.x - bw / 2, top - 6, bw * Math.max(0, f), 4);
     ailmentIcons(ctx, e, e.x - bw / 2, top - 18);
@@ -525,9 +581,12 @@ function drawHero(ctx, g, v, t) {
   /* Idle animation: two frames, each hero on its own beat (the game clock, so it pauses with the game). Animated heroes
      (HERO_ANIM) play their idle loop and their attack instead. */
   const anim = heroAnim(d);
-  const art = d.mounted ? drawMounted(ctx, g, t, HERO_S, HERO_DY)   /* the Crusader: on his horse, wherever he rides */
-    : anim ? drawAnimated(ctx, g, v, t, anim)
-    : drawSprite(ctx, frameOf(heroSprite(d), ((g.tick + t.id * 17) / 30 | 0) % 2 === 1), t.x, t.y + HERO_DY, HERO_S);
+  let art = false;
+  if (d.mounted) art = drawMounted(ctx, g, t, HERO_S, HERO_DY);   /* the Crusader: on his horse, wherever he rides */
+  else upright(ctx, t.x, t.y + HERO_FOOT, () => {                /* standing on its tile, smaller further back */
+    art = anim ? drawAnimated(ctx, g, v, t, anim)
+      : drawSprite(ctx, frameOf(heroSprite(d), ((g.tick + t.id * 17) / 30 | 0) % 2 === 1), t.x, t.y + HERO_FOOT - HERO_S * 0.44, HERO_S);
+  }, depthAt(t.y));
   if (!art) {
     if (n) poly(ctx, t.x, t.y, 15, n, rot); else { ctx.beginPath(); ctx.arc(t.x, t.y, 13, 0, 7); }
     ctx.fillStyle = d.color; ctx.fill(); ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2; ctx.stroke();
@@ -552,7 +611,7 @@ function drawAnimated(ctx, g, v, t, A) {
     /* the attack art swings toward A.attack.swings ('right' or 'left'): mirrored when the target is on the other side */
     if (af < A.attack.frames) { part = A.attack; f = af; face = right === (A.attack.swings === 'right') ? -1 : 1; }
   }
-  return drawAnimFrame(ctx, A, part, f, t.x, t.y, face);
+  return drawAnimFrame(ctx, A, part, f, t.x, t.y + HERO_FOOT - FOOT_DY, face);
 }
 function drawAnimFrame(ctx, A, part, f, x, y, face) {
   const img = sprite(part.name);
@@ -568,7 +627,11 @@ function drawAnimFrame(ctx, A, part, f, x, y, face) {
 /* A hero standing still on a tile (placing or moving it): the first idle frame of an animated hero, else its sprite. */
 function drawHeroStill(ctx, def, x, y) {
   const A = heroAnim(def);
-  return A ? drawAnimFrame(ctx, A, A.idle, 0, x, y, -1) : drawSprite(ctx, heroSprite(def), x, y + HERO_DY, HERO_S);
+  let ok = false;
+  upright(ctx, x, y + HERO_FOOT, () => {
+    ok = A ? drawAnimFrame(ctx, A, A.idle, 0, x, y + HERO_FOOT - FOOT_DY, -1) : drawSprite(ctx, heroSprite(def), x, y + HERO_FOOT - HERO_S * 0.44, HERO_S);
+  }, depthAt(y));
+  return ok;
 }
 
 /* What a path preview's echo shows of the form: the wolf pup, a ghost rider charging down the path, the Assassin's blink. */

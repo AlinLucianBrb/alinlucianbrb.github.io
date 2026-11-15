@@ -92,11 +92,12 @@ export function preload() { if (canLoad()) { for (const n of SPRITES) get(n); ti
 
 /* The board is drawn tilted (camera.js TILT: depth squashed), but characters and other sprites stand upright on it.
    upright(ctx, x, y, fn) undoes the squash around the ground point (x, y) while fn draws (a unit with its health bar,
-   say); drawSprite does it by itself around the sprite's centre unless it is already inside upright(). */
+   say); drawSprite does it by itself around the sprite's centre unless it is already inside upright(). depth: a scale for
+   perspective (things further back are drawn a little smaller), applied around the same ground point. */
 let standing = 0;
 export const unsquash = () => (standing ? 1 : 1 / TILT);
-export function upright(ctx, x, y, fn) {
-  ctx.save(); ctx.translate(x, y); ctx.scale(1, 1 / TILT); ctx.translate(-x, -y);
+export function upright(ctx, x, y, fn, depth = 1) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(depth, depth / TILT); ctx.translate(-x, -y);
   standing++;
   try { fn(); } finally { standing--; ctx.restore(); }
 }

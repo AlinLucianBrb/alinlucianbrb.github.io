@@ -127,7 +127,7 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 | Game speed | speed button: 1x, 2x, and 3x with the Overdrive talent | |
 
 - The camera fits the map into the space the HUD leaves free (a little closer than an exact fit) whenever a run starts or the window changes size (until you move or zoom it yourself; Fit returns to that view).
-- **2.5D view:** the board is seen from a tilted camera, Arknights style: the ground is squashed in depth (`TILT` in `js/game/camera.js`) and shows a strip of soil along its near edge, while heroes, enemies and their health bars stand upright on it (`upright()` in `js/game/sprites.js`). Heroes and enemies are drawn front to back, so whoever is nearer covers the ones behind. Range rings and ground effects lie flat on the board, so they look like ellipses.
+- **2.5D view:** the board is seen from a tilted camera, Arknights style: the ground is squashed in depth (`TILT` in `js/game/camera.js`) and shows a strip of soil along its near edge, while heroes, enemies and their health bars stand upright on it (`upright()` in `js/game/sprites.js`), each with a shadow, a little smaller further back (`DEPTH_FAR` in `js/game/render.js`), with a haze over the far side and a sunken road. Heroes and enemies are drawn front to back, so whoever is nearer covers the ones behind. Range rings and ground effects lie flat on the board, so they look like ellipses.
 - Every run, including Retry after a win or a loss, starts with Auto-start off and unpaused.
 
 ## Background play
@@ -199,6 +199,9 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Texts:** attack descriptions describe only the attack, ultimate tooltips only the ultimate, and the hero tooltip the hero (its attribute, delivery and source, tags, damage type). Ultimates that deal damage of their own write it as `{N}` in their description; `ultDesc()` shows it as the number it deals with the hero's stats ("about 156 damage"); "x2 damage" is kept for boosts to an attack the hero already makes. "At level 10, choose a path" is gone from the descriptions.
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
+
+## More depth on the board (Nov 14)
+- Every hero and enemy casts a soft shadow; units further back are drawn a little smaller (perspective); the back of the board fades into a cool haze; the road lies lower than the grass, with a bank of dark soil along its far edge (worked out from the painted road); the board's soil edge is thicker; the camera is tilted a bit more (`TILT` 0.62). Heroes and enemies stand with their feet on their spot. Game version 0.24.0.
 
 ## 2.5D board, bigger tiles (Nov 13)
 - **Maps are 12 × 8 tiles** (were 16 × 10); each level has a new preset path from `npm run maps` (10 turns on the first levels down to 4 on the last, every level's map different). The tiles are the same size in the game's world, so ranges, speeds and stats are unchanged, but the map is smaller, so the camera shows every tile, hero and enemy bigger. Paths are shorter (about 25–34 tiles, were 34–45), so enemies reach the gate sooner: the levels are harder until they are rebalanced.
