@@ -247,7 +247,7 @@ function fitToScreen() {
   const mx = Math.max(r.x, W - (r.x + r.w)), my = Math.max(r.y, H - (r.y + r.h));
   const centred = { x: mx, y: my, w: W - 2 * mx, h: H - 2 * my };
   const ok = centred.w >= W * 0.4 && centred.h >= H * 0.35;
-  fitCamera(v.cam, ok ? centred : r, MAP_W, MAP_H);
+  fitCamera(v.cam, ok ? centred : r);
 }
 function resize() {
   const r = cv.getBoundingClientRect();
@@ -255,11 +255,11 @@ function resize() {
   const dpr = Math.min(2, globalThis.devicePixelRatio || 1), pw = Math.round(r.width * dpr), ph = Math.round(r.height * dpr);
   v.cw = r.width; v.ch = r.height; v.dpr = dpr;
   if (cv.width !== pw || cv.height !== ph) { cv.width = pw; cv.height = ph; }
-  if (!v.cam.touched) fitToScreen(); else clampCamera(v.cam, v.cw, v.ch, MAP_W, MAP_H);
+  if (!v.cam.touched) fitToScreen(); else clampCamera(v.cam, v.cw, v.ch);
 }
 if (typeof ResizeObserver !== 'undefined') new ResizeObserver(resize).observe(cv);
-const zoomBy = f => { zoomAt(v.cam, v.cw / 2, v.ch / 2, f); clampCamera(v.cam, v.cw, v.ch, MAP_W, MAP_H); };
-const pan = (dx, dy) => { panBy(v.cam, dx, dy); clampCamera(v.cam, v.cw, v.ch, MAP_W, MAP_H); };
+const zoomBy = f => { zoomAt(v.cam, v.cw / 2, v.ch / 2, f); clampCamera(v.cam, v.cw, v.ch); };
+const pan = (dx, dy) => { panBy(v.cam, dx, dy); clampCamera(v.cam, v.cw, v.ch); };
 
 /* ---- Map input: click to place or select; drag to move the map; wheel or pinch to zoom ---- */
 const pointers = new Map();
@@ -333,7 +333,7 @@ cv.addEventListener('contextmenu', e => e.preventDefault && e.preventDefault());
 cv.addEventListener('wheel', e => {
   if (e.preventDefault) e.preventDefault();
   const [x, y] = local(e);
-  zoomAt(v.cam, x, y, Math.exp(-(e.deltaY || 0) * 0.0015)); clampCamera(v.cam, v.cw, v.ch, MAP_W, MAP_H);
+  zoomAt(v.cam, x, y, Math.exp(-(e.deltaY || 0) * 0.0015)); clampCamera(v.cam, v.cw, v.ch);
 }, { passive: false });
 
 function clickCell(cx, cy) {

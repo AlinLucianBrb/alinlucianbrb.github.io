@@ -127,7 +127,7 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 | Game speed | speed button: 1x, 2x, and 3x with the Overdrive talent | |
 
 - The camera fits the map into the space the HUD leaves free (a little closer than an exact fit) whenever a run starts or the window changes size (until you move or zoom it yourself; Fit returns to that view).
-- **2.5D view:** the board is seen from a tilted camera, Arknights style: the ground is squashed in depth (`TILT` in `js/game/camera.js`) and shows a strip of soil along its near edge, while heroes, enemies and their health bars stand upright on it (`upright()` in `js/game/sprites.js`), each with a shadow, a little smaller further back (`DEPTH_FAR` in `js/game/render.js`), with a haze over the far side and a sunken road. Heroes and enemies are drawn front to back, so whoever is nearer covers the ones behind. Range rings and ground effects lie flat on the board, so they look like ellipses.
+- **2.5D view:** the board is seen through a tilted perspective camera, Arknights style (see True perspective): the ground is squashed in depth (`TILT` in `js/game/camera.js`) and narrows toward the far side (`FAR`) while heroes, enemies and their health bars stand upright on it (`upright()` in `js/game/sprites.js`), each with a shadow and smaller further back, with a haze over the far side, a sunken road and upright scenery around the board. Heroes and enemies are drawn front to back, so whoever is nearer covers the ones behind. Range rings and ground effects lie flat on the board, so they look like ellipses.
 - Every run, including Retry after a win or a loss, starts with Auto-start off and unpaused.
 
 ## Background play
@@ -200,12 +200,18 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## True perspective (Nov 15)
+- **The board is seen through a perspective camera:** its far side is smaller and narrower than its near side, and grid lines run toward the far side like on a real table (`project()` in `js/game/camera.js`: a pinhole camera, so straight lines stay straight; `FAR` sets how much smaller the far side is). The painted board is warped into that view once per map; every hero, enemy, ring and effect is drawn with the perspective of the point it stands on (`at()` in `js/game/sprites.js`), and clicks are mapped back through the same camera, so they still land on the right tile.
+- **Standing scenery:** the trees, bushes, rocks and flowers around the board stand upright with shadows instead of being painted flat into the ground; no tall tree stands right in front of the board.
+- **The Warrior's feet are no longer cut off:** the animation frames from Pixel Lab had lost the bottom rows of the figure; they are restored from the original art (`art/pixellab/`).
+- The camera starts a bit closer (`FIT_CLOSER` 1.12). The soil edge under the board's near side is gone. Game version 0.25.0.
+
 ## More depth on the board (Nov 14)
-- Every hero and enemy casts a soft shadow; units further back are drawn a little smaller (perspective); the back of the board fades into a cool haze; the road lies lower than the grass, with a bank of dark soil along its far edge (worked out from the painted road); the board's soil edge is thicker; the camera is tilted a bit more (`TILT` 0.62). Heroes and enemies stand with their feet on their spot. Game version 0.24.0.
+- Every hero and enemy casts a soft shadow; units further back are drawn a little smaller (perspective); the back of the board fades into a cool haze; the road lies lower than the grass, with a bank of dark soil along its far edge (worked out from the painted road); the camera is tilted a bit more (`TILT` 0.62). Heroes and enemies stand with their feet on their spot. Game version 0.24.0.
 
 ## 2.5D board, bigger tiles (Nov 13)
 - **Maps are 12 × 8 tiles** (were 16 × 10); each level has a new preset path from `npm run maps` (10 turns on the first levels down to 4 on the last, every level's map different). The tiles are the same size in the game's world, so ranges, speeds and stats are unchanged, but the map is smaller, so the camera shows every tile, hero and enemy bigger. Paths are shorter (about 25–34 tiles, were 34–45), so enemies reach the gate sooner: the levels are harder until they are rebalanced.
-- **Tilted 2.5D view** with upright characters, drawn front to back, and a soil edge along the board's near side (see Controls). The camera starts a little closer than an exact fit. The Warrior is drawn 1.6 tiles tall.
+- **Tilted 2.5D view** with upright characters, drawn front to back (see Controls). The camera starts a little closer than an exact fit. The Warrior is drawn 1.6 tiles tall.
 - Engine version 24 (the maps changed: replays and saved runs from before do not carry over), game version 0.23.0.
 
 ## New art style (Nov 13)

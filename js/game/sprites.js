@@ -8,7 +8,7 @@ import { ENEMIES } from '../engine/enemies.js';
 import { ULTIMATES } from '../engine/ultimates.js';
 import '../engine/kits/index.js';   /* the hero kits register their ultimates (their icons are listed below) */
 
-import { TILT } from './camera.js';
+import { TILT, project, scaleAt } from './camera.js';
 
 const BASE = new URL('../../assets/', import.meta.url);
 export const spriteUrl = name => new URL(name + '.png', BASE).href;
@@ -35,7 +35,7 @@ export const relicIcon = name => 'relic_' + name.toLowerCase().replace(/[^a-z0-9
    that point); attack.swings: which way the attack art swings; height: the figure's height in frame pixels; tiles: how tall it is drawn on the map, in tiles. A hero without
    an entry (and every evolved form, for now) uses its old two-frame sprite. portrait: the still image for the menus. */
 export const HERO_ANIM = {
-  warrior: { frame: 192, foot: [91, 191], height: 114, tiles: 1.6, portrait: 'portrait_warrior',
+  warrior: { frame: 192, foot: [91, 185], height: 125, tiles: 1.6, portrait: 'portrait_warrior',
     idle: { name: 'anim_warrior_idle', frames: 4, fps: 5 }, attack: { name: 'anim_warrior_attack', frames: 4, fps: 12, swings: 'left' } }
 };
 export const heroAnim = def => (def.form || def.mounted ? null : HERO_ANIM[def.id] || null);
@@ -89,6 +89,21 @@ export function tiles() {
 
 /* Starts loading everything, so the art is there by the time a match begins. */
 export function preload() { if (canLoad()) { for (const n of SPRITES) get(n); tiles(); } }
+
+/* Perspective (camera.js): the canvas draws the picture (the view through the camera) with a plain zoom-and-offset
+   transform; at(ctx, x, y, fn) sets up the view around one world point (x, y) so fn can draw in world coordinates there:
+   things at that depth are scaled by the perspective and squashed by the tilt. Close to (x, y) this matches the camera
+   exactly (a unit, a ring, a small effect); far from it, it drifts, so each thing is drawn at its own point. at() always
+   starts from the picture transform, so calls can nest. */
+let picture = null;
+export const setPicture = m => { picture = m; };
+export function at(ctx, x, y, fn) {
+  const [X, Y] = project(x, y), s = scaleAt(y);
+  ctx.save();
+  if (picture) ctx.setTransform(...picture);
+  ctx.translate(X, Y); ctx.scale(s, s * TILT); ctx.translate(-x, -y);
+  try { fn(); } finally { ctx.restore(); }
+}
 
 /* The board is drawn tilted (camera.js TILT: depth squashed), but characters and other sprites stand upright on it.
    upright(ctx, x, y, fn) undoes the squash around the ground point (x, y) while fn draws (a unit with its health bar,

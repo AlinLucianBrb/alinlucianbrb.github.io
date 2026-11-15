@@ -1,7 +1,7 @@
 /* How the newer heroes' things look (their kits are in js/engine/kits): auras, projectiles, zones and minions. render.js
    merges these into its tables, so each new hero adds its visuals here instead of growing render.js. Every drawer uses a
    sprite when the art has loaded and a plain shape otherwise. */
-import { drawSprite, frameOf } from './sprites.js';
+import { drawSprite, frameOf, at } from './sprites.js';
 import { T } from '../content/data.js';
 
 const ENEMY_SIZE = { runner: 44, grunt: 48, brute: 56, boss: 68 };
@@ -9,8 +9,10 @@ const ENEMY_SIZE = { runner: 44, grunt: 48, brute: 56, boss: 68 };
 /* Auras lie on the ground under everything: a soft disc in the hero's colour, a ring at the edge, and a ripple running out
    from the hero on each pulse (t.pulse counts down from AURA.ripple). A boosted aura (Crescendo) is brighter. */
 export function drawAuras(ctx, g) {
-  for (const t of g.heroes) {
-    if (t.def.kind !== 'aura') continue;
+  for (const t of g.heroes) if (t.def.kind === 'aura') at(ctx, t.x, t.y, () => drawAura(ctx, t));
+}
+function drawAura(ctx, t) {
+  {
     const boosted = t.auraBoost && t.auraBoost.t > 0, r = t.s.range * (boosted ? t.auraBoost.radius : 1), c = t.def.color;
     ctx.globalAlpha = boosted ? 0.22 : 0.12;
     ctx.beginPath(); ctx.arc(t.x, t.y, r, 0, 7); ctx.fillStyle = c; ctx.fill();
@@ -76,7 +78,7 @@ export const KIT_PROJ = {
 /* Minions that are not the wolf: the Summoner's imps and Greater Demon (2-frame flap and stomp, facing where they go). */
 export function drawMinions(ctx, g) {
   for (const t of g.heroes) {
-    if (t.imps) for (const imp of t.imps) {
+    if (t.imps) for (const imp of t.imps) at(ctx, imp.x, imp.y, () => {
       const fade = Math.min(1, imp.t * 2);
       ctx.globalAlpha = fade;
       ctx.beginPath(); ctx.ellipse?.(imp.x, imp.y + 22, 7, 2.5, 0, 0, 7); ctx.fillStyle = 'rgba(122,224,255,.3)'; ctx.fill();   /* an ally's soft glow */
@@ -84,9 +86,9 @@ export function drawMinions(ctx, g) {
         ctx.beginPath(); ctx.arc(imp.x, imp.y, 7, 0, 7); ctx.fillStyle = '#4a62b8'; ctx.fill();
       }
       ctx.globalAlpha = 1;
-    }
+    });
     const d = t.demon;
-    if (d) {
+    if (d) at(ctx, d.x, d.y, () => {
       ctx.globalAlpha = Math.min(1, d.t * 2);
       ctx.beginPath(); ctx.ellipse?.(d.x, d.y + 12, 20, 6, 0, 0, 7); ctx.fillStyle = 'rgba(122,224,255,.25)'; ctx.fill();
       ctx.strokeStyle = 'rgba(122,224,255,.8)'; ctx.lineWidth = 2; ctx.stroke();   /* an ally's ring: summoned demons are spectral blue, never like the enemies */
@@ -94,7 +96,7 @@ export function drawMinions(ctx, g) {
         ctx.beginPath(); ctx.arc(d.x, d.y - 8, 18, 0, 7); ctx.fillStyle = '#3a4a8a'; ctx.fill();
       }
       ctx.globalAlpha = 1;
-    }
+    });
   }
 }
 /* The Crusader on his horse: at his post, or wherever he is riding (t.ride), facing where he goes; the horse gallops while he
