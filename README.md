@@ -200,6 +200,14 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Paladin and Shaman attacks remade (Nov 16)
+- **Paladin:** a new 4-frame attack made from her standing pose: she winds the hammer back, swings it over her head and smashes it down to her left (a few sparks fly on impact), then steadies it. The hammer stays rigid, its handle at 90 degrees to the head, in every frame.
+- **Shaman:** a new 4-frame cast made from his standing pose (facing left): he levels the whole totem staff toward the target with both hands in front of his body, the bird head flashing blue, and holds it. Game version 0.36.0.
+
+## Paladin and Shaman attack fixes, take two (Nov 16)
+- **Paladin:** her smash pose is redrawn so the hammer is built right: the handle meets the hammer head at 90 degrees, with the head standing on its striking face.
+- **Shaman:** his cast pose is redrawn so the arm holding the staff comes from his near shoulder in front of his body (it used to pass behind his head), with the open hand reaching forward. The cast holds that pose. Game version 0.35.3.
+
 ## Paladin and Shaman attack fixes (Nov 16)
 - **Paladin:** the hammer no longer bends while she smashes. The in-between frames that stretched its handle are replaced by her smash pose, so the hammer keeps its shape (raised, then smashed down and held).
 - **Shaman:** his free hand no longer slips behind his body at the end of his cast; the frame that did it is gone and the cast ends on the frame where both hands are clear. Game version 0.35.2.
