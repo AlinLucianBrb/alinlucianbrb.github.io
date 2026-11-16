@@ -200,6 +200,12 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Enemies in the new style: goblins, orcs, trolls (Nov 16)
+- Every enemy has new Pixel Lab art in the heroes' style, with an 8-frame walk: the runner is a **goblin** (dagger and buckler), the grunt an **orc** (axe and round shield), the brute a **troll** (spiked club and plank shield) and the boss an **orc warlord** (cleaver, skull tower shield, horned helm, red cape).
+- They face the way they walk: the art faces left and is mirrored while an enemy walks right. The walk steps with the distance walked, so fast goblins patter and the boss stomps.
+- Sizes (`ENEMY_ANIM` in js/game/sprites.js, drawn with `drawEnemyArt`): goblin 1.05 tiles tall, orc 1.4, troll 1.65, warlord 1.85 (heroes are 1.6). Health bars, ground shadows, impact heights and the Gospel Priest's converted spirit follow the new art. The old 64 px sprites stay as a fallback while the sheets load.
+- Sources in art/pixellab/ (anim_goblin_walk, anim_orc_walk, anim_troll_walk, anim_warlord_walk; the base designs are in drafts/). Only the drawing changed. Game version 0.38.0.
+
 ## Melee slash back to the old arc (Nov 16)
 - The sword/hammer/dagger swing is the old crescent again: thrown out from the hero toward the target, lying on the ground, with the thin arc in the hero's colour. Its art is new, made with Pixel Lab's VFX tool (`fx_slash2`, 13 frames: a clean steel-white crescent with a few sparks trailing it), sized so it stops at the swing's reach. The old `fx_slash` stays as a fallback. Only the drawing changed. Game version 0.37.1.
 

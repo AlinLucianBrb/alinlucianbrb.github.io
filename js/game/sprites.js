@@ -54,6 +54,30 @@ export const HERO_ANIM = {
   shaman: { frame: 160, foot: [75, 141], height: 123, tiles: 1.6, muzzle: [27, 43], portrait: 'portrait_shaman',
     idle: { name: 'anim_shaman_idle', frames: 4, fps: 5 }, attack: { name: 'anim_shaman_attack', frames: 4, fps: 10, swings: 'left' } }
 };
+/* Animated enemies (Pixel Lab, the same style as the heroes; sources in art/pixellab/): an 8-frame walk loop facing left,
+   mirrored when the enemy walks right. foot: where the feet touch the ground; height: the figure's height in frame pixels;
+   tiles: how tall it is drawn, in tiles. The walk moves one frame per stride/8 px walked, so faster enemies step faster. */
+export const ENEMY_ANIM = {
+  runner: { name: 'anim_goblin_walk', frame: 160, frames: 8, foot: [80, 153], height: 109, tiles: 1.05 },
+  grunt:  { name: 'anim_orc_walk', frame: 160, frames: 8, foot: [82, 154], height: 129, tiles: 1.4 },
+  brute:  { name: 'anim_troll_walk', frame: 160, frames: 8, foot: [76, 155], height: 127, tiles: 1.65 },
+  boss:   { name: 'anim_warlord_walk', frame: 160, frames: 8, foot: [72, 154], height: 129, tiles: 1.85 }
+};
+/* An enemy's walk frame, standing on (x, y) (upright space), facing left (face -1) or right (1); alpha optional. Returns false
+   until its art has loaded. d: the distance it has walked, in px. */
+export function drawEnemyArt(ctx, type, d, x, y, face = -1, T = 40) {
+  const A = ENEMY_ANIM[type], img = A && get(A.name);
+  if (!img) return false;
+  const k = (T * A.tiles) / A.height, stride = T * A.tiles * 0.9, f = Math.floor(Math.max(0, d) / (stride / A.frames)) % A.frames;
+  ctx.save();
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  ctx.translate(x, y); ctx.scale(face > 0 ? -k : k, k * unsquash());
+  ctx.drawImage(img, f * A.frame, 0, A.frame, A.frame, -A.foot[0], -A.foot[1], A.frame, A.frame);
+  ctx.restore();
+  return true;
+}
+/* How tall an enemy is drawn, in px (0 without animated art). */
+export const enemyHeight = (type, T = 40) => (ENEMY_ANIM[type] ? ENEMY_ANIM[type].tiles * T : 0);
 export const heroAnim = def => (def.form || def.mounted ? null : HERO_ANIM[def.id] || null);
 /* The image of a hero for the menus: its portrait when it has one, otherwise its sprite. */
 export const heroPortrait = id => (HERO_ANIM[id] ? HERO_ANIM[id].portrait : 'hero_' + id);
@@ -61,6 +85,7 @@ const heroIds = HEROES.flatMap(h => [h.id, ...(h.evolutions || []).flatMap(s => 
 export const SPRITES = [...new Set([
   ...heroIds.flatMap(id => ['hero_' + id, 'hero_' + id + '_2']),            /* _2: the second animation frame */
   ...Object.values(HERO_ANIM).flatMap(a => [a.portrait, a.idle.name, a.attack.name]),
+  ...Object.values(ENEMY_ANIM).map(a => a.name),
   ...Object.keys(ENEMIES).flatMap(id => ['enemy_' + id, 'enemy_' + id + '_2']),
   ...Object.keys(ITEMS).flatMap(id => [0, 1, 2, 3].map(r => 'item_' + id + '_' + r)),
   ...['arrow', 'arrow_gold', 'arrow_toxic', 'bolt_arcane', 'fireball', 'ice_shard', 'spark', 'dagger_toxic', 'flask_fire', 'flask_toxic',

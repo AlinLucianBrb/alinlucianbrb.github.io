@@ -1,7 +1,7 @@
 /* How the newer heroes' things look (their kits are in js/engine/kits): auras, projectiles, zones and minions. render.js
    merges these into its tables, so each new hero adds its visuals here instead of growing render.js. Every drawer uses a
    sprite when the art has loaded and a plain shape otherwise. */
-import { drawSprite, frameOf, at } from './sprites.js';
+import { drawSprite, frameOf, at, drawEnemyArt, enemyHeight } from './sprites.js';
 import { T } from '../content/data.js';
 
 const ENEMY_SIZE = { runner: 44, grunt: 48, brute: 56, boss: 68 };
@@ -68,10 +68,10 @@ export const KIT_PROJ = {
     const s = ENEMY_SIZE[p.enemy] || 48;
     ctx.beginPath(); ctx.ellipse?.(p.x, p.y + 6, s * 0.32, s * 0.12, 0, 0, 7); ctx.fillStyle = 'rgba(255,233,160,.35)'; ctx.fill();
     ctx.globalAlpha = 0.6;
-    const ok = drawSprite(ctx, frameOf('enemy_' + p.enemy, ((p.d / 9) | 0) % 2 === 1), p.x, p.y - s * 0.2, s);
+    const ok = drawEnemyArt(ctx, p.enemy, p.d, p.x, p.y + s * 0.25, 1, T) || drawSprite(ctx, frameOf('enemy_' + p.enemy, ((p.d / 9) | 0) % 2 === 1), p.x, p.y - s * 0.2, s);
     ctx.globalAlpha = 1;
     if (!ok) { ctx.beginPath(); ctx.arc(p.x, p.y, 10, 0, 7); ctx.fillStyle = 'rgba(255,233,160,.7)'; ctx.fill(); }
-    ctx.beginPath(); ctx.arc(p.x, p.y - s * 0.55, 6, 0, 7); ctx.strokeStyle = '#ffe9a0'; ctx.lineWidth = 2; ctx.stroke();   /* a halo */
+    ctx.beginPath(); ctx.arc(p.x, enemyHeight(p.enemy, T) ? p.y + s * 0.25 - enemyHeight(p.enemy, T) - 4 : p.y - s * 0.55, 6, 0, 7); ctx.strokeStyle = '#ffe9a0'; ctx.lineWidth = 2; ctx.stroke();   /* a halo */
   }
 };
 

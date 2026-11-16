@@ -1,7 +1,7 @@
 /* Canvas drawing. The world is drawn through the camera; the board is cheap enough to draw every frame, which keeps it sharp at any zoom. */
 import { COLS, ROWS, T, HEROES } from '../content/data.js';
 import { tintOf } from '../engine/effects.js';
-import { get as sprite, tiles as tileSheet, drawSprite, heroSprite, frameOf, heroAnim, upright, unsquash, at, setPicture } from './sprites.js';
+import { get as sprite, tiles as tileSheet, drawSprite, heroSprite, frameOf, heroAnim, drawEnemyArt, enemyHeight, ENEMY_ANIM, upright, unsquash, at, setPicture } from './sprites.js';
 import { project, unproject, scaleAt, setView } from './camera.js';
 import { drawAuras, drawMinions, drawMounted, KIT_PROJ, KIT_ZONE, KIT_AIL_ICON, BUFF_COLOR } from './kit-art.js';
 
@@ -176,7 +176,7 @@ function shotFrom(u, toX) {
   const k = T * A.tiles / A.height, right = toX > u.x, sign = right === (A.attack.swings === 'right') ? 1 : -1;
   return { x: u.x + sign * (A.muzzle[0] - A.foot[0]) * k, y: u.y + HERO_FOOT, lift: (A.foot[1] - A.muzzle[1]) * k };
 }
-function bodyLift(e) { const look = ENEMY_ART[e.type]; return look ? look.s * 0.44 : (e.def && e.def.radius) || 12; }
+function bodyLift(e) { const h = enemyHeight(e.type, T); if (h) return h * 0.5; const look = ENEMY_ART[e.type]; return look ? look.s * 0.44 : (e.def && e.def.radius) || 12; }
 /* A hero's bolt or arrow is drawn leaving its staff, bow or hand and arriving at the middle of its target's body: the
    engine flies it from the hero's tile to the target's feet, and the drawing eases from one to the other along the way. */
 function projView(p) {
@@ -598,7 +598,7 @@ export function draw(ctx, g, v) {
   ctx.fillStyle = 'rgba(6,14,10,.42)';
   for (const u of units) {
     if (u.hero) groundShadow(ctx, u.hero.x + 3, u.hero.y + HERO_FOOT + 2, 19);
-    else { const e = u.enemy, look = ENEMY_ART[e.type]; groundShadow(ctx, e.x + 2, e.y + 3, look ? look.s * 0.36 : e.def.radius); }
+    else { const e = u.enemy, look = ENEMY_ART[e.type], h = enemyHeight(e.type, T); groundShadow(ctx, e.x + 2, e.y + 3, h ? h * (e.type === 'runner' ? 0.36 : 0.3) : look ? look.s * 0.36 : e.def.radius); }
   }
   for (const u of units) {
     if (u.hero) drawHero(ctx, g, v, u.hero);
@@ -663,13 +663,24 @@ export function draw(ctx, g, v) {
   });
 }
 
+/* Which way an enemy faces: the walk art faces left, so it turns right while it walks right (kept while it walks straight
+   up or down, or stands still). */
+const FACING = new WeakMap();
+function enemyFace(e) {
+  const m = FACING.get(e) || { x: e.x, f: -1 };
+  const dx = e.x - m.x;
+  if (dx > 0.05) m.f = 1; else if (dx < -0.05) m.f = -1;
+  m.x = e.x; FACING.set(e, m);
+  return m.f;
+}
 /* One enemy, upright around its feet: its sprite (walk animation), health bar and ailment icons, or a plain shape. */
 function drawEnemy(ctx, e) {
   /* Walk animation: the frame changes every 9 px along the path, so faster enemies step faster and held ones stand still. */
   /* standing on its point of the path: the sprite's feet (a few px above its bottom edge) at the enemy's position */
-  const look = ENEMY_ART[e.type], art = look && drawSprite(ctx, frameOf('enemy_' + e.type, (e.d / 9 | 0) % 2 === 1), e.x, e.y - look.s * 0.44, look.s);
+  const look = ENEMY_ART[e.type], face = enemyFace(e), anim = drawEnemyArt(ctx, e.type, e.d, e.x, e.y, face, T);
+  const art = anim || (look && drawSprite(ctx, frameOf('enemy_' + e.type, (e.d / 9 | 0) % 2 === 1), e.x, e.y - look.s * 0.44, look.s));
   if (art) {
-    const top = e.y - look.s * 0.94 + look.s * look.top, f = e.hp / e.max, bw = Math.max(22, e.def.radius * 2.2);
+    const top = anim ? e.y - enemyHeight(e.type, T) * unsquash() + 2 : e.y - look.s * 0.94 + look.s * look.top, f = e.hp / e.max, bw = Math.max(22, e.def.radius * 2.2);
     ctx.fillStyle = 'rgba(0,0,0,.75)'; ctx.fillRect(e.x - bw / 2 - 1, top - 7, bw + 2, 6);
     ctx.fillStyle = hpColor(f); ctx.fillRect(e.x - bw / 2, top - 6, bw * Math.max(0, f), 4);
     ailmentIcons(ctx, e, e.x - bw / 2, top - 18);
