@@ -5,7 +5,7 @@ import { createWorld, step, STEP, playerView } from '../engine/world.js';
 import { apply } from '../engine/commands.js';
 import { exportLog, resume } from '../engine/replay.js';
 import { heroStats } from '../engine/stats.js';
-import { draw, addBeam, tickBeams, addSlash, tickSlashes, addAnim, tickAnims } from './render.js';
+import { draw, addBeam, tickBeams, addSlash, tickSlashes, addAnim, tickAnims, addImpact, boltImpacts } from './render.js';
 import { preload as preloadArt, get as sprite } from './sprites.js';
 import { createCamera, fitCamera, clampCamera, zoomAt, panBy, toWorld } from './camera.js';
 import * as ui from './ui.js';
@@ -56,8 +56,8 @@ function newRun(resumeLog = null) {
     : createGuest({ world, transport: c.transport, me, onDesync: () => netBanner('Out of step with the host: what you see may differ a little.') });
   coopInfo = c ? { names: c.config.players.map(p => p.name), me } : null; netDead = false; netBanner('');
   w.ev.on('end', ({ won }) => finish(current, won));
-  w.ev.on('crit', ({ enemy }) => { if (w.fx) { addSlash(v.vfx, enemy.x, enemy.y, 0, Math.PI, enemy.def.radius + 7, 0.16, '#ffd84a'); addAnim(v.vfx, 'fx_hit', enemy.x, enemy.y - 4, 30, 0.2, 4); } });   /* a gold flash on critical hits */
-  w.ev.on('kill', ({ enemy }) => { if (w.fx && !enemy.escaped) addAnim(v.vfx, 'fx_hit', enemy.x, enemy.y - 6, 26 + enemy.def.radius, 0.24, 4); });
+  w.ev.on('crit', ({ enemy }) => { if (w.fx) addImpact(v.vfx, 'fx_crit', enemy, 0.75, 0.45); });   /* a burst of hot streaks on critical hits */
+  w.ev.on('kill', ({ enemy }) => { if (w.fx && !enemy.escaped) addImpact(v.vfx, 'fx_impact_physical', enemy, 0.9, 0.35); });
   w.ev.on('explode', ({ zone }) => { if (w.fx) addAnim(v.vfx, 'fx_explosion', zone.x, zone.y, 96, 0.45, 5); });
   w.ev.on('moonfall', ({ zone }) => { if (w.fx) addAnim(v.vfx, 'fx_moonburst', zone.x, zone.y, zone.r * 2.3, 0.45, 5); });
   pend.length = 0; v.selected = v.moving = v.evo = null; ui.hideEvoPick(); if (v.speed > 2) v.speed = 1; v.vfx.beams.length = 0; v.vfx.slashes.length = 0; v.vfx.anims.length = 0; v.swings.clear(); v.needFit = true;
@@ -196,7 +196,7 @@ function render(dt) {
   updatePending();
   if (v.selected && !w.heroes.includes(v.selected)) { v.selected = v.moving = null; ui.renderInspector(w, v); }
   v.placing = canPlace(v.sel);
-  tickBeams(v.vfx, dt); tickSlashes(v.vfx, dt); tickAnims(v.vfx, dt);
+  tickBeams(v.vfx, dt); tickSlashes(v.vfx, dt); tickAnims(v.vfx, dt); if (w.fx) boltImpacts(w, v);
   draw(ctx, w, v);
   ui.renderHUD(w, v);
   if (v.needFit) { v.needFit = false; fitToScreen(); }

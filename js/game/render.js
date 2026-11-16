@@ -25,9 +25,48 @@ function boltSprite(p) {
   if (type === 'shadow') return 'proj_shadow';
   return type === 'fire' ? 'proj_fireball' : type === 'cold' ? 'proj_ice_shard' : type === 'lightning' ? 'proj_spark' : 'proj_bolt_arcane';
 }
+/* Effect art in the new style (Pixel Lab, art/pixellab/): frames side by side, each w x h, drawn around its anchor (ax, ay)
+   (a projectile's head, a swing's centre, an impact's middle), n frames. */
+export const FX = {
+  proj_orb_arcane: { w: 54, h: 25, n: 8, ax: 41, ay: 12 }, proj_orb_holy: { w: 54, h: 25, n: 8, ax: 41, ay: 12 },
+  proj_orb_shadow: { w: 54, h: 25, n: 8, ax: 41, ay: 12 }, proj_orb_nature: { w: 54, h: 25, n: 8, ax: 41, ay: 12 },
+  proj_arrow: { w: 48, h: 16, n: 1, ax: 44, ay: 8 },
+  fx_swing: { w: 61, h: 57, n: 9, ax: 27, ay: 34 },
+  fx_impact_arcane: { w: 64, h: 51, n: 8, ax: 33, ay: 27 }, fx_impact_holy: { w: 64, h: 51, n: 8, ax: 33, ay: 27 },
+  fx_impact_nature: { w: 64, h: 51, n: 8, ax: 33, ay: 27 }, fx_impact_shadow: { w: 49, h: 51, n: 10, ax: 25, ay: 27 },
+  fx_impact_physical: { w: 45, h: 43, n: 6, ax: 21, ay: 22 }, fx_impact_lightning: { w: 70, h: 52, n: 10, ax: 28, ay: 22 },
+  fx_crit: { w: 66, h: 69, n: 8, ax: 35, ay: 30 }
+};
+/* Draws frame f of an FX sheet with its anchor at (x, y), k world px per art px, turned by angle a, upright on the board. */
+function drawFx(ctx, name, f, x, y, k, a = 0) {
+  const img = sprite(name), F = FX[name];
+  if (!img || !F) return false;
+  ctx.save(); ctx.translate(x, y); ctx.scale(1, unsquash()); if (a) ctx.rotate(a);
+  ctx.drawImage(img, Math.min(F.n - 1, Math.max(0, f)) * F.w, 0, F.w, F.h, -F.ax * k, -F.ay * k, F.w * k, F.h * k);
+  ctx.restore();
+  return true;
+}
+/* The new orbs for the base heroes' magic, by the old sprite's name. */
+const ORB = { proj_bolt_arcane: 'proj_orb_arcane', proj_holy: 'proj_orb_holy', proj_shadow: 'proj_orb_shadow', proj_seed: 'proj_orb_nature' };
+/* Which impact plays where a bolt lands. */
+const IMPACT = { proj_bolt_arcane: 'fx_impact_arcane', proj_holy: 'fx_impact_holy', proj_shadow: 'fx_impact_shadow', proj_seed: 'fx_impact_nature', proj_spark: 'fx_impact_lightning' };
+export const impactOf = p => IMPACT[boltSprite(p)] || 'fx_impact_physical';
+/* Bolts that landed since the last frame (gone from the world while their target was still there to be hit): their impact
+   plays on the target. v.bolts: the bolts in flight last frame. */
+export function boltImpacts(g, v) {
+  const now = new Set();
+  for (const p of g.projs) if (p.type === 'bolt' && p.target) now.add(p);
+  if (v.bolts) for (const p of v.bolts) if (!now.has(p) && p.owner && p.owner.def && p.owner.def.archetype) {
+    const tg = p.target, k = (p.size > 5 ? 0.85 : 0.65);
+    if (Math.hypot(tg.x - p.x, tg.y - p.y) < 30) addImpact(v.vfx, impactOf(p), tg, k);
+  }
+  v.bolts = now;
+}
 const PROJ_DRAW = {
   bolt(ctx, p) {
-    const sp = boltSprite(p), big = p.size > 5 ? 1.35 : 1;
+    const sp = boltSprite(p), big = p.size > 5 ? 1.35 : 1, ang = Math.atan2(p.dy, p.dx);
+    if (ORB[sp] && drawFx(ctx, ORB[sp], ((performance.now() / 83) | 0) % 8, p.x, p.y, 0.7 * big, ang)) return;   /* animated, 12 fps */
+    if (sp === 'proj_arrow' && drawFx(ctx, sp, 0, p.x, p.y, 0.62 * big, ang)) return;
     if (p.look === 'flask' ? drawSprite(ctx, sp, p.x, p.y, 22) : drawSprite(ctx, sp, p.x - p.dx * 6, p.y - p.dy * 6, 26 * big, Math.atan2(p.dy, p.dx))) return;
     if (p.look === 'arrow') {                 /* a shaft with a head, pointing where it flies */
       const L = p.size > 5 ? 20 : 14, hx = p.x, hy = p.y, tx = hx - p.dx * L, ty = hy - p.dy * L;
@@ -98,6 +137,23 @@ Object.assign(PROJ_DRAW, KIT_PROJ);
 
 /* Short-lived visuals, pooled so busy fights don't create garbage. vfx = { beams: [], slashes: [] } belongs to the screen. */
 const pool = [];
+/* A beam drawn as a bolt of lightning: a jagged line that re-forks every couple of frames (a glow, a bright core and a
+   white heart), fading as it ends. a, c: its ends in the picture; sc: the perspective scale there. */
+function drawBolt(ctx, a, c, b, sc) {
+  const dx = c[0] - a[0], dy = c[1] - a[1], len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len;
+  const segs = Math.max(2, Math.round(len / (10 * sc))), life = b.ttl ? b.t / b.ttl : 1;
+  let r = (b.seed + ((performance.now() / 50) | 0) * 7919) >>> 0;
+  const rnd = () => ((r = (r * 1664525 + 1013904223) >>> 0) / 4294967296) - 0.5;
+  const pts = [a];
+  for (let i = 1; i < segs; i++) { const t = i / segs, o = rnd() * 9 * sc; pts.push([a[0] + dx * t + nx * o, a[1] + dy * t + ny * o]); }
+  pts.push(c);
+  const path = () => { ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]); };
+  ctx.save(); ctx.lineJoin = 'miter'; ctx.lineCap = 'square';
+  ctx.globalAlpha = 0.35 * life; ctx.strokeStyle = b.c; ctx.lineWidth = b.w * 2.6 * sc; path(); ctx.stroke();
+  ctx.globalAlpha = 0.9 * life; ctx.lineWidth = b.w * sc; path(); ctx.stroke();
+  ctx.globalAlpha = life; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = Math.max(1, b.w * 0.4 * sc); path(); ctx.stroke();
+  ctx.restore();
+}
 /* from, to (optional): the hero or enemy at each end. A beam then starts at the hero's staff or hand (shotFrom) and runs
    between the figures' bodies, not their feet; lifts are in upright units above the ground point. */
 export function addBeam(vfx, x1, y1, x2, y2, ttl, color, w = 3, from = null, to = null) {
@@ -105,8 +161,9 @@ export function addBeam(vfx, x1, y1, x2, y2, ttl, color, w = 3, from = null, to 
   b.l1 = b.l2 = 0;
   if (from) { const m = shotFrom(from, x2); x1 = m.x; y1 = m.y; b.l1 = m.lift; }
   if (to) b.l2 = bodyLift(to);
-  b.x1 = x1; b.y1 = y1; b.x2 = x2; b.y2 = y2; b.t = ttl; b.c = color; b.w = w;
+  b.x1 = x1; b.y1 = y1; b.x2 = x2; b.y2 = y2; b.t = b.ttl = ttl; b.c = color; b.w = w; b.seed = (Math.random() * 1e9) | 0;
   vfx.beams.push(b);
+  if (to) addImpact(vfx, 'fx_impact_lightning', to, 0.6, 0.45);   /* a crackle where the bolt strikes */
 }
 /* Where a hero's shots leave it, aimed at world x toX: the tip of its staff, its bow or its hand (HERO_ANIM muzzle, a
    point on its first attack frame), mirrored like the attack art; heroes without that art shoot from their chest. Returns
@@ -136,7 +193,7 @@ export function tickBeams(vfx, dt) {
 const spool = [];
 export function addSlash(vfx, x, y, ang, half, r, ttl, color) {
   const s = spool.pop() || {};
-  s.x = x; s.y = y; s.a = ang; s.h = half; s.r = r; s.t = s.ttl = ttl; s.c = color;
+  s.x = x; s.y = y; s.a = ang; s.h = half; s.r = r; s.t = s.ttl = ttl * 1.8; s.c = color;   /* shown a little longer than the hit lasts, so the swing reads */
   vfx.slashes.push(s);
 }
 export function tickSlashes(vfx, dt) {
@@ -149,9 +206,16 @@ export function tickSlashes(vfx, dt) {
 const apool = [];
 export function addAnim(vfx, name, x, y, s, dur, frames) {
   const a = apool.pop() || {};
-  a.name = name; a.x = x; a.y = y; a.s = s; a.t = 0; a.dur = dur; a.frames = frames;
+  a.name = name; a.x = x; a.y = y; a.s = s; a.t = 0; a.dur = dur; a.frames = frames; a.k = 0; a.lift = 0;
   vfx.anims.push(a);
 }
+/* An FX sheet played once at (x, y), lift (upright px) above it, k world px per art px, over dur seconds. */
+export function addFx(vfx, name, x, y, k, dur, lift = 0) {
+  addAnim(vfx, name, x, y, 0, dur, FX[name] ? FX[name].n : 1);
+  const a = vfx.anims[vfx.anims.length - 1]; a.k = k; a.lift = lift;
+}
+/* An impact on an enemy's body (its middle, not its feet). */
+export function addImpact(vfx, name, e, k = 0.7, dur = 0.4) { addFx(vfx, name, e.x, e.y, k, dur, bodyLift(e)); }
 export function tickAnims(vfx, dt) {
   const list = vfx.anims; let j = 0;
   for (let i = 0; i < list.length; i++) { const a = list[i]; if ((a.t += dt) < a.dur) list[j++] = a; else apool.push(a); }
@@ -552,9 +616,14 @@ export function draw(ctx, g, v) {
     if (!drawHeroStill(ctx, d, x, y)) at(ctx, x, y, () => { ctx.fillStyle = d.color; ctx.beginPath(); ctx.arc(x, y, 13, 0, 7); ctx.fill(); });
     ctx.globalAlpha = 1;
   }
-  const slashArt = sprite('fx_slash');
+  const slashArt = sprite('fx_slash'), swingArt = sprite('fx_swing');
   for (const s of v.vfx.slashes) at(ctx, s.x, s.y, () => {
     const a = Math.max(0, s.t / s.ttl);
+    if (swingArt && s.h < Math.PI - 0.01) {    /* the new swing (fx_swing): a crescent sweeping round, its arc ~30 art px from its centre, raised to the weapon's height */
+      const k = 0.85, d = Math.max(0, s.r - 30 * k) * 0.6;   /* a fixed size; its centre moved out toward the target so the edge reaches it */
+      drawFx(ctx, 'fx_swing', Math.floor((1 - a) * 7), s.x + Math.cos(s.a) * d, s.y + Math.sin(s.a) * d - 18 * unsquash(), k, s.a);
+      return;
+    }
     if (slashArt && s.h < Math.PI - 0.01) {    /* a sword arc, from the sheet: 3 frames, the arc 50 px from its centre */
       const k = s.r / 50, f = Math.min(2, Math.floor((1 - a) * 3));
       ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.a);
@@ -576,7 +645,7 @@ export function draw(ctx, g, v) {
   for (const b of v.vfx.beams) {
     const a = P(b.x1, b.y1), c = P(b.x2, b.y2);
     a[1] -= (b.l1 || 0) * scaleAt(b.y1); c[1] -= (b.l2 || 0) * scaleAt(b.y2);
-    ctx.strokeStyle = b.c; ctx.lineWidth = b.w * scaleAt((b.y1 + b.y2) / 2); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(c[0], c[1]); ctx.stroke();
+    drawBolt(ctx, a, c, b, scaleAt((b.y1 + b.y2) / 2));
   }
   for (const p of g.projs) {
     const pv = projView(p);
@@ -584,7 +653,11 @@ export function draw(ctx, g, v) {
     at(ctx, pv.x, pv.y, () => { ctx.translate(pv.x - p.x, pv.y - p.y - pv.lift * unsquash()); PROJ_DRAW[p.type](ctx, p); });   /* lifted off the ground */
   }
   for (const t of g.heroes) if (t.def.flying) drawHero(ctx, g, v, t);   /* the Archangel flies over the enemies on the path */
-  for (const a of v.vfx.anims || []) at(ctx, a.x, a.y, () => drawSprite(ctx, a.name, a.x, a.y, a.s, 0, Math.floor(a.t / a.dur * a.frames), a.frames));
+  for (const a of v.vfx.anims || []) at(ctx, a.x, a.y, () => {
+    const f = Math.floor(a.t / a.dur * a.frames);
+    if (a.k) drawFx(ctx, a.name, f, a.x, a.y - a.lift * unsquash(), a.k);
+    else drawSprite(ctx, a.name, a.x, a.y, a.s, 0, f, a.frames);
+  });
 }
 
 /* One enemy, upright around its feet: its sprite (walk animation), health bar and ailment icons, or a plain shape. */

@@ -200,6 +200,11 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Attack effects in the new style (Nov 16)
+- **New effect art** made with Pixel Lab's effect workbench (saved in `art/pixellab/`, copied to `assets/` by `art/build.py`): animated orbs for the Mage (arcane violet), Priest (holy gold), Warlock (shadow purple) and Druid (nature green), a new arrow for the Hunter, a sword swing crescent for melee heroes, and impacts: an arcane, holy, shadow and nature burst, a physical hit star, a lightning crackle and a critical-hit burst.
+- **Where they play:** each bolt plays its impact on the enemy's body when it lands; melee swings show the new crescent (a little longer than the hit itself, so it reads); critical hits burst with hot streaks; kills flash a hit star; the Shaman's chain lightning is drawn as a flickering jagged bolt with a crackle on every enemy it strikes. Sheets, frame sizes and anchors are in `FX` (`js/game/render.js`).
+- Evolved forms' projectiles (fire, ice, sparks, toxic, flasks, daggers...) and zone effects keep their old art for now. Only the drawing changed. Game version 0.37.0.
+
 ## Shots leave the staff, bow or hand (Nov 16)
 - **Bolts, arrows and seeds now leave the hero where its attack art holds them** (the Hunter's bow, the tip of the Mage's, Druid's and Priest's staff, the Warlock's reaching hand), and arrive at the middle of the enemy's body, no longer flying from the hero's feet to the enemy's feet. Each animated hero has a `muzzle` point in `HERO_ANIM` (`js/game/sprites.js`), measured on its first attack frame and mirrored with the art; heroes without the new art shoot from their chest.
 - **The Shaman's chain lightning** starts at the head of his totem staff and jumps between the enemies' bodies.
