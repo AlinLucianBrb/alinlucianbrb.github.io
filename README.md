@@ -200,6 +200,13 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## New terrain in the Pixel Lab style (Nov 16)
+- The ground is redrawn in the heroes' style, keeping the old layout: green grass on the map, a dirt road sunk a little below it, and a dark forest floor around it with trees, bushes, rocks, flowers and mushrooms.
+- The grass and road are a Pixel Lab Wang tileset (64 px tiles, the grass raised over the road by a low bank of soil and roots, drawn into the tiles). Tiles are placed on a grid shifted by half a tile: each tile's corners are the centres of four cells, grass unless the cell is road, so the road runs through the middle of its cells with smooth, rounded bends. The all-grass and all-road tiles have extra variants (inpainted middles, edges kept) so the ground repeats less.
+- The forest floor is the same set, darkened and cooled; the map's grass is drawn over it, clipped to the map, so the road crosses from forest to map without a seam. The grass is warmed a little toward the old olive green.
+- New scenery: an oak, a pine, a bush, a mossy rock, wildflowers and red mushrooms (deco2_*), taller trees than before.
+- Built by `python3 art/pixellab/build_terrain.py` from art/pixellab/terrain/ into assets/terrain.png + terrain.json (`terrain()` in sprites.js, `paintTerrain` in render.js). The old tile sheet (art/tiles.py) is still the fallback if the new one can't load. Only the drawing changed. Game version 0.39.0.
+
 ## Enemies in the new style: goblins, orcs, trolls (Nov 16)
 - Every enemy has new Pixel Lab art in the heroes' style, with an 8-frame walk: the runner is a **goblin** (dagger and buckler), the grunt an **orc** (axe and round shield), the brute a **troll** (spiked club and plank shield) and the boss an **orc warlord** (cleaver, skull tower shield, horned helm, red cape).
 - They face the way they walk: the art faces left and is mirrored while an enemy walks right. The walk steps with the distance walked, so fast goblins patter and the boss stomps.

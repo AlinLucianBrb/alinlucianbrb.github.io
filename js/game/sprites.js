@@ -100,7 +100,8 @@ export const SPRITES = [...new Set([
   ...['poison', 'oil', 'storm_cloud', 'barrier', 'trap', 'thorns'].map(n => 'zone_' + n),
   ...Object.values(ATTACK_ICON).map(n => 'ability_' + n), ...Object.keys(ULTIMATES).map(n => 'ability_ult_' + n),
   ...['tree', 'tree_2', 'bush', 'rock', 'flowers', 'mushrooms'].map(n => 'deco_' + n),
-  'tiles'
+  ...['tree_oak', 'tree_pine', 'bush', 'rock', 'flowers', 'mushrooms'].map(n => 'deco2_' + n),
+  'tiles', 'terrain'
 ])];
 
 const canLoad = () => typeof Image !== 'undefined';
@@ -130,8 +131,22 @@ export function tiles() {
   return tileIndex ? { img, index: tileIndex.tiles, columns: tileIndex.columns, size: tileIndex.size } : null;
 }
 
+/* The Pixel Lab terrain sheet (art/pixellab/build_terrain.py: terrain.png + terrain.json): { img, index, columns, size },
+   'wait' while it is still loading, or null if it could not load (the old tile sheet is used then). */
+let terrainIndex, terrainReq = null;
+export function terrain() {
+  const img = get('terrain');
+  if (img === null && cache.get('terrain') === null) return null;
+  if (!img) return canLoad() ? 'wait' : null;
+  if (terrainIndex === undefined && !terrainReq && typeof fetch === 'function') {
+    terrainReq = fetch(new URL('terrain.json', BASE)).then(r => r.json()).then(j => { terrainIndex = j; }, () => { terrainIndex = null; });
+  }
+  if (terrainIndex === undefined) return typeof fetch === 'function' ? 'wait' : null;
+  return terrainIndex ? { img, index: terrainIndex.tiles, columns: terrainIndex.columns, size: terrainIndex.size } : null;
+}
+
 /* Starts loading everything, so the art is there by the time a match begins. */
-export function preload() { if (canLoad()) { for (const n of SPRITES) get(n); tiles(); } }
+export function preload() { if (canLoad()) { for (const n of SPRITES) get(n); tiles(); terrain(); } }
 
 /* Perspective (camera.js): the canvas draws the picture (the view through the camera) with a plain zoom-and-offset
    transform; at(ctx, x, y, fn) sets up the view around one world point (x, y) so fn can draw in world coordinates there:

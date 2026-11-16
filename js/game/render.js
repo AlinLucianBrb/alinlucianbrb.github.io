@@ -1,7 +1,7 @@
 /* Canvas drawing. The world is drawn through the camera; the board is cheap enough to draw every frame, which keeps it sharp at any zoom. */
 import { COLS, ROWS, T, HEROES } from '../content/data.js';
 import { tintOf } from '../engine/effects.js';
-import { get as sprite, tiles as tileSheet, drawSprite, heroSprite, frameOf, heroAnim, drawEnemyArt, enemyHeight, ENEMY_ANIM, upright, unsquash, at, setPicture } from './sprites.js';
+import { get as sprite, tiles as tileSheet, drawSprite, heroSprite, frameOf, heroAnim, terrain, drawEnemyArt, enemyHeight, ENEMY_ANIM, upright, unsquash, at, setPicture } from './sprites.js';
 import { project, unproject, scaleAt, setView } from './camera.js';
 import { drawAuras, drawMinions, drawMounted, KIT_PROJ, KIT_ZONE, KIT_AIL_ICON, BUFF_COLOR } from './kit-art.js';
 
@@ -363,7 +363,63 @@ function roadCells(g, x0, x1) {
   return set;
 }
 function paintBoard(g) {
-  const sh = tileSheet();
+  const tr = terrain();
+  if (tr === 'wait') return null;
+  return tr ? paintTerrain(g, tr) : paintOldBoard(g, tileSheet());
+}
+/* Scenery in the forest around the map (never on the map or the road): standing sprites, kept with their world position
+   (of the foot) and world size, see drawScenery. table: [chance up to, sprite, size in tiles]. */
+function placeScenery(g, table, imgs, x0, y0, w, h, on, inMap, seed) {
+  const scenery = [];
+  for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) {
+    if (inMap(x, y) || on(x, y) || on(x, y - 1) || on(x, y + 1)) continue;
+    const r = tileHash(seed, x, y), d = table.findIndex(e => r < e[0]);
+    if (d < 0) continue;
+    if (table[d][2] > 1 && y >= ROWS && y <= ROWS + 1 && x >= -1 && x <= COLS) continue;   /* no tall tree right in front of the board: it would hide the near row */
+    const img = imgs[d], s = TS * table[d][2], ox = (tileHash(r * 1e9, x, y) - 0.5) * 16, oy = (tileHash(r * 7e8, y, x) - 0.5) * 12;
+    scenery.push({ img, x: x * T + T / 2 + ox * T / TS, y: (y + 1) * T + oy * T / TS, s: s * T / TS, big: table[d][2] > 1 });
+  }
+  scenery.sort((a, b) => a.y - b.y);
+  return scenery;
+}
+/* The Pixel Lab terrain (sprites.js terrain()): Wang tiles picked by their corners. The tiles sit on a grid shifted by half
+   a tile, so each one's corners are the centres of four map cells, and a corner is grass unless its cell is road: the road
+   runs through the middle of its cells, with the grass bank (part of the art) along its edges. The forest floor outside
+   the map is the same set, darkened; the map's grass is drawn over it, clipped to the map. The all-grass and all-road
+   tiles have variants, picked so the pattern repeats every 4 tiles (the board view repeats its outer 4-tile bands). */
+const DECO2 = [[0.07, 'deco2_tree_oak', 1.55], [0.12, 'deco2_tree_pine', 1.7], [0.16, 'deco2_bush', 0.8], [0.19, 'deco2_rock', 0.75], [0.23, 'deco2_flowers', 0.55], [0.25, 'deco2_mushrooms', 0.5]];
+function paintTerrain(g, tr) {
+  const deco = DECO2.map(d => sprite(d[1]));
+  if (deco.some(d => !d)) return null;
+  const x0 = -MARGIN.side, y0 = -MARGIN.back, w = COLS + 2 * MARGIN.side, h = ROWS + MARGIN.back + MARGIN.front;
+  const c = makeCanvas(w * TS, h * TS);
+  if (!c) return null;
+  const cx = c.getContext('2d');
+  cx.imageSmoothingEnabled = false;
+  const tile = (name, dx, dy) => {
+    const i = tr.index[name];
+    if (i === undefined) return false;
+    cx.drawImage(tr.img, (i % tr.columns) * tr.size, Math.floor(i / tr.columns) * tr.size, tr.size, tr.size, dx, dy, TS, TS);
+    return true;
+  };
+  const road = roadCells(g, x0 - 1, x0 + w + 1), on = (x, y) => road.has(x + ',' + y), seed = g.seed || 1;
+  const inMap = (x, y) => x >= 0 && y >= 0 && x < COLS && y < ROWS;
+  const VAR = { 15: ['15', '15', '15_1', '15_2'], 0: ['0', '0_1'] };
+  for (const pre of ['f', 'g']) {
+    if (pre === 'g') { cx.save(); cx.beginPath(); cx.rect(-x0 * TS, -y0 * TS, COLS * TS, ROWS * TS); cx.clip(); }
+    for (let vy = y0; vy <= y0 + h; vy++) for (let vx = x0; vx <= x0 + w; vx++) {
+      if (pre === 'g' && (vx < 0 || vy < 0 || vx > COLS || vy > ROWS)) continue;
+      const m = (on(vx - 1, vy - 1) ? 0 : 8) + (on(vx, vy - 1) ? 0 : 4) + (on(vx - 1, vy) ? 0 : 2) + (on(vx, vy) ? 0 : 1);
+      const vars = VAR[m], key = vars ? vars[Math.floor(tileHash(seed, mod4(vx), mod4(vy)) * vars.length)] : String(m);
+      const dx = (vx - x0) * TS - TS / 2, dy = (vy - y0) * TS - TS / 2;
+      if (!tile(pre + key, dx, dy)) tile(pre + m, dx, dy);
+    }
+    if (pre === 'g') cx.restore();
+  }
+  const scenery = placeScenery(g, DECO2, deco, x0, y0, w, h, on, inMap, seed);
+  return { c, g, path: g.path, x0, y0, w, h, scenery };
+}
+function paintOldBoard(g, sh) {
   if (!sh) return null;
   const deco = DECO.map(d => sprite(d[1]));
   if (deco.some(d => !d)) return null;
@@ -396,18 +452,7 @@ function paintBoard(g) {
     if (mx) tile(mx, 'pathmask_' + key, px, py);
   }
   if (mx) roadBanks(cx, mx, w * TS, h * TS);
-  /* Scenery in the forest around the map (never on the map or the road). */
-  const scenery = [];
-  for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) {
-    if (inMap(x, y) || on(x, y) || on(x, y - 1) || on(x, y + 1)) continue;
-    const r = tileHash(seed, x, y), d = DECO.findIndex(e => r < e[0]);
-    if (d < 0) continue;
-    if (DECO[d][2] > 1 && y >= ROWS && y <= ROWS + 1 && x >= -1 && x <= COLS) continue;   /* no tall tree right in front of the board: it would hide the near row */
-    const img = deco[d], s = TS * DECO[d][2], ox = (tileHash(r * 1e9, x, y) - 0.5) * 16, oy = (tileHash(r * 7e8, y, x) - 0.5) * 12;
-    /* not painted into the ground: kept as standing scenery (world position of its foot, world size), see drawScenery */
-    scenery.push({ img, x: x * T + T / 2 + ox * T / TS, y: (y + 1) * T + oy * T / TS, s: s * T / TS, big: DECO[d][2] > 1 });
-  }
-  scenery.sort((a, b) => a.y - b.y);
+  const scenery = placeScenery(g, DECO, deco, x0, y0, w, h, on, inMap, seed);
   return { c, g, path: g.path, x0, y0, w, h, scenery };
 }
 /* The board for this map: painted once (when the tiles have loaded) and kept until the map changes. */
