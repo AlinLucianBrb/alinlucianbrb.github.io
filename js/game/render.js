@@ -32,6 +32,7 @@ export const FX = {
   proj_orb_shadow: { w: 54, h: 25, n: 8, ax: 41, ay: 12 }, proj_orb_nature: { w: 54, h: 25, n: 8, ax: 41, ay: 12 },
   proj_arrow: { w: 48, h: 16, n: 1, ax: 44, ay: 8 },
   fx_swing: { w: 61, h: 57, n: 9, ax: 27, ay: 34 },
+  fx_slash2: { w: 109, h: 55, n: 13, ax: 7, ay: 27 },
   fx_impact_arcane: { w: 64, h: 51, n: 8, ax: 33, ay: 27 }, fx_impact_holy: { w: 64, h: 51, n: 8, ax: 33, ay: 27 },
   fx_impact_nature: { w: 64, h: 51, n: 8, ax: 33, ay: 27 }, fx_impact_shadow: { w: 49, h: 51, n: 10, ax: 25, ay: 27 },
   fx_impact_physical: { w: 45, h: 43, n: 6, ax: 21, ay: 22 }, fx_impact_lightning: { w: 70, h: 52, n: 10, ax: 28, ay: 22 },
@@ -616,19 +617,21 @@ export function draw(ctx, g, v) {
     if (!drawHeroStill(ctx, d, x, y)) at(ctx, x, y, () => { ctx.fillStyle = d.color; ctx.beginPath(); ctx.arc(x, y, 13, 0, 7); ctx.fill(); });
     ctx.globalAlpha = 1;
   }
-  const slashArt = sprite('fx_slash'), swingArt = sprite('fx_swing');
+  const slashArt = sprite('fx_slash'), slash2 = sprite('fx_slash2');
   for (const s of v.vfx.slashes) at(ctx, s.x, s.y, () => {
     const a = Math.max(0, s.t / s.ttl);
-    if (swingArt && s.h < Math.PI - 0.01) {    /* the new swing (fx_swing): a crescent sweeping round, its arc ~30 art px from its centre, raised to the weapon's height */
-      const k = 0.85, d = Math.max(0, s.r - 30 * k) * 0.6;   /* a fixed size; its centre moved out toward the target so the edge reaches it */
-      drawFx(ctx, 'fx_swing', Math.floor((1 - a) * 7), s.x + Math.cos(s.a) * d, s.y + Math.sin(s.a) * d - 18 * unsquash(), k, s.a);
-      return;
-    }
-    if (slashArt && s.h < Math.PI - 0.01) {    /* a sword arc, from the sheet: 3 frames, the arc 50 px from its centre */
-      const k = s.r / 50, f = Math.min(2, Math.floor((1 - a) * 3));
-      ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.a);
-      ctx.drawImage(slashArt, f * 64, 0, 64, 64, -12 * k, -32 * k, 64 * k, 64 * k);
-      ctx.restore();
+    if (s.h < Math.PI - 0.01 && (slash2 || slashArt)) {   /* a sword arc thrown out toward the target, with the hero's colour along it */
+      if (slash2) {   /* fx_slash2 (Pixel Lab VFX): a crescent flung outward, its far end ~75 art px out, so it stops at the reach */
+        const k = s.r / 75, F = FX.fx_slash2, f = Math.min(F.n - 1, Math.floor((1 - a) * F.n));
+        ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.a);   /* lying on the ground like the old arc, so it lines up with the coloured one */
+        ctx.drawImage(slash2, f * F.w, 0, F.w, F.h, -F.ax * k, -F.ay * k, F.w * k, F.h * k);
+        ctx.restore();
+      } else {
+        const k = s.r / 50, f = Math.min(2, Math.floor((1 - a) * 3));
+        ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.a);
+        ctx.drawImage(slashArt, f * 64, 0, 64, 64, -12 * k, -32 * k, 64 * k, 64 * k);
+        ctx.restore();
+      }
       ctx.globalAlpha = a * 0.5; ctx.strokeStyle = s.c; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(s.x, s.y, s.r * 0.95, s.a - s.h * 0.8, s.a + s.h * 0.8); ctx.stroke();
       ctx.globalAlpha = 1;

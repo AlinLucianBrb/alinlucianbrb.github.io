@@ -200,6 +200,9 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Melee slash back to the old arc (Nov 16)
+- The sword/hammer/dagger swing is the old crescent again: thrown out from the hero toward the target, lying on the ground, with the thin arc in the hero's colour. Its art is new, made with Pixel Lab's VFX tool (`fx_slash2`, 13 frames: a clean steel-white crescent with a few sparks trailing it), sized so it stops at the swing's reach. The old `fx_slash` stays as a fallback. Only the drawing changed. Game version 0.37.1.
+
 ## Attack effects in the new style (Nov 16)
 - **New effect art** made with Pixel Lab's effect workbench (saved in `art/pixellab/`, copied to `assets/` by `art/build.py`): animated orbs for the Mage (arcane violet), Priest (holy gold), Warlock (shadow purple) and Druid (nature green), a new arrow for the Hunter, a sword swing crescent for melee heroes, and impacts: an arcane, holy, shadow and nature burst, a physical hit star, a lightning crackle and a critical-hit burst.
 - **Where they play:** each bolt plays its impact on the enemy's body when it lands; melee swings show the new crescent (a little longer than the hit itself, so it reads); critical hits burst with hot streaks; kills flash a hit star; the Shaman's chain lightning is drawn as a flickering jagged bolt with a crackle on every enemy it strikes. Sheets, frame sizes and anchors are in `FX` (`js/game/render.js`).
