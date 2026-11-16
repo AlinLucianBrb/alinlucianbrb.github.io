@@ -200,6 +200,10 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Paladin and Shaman attack fixes (Nov 16)
+- **Paladin:** the hammer no longer bends while she smashes. The in-between frames that stretched its handle are replaced by her smash pose, so the hammer keeps its shape (raised, then smashed down and held).
+- **Shaman:** his free hand no longer slips behind his body at the end of his cast; the frame that did it is gone and the cast ends on the frame where both hands are clear. Game version 0.35.2.
+
 ## The Shaman looks left (Nov 15)
 - The Shaman's art is mirrored so he looks to the left like the other heroes (same design; his staff is now in the other hand), and his cast was redrawn from the mirrored pose. Game version 0.35.1.
 
