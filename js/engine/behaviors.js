@@ -184,6 +184,7 @@ registerBehavior('chain', {
     let cur = pickTarget(g, t, t.s.range);
     if (!cur) return;
     const seen = new Set(), jr2 = (t.s.range * 0.8) ** 2, jumps = Math.round(t.s.jumps), mult = strike(g, t);
+    g.fx?.shot?.(t, Math.atan2(cur.y - t.y, cur.x - t.x));   /* the screen plays the hero's attack */
     let px = t.x, py = t.y, d = mult;   /* d scales the hit: 15% weaker each jump */
     for (let j = 0; j <= jumps && cur; j++) {
       seen.add(cur); g.attack(t, cur, d); d *= 0.85;

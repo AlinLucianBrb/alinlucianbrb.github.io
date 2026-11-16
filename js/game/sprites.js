@@ -38,7 +38,21 @@ export const HERO_ANIM = {
   warrior: { frame: 192, foot: [91, 185], height: 125, tiles: 1.6, portrait: 'portrait_warrior',
     idle: { name: 'anim_warrior_idle', frames: 4, fps: 5 }, attack: { name: 'anim_warrior_attack', frames: 4, fps: 12, swings: 'left' } },
   ranger: { frame: 160, foot: [80, 140], height: 123, tiles: 1.6, portrait: 'portrait_ranger',
-    idle: { name: 'anim_ranger_idle', frames: 4, fps: 5 }, attack: { name: 'anim_ranger_attack', frames: 4, fps: 10, swings: 'left' } }
+    idle: { name: 'anim_ranger_idle', frames: 4, fps: 5 }, attack: { name: 'anim_ranger_attack', frames: 4, fps: 10, swings: 'left' } },
+  mage: { frame: 160, foot: [66, 141], height: 124, tiles: 1.6, portrait: 'portrait_mage',
+    idle: { name: 'anim_mage_idle', frames: 4, fps: 5 }, attack: { name: 'anim_mage_attack', frames: 4, fps: 10, swings: 'left' } },
+  rogue: { frame: 160, foot: [74, 140], height: 122, tiles: 1.6, portrait: 'portrait_rogue',
+    idle: { name: 'anim_rogue_idle', frames: 4, fps: 5 }, attack: { name: 'anim_rogue_attack', frames: 4, fps: 12, swings: 'left' } },
+  druid: { frame: 160, foot: [88, 141], height: 123, tiles: 1.6, portrait: 'portrait_druid',
+    idle: { name: 'anim_druid_idle', frames: 4, fps: 5 }, attack: { name: 'anim_druid_attack', frames: 4, fps: 10, swings: 'left' } },
+  priest: { frame: 160, foot: [74, 140], height: 123, tiles: 1.6, portrait: 'portrait_priest',
+    idle: { name: 'anim_priest_idle', frames: 4, fps: 5 }, attack: { name: 'anim_priest_attack', frames: 4, fps: 10, swings: 'left' } },
+  warlock: { frame: 160, foot: [75, 140], height: 123, tiles: 1.6, portrait: 'portrait_warlock',
+    idle: { name: 'anim_warlock_idle', frames: 4, fps: 5 }, attack: { name: 'anim_warlock_attack', frames: 4, fps: 10, swings: 'left' } },
+  paladin: { frame: 160, foot: [86, 140], height: 123, tiles: 1.6, portrait: 'portrait_paladin',
+    idle: { name: 'anim_paladin_idle', frames: 4, fps: 5 }, attack: { name: 'anim_paladin_attack', frames: 4, fps: 12, swings: 'left' } },
+  shaman: { frame: 160, foot: [75, 141], height: 123, tiles: 1.6, portrait: 'portrait_shaman',
+    idle: { name: 'anim_shaman_idle', frames: 4, fps: 5 }, attack: { name: 'anim_shaman_attack', frames: 4, fps: 10, swings: 'left' } }
 };
 export const heroAnim = def => (def.form || def.mounted ? null : HERO_ANIM[def.id] || null);
 /* The image of a hero for the menus: its portrait when it has one, otherwise its sprite. */
