@@ -98,10 +98,35 @@ Object.assign(PROJ_DRAW, KIT_PROJ);
 
 /* Short-lived visuals, pooled so busy fights don't create garbage. vfx = { beams: [], slashes: [] } belongs to the screen. */
 const pool = [];
-export function addBeam(vfx, x1, y1, x2, y2, ttl, color, w = 3) {
+/* from, to (optional): the hero or enemy at each end. A beam then starts at the hero's staff or hand (shotFrom) and runs
+   between the figures' bodies, not their feet; lifts are in upright units above the ground point. */
+export function addBeam(vfx, x1, y1, x2, y2, ttl, color, w = 3, from = null, to = null) {
   const b = pool.pop() || {};
+  b.l1 = b.l2 = 0;
+  if (from) { const m = shotFrom(from, x2); x1 = m.x; y1 = m.y; b.l1 = m.lift; }
+  if (to) b.l2 = bodyLift(to);
   b.x1 = x1; b.y1 = y1; b.x2 = x2; b.y2 = y2; b.t = ttl; b.c = color; b.w = w;
   vfx.beams.push(b);
+}
+/* Where a hero's shots leave it, aimed at world x toX: the tip of its staff, its bow or its hand (HERO_ANIM muzzle, a
+   point on its first attack frame), mirrored like the attack art; heroes without that art shoot from their chest. Returns
+   the ground point under it and its height above that point (upright units). Enemies: the middle of their body. */
+function shotFrom(u, toX) {
+  if (!u.def || !u.def.archetype) return { x: u.x, y: u.y, lift: bodyLift(u) };
+  const A = heroAnim(u.def);
+  if (!A || !A.muzzle) return { x: u.x, y: u.y + HERO_FOOT, lift: HERO_S * 0.44 };
+  const k = T * A.tiles / A.height, right = toX > u.x, sign = right === (A.attack.swings === 'right') ? 1 : -1;
+  return { x: u.x + sign * (A.muzzle[0] - A.foot[0]) * k, y: u.y + HERO_FOOT, lift: (A.foot[1] - A.muzzle[1]) * k };
+}
+function bodyLift(e) { const look = ENEMY_ART[e.type]; return look ? look.s * 0.44 : (e.def && e.def.radius) || 12; }
+/* A hero's bolt or arrow is drawn leaving its staff, bow or hand and arriving at the middle of its target's body: the
+   engine flies it from the hero's tile to the target's feet, and the drawing eases from one to the other along the way. */
+function projView(p) {
+  const o = p.owner;
+  if (p.type !== 'bolt' || !o || !o.def || !o.def.archetype) return null;
+  const tg = p.target, m = shotFrom(o, tg ? tg.x : p.x + p.dx);
+  const d0 = Math.hypot(p.x - o.x, p.y - o.y), d1 = tg ? Math.hypot(tg.x - p.x, tg.y - p.y) : 0, f = d0 + d1 > 0 ? d0 / (d0 + d1) : 1;
+  return { x: p.x + (m.x - o.x) * (1 - f), y: p.y + (m.y - o.y) * (1 - f), lift: m.lift * (1 - f) + (tg ? bodyLift(tg) : m.lift) * f };
 }
 export function tickBeams(vfx, dt) {
   const list = vfx.beams; let j = 0;
@@ -550,9 +575,14 @@ export function draw(ctx, g, v) {
   /* beams join two points that can be far apart: drawn straight in the picture, as thick as the perspective at their middle */
   for (const b of v.vfx.beams) {
     const a = P(b.x1, b.y1), c = P(b.x2, b.y2);
+    a[1] -= (b.l1 || 0) * scaleAt(b.y1); c[1] -= (b.l2 || 0) * scaleAt(b.y2);
     ctx.strokeStyle = b.c; ctx.lineWidth = b.w * scaleAt((b.y1 + b.y2) / 2); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(c[0], c[1]); ctx.stroke();
   }
-  for (const p of g.projs) at(ctx, p.x, p.y, () => PROJ_DRAW[p.type](ctx, p));
+  for (const p of g.projs) {
+    const pv = projView(p);
+    if (!pv) { at(ctx, p.x, p.y, () => PROJ_DRAW[p.type](ctx, p)); continue; }
+    at(ctx, pv.x, pv.y, () => { ctx.translate(pv.x - p.x, pv.y - p.y - pv.lift * unsquash()); PROJ_DRAW[p.type](ctx, p); });   /* lifted off the ground */
+  }
   for (const t of g.heroes) if (t.def.flying) drawHero(ctx, g, v, t);   /* the Archangel flies over the enemies on the path */
   for (const a of v.vfx.anims || []) at(ctx, a.x, a.y, () => drawSprite(ctx, a.name, a.x, a.y, a.s, 0, Math.floor(a.t / a.dur * a.frames), a.frames));
 }

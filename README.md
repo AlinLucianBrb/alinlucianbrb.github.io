@@ -200,6 +200,11 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Shots leave the staff, bow or hand (Nov 16)
+- **Bolts, arrows and seeds now leave the hero where its attack art holds them** (the Hunter's bow, the tip of the Mage's, Druid's and Priest's staff, the Warlock's reaching hand), and arrive at the middle of the enemy's body, no longer flying from the hero's feet to the enemy's feet. Each animated hero has a `muzzle` point in `HERO_ANIM` (`js/game/sprites.js`), measured on its first attack frame and mirrored with the art; heroes without the new art shoot from their chest.
+- **The Shaman's chain lightning** starts at the head of his totem staff and jumps between the enemies' bodies.
+- Only the drawing changed (`shotFrom`, `projView` in `js/game/render.js`): the engine still flies shots between the same ground points, so hits and timing are unchanged. Game version 0.36.1.
+
 ## Paladin and Shaman attacks remade (Nov 16)
 - **Paladin:** a new 4-frame attack made from her standing pose: she winds the hammer back, swings it over her head and smashes it down to her left (a few sparks fly on impact), then steadies it. The hammer stays rigid, its handle at 90 degrees to the head, in every frame.
 - **Shaman:** a new 4-frame cast made from his standing pose (facing left): he levels the whole totem staff toward the target with both hands in front of his body, the bird head flashing blue, and holds it. Game version 0.36.0.

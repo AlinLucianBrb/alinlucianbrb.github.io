@@ -185,11 +185,11 @@ registerBehavior('chain', {
     if (!cur) return;
     const seen = new Set(), jr2 = (t.s.range * 0.8) ** 2, jumps = Math.round(t.s.jumps), mult = strike(g, t);
     g.fx?.shot?.(t, Math.atan2(cur.y - t.y, cur.x - t.x));   /* the screen plays the hero's attack */
-    let px = t.x, py = t.y, d = mult;   /* d scales the hit: 15% weaker each jump */
+    let px = t.x, py = t.y, d = mult, from = t;   /* d scales the hit: 15% weaker each jump */
     for (let j = 0; j <= jumps && cur; j++) {
       seen.add(cur); g.attack(t, cur, d); d *= 0.85;
-      g.fx?.beam(px, py, cur.x, cur.y, 0.12, look(t, mult));
-      px = cur.x; py = cur.y;
+      g.fx?.beam(px, py, cur.x, cur.y, 0.12, look(t, mult), undefined, from, cur);   /* from, cur: the screen starts and ends the bolt on the figures */
+      px = cur.x; py = cur.y; from = cur;
       let next = null, nd = jr2;
       for (const e of g.enemies) {
         if (e.dead || seen.has(e)) continue;

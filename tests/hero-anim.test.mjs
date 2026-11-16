@@ -48,3 +48,12 @@ test('the new-style heroes animate; evolved forms and heroes without art keep th
 test('one attack fits inside the hero\'s attack cooldown', () => {
   for (const [id, A] of Object.entries(HERO_ANIM)) assert.ok(A.attack.frames / A.attack.fps <= HEROES.find(h => h.id === id).stats.cooldown, id);
 });
+
+test('every animated hero that shoots has a muzzle point (where its bolts leave it) inside its frame', () => {
+  for (const h of HEROES) {
+    const A = HERO_ANIM[h.id];
+    if (!A || !['bolt', 'chain'].includes(h.kind)) continue;
+    assert.ok(A.muzzle, h.id);
+    assert.ok(A.muzzle[0] >= 0 && A.muzzle[0] < A.frame && A.muzzle[1] >= 0 && A.muzzle[1] < A.foot[1], h.id);
+  }
+});
