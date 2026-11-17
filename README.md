@@ -200,6 +200,11 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Each caster has its own shot (Nov 17)
+- The four casters no longer fire the same orb in different colours. New Pixel Lab art in the heroes' style (flat colour areas, a few sharp accents, made large and drawn small), each animated: the **Mage** fires a violet crystal shard with trailing sparkles (`proj_shard`), the **Priest** a golden diamond of light with a halo ring and a beam tail (`proj_lightbolt`), the **Warlock** a ragged shadow flame with a tiny skull at its head (`proj_skullflame`), the **Druid** a whirling leaf with little leaves trailing (`proj_leaf`). The Ranger's arrow and the Shaman's chain lightning are unchanged.
+- Matching hits: the shard shatters into crystals, the light bursts into a golden star of rays, the flame puffs into shadow smoke with tendrils, the leaf scatters into leaves (`fx_impact_*`, replaced). Every impact now fades out over its last 40%.
+- FX entries can carry `k` (a shot's size) and `m` (a size multiplier for impacts). The orbs stay as a fallback while the new sheets load. Only the drawing changed. Game version 0.44.0.
+
 ## No hard border around the field (Nov 17)
 - The map's grass no longer stops at a straight line: it fades into the darker forest floor over about two and a half tiles past the map's edge, along a wobbly line, broken up block by block (4 px blocks, kept or dropped at random by how far along the fade they are), so it reads as grass thinning out rather than a rectangle (`grassFade` in render.js).
 - The outline of the buildable area (dark shadow and light line) is drawn only while a hero is being placed or moved, together with the grid. Hovering outside the map still shows the red cross. Game version 0.43.0.

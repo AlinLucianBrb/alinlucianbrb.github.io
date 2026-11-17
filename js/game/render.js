@@ -30,11 +30,15 @@ function boltSprite(p) {
 export const FX = {
   proj_orb_arcane: { w: 54, h: 25, n: 8, ax: 41, ay: 12 }, proj_orb_holy: { w: 54, h: 25, n: 8, ax: 41, ay: 12 },
   proj_orb_shadow: { w: 54, h: 25, n: 8, ax: 41, ay: 12 }, proj_orb_nature: { w: 54, h: 25, n: 8, ax: 41, ay: 12 },
+  /* each caster's own shot (k: its size, world px per art px; drawn small, like the heroes) */
+  proj_shard: { w: 101, h: 28, n: 4, ax: 90, ay: 13, k: 0.4 }, proj_lightbolt: { w: 95, h: 43, n: 4, ax: 85, ay: 21, k: 0.4 },
+  proj_skullflame: { w: 109, h: 49, n: 5, ax: 100, ay: 24, k: 0.38 }, proj_leaf: { w: 94, h: 64, n: 8, ax: 69, ay: 32, k: 0.4 },
   proj_arrow: { w: 48, h: 16, n: 1, ax: 44, ay: 8 },
   fx_swing: { w: 61, h: 57, n: 9, ax: 27, ay: 34 },
   fx_slash2: { w: 109, h: 55, n: 13, ax: 7, ay: 27 },
-  fx_impact_arcane: { w: 64, h: 51, n: 8, ax: 33, ay: 27 }, fx_impact_holy: { w: 64, h: 51, n: 8, ax: 33, ay: 27 },
-  fx_impact_nature: { w: 64, h: 51, n: 8, ax: 33, ay: 27 }, fx_impact_shadow: { w: 49, h: 51, n: 10, ax: 25, ay: 27 },
+  /* the casters' hits (m: scales the size the caller asks for) */
+  fx_impact_arcane: { w: 88, h: 95, n: 5, ax: 45, ay: 47, m: 0.7 }, fx_impact_holy: { w: 102, h: 102, n: 5, ax: 52, ay: 50, m: 0.65 },
+  fx_impact_nature: { w: 96, h: 84, n: 5, ax: 51, ay: 40, m: 0.7 }, fx_impact_shadow: { w: 90, h: 92, n: 5, ax: 47, ay: 47, m: 0.7 },
   fx_impact_physical: { w: 45, h: 43, n: 6, ax: 21, ay: 22 }, fx_impact_lightning: { w: 70, h: 52, n: 10, ax: 28, ay: 22 },
   fx_crit: { w: 66, h: 69, n: 8, ax: 35, ay: 30 }
 };
@@ -42,12 +46,16 @@ export const FX = {
 function drawFx(ctx, name, f, x, y, k, a = 0) {
   const img = sprite(name), F = FX[name];
   if (!img || !F) return false;
+  if (F.m) k *= F.m;
   ctx.save(); ctx.translate(x, y); ctx.scale(1, unsquash()); if (a) ctx.rotate(a);
   ctx.drawImage(img, Math.min(F.n - 1, Math.max(0, f)) * F.w, 0, F.w, F.h, -F.ax * k, -F.ay * k, F.w * k, F.h * k);
   ctx.restore();
   return true;
 }
 /* The new orbs for the base heroes' magic, by the old sprite's name. */
+/* The base casters' shots, by the old sprite's name: the Mage's crystal shard, the Priest's bolt of light, the Warlock's
+   skull flame, the Druid's whirling leaf (the orbs are kept as a fallback while these load). */
+const SHOT = { proj_bolt_arcane: 'proj_shard', proj_holy: 'proj_lightbolt', proj_shadow: 'proj_skullflame', proj_seed: 'proj_leaf' };
 const ORB = { proj_bolt_arcane: 'proj_orb_arcane', proj_holy: 'proj_orb_holy', proj_shadow: 'proj_orb_shadow', proj_seed: 'proj_orb_nature' };
 /* Which impact plays where a bolt lands. */
 const IMPACT = { proj_bolt_arcane: 'fx_impact_arcane', proj_holy: 'fx_impact_holy', proj_shadow: 'fx_impact_shadow', proj_seed: 'fx_impact_nature', proj_spark: 'fx_impact_lightning' };
@@ -66,7 +74,9 @@ export function boltImpacts(g, v) {
 const PROJ_DRAW = {
   bolt(ctx, p) {
     const sp = boltSprite(p), big = p.size > 5 ? 1.35 : 1, ang = Math.atan2(p.dy, p.dx);
-    if (ORB[sp] && drawFx(ctx, ORB[sp], ((performance.now() / 83) | 0) % 8, p.x, p.y, 0.7 * big, ang)) return;   /* animated, 12 fps */
+    const shot = SHOT[sp], S = shot && FX[shot];
+    if (S && drawFx(ctx, shot, ((performance.now() / 83) | 0) % S.n, p.x, p.y, S.k * big, ang)) return;   /* animated, 12 fps */
+    if (ORB[sp] && drawFx(ctx, ORB[sp], ((performance.now() / 83) | 0) % 8, p.x, p.y, 0.7 * big, ang)) return;
     if (sp === 'proj_arrow' && drawFx(ctx, sp, 0, p.x, p.y, 0.62 * big, ang)) return;
     if (p.look === 'flask' ? drawSprite(ctx, sp, p.x, p.y, 22) : drawSprite(ctx, sp, p.x - p.dx * 6, p.y - p.dy * 6, 26 * big, Math.atan2(p.dy, p.dx))) return;
     if (p.look === 'arrow') {                 /* a shaft with a head, pointing where it flies */
@@ -780,7 +790,11 @@ export function draw(ctx, g, v) {
   for (const t of g.heroes) if (t.def.flying) drawHero(ctx, g, v, t);   /* the Archangel flies over the enemies on the path */
   for (const a of v.vfx.anims || []) at(ctx, a.x, a.y, () => {
     const f = Math.floor(a.t / a.dur * a.frames);
-    if (a.k) drawFx(ctx, a.name, f, a.x, a.y - a.lift * unsquash(), a.k);
+    if (a.k) {   /* fading out over its last 40% */
+      ctx.globalAlpha = Math.max(0, Math.min(1, (1 - a.t / a.dur) / 0.4));
+      drawFx(ctx, a.name, f, a.x, a.y - a.lift * unsquash(), a.k);
+      ctx.globalAlpha = 1;
+    }
     else drawSprite(ctx, a.name, a.x, a.y, a.s, 0, f, a.frames);
   });
 }

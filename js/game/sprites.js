@@ -93,7 +93,7 @@ export const SPRITES = [...new Set([
   ...['flame', 'frost', 'storm'].map(n => 'minion_totem_' + n),
   ...['imp', 'demon', 'golem', 'horse'].flatMap(n => ['minion_' + n, 'minion_' + n + '_2']),
   'fx_judgement', ...RELICS.map(r => relicIcon(r.name)),
-  'proj_orb_arcane', 'proj_orb_holy', 'proj_orb_shadow', 'proj_orb_nature', 'fx_swing', 'fx_slash2', 'fx_crit',
+  'proj_orb_arcane', 'proj_orb_holy', 'proj_orb_shadow', 'proj_orb_nature', 'proj_shard', 'proj_lightbolt', 'proj_skullflame', 'proj_leaf', 'fx_swing', 'fx_slash2', 'fx_crit',
   ...['arcane', 'holy', 'nature', 'shadow', 'physical', 'lightning'].map(n => 'fx_impact_' + n),
   'fx_hit', 'fx_slash', 'fx_explosion', 'fx_strike', 'fx_spikes', 'fx_moon', 'fx_moonburst', 'minion_wolf', 'minion_wolf_2',
   ...['bleed', 'burn', 'poison', 'slow', 'freeze', 'shock', 'root', 'corruption', 'hex', 'doom', 'verdict', 'purge', 'link', 'stun'].map(n => 'ail_' + n),
