@@ -58,10 +58,10 @@ export const HERO_ANIM = {
    mirrored when the enemy walks right. foot: where the feet touch the ground; height: the figure's height in frame pixels;
    tiles: how tall it is drawn, in tiles. The walk moves one frame per stride/8 px walked, so faster enemies step faster. */
 export const ENEMY_ANIM = {
-  runner: { name: 'anim_goblin_walk', frame: 160, frames: 8, foot: [80, 153], height: 109, tiles: 1.05 },
-  grunt:  { name: 'anim_orc_walk', frame: 160, frames: 8, foot: [82, 154], height: 129, tiles: 1.4 },
-  brute:  { name: 'anim_troll_walk', frame: 160, frames: 8, foot: [76, 155], height: 127, tiles: 1.65 },
-  boss:   { name: 'anim_warlord_walk', frame: 160, frames: 8, foot: [72, 154], height: 129, tiles: 1.85 }
+  runner: { name: 'anim_goblin_walk', frame: 160, frames: 8, foot: [76, 153], height: 113, tiles: 1.05 },
+  grunt:  { name: 'anim_orc_walk', frame: 160, frames: 8, foot: [72, 155], height: 130, tiles: 1.4 },
+  brute:  { name: 'anim_troll_walk', frame: 160, frames: 8, foot: [83, 154], height: 131, tiles: 1.65 },
+  boss:   { name: 'anim_warlord_walk', frame: 160, frames: 8, foot: [79, 153], height: 128, tiles: 1.85 }
 };
 /* An enemy's walk frame, standing on (x, y) (upright space), facing left (face -1) or right (1); alpha optional. Returns false
    until its art has loaded. d: the distance it has walked, in px. */

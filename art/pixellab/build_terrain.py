@@ -72,6 +72,27 @@ def meadow(img):
     return img
 
 
+def calm(img):
+    """Quiets the ground so the units stand out on it (the heroes' style: calm areas, sparse sharp marks): the grass and
+    the road lose saturation and most of the contrast of their tufts, speckles and streaks. The darkest browns (the
+    bank's soil and roots) are left alone, so the road edge keeps its shape."""
+    img = img.convert('RGBA')
+    px = img.load()
+    for y in range(img.height):
+        for x in range(img.width):
+            r, g, b, a = px[x, y]
+            h, s, v = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
+            if 0.2 <= h <= 0.5 and s > 0.25 and g > r:              # grass
+                s *= 0.95; v = 0.5 + (v - 0.5) * 0.75
+            elif 0.02 <= h <= 0.12 and s > 0.3 and v > 0.36:          # road dirt (not the dark bank)
+                s *= 0.9; v = 0.5 + (v - 0.5) * 0.8
+            else:
+                continue
+            r2, g2, b2 = colorsys.hsv_to_rgb(h, s, min(1, max(0, v)))
+            px[x, y] = (round(r2 * 255), round(g2 * 255), round(b2 * 255), a)
+    return img
+
+
 def main():
     sheet = Image.open(os.path.join(SRC, 'wang_grass_dirt.png')).convert('RGBA')
     tiles, names = [], []
@@ -88,7 +109,7 @@ def main():
     for f in sorted(os.listdir(SRC)):
         if f.startswith('grass_var'): extra.append(('15_' + f[9:-4], Image.open(os.path.join(SRC, f)).convert('RGBA')))
         if f.startswith('dirt_var'): extra.append(('0_' + f[8:-4], Image.open(os.path.join(SRC, f)).convert('RGBA')))
-    for prefix, conv in (('g', meadow), ('f', forest)):
+    for prefix, conv in (('g', calm), ('f', lambda i: forest(calm(i)))):   # the tileset is drawn in the calm palette already; meadow() is kept for reference
         for m in range(16):
             names.append(prefix + str(m)); tiles.append(conv(found[m]))
         for key, img in extra:

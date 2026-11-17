@@ -382,6 +382,69 @@ function placeScenery(g, table, imgs, x0, y0, w, h, on, inMap, seed) {
   scenery.sort((a, b) => a.y - b.y);
   return scenery;
 }
+/* The forest around the map, for the Pixel Lab terrain: thick far out, thinning toward the map (trees get rarer, bushes,
+   rocks, flowers and mushrooms take over near its edge), plus a few small things on the map itself (flowers, mushrooms,
+   a stone, a little bush) so the field is not cut off from the land around it; few enough not to get in the way. Never
+   on the road or right beside it, no tall tree right in front of the board. Same layout every time for a map (seeded).
+   DECO2 order: oak, pine, bush, rock, flowers, mushrooms. */
+const SMALL = [[0.35, 2], [0.55, 3], [0.8, 4], [1, 5]];   /* [chance up to, DECO2 index]: bush, rock, flowers, mushrooms */
+const FIELD = [[0.4, 4], [0.65, 5], [0.85, 3], [1, 2]];   /* on the map: mostly flowers and mushrooms */
+function placeForest(imgs, x0, y0, w, h, on, inMap, seed) {
+  const out = [], put = (d, x, y, k, ox, oy) => {
+    const s = TS * DECO2[d][2] * k;
+    out.push({ img: imgs[d], x: x * T + T / 2 + ox * T / TS, y: (y + 1) * T + oy * T / TS, s: s * T / TS, big: DECO2[d][2] > 1 });
+  };
+  const pick = (table, r) => table.find(e => r < e[0])[1];
+  for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) {
+    if (on(x, y) || on(x, y - 1) || on(x, y + 1)) continue;
+    const r = tileHash(seed, x, y), r2 = tileHash(r * 1e9, x, y), r3 = tileHash(r * 7e8, y, x), ox = (r2 - 0.5) * 18, oy = (r3 - 0.5) * 14;
+    if (inMap(x, y)) {                                     /* the field: a handful of small things */
+      if (r < 0.045) put(pick(FIELD, r2), x, y, 0.75, ox, oy * 0.5 - 18);
+      continue;
+    }
+    const dx = x < 0 ? -x : x >= COLS ? x - COLS + 1 : 0, dy = y < 0 ? -y : y >= ROWS ? y - ROWS + 1 : 0, d = Math.max(dx, dy);
+    const front = y >= ROWS && y <= ROWS + 1 && x >= -1 && x <= COLS;   /* right in front of the board: nothing tall */
+    const tree = front ? 0 : Math.min(0.85, Math.max(0, (d - 1) * 0.15)), small = d <= 3 ? 0.14 : 0.06;
+    if (r < tree) {
+      put(r2 < 0.55 ? 0 : 1, x, y, 0.9 + r3 * 0.25, ox, oy);
+      if (d >= 5 && tileHash(r * 3e9, x, y) < tree * 0.7) put(r3 < 0.5 ? 0 : 1, x, y, 0.85 + r2 * 0.25, -ox - 14, oy - 22);   /* thick: a second tree behind */
+    } else if (r < tree + small) put(pick(SMALL, r2), x, y, 0.9 + r3 * 0.2, ox, oy);
+  }
+  out.sort((a, b) => a.y - b.y);
+  return out;
+}
+/* How the map's grass fades into the forest floor: fully grass on the map, then over FADE_T tiles past its edge less and
+   less, along a wobbly line (smooth noise) so it does not read as a rectangle. Worked out in blocks of 4 px, each kept or
+   dropped at random by how far along the fade it is, so the fade is made of pixels like the art (no blur). Cuts the grass canvas (gx) down to the fade, in
+   place. */
+const FADE_T = 2.5, FB = 4;
+function grassFade(gx, x0, y0, w, h, seed) {
+  const bw = w * TS / FB, bh = h * TS / FB, per = TS / FB;   /* blocks across, blocks per tile */
+  const m = makeCanvas(bw, bh), mx = m && m.getContext('2d');
+  if (!mx || !mx.createImageData) return false;
+  const img = mx.createImageData(bw, bh), d = img && img.data;
+  if (!d) return false;
+  const smooth = t => t * t * (3 - 2 * t);
+  const noise = (x, y) => {   /* value noise, about one bump per 1.3 tiles, in [-1, 1] */
+    const fx = x / 1.3, fy = y / 1.3, ix = Math.floor(fx), iy = Math.floor(fy), ax = smooth(fx - ix), ay = smooth(fy - iy);
+    const n = (i, j) => tileHash(seed + 31, i, j);
+    const top = n(ix, iy) + (n(ix + 1, iy) - n(ix, iy)) * ax, bot = n(ix, iy + 1) + (n(ix + 1, iy + 1) - n(ix, iy + 1)) * ax;
+    return (top + (bot - top) * ay) * 2 - 1;
+  };
+  for (let by = 0; by < bh; by++) for (let bx = 0; bx < bw; bx++) {
+    const wx = x0 + (bx + 0.5) / per, wy = y0 + (by + 0.5) / per;   /* in tiles */
+    const ox = wx < 0 ? -wx : wx > COLS ? wx - COLS : 0, oy = wy < 0 ? -wy : wy > ROWS ? wy - ROWS : 0, dist = Math.hypot(ox, oy);
+    if (dist > FADE_T + 1) continue;
+    const a = dist <= 0 ? 1 : Math.max(0, Math.min(1, 1 - (dist + noise(wx, wy) * 0.8) / FADE_T));
+    if (a > tileHash(seed + 57, bx, by)) d[(by * bw + bx) * 4 + 3] = 255;   /* a random threshold per block: an uneven, grassy edge rather than a pattern */
+  }
+  mx.putImageData(img, 0, 0);
+  gx.globalCompositeOperation = 'destination-in';
+  gx.imageSmoothingEnabled = false;
+  gx.drawImage(m, 0, 0, bw * FB, bh * FB);
+  gx.globalCompositeOperation = 'source-over';
+  return true;
+}
 /* The Pixel Lab terrain (sprites.js terrain()): Wang tiles picked by their corners. The tiles sit on a grid shifted by half
    a tile, so each one's corners are the centres of four map cells, and a corner is grass unless its cell is road: the road
    runs through the middle of its cells, with the grass bank (part of the art) along its edges. The forest floor outside
@@ -396,27 +459,35 @@ function paintTerrain(g, tr) {
   if (!c) return null;
   const cx = c.getContext('2d');
   cx.imageSmoothingEnabled = false;
+  let tx = cx;   /* the canvas tiles are drawn into */
   const tile = (name, dx, dy) => {
     const i = tr.index[name];
     if (i === undefined) return false;
-    cx.drawImage(tr.img, (i % tr.columns) * tr.size, Math.floor(i / tr.columns) * tr.size, tr.size, tr.size, dx, dy, TS, TS);
+    tx.drawImage(tr.img, (i % tr.columns) * tr.size, Math.floor(i / tr.columns) * tr.size, tr.size, tr.size, dx, dy, TS, TS);
     return true;
   };
   const road = roadCells(g, x0 - 1, x0 + w + 1), on = (x, y) => road.has(x + ',' + y), seed = g.seed || 1;
   const inMap = (x, y) => x >= 0 && y >= 0 && x < COLS && y < ROWS;
-  const VAR = { 15: ['15', '15', '15_1', '15_2'], 0: ['0', '0_1'] };
-  for (const pre of ['f', 'g']) {
-    if (pre === 'g') { cx.save(); cx.beginPath(); cx.rect(-x0 * TS, -y0 * TS, COLS * TS, ROWS * TS); cx.clip(); }
+  /* plain tiles most of the time, a variant (flowers, stones, clover, leaves; on the road a damp patch, ruts, a stone) now and then */
+  const VAR = { 15: ['15', '15', '15', '15', '15_1', '15_2', '15_3', '15_4', '15_5', '15_6'], 0: ['0', '0', '0', '0_1', '0_2', '0_3'] };
+  /* The forest floor everywhere, then the map's grass on its own canvas, faded out over a few tiles past the map's edge
+     (a ragged, dithered edge, see grassFade) and laid over it: no hard border between the field and the land around. */
+  const gc = makeCanvas(w * TS, h * TS), gx = gc && gc.getContext('2d');
+  for (const pre of gc ? ['f', 'g'] : ['f']) {
+    tx = pre === 'g' ? gx : cx;
+    if (pre === 'g') gx.imageSmoothingEnabled = false;
     for (let vy = y0; vy <= y0 + h; vy++) for (let vx = x0; vx <= x0 + w; vx++) {
-      if (pre === 'g' && (vx < 0 || vy < 0 || vx > COLS || vy > ROWS)) continue;
+      if (pre === 'g' && (vx < -FADE_T - 1 || vy < -FADE_T - 1 || vx > COLS + FADE_T + 1 || vy > ROWS + FADE_T + 1)) continue;
       const m = (on(vx - 1, vy - 1) ? 0 : 8) + (on(vx, vy - 1) ? 0 : 4) + (on(vx - 1, vy) ? 0 : 2) + (on(vx, vy) ? 0 : 1);
-      const vars = VAR[m], key = vars ? vars[Math.floor(tileHash(seed, mod4(vx), mod4(vy)) * vars.length)] : String(m);
+      /* the forest is repeated past the painted land in 4-tile bands, so its picks repeat every 4 tiles; the map's are free */
+      const r = pre === 'g' ? tileHash(seed + 7, vx, vy) : tileHash(seed, mod4(vx), mod4(vy));
+      const vars = VAR[m], key = vars ? vars[Math.floor(r * vars.length)] : String(m);
       const dx = (vx - x0) * TS - TS / 2, dy = (vy - y0) * TS - TS / 2;
       if (!tile(pre + key, dx, dy)) tile(pre + m, dx, dy);
     }
-    if (pre === 'g') cx.restore();
   }
-  const scenery = placeScenery(g, DECO2, deco, x0, y0, w, h, on, inMap, seed);
+  if (gc && grassFade(gx, x0, y0, w, h, seed)) cx.drawImage(gc, 0, 0);
+  const scenery = placeForest(deco, x0, y0, w, h, on, inMap, seed);
   return { c, g, path: g.path, x0, y0, w, h, scenery };
 }
 function paintOldBoard(g, sh) {
@@ -577,17 +648,23 @@ function drawBoard(ctx, g, v) {
     ctx.fillStyle = '#9a8a62';
     for (const [cx, cy] of g.path) { quad(ctx, cx * T, cy * T, cx * T + T, cy * T + T); ctx.fill(); }
   }
-  /* A faint grid on the map, so heroes are easy to place: lines toward the far side converge, like the board. */
-  ctx.strokeStyle = b ? 'rgba(0,0,0,.08)' : 'rgba(255,255,255,.05)'; ctx.lineWidth = 1;
-  ctx.beginPath();
-  for (let i = 1; i < COLS; i++) { const a = P(i * T, 0), c = P(i * T, MAP_H); ctx.moveTo(a[0], a[1]); ctx.lineTo(c[0], c[1]); }
-  for (let i = 1; i < ROWS; i++) { const a = P(0, i * T), c = P(MAP_W, i * T); ctx.moveTo(a[0], a[1]); ctx.lineTo(c[0], c[1]); }
-  ctx.stroke();
+  /* A grid on the map only while a hero is being placed or moved, so the tiles are easy to aim at: lines toward the far
+     side converge, like the board. */
+  if (v.placing || v.moving) {
+    ctx.strokeStyle = b ? 'rgba(0,0,0,.14)' : 'rgba(255,255,255,.08)'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 1; i < COLS; i++) { const a = P(i * T, 0), c = P(i * T, MAP_H); ctx.moveTo(a[0], a[1]); ctx.lineTo(c[0], c[1]); }
+    for (let i = 1; i < ROWS; i++) { const a = P(0, i * T), c = P(MAP_W, i * T); ctx.moveTo(a[0], a[1]); ctx.lineTo(c[0], c[1]); }
+    ctx.stroke();
+  }
   ctx.fillStyle = '#e5645a'; quad(ctx, end[0] * T + T - 6, end[1] * T, end[0] * T + T, end[1] * T + T); ctx.fill();   /* the gate */
-  /* The edge of the buildable area: a soft shadow outside and a light line on it. */
-  quad(ctx, 0, 0, MAP_W, MAP_H);
-  ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 5; ctx.stroke();
-  ctx.strokeStyle = 'rgba(255,255,255,.22)'; ctx.lineWidth = 1.5; ctx.stroke();
+  /* The edge of the buildable area, while a hero is being placed or moved (with the grid): a soft shadow outside and a
+     light line on it. The rest of the time the field blends into the land around it. */
+  if (v.placing || v.moving || !b) {
+    quad(ctx, 0, 0, MAP_W, MAP_H);
+    ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 5; ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,.22)'; ctx.lineWidth = 1.5; ctx.stroke();
+  }
 }
 
 /* Health bars go from green (full) through yellow to red (almost dead). */

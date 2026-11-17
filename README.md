@@ -200,6 +200,31 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## No hard border around the field (Nov 17)
+- The map's grass no longer stops at a straight line: it fades into the darker forest floor over about two and a half tiles past the map's edge, along a wobbly line, broken up block by block (4 px blocks, kept or dropped at random by how far along the fade they are), so it reads as grass thinning out rather than a rectangle (`grassFade` in render.js).
+- The outline of the buildable area (dark shadow and light line) is drawn only while a hero is being placed or moved, together with the grid. Hovering outside the map still shows the red cross. Game version 0.43.0.
+
+## Forest that thickens away from the map (Nov 17)
+- The scenery around the map now follows the distance from it (`placeForest` in render.js): thick forest far out (up to two trees a tile), thinning toward the map, where bushes, rocks, flowers and mushrooms take over and the first rows are open. Trees vary a little in size.
+- A handful of small things now sit on the field itself (flowers, mushrooms, the odd stone or little bush, about one tile in twenty, never on or beside the road), so the map doesn't look cut out of the land. They are only pictures: heroes can still stand on those tiles, and they are drawn under the units. Seeded, so each map always looks the same. Game version 0.42.0.
+
+## Grid only while placing (Nov 17)
+- The map's tile grid is drawn only while a hero is being placed (a hero card picked) or moved; the rest of the time the ground is clean. A little stronger when it shows. Game version 0.41.1.
+
+## New, calmer tileset with more variety (Nov 17)
+- The grass-and-road tileset is remade in Pixel Lab with a fixed calm palette (the muted greens and browns from the retune, plus a few accent colours): flatter grass with fewer tufts, smooth packed dirt with a few pebbles, the same soil bank along the road.
+- More variety: six all-grass variants (white and yellow wildflowers, grey stones, a darker clover patch, plain grass, red and purple flowers, fallen leaves and a twig) and three road variants (a damp patch, faint cart ruts, a flat stone with sprouts), inpainted into the plain tiles with their edges kept so they join everything. On the map they are picked freely (plain tiles most of the time); in the forest they repeat every 4 tiles, as the board view needs.
+- `calm()` is gentler now, since the new tiles are already muted. The previous tiles are kept in art/pixellab/terrain/v1. Only the drawing changed. Game version 0.41.0.
+
+## Calmer ground (Nov 17)
+- The grass and road are toned down so the units stand out on them: less saturation, and most of the contrast of the grass tufts and the road's speckles and streaks taken out (`calm()` in art/pixellab/build_terrain.py, before the meadow/forest colouring). The dark bank soil along the road is left as it was. Only the drawing changed. Game version 0.40.1.
+
+## Enemies and scenery redrawn closer to the heroes' look (Nov 17)
+- The style rule from now on: like the heroes, art is dense but drawn small, with most areas flat (one or two shades) and the detail carried by a few sharp marks, so the eye fills in the rest. No all-over rendered texture or soft gradients.
+- New enemy art in that style, with new 8-frame walks: a **female goblin** (dagger, buckler, tied-back hair), a **female orc** (axe, round shield, long braid), a leaner **troll** (spiked club, plank shield) and a less cluttered **orc warlord** (cleaver, skull tower shield, horned helm, red cape). Made with the Paladin as the style reference and a 28-colour cap. ENEMY_ANIM foot points and heights updated.
+- New scenery in the same style (oak, pine, bush, rock, wildflowers, mushrooms): big flat clumps with sparse sharp highlights instead of fine leaf texture.
+- The first versions are kept in art/pixellab/drafts/v1 and art/pixellab/terrain/v1. Only the drawing changed. Game version 0.40.0.
+
 ## New terrain in the Pixel Lab style (Nov 16)
 - The ground is redrawn in the heroes' style, keeping the old layout: green grass on the map, a dirt road sunk a little below it, and a dark forest floor around it with trees, bushes, rocks, flowers and mushrooms.
 - The grass and road are a Pixel Lab Wang tileset (64 px tiles, the grass raised over the road by a low bank of soil and roots, drawn into the tiles). Tiles are placed on a grid shifted by half a tile: each tile's corners are the centres of four cells, grass unless the cell is road, so the road runs through the middle of its cells with smooth, rounded bends. The all-grass and all-road tiles have extra variants (inpainted middles, edges kept) so the ground repeats less.
