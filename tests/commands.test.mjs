@@ -113,9 +113,13 @@ test('relic shop: price is 60% and rises; three different offers; choosing appli
   assert.equal(apply(w, { type: 'choose', index: 0 }).reason, 'no relic choice open');
 });
 
-test('rerolls and banishes come only from talents, are free, and run out; banished relics never come back', () => {
+test('rerolls: free from talents, then for gold (rising); banishes only from talents; banished relics never come back', () => {
   const plain = richWorld(); apply(plain, { type: 'buyRelic' });
-  assert.equal(apply(plain, { type: 'reroll' }).reason, 'no rerolls', 'none without talents');
+  const paid = plain.pick.paid;
+  let g0 = plain.gold; assert.ok(apply(plain, { type: 'reroll' }).ok, 'without talents a reroll costs gold');
+  assert.equal(g0 - plain.gold, Math.round(paid * 0.25), 'a quarter of the relic price');
+  g0 = plain.gold; apply(plain, { type: 'reroll' }); assert.equal(g0 - plain.gold, Math.round(paid * 0.5), 'then a quarter more each time');
+  plain.gold = 0; assert.equal(apply(plain, { type: 'reroll' }).reason, 'gold', 'not enough gold');
   assert.equal(apply(plain, { type: 'banish', index: 0 }).reason, 'no banishes');
   /* The path into the Relics cluster, its beginning (+1 reroll, +1 banish), then one Second Look on the left side (+1 reroll). */
   const w = createWorld({ seed: 1, talents: pathTo(new Set(), 't4_relics_a1') }); w.gold = 100000;

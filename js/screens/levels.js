@@ -51,7 +51,7 @@ function toggle(id) {
 }
 
 function renderPick() {
-  $('lvPickTitle').textContent = 'Level ' + STAGES[stage - 1].code + ': choose your heroes';
+  $('lvPickTitle').textContent = 'Pick your 3 heroes';
   $('lvCount').textContent = lineup.length + ' / ' + LINEUP_SIZE;
   $('lvStart').disabled = !lineup.length; $('lvStart').title = lineup.length ? '' : 'Choose at least one hero';
   const grid = $('lvHeroes'); grid.textContent = '';

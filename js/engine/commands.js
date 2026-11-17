@@ -144,7 +144,8 @@ export const COMMANDS = {
   /* Keep the game running while the relic choice is open (a player setting; off by default). Allowed at any time. */
   playOnPick(w, c) { const p = playerOf(w, c); if (!p) return fail('no such player'); p.playOnPick = !!c.on; return OK; },
 
-  /* Relic shop: buy, then choose one of three. Rerolls and banishes are free, but only talents give them (w.rerolls, w.banishes per match). */
+  /* Relic shop: buy, then choose one of three. Banishes come only from talents; rerolls are free while talents give you some
+     (w.rerolls per match), then cost gold (w.rerollCost). */
   buyRelic(w, c) {
     const p = playerOf(w, c); if (!p) return fail('no such player');
     const b = blocked(w, p); if (b) return b;
@@ -158,8 +159,13 @@ export const COMMANDS = {
   reroll(w, c) {
     const p = playerOf(w, c); if (!p) return fail('no such player');
     if (!p.pick) return fail('no relic choice open');
-    if (!(p.rerolls > 0)) return fail('no rerolls');
-    p.rerolls--; p.pick.uses++; p.pick.offers = drawRelics(w, p, p.pick.offers.length, []);
+    if (p.rerolls > 0) p.rerolls--;
+    else {
+      const cost = w.rerollCost(p);
+      if (p.gold < cost) return fail('gold');
+      p.gold -= cost; p.pick.goldRerolls = (p.pick.goldRerolls || 0) + 1;
+    }
+    p.pick.uses++; p.pick.offers = drawRelics(w, p, p.pick.offers.length, []);
     return OK;
   },
   banish(w, c) {

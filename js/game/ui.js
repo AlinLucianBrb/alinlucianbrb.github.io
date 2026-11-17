@@ -87,7 +87,7 @@ export function initUI(callbacks) {
       lines.push({ text: 'Tags: ' + tagLine(cur) + ' (relics, talents and items for these tags work on it)', color: '#9db3a3' });
       lines.push({ text: 'Damage: ' + DAMAGE_LABEL[cur.damageType || 'physical'] + (ail ? ' · inflicts ' + ail : ''), color: '#9db3a3' });
       lines.push({ text: 'Attack and ultimate: hover the two icons under its name.', color: '#9db3a3' });
-      lines.push(info.unit ? { text: 'Click to select it. Click and hold it on the map to move it.', color: '#9db3a3' } : { text: 'Costs ' + HERO_COST + ' gold to place: one per match · key ' + b._key.textContent, color: '#9db3a3' });
+      lines.push(info.unit ? { text: 'Click to select it. To move it: select it, press M or right-click, then click the new spot.', color: '#9db3a3' } : { text: 'Costs ' + HERO_COST + ' gold to place: one per match · key ' + b._key.textContent, color: '#9db3a3' });
       if (info.unit) lines.push({ text: 'Level ' + info.unit.level + ': heroes gain XP from every kill while on the field.', color: '#8fd3ff' });
       if (info.path) lines.push({ text: 'Path: ' + info.path.name + '. Before it evolves: ' + PREVIEWS[info.path.id].desc, color: info.path.color || '#dcc6ff' });
       if (info.evo) {
@@ -101,10 +101,10 @@ export function initUI(callbacks) {
   });
   bindTip($('relic'), () => ({ title: 'Relic', color: '#dcc6ff', lines: [
     'Spend gold to choose 1 of 3 random relics: permanent bonuses for the rest of this run.',
-    'Rarer relics are stronger. Relic talents give free rerolls and banishes for the offers.',
+    'Rarer relics are stronger. You can reroll the offers for gold; Relic talents give free rerolls and banishes.',
     ...oddsLines(cb.luck ? cb.luck() : 0),
     { text: 'The price goes up with each relic you buy. Key: Space (then 1, 2 or 3 to pick)', color: '#9db3a3' }] }));
-  bindTip($('auto'), () => ({ title: 'Auto-start', lines: ['Starts the next wave by itself 3 seconds after a wave is cleared. Lit up when on.', { text: 'Turned off again when you retry a level.', color: '#9db3a3' }] }));
+  bindTip($('auto'), () => ({ title: 'Auto-start', lines: ['Starts the next wave by itself 3 seconds after a wave is cleared. When it is on, the button is green with a spinning wheel; when it is off, it is red and still.', { text: 'Turned off again when you retry a level.', color: '#9db3a3' }] }));
   bindTip($('spd'), () => ({ title: 'Game speed', lines: ['Switch between normal (1x) and double (2x) speed.',
     cb.speed3x && cb.speed3x() ? { text: 'Overdrive: 3x speed unlocked.', color: '#8be28b' } : { text: 'The Overdrive talent unlocks 3x.', color: '#9db3a3' }] }));
   bindTip($('menuBtn'), () => ({ title: 'Menu', lines: ['Pauses the game and asks before quitting the match. Key: P to pause, Esc to resume.'] }));
@@ -291,7 +291,7 @@ function describe(m, key) {
 export const canEvolve = (g, h) => { const s = h.base.evolutions[h.tier]; return !!s && h.level >= g.evolveLevel(h) && g.gold >= g.evolveCost(h) && g.phase !== 'over'; };
 
 /* The inspector is rebuilt only when the selection, the modifiers or the move state change, so buttons never vanish under a click.
-   There are no Move or Evolve buttons: click and hold a hero on the map to move it, and the evolution choices appear here
+   There are no Move or Evolve buttons: select a hero and press M or right-click to move it (then click the new spot), and the evolution choices appear here
    (with an Evolve button popping up above the hero's card) once the hero has reached the evolution's level. */
 export function renderInspector(g, v) {
   const box = $('inspect'), t = v.selected;
@@ -437,9 +437,12 @@ export function updatePick(g) {
     RARITIES.forEach((r, i) => { const sp = el('span', '', r.name + ' ' + odd(odds[i])); sp.style.color = r.color; if (i) box.append(' · '); box.append(sp); });
     if (g.gs.relicLuck > 0) box.append(' (luck +' + f(g.gs.relicLuck * 100) + '%)');
   }
-  /* Rerolls and banishes are free; how many you have comes from talents. */
-  setText($('reroll'), 'Reroll all · ' + g.rerolls + ' left'); $('reroll').hidden = !(g.rerolls > 0);   /* only when you have one */
-  $('reroll').title = 'Draw three new offers (free)';
+  /* Rerolls: free while talents give you some, then for gold (more for each gold reroll of the same choice). */
+  const rc = g.rerolls > 0 ? 0 : g.rerollCost(), poorR = rc > g.gold;
+  setText($('reroll'), g.rerolls > 0 ? 'Reroll all · ' + g.rerolls + ' free' : 'Reroll all · ' + rc + ' gold');
+  $('reroll').hidden = false; $('reroll').disabled = poorR; $('reroll').classList.toggle('poor', poorR);
+  $('reroll').title = g.rerolls > 0 ? 'Draw three new offers (free)' : 'Draw three new offers for ' + rc + ' gold';
+  setText($('pickGold'), 'Gold ' + g.gold);
   $('pick').classList.toggle('live', !!g.playOnPick || !!coop);   /* lighter backdrop, so the match shows through */
   banishBtns.forEach(b => { setText(b, 'Banish · ' + g.banishes + ' left'); b.disabled = !(g.banishes > 0); b.hidden = !(g.banishes > 0); });
 }

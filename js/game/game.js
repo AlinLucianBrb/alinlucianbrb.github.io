@@ -17,7 +17,6 @@ const $ = id => document.getElementById(id);
 const cv = $('c'), ctx = cv.getContext('2d');
 const MAP_W = COLS * T, MAP_H = ROWS * T;
 const MAX_CATCHUP = 1800;       /* never simulate more than 30 minutes of missed time */
-const HOLD_MS = 280;            /* click and hold a hero this long to pick it up and move it */
 
 let world;                      /* the current world (the engine steps and commands use it) */
 let w;                          /* the same world as the local player sees it (their gold, relics, picks: playerView) */
@@ -62,7 +61,7 @@ function newRun(resumeLog = null) {
   w.ev.on('moonfall', ({ zone }) => { if (w.fx) addAnim(v.vfx, 'fx_moonburst', zone.x, zone.y, zone.r * 2.3, 0.45, 5); });
   pend.length = 0; v.selected = v.moving = v.evo = null; ui.hideEvoPick(); if (v.speed > 2) v.speed = 1; v.vfx.beams.length = 0; v.vfx.slashes.length = 0; v.vfx.anims.length = 0; v.swings.clear(); v.needFit = true;
   if (!c && !resumeLog && playOnPickSaved()) apply(world, { type: 'playOnPick', on: true });   /* logged, so the replay plays the same way */
-  v.sel = heroIndex(w.lineup[0]);
+  v.sel = -1;   /* no hero picked until the player picks one (its card, a key, or a hero on the map) */
   ui.setLineup(w);
   ui.setCoop(coopInfo);
   $('newRun').hidden = !!c;                 /* a co-op match is started from its lobby */
@@ -272,25 +271,12 @@ cv.addEventListener('pointerdown', e => {
   const [x, y] = local(e), id = e.pointerId ?? 1;
   pointers.set(id, { x, y, sx: x, sy: y, button: e.button ?? 0 });
   try { cv.setPointerCapture(id); } catch (err) { /* not supported: fine */ }
-  if (pointers.size === 1) dragged = (e.button === 1 || e.button === 2);
-  if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1 }; dragged = true; cancelHold(); }
-  /* Click and hold a hero to pick it up; it follows the pointer and is moved where it is released. */
-  if (pointers.size === 1 && (e.button ?? 0) === 0 && w.phase !== 'over' && !w.picking) {
-    const [cx, cy] = cellAt(x, y), h = w.heroes.find(t => t.cx === cx && t.cy === cy && w.mine(t));   /* only your own heroes */
-    if (h) holdT = setTimeout(() => {
-      holdT = 0;
-      const p = pointers.get(id);
-      if (!p || dragged) return;
-      p.holding = true; v.moving = v.selected = h; v.hover = [cx, cy]; cv.classList.add('holding'); ui.renderInspector(w, v);
-    }, HOLD_MS);
-  }
+  if (pointers.size === 1) dragged = false;
+  if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1 }; dragged = true; }
 });
-let holdT = 0;
-const cancelHold = () => { if (holdT) { clearTimeout(holdT); holdT = 0; } };
 cv.addEventListener('pointermove', e => {
   const [x, y] = local(e), p = pointers.get(e.pointerId ?? 1);
   if (!p) { if (e.pointerType !== 'touch') setHover(cellAt(x, y)); return; }
-  if (p.holding) { p.x = x; p.y = y; setHover(cellAt(x, y)); return; }   /* carrying a hero: no panning */
   if (pointers.size === 2 && pinch) {
     const [a, b] = [...pointers.values()], mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
     p.x = x; p.y = y;
@@ -298,7 +284,7 @@ cv.addEventListener('pointermove', e => {
     zoomAt(v.cam, mx2, my2, d / pinch.d); pinch.d = d; pan(mx2 - mx, my2 - my);
     return;
   }
-  if (!dragged && Math.hypot(x - p.sx, y - p.sy) > 6) { dragged = true; cancelHold(); }
+  if (!dragged && Math.hypot(x - p.sx, y - p.sy) > 6) dragged = true;   /* any button drags the map */
   if (dragged) { pan(x - p.x, y - p.y); cv.classList.add('dragging'); }
   p.x = x; p.y = y;
   if (e.pointerType !== 'touch') setHover(cellAt(x, y));
@@ -312,18 +298,15 @@ function setHover(c) {
 function endPointer(e, cancelled) {
   const id = e.pointerId ?? 1, p = pointers.get(id);
   if (!p) return;
-  pointers.delete(id); cancelHold();
+  pointers.delete(id);
   if (pointers.size < 2) pinch = null;
-  if (p.holding) {                       /* drop the carried hero */
-    cv.classList.remove('holding');
-    const h = v.moving, [x, y] = local(e), [cx, cy] = cellAt(x, y);
-    v.moving = null;
-    if (!cancelled && h && w.heroes.includes(h) && (cx !== h.cx || cy !== h.cy)) act({ type: 'move', id: h.id, cx, cy });
-    ui.renderInspector(w, v); dragged = false; return;
-  }
   if (pointers.size === 0) {
     cv.classList.remove('dragging');
-    if (!cancelled && !dragged && p.button === 0) { const [x, y] = local(e); v.hover = cellAt(x, y); clickCell(...v.hover); }
+    if (!cancelled && !dragged) {
+      const [x, y] = local(e); v.hover = cellAt(x, y);
+      if (p.button === 0) clickCell(...v.hover);
+      else if (p.button === 2) rightClickCell(...v.hover);   /* right-click: move the selected hero (or the one clicked) */
+    }
     dragged = false;
   }
 }
@@ -349,11 +332,18 @@ function clickCell(cx, cy) {
   if (existing) { v.selected = existing; ui.renderInspector(w, v); return; }   /* anyone's hero can be looked at */
   if (!inside || !canPlace(v.sel)) { closeInspector(); return; }
   if (act({ type: 'place', hero: HEROES[v.sel].id, cx, cy }).ok) {
-    v.selected = null;
-    const next = w.lineup.map(heroIndex).find(canPlace);   /* move on to the next hero still waiting to be placed */
-    if (next !== undefined) v.sel = next;
+    v.selected = null; v.sel = -1;   /* placed: nothing picked until the player picks again */
     ui.renderInspector(w, v);
   }
+}
+/* Right-click: on one of your heroes, select it and start moving it; elsewhere, start (or stop) moving the selected hero.
+   While moving, the grid shows; a click on the new spot moves it there, Esc or a right-click cancels. */
+function rightClickCell(cx, cy) {
+  if (w.phase === 'over' || w.picking) return;
+  if (v.moving) { v.moving = null; ui.renderInspector(w, v); return; }
+  const h = w.heroes.find(t => t.cx === cx && t.cy === cy && w.mine(t));
+  if (h) { v.selected = h; v.sel = h.type; }
+  toggleMove();
 }
 /* A hero can be placed if it is in the lineup and not on the map yet (one of each, for HERO_COST gold). */
 const unitOf = i => w.unitOf(i);   /* your hero of that class (in co-op others may have one too) */
@@ -421,7 +411,7 @@ addEventListener('keydown', e => {
   else if (k === 'm') toggleMove();
   else if (k === 'e') evolveSelected();
   else if (k === 'p') { if (w.phase !== 'over' && !hooks.coop) setPaused(!v.paused); }
-  else if (k === 'escape') { if (v.evo) closeEvolve(); else if (!$('menuConfirm').hidden) closeMenu(); else closeInspector(); }
+  else if (k === 'escape') { if (v.evo) closeEvolve(); else if (!$('menuConfirm').hidden) closeMenu(); else if (v.moving) { v.moving = null; ui.renderInspector(w, v); } else if (canPlace(v.sel) && !v.selected) { v.sel = -1; ui.renderInspector(w, v); } else closeInspector(); }
   else if (k === 'f') fitToScreen();
   else if (k === '+' || k === '=') zoomBy(1.25);
   else if (k === '-') zoomBy(0.8);

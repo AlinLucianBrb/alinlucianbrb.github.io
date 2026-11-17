@@ -160,7 +160,7 @@ test('Levels: picking a level asks for the heroes (none picked to start, 1 to 3 
   assert.equal(byId.lvChoose.hidden, false); assert.equal(byId.lvPick.hidden, true);
   assert.equal(byId.lvList.children[2].disabled, true, 'level 3 is locked');
   byId.lvList.children[1].onclick();
-  assert.equal(byId.lvPick.hidden, false); assert.equal(byId.lvPickTitle._text, 'Level 1-2: choose your heroes');
+  assert.equal(byId.lvPick.hidden, false); assert.equal(byId.lvPickTitle._text, 'Pick your 3 heroes');
   assert.equal(byId.lvCount._text, '0 / 3', 'none picked to start with'); assert.equal(byId.lvStart.disabled, true, 'Start waits for a hero');
   const cards = () => byId.lvHeroes.children;
   cards()[0].onclick(); cards()[2].onclick();
@@ -178,7 +178,7 @@ test('Levels: picking a level asks for the heroes (none picked to start, 1 to 3 
 
 test('Levels: "Next level" after a win comes straight to choosing heroes; Back returns to the level list', async () => {
   await levels.mount(null, { stage: 2 });
-  assert.equal(byId.lvPick.hidden, false); assert.equal(byId.lvPickTitle._text, 'Level 1-2: choose your heroes');
+  assert.equal(byId.lvPick.hidden, false); assert.equal(byId.lvPickTitle._text, 'Pick your 3 heroes');
   byId.lvBack.onclick();
   assert.equal(byId.lvChoose.hidden, false);
   failNext = true; navs.length = 0;

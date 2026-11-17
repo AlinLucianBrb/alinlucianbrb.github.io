@@ -406,8 +406,9 @@ export const RELICS = [
   { name: 'Insight',           desc: m => '+' + 3 * m + ' intellect',                            mods: m => [hero('intellect', 'flat', 3 * m, ['all'])] },
   { name: 'Prowess',           desc: m => '+' + 2 * m + ' to the main attribute',                mods: m => [hero('mainAttribute', 'flat', 2 * m, ['all'])] },
   /* Holy and Shadow heroes (Priest, Paladin; Warlock, Heretic). */
-  { name: 'Dark pact',         desc: m => '+' + f(P(30) * m) + '% damage to shadow heroes',     lineup: ['warlock', 'paladin'], mods: m => [hero('damage', 'inc', P(0.3) * m, ['shadow'])] },
-  { name: 'Blasphemy',         desc: m => '+' + f(P(20) * m) + '% corruption chance',           lineup: ['warlock', 'paladin'], mods: m => [hero('corruptionChance', 'flat', P(0.2) * m, ['all'])] },
+  /* Corruption comes only from shadow damage, so the shadow relics go only to the shadow heroes. */
+  { name: 'Dark pact',         desc: m => '+' + f(P(30) * m) + '% damage to shadow heroes',     lineup: ['warlock'], mods: m => [hero('damage', 'inc', P(0.3) * m, ['shadow'])] },
+  { name: 'Blasphemy',         desc: m => '+' + f(P(20) * m) + '% corruption chance (shadow heroes)', lineup: ['warlock'], mods: m => [hero('corruptionChance', 'flat', P(0.2) * m, ['shadow'])] },
   { name: 'Holy water',        desc: m => '+' + f(P(30) * m) + '% damage to holy heroes',       lineup: ['priest', 'paladin'], mods: m => [hero('damage', 'inc', P(0.3) * m, ['holy'])] },
   /* Minion counterparts of the damage relics (the Druid's wolf, the Warlock's imps and demon, the Shaman's totems).
      lineup: only offered when one of these heroes is in the match. */

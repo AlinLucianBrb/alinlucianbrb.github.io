@@ -22,7 +22,8 @@ import './kits/index.js';
 import { cleanPaths, pathChoice, pathDef, previewMods, syncPreview, updatePreview, previewHit } from './preview.js';   /* the newer heroes' behaviors, ultimates and zones register themselves */
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
-export const ENGINE_VERSION = 25;     /* bump when a rule change would make old command logs play out differently */
+export const REROLL_GOLD = 0.25;
+export const ENGINE_VERSION = 26;     /* bump when a rule change would make old command logs play out differently */
 
 /* Checks a lineup: up to LINEUP_SIZE different, playable heroes. Returns a clean copy, or the full roster if it is empty. */
 export function cleanLineup(lineup) {
@@ -90,6 +91,9 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
   w.evolveLevel = h => { const e = (h.base || h.def).evolutions[h.tier]; return e ? Math.max(1, (e.level || 1) + w.ownerOf(h).gs.evolveLevel) : null; };
   /* Each relic costs 12 more than the one before (60% of 80 + 20 per relic bought), per player. */
   w.relicCost = (p = ps[0]) => Math.max(1, Math.round(0.6 * (80 + 20 * p.relicsBought) * p.gs.relicCost));   /* Merchant talents make it cheaper */
+  /* Rerolling the relic offers: free while the player has rerolls (talents); after that it costs gold, a quarter of what the
+     relic cost, one quarter more for every gold reroll of the same choice (48 gold relic: 12, 24, 36...). */
+  w.rerollCost = (p = ps[0]) => (!p.pick || p.rerolls > 0 ? 0 : Math.max(1, Math.round(REROLL_GOLD * p.pick.paid * (1 + (p.pick.goldRerolls || 0)))));
   w.previewRange = (i, p = ps[0]) => resolve(HEROES[i].stats.range, 'range', p.mods, HEROES[i].tags);
   w.meter = createMeter(w.ev);
   w.ev.on('kill', ({ enemy }) => {
@@ -249,7 +253,7 @@ export const summary = w => ({ waves: w.wave, kills: w.kills, bosses: w.bossKill
 export function playerView(w, i = 0) {
   const p = w.players[i] || w.players[0], own = new Set(PLAYER_FIELDS);
   return new Proxy(w, {
-    get: (t, k) => (own.has(k) ? p[k] : k === 'me' ? p : k === 'relicCost' ? () => w.relicCost(p) : k === 'previewRange' ? hi => w.previewRange(hi, p)
+    get: (t, k) => (own.has(k) ? p[k] : k === 'me' ? p : k === 'relicCost' ? () => w.relicCost(p) : k === 'rerollCost' ? () => w.rerollCost(p) : k === 'previewRange' ? hi => w.previewRange(hi, p)
       : k === 'unitOf' ? type => w.heroes.find(h => h.type === type && (h.owner || 0) === p.i) : k === 'mine' ? h => !!h && (h.owner || 0) === p.i : t[k]),
     set: (t, k, v) => { if (own.has(k)) p[k] = v; else t[k] = v; return true; }
   });

@@ -24,13 +24,11 @@ function click(cx, cy) {
   byId.c.fire('pointerdown', { clientX: x, clientY: y, button: 0, pointerId: 1 });
   byId.c.fire('pointerup', { clientX: x, clientY: y, button: 0, pointerId: 1 });
 }
-/* Click and hold a hero, carry it to another tile and let go (the hold has to last HOLD_MS, so this waits a little). */
-async function holdMove(from, to) {
-  const [x, y] = toScreen(view().cam, (from[0] + 0.5) * T, (from[1] + 0.5) * T), [x2, y2] = toScreen(view().cam, (to[0] + 0.5) * T, (to[1] + 0.5) * T);
-  byId.c.fire('pointerdown', { clientX: x, clientY: y, button: 0, pointerId: 1 });
-  await new Promise(r => setTimeout(r, 320));
-  byId.c.fire('pointermove', { clientX: x2, clientY: y2, pointerId: 1, pointerType: 'mouse' });
-  byId.c.fire('pointerup', { clientX: x2, clientY: y2, button: 0, pointerId: 1 });
+/* Moving a hero: right-click it (selects it and starts moving), then click the new tile. */
+function rightClick(cx, cy) {
+  const [x, y] = toScreen(view().cam, (cx + 0.5) * T, (cy + 0.5) * T);
+  byId.c.fire('pointerdown', { clientX: x, clientY: y, button: 2, pointerId: 1 });
+  byId.c.fire('pointerup', { clientX: x, clientY: y, button: 2, pointerId: 1 });
 }
 const nameOf = card => card.children[1].children[0]._v ?? card.children[1].children[0]._text;
 const levelOf = card => card.children[1].children[1]._v ?? '';
@@ -63,23 +61,33 @@ test('the screen comes alive: hero cards, gold and HUD values, no drawing errors
   assert.equal(byId.relics.hidden, true, 'the relic strip is hidden until you own a relic');
 });
 
-test('placing is once per hero; cards then select the hero; click and hold to move', async () => {
+test('placing is once per hero; no hero picked by default; cards then select the hero; right-click (or M) then click to move', async () => {
   const t = freeTiles(4);
+  assert.equal(view().sel, -1, 'no hero picked when the match starts');
+  click(...t[3]); dom.frames(1);
+  assert.equal(world().heroes.length, 0, 'clicking the map with nothing picked places nothing');
   dom.heroButton(1).onclick(); click(...t[0]); dom.frames(1);
   assert.equal(gold(), 150, 'tests place for free (paying is tested in commands.test.mjs)'); assert.equal(world().heroes.length, 1);
   assert.equal(dom.heroButton(1).children[2]._v, '', 'no "On the field" text');
   assert.equal(levelOf(dom.heroButton(1)), 'Lv 1', 'the level sits next to the name');
+  assert.equal(view().sel, -1, 'after placing, nothing is picked');
   click(...t[2]); dom.frames(1);
-  assert.equal(world().heroes.length, 2, 'the next click places the next hero waiting in the lineup');
+  assert.equal(world().heroes.length, 1, 'the next click does not place another hero by itself');
+  dom.heroButton(2).onclick(); click(...t[2]); dom.frames(1);
+  assert.equal(world().heroes.length, 2, 'picking the next card places it');
   assert.notEqual(world().heroes[1].def.id, 'ranger', 'never the same hero twice');
   dom.heroButton(1).onclick(); dom.frames(1);
   assert.equal(byId.heroPanel.hidden, false, 'the card of a placed hero selects it on the map');
   assert.equal(dom.button('Move'), undefined, 'no Move button');
   click(...t[0]); dom.frames(1);
   assert.deepEqual([world().heroes[0].cx, world().heroes[0].cy], t[0], 'a quick click only selects');
-  await holdMove(t[0], t[1]); dom.frames(1);
-  assert.deepEqual([world().heroes[0].cx, world().heroes[0].cy], t[1], 'click and hold carries the hero to the new tile');
+  rightClick(...t[0]); dom.frames(1);
+  assert.equal(view().moving, world().heroes[0], 'right-click on a hero starts moving it (the grid shows)');
+  click(...t[1]); dom.frames(1);
+  assert.deepEqual([world().heroes[0].cx, world().heroes[0].cy], t[1], 'a click on the new tile moves it there');
   assert.equal(view().moving, null);
+  rightClick(...t[1]); dom.frames(1); rightClick(...t[1]); dom.frames(1);
+  assert.equal(view().moving, null, 'a second right-click cancels');
   click(...t[1]); dom.frames(20);
   assert.equal(dom.button('Evolve'), undefined, 'no Evolve button in the panel');
   assert.ok(dom.made.some(e => e.tag === 'b' && e._text === 'Hunter · Lv 1'), 'the panel title shows the level');

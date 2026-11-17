@@ -35,7 +35,7 @@ test('the Warlock: a shadow caster with intellect whose bolts Corrupt (50%); thr
   assert.equal(d.damageType, 'shadow'); assert.equal(d.attribute, 'intellect'); assert.equal(d.stats.corruptionChance, 0.5);
   assert.deepEqual(d.evolutions[0].choices.map(c => c.id), FORMS);
   for (const c of [d, ...d.evolutions[0].choices]) assert.ok(ULTIMATES[c.ultimate], c.ultimate);
-  for (const n of ['Dark pact', 'Blasphemy']) assert.deepEqual(RELICS.find(r => r.name === n).lineup, ['warlock', 'paladin']);
+  for (const n of ['Dark pact', 'Blasphemy']) assert.deepEqual(RELICS.find(r => r.name === n).lineup, ['warlock'], 'shadow relics only for the shadow hero');
 });
 
 test('his bolts Corrupt; Soul drain drains the toughest enemy for 5x over 2 seconds, and its death gives nearby heroes energy', () => {

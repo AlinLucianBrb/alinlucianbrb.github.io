@@ -407,6 +407,16 @@ input:not([type=checkbox]),select,.field input,.joinrow input{border:6px solid t
 .split #go,.split .autobtn{border-radius:0}
 .split .autobtn{border-image-source:url(assets/ui_button_bad.png);background:none;color:#ffe0dc;font-family:var(--pixel);font-size:18px;min-width:70px;padding:2px 4px 4px;letter-spacing:0}
 .split .autobtn.on{border-image-source:url(assets/ui_button_on.png);background:none;color:#e0ffd8}
+/* Auto-start on: a small spinning pixel wheel before the label and a slow glow, so it is clear something is running */
+.split .autobtn{position:relative}
+.split .autobtn.on{animation:autoGlow 1.6s ease-in-out infinite}
+.split .autobtn{white-space:nowrap;padding-left:18px}
+.split .autobtn.on::before{content:'';position:absolute;left:7px;top:50%;width:8px;height:8px;margin-top:-5px;border:2px solid #e0ffd8;border-right-color:transparent;box-sizing:border-box;animation:autoSpin .8s steps(8) infinite}
+@keyframes autoSpin{to{transform:rotate(360deg)}}
+@keyframes autoGlow{0%,100%{filter:brightness(1)}50%{filter:brightness(1.25) drop-shadow(0 0 4px rgba(139,226,139,.7))}}
+@media (prefers-reduced-motion:reduce){.split .autobtn.on,.split .autobtn.on::before{animation:none}}
+.pickgold{color:#ffd84a;font-family:var(--pixel);margin-left:8px}
+#reroll.poor{color:#e5645a}
 .spdbtn.on{color:#ffe08a}
 .evoup{border:2px solid #ffd84a;border-image:none;border-radius:0;background:#3a3214;padding:.15em .55em;text-shadow:none}
 .evoup.short{border-color:#6b6040;background:#24231a}
@@ -518,7 +528,7 @@ input:not([type=checkbox]),select,.field input,.joinrow input{border:6px solid t
   </div>
   <div id="lvPick" class="lvstep" hidden>
     <h1 id="lvPickTitle">Choose your heroes</h1>
-    <p class="muted">Bring up to three heroes (<b id="lvCount"></b>). Each one is placed once, for 150 gold (you start a match with 150).</p>
+    <p class="muted" hidden>(<b id="lvCount"></b>)</p>
     <div class="hgrid" id="lvHeroes"></div>
     <button class="go big" id="lvStart">Start</button>
   </div>
@@ -657,7 +667,7 @@ input:not([type=checkbox]),select,.field input,.joinrow input{border:6px solid t
   <div class="overlay" id="pick" hidden>
     <h2>Choose a relic</h2>
     <div class="choices" id="choices"></div>
-    <div class="pickbar"><button id="reroll">Reroll all</button></div>
+    <div class="pickbar"><button id="reroll">Reroll all</button> <span class="pickgold" id="pickGold"></span></div>
     <div class="muted" id="pickOdds"></div>
     <label class="pickopt" id="playOnPickRow"><input type="checkbox" id="playOnPick"> Keep playing while choosing</label>
   </div>
