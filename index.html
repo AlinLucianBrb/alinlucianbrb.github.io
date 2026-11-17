@@ -407,14 +407,15 @@ input:not([type=checkbox]),select,.field input,.joinrow input{border:6px solid t
 .split #go,.split .autobtn{border-radius:0}
 .split .autobtn{border-image-source:url(assets/ui_button_bad.png);background:none;color:#ffe0dc;font-family:var(--pixel);font-size:18px;min-width:70px;padding:2px 4px 4px;letter-spacing:0}
 .split .autobtn.on{border-image-source:url(assets/ui_button_on.png);background:none;color:#e0ffd8}
-/* Auto-start on: a small spinning pixel wheel before the label and a slow glow, so it is clear something is running */
-.split .autobtn{position:relative}
-.split .autobtn.on{animation:autoGlow 1.6s ease-in-out infinite}
-.split .autobtn{white-space:nowrap;padding-left:18px}
-.split .autobtn.on::before{content:'';position:absolute;left:7px;top:50%;width:8px;height:8px;margin-top:-5px;border:2px solid #e0ffd8;border-right-color:transparent;box-sizing:border-box;animation:autoSpin .8s steps(8) infinite}
-@keyframes autoSpin{to{transform:rotate(360deg)}}
-@keyframes autoGlow{0%,100%{filter:brightness(1)}50%{filter:brightness(1.25) drop-shadow(0 0 4px rgba(139,226,139,.7))}}
-@media (prefers-reduced-motion:reduce){.split .autobtn.on,.split .autobtn.on::before{animation:none}}
+/* Auto-start on: a bright green border that glows and pulses around the button, so it catches the eye. With reduced
+   motion (an OS setting) the glow stays, it just does not pulse. */
+.split .autobtn{position:relative;white-space:nowrap;overflow:visible}
+.split .autobtn.on{z-index:1}
+.split .autobtn.on::after{content:'';position:absolute;inset:-3px;border:2px solid #b8ff8a;pointer-events:none;
+  box-shadow:0 0 8px 2px rgba(139,226,139,.85),inset 0 0 6px rgba(184,255,138,.6);animation:autoGlow 1.2s ease-in-out infinite}
+@keyframes autoGlow{0%,100%{box-shadow:0 0 4px 1px rgba(139,226,139,.55),inset 0 0 3px rgba(184,255,138,.35);border-color:#8be28b}
+  50%{box-shadow:0 0 14px 4px rgba(160,255,140,.95),inset 0 0 8px rgba(184,255,138,.75);border-color:#e6ffd2}}
+@media (prefers-reduced-motion:reduce){.split .autobtn.on::after{animation:none}}
 .pickgold{color:#ffd84a;font-family:var(--pixel);margin-left:8px}
 #reroll.poor{color:#e5645a}
 .spdbtn.on{color:#ffe08a}

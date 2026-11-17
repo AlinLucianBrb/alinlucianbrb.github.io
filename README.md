@@ -200,6 +200,9 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Auto-start glow (Nov 17)
+- The Auto-start button no longer has the spinning wheel: while it is on, a bright green border glows and pulses around it. With the system's reduced-motion setting on (for example Windows with animations turned off) the glow stays, it just does not pulse; before, the wheel simply did not show then. Game version 0.45.1.
+
 ## Accessibility and QoL from playtest feedback (Nov 17)
 - **Auto-start button:** while it is on, it is green with a small spinning pixel wheel before AUTO and a slow glow; off, it stays red and still (no motion with the system's reduced-motion setting). The tooltip says so.
 - **Moving heroes:** no more click-and-hold dragging. Select a hero (click it on the map, click its card, or its number key), then press **M** or **right-click**: the grid and the hero's range show at the pointer; click the new tile to move it there (onto one of your heroes swaps them, as before). Right-click again or **Esc** cancels. Right-clicking one of your heroes selects it and starts moving it in one go. Dragging with any button still pans the map.

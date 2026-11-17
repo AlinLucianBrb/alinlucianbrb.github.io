@@ -104,7 +104,7 @@ export function initUI(callbacks) {
     'Rarer relics are stronger. You can reroll the offers for gold; Relic talents give free rerolls and banishes.',
     ...oddsLines(cb.luck ? cb.luck() : 0),
     { text: 'The price goes up with each relic you buy. Key: Space (then 1, 2 or 3 to pick)', color: '#9db3a3' }] }));
-  bindTip($('auto'), () => ({ title: 'Auto-start', lines: ['Starts the next wave by itself 3 seconds after a wave is cleared. When it is on, the button is green with a spinning wheel; when it is off, it is red and still.', { text: 'Turned off again when you retry a level.', color: '#9db3a3' }] }));
+  bindTip($('auto'), () => ({ title: 'Auto-start', lines: ['Starts the next wave by itself 3 seconds after a wave is cleared. When it is on, the button is green with a glowing, pulsing border; when it is off, it is red.', { text: 'Turned off again when you retry a level.', color: '#9db3a3' }] }));
   bindTip($('spd'), () => ({ title: 'Game speed', lines: ['Switch between normal (1x) and double (2x) speed.',
     cb.speed3x && cb.speed3x() ? { text: 'Overdrive: 3x speed unlocked.', color: '#8be28b' } : { text: 'The Overdrive talent unlocks 3x.', color: '#9db3a3' }] }));
   bindTip($('menuBtn'), () => ({ title: 'Menu', lines: ['Pauses the game and asks before quitting the match. Key: P to pause, Esc to resume.'] }));

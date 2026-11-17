@@ -16,7 +16,7 @@
    map fits", so heroes read bigger. */
 import { COLS, ROWS, T } from '../content/data.js';
 
-export const TILT = 0.95, FAR = 0.88, FIT_CLOSER = 1.2;
+export const TILT = 0.62, FAR = 0.72, FIT_CLOSER = 1.12;
 const MAP_W = COLS * T, MAP_H = ROWS * T, CX = MAP_W / 2;
 const PERSP_B = (1 / FAR - 1) / MAP_H, C = TILT * MAP_H - TILT / PERSP_B;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
