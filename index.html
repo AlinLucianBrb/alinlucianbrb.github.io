@@ -715,6 +715,24 @@ button.go::after{content:'';position:absolute;top:-10px;bottom:-10px;width:28px;
 .herocard .ab.ready{animation:ultReady 1.4s ease-in-out infinite}
 @keyframes ultReady{0%,100%{box-shadow:0 0 0 2px #ffd84a,0 0 6px 1px rgba(255,216,74,.6)}50%{box-shadow:0 0 0 2px #fff0a8,0 0 14px 4px rgba(255,216,74,.9)}}
 @media (prefers-reduced-motion:reduce){#screen-menu::before,#screen-login::before,#screen-menu::after,#screen-login::after,button.go::after,.herocard .ab.ready{animation:none}button.go::after{display:none}}
+
+/* ===== Last web shapes: square slots for items and gear, plain ability and relic icons (they carry their own slot). */
+.invcell,.itemicon,.hslot,.relicchip,.mbar,.ebar,.chip{border-radius:0}
+.itemicon{background:radial-gradient(circle at 50% 45%,color-mix(in srgb,var(--rc) 18%,transparent),transparent 70%)}
+.invcell{background:none}
+.hslot,.hslot.compact{border:6px solid transparent;border-image:url(assets/ui_slot.png) 5 fill / 5px stretch}
+.relicchip{border:none;border-image:url(assets/ui_slot.png) 5 fill / 5px stretch;padding:2px 8px}
+.mbar{border:3px solid transparent;border-image:url(assets/ui_bar.png) 4 fill / 4px stretch;height:12px;box-sizing:border-box}
+.herocard .ab,.herocard .ab img{border-radius:0;background:none;box-shadow:none}
+.herocard .ab::after{display:none}
+.herocard .ab.ready{border-radius:2px}
+
+/* item icons: the art fills the slot; the rarity is a soft glow behind it and a thin line under it, not a thick box */
+.itemicon,.itemicon.art{border:none;box-shadow:inset 0 -2px 0 var(--rc);background:radial-gradient(circle at 50% 50%,color-mix(in srgb,var(--rc) 22%,transparent),transparent 72%)}
+.invcell .itemicon{width:100%;height:100%}
+.itemicon img{image-rendering:auto}
+.itemicon.emptyslot,.hslot.compact .itemicon.emptyslot{border:none;box-shadow:none;background:url(assets/ui_slot.png) center/100% 100%;opacity:.7}
+h3,.hbody h3{color:#e9d8b4}
 </style>
 </head>
 <body>

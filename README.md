@@ -200,6 +200,11 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Every icon in the heroes' style; last web shapes gone (Nov 18)
+- All 183 small icons are new (art/pixellab/build_icons.py, from Pixel Lab sheets in art/pixellab/icons): stats, damage types, ailments, HUD and talent icons (icon_*), every attack and ultimate (ability_*, on a dark slot with a bronze rim, gold for ultimates), every relic (relic_*, violet rim) and every item (item_<type>_<rarity>: Common a little duller, Epic with a faint violet glow). Same names as before, so nothing in the code changed for them. The old icons are kept in art/pixellab/ui/old/icons.
+- Items fill their inventory slot, with the rarity as a soft glow and a thin line under the item instead of a thick coloured box. Empty gear slots are sunken slots instead of dashed boxes.
+- The last rounded corners are gone (inventory cells, item squares, gear slots, relic chips, damage meter bars), and the hero page headings are warm parchment instead of green.
+
 ## New logo, menu icons, zone pictures, page banners and motion (Nov 17)
 - Logo (art/pixellab/build_logo_icons.py): a Pixel Lab emblem (a shield with an oak leaf and crossed swords) beside the name in the game's pixel font, set in shaded gold over a bronze extrusion.
 - Main menu icons: new 32 px Pixel Lab icons (play, lobby, key, helmet, chest, sapling, trophy, gear, door), drawn small and smooth.
