@@ -200,6 +200,20 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Quieter planks (Nov 17)
+- Darker still (v0.49.2): the planks and the card shading are near-black wood.
+- The plank texture behind panels is much calmer: wide boards (24 px), barely different tones, soft seams, faint grain, one joint per board, no knots. Big panels like the hero window and the evolutions page no longer tire the eye.
+- Cards that sit on a plank panel (hero cards, evolution cards, level cards) have a smooth dark-wood gradient instead, so wood is not stacked on wood.
+
+## Plank panels, detailed frames and a new menu scene (Nov 17)
+- Panels: a carved wooden frame (lit outer edge, grained wood, a groove, a bronze strip with rivets repeating along the sides, bronze corner brackets, gold leaves) over dark wooden planks (ui_planks*.png, a seamless tile with boards, seams, joints, nails and knots). Light planks for cards, darker ones for tooltips.
+- The menu background is rebuilt from the game's own art (art/pixellab/build_scene.py): a forest clearing at night made from the match tileset and trees, a dirt road, and the heroes resting around a campfire by a tent (fire and tent made in Pixel Lab). The old scene is kept in art/pixellab/ui/old.
+
+## UI kit in the heroes' style, first pass (Nov 17)
+- New frames for every panel, button, tab, slot, input and bar (art/pixellab/build_ui.py, which writes assets/ui_*.png; the old kit is kept in art/pixellab/ui/old).
+- Drawn at 1 screen pixel per art pixel, like the heroes: dark oiled wood with a bronze bead and an ink outline, gold leaf ornaments on the corners of the big panels (cut from a Pixel Lab frame), and bronze-rimmed buttons with a soft top-lit face and a lip.
+- The CSS keeps the old layout borders; only the slices changed ("UI kit v2" block at the end of the style sheet).
+
 ## No scroll bars; hero window below the Quit question (Nov 17)
 - No scroll bars anywhere in the game. Long lists still scroll with the mouse wheel or a swipe.
 - The hero window is a little wider (250 px) and grows to fit everything, items included, without scrolling.

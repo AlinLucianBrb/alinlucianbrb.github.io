@@ -587,6 +587,31 @@ input:not([type=checkbox]),select,.field input,.joinrow input{border:6px solid t
 /* The hero window grows to fit everything (no scrolling), a little wider, and starts below the Quit question. */
 #heroPanel{width:250px;max-height:none;overflow:visible;top:90px}
 #inspect{overflow:visible}
+
+/* UI kit v2 (art/pixellab/build_ui.py): the heroes' style, 1 screen pixel per art pixel. Panels have a wooden frame with a
+   bronze bead and gold leaves on the corners that overhang the box by 4 px (border-image-outset); buttons are bronze-rimmed
+   plates with a lip. The layout borders stay as they were; only the pictures' slices change. */
+.panel,.glass,.list,.hbody,.slots li,.invgrid,.treebox,.evonode,.hcard,.levels .lvl,.who,.purse,#lvPick .hgrid .hcard,.tip,.choose,.slotpop{
+  border-image-slice:20 fill;border-image-width:20px;border-image-outset:4px;border-image-repeat:stretch}
+.tip{border-image-slice:14 fill;border-image-width:14px;border-image-outset:4px}
+button{border-image-slice:7 fill;border-image-width:7px;border-image-repeat:stretch}
+button.choose{border-image-slice:20 fill;border-image-width:20px;border-image-outset:4px}
+.herocard,.herocard.on{border-image-slice:7;border-image-width:7px}
+input:not([type=checkbox]),select,.field input,.joinrow input,.invcell,.hslot{border-image-slice:5 fill;border-image-width:5px}
+.xp,.ebar{border-image-slice:4 fill;border-image-width:4px}
+.herocard .ebar{border-image-width:4px}
+
+/* UI kit v2, second pass: panels are a carved wooden frame (no fill) over a background of dark planks. */
+.panel,.glass,.list,.hbody,.slots li,.invgrid,.treebox,.evonode,.hcard,.levels .lvl,.who,.purse,#lvPick .hgrid .hcard,.slotpop,.tip,.choose{
+  border-image-slice:24;border-image-width:24px;border-image-outset:4px;border-image-repeat:round;
+  background:url(assets/ui_planks.png) repeat;background-clip:border-box;image-rendering:pixelated}
+.hcard,.evonode,.levels .lvl,.choose,#lvPick .hgrid .hcard{background:linear-gradient(180deg,#1d1a15,#161310)}   /* cards on a plank panel: smooth, so wood is not stacked on wood */
+.tip{background-image:url(assets/ui_planks_dark.png);border-image-slice:24;border-image-width:20px}
+button.choose{border-image-slice:24;border-image-width:24px}
+.choose:hover:not(:disabled){filter:brightness(1.15)}
+
+/* The menu background (art/pixellab/build_scene.py) is smooth-scaled art, not chunky pixels. */
+.screen.scene,.screen.scene.bright{image-rendering:auto}
 </style>
 </head>
 <body>
