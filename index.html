@@ -580,6 +580,13 @@ input:not([type=checkbox]),select,.field input,.joinrow input{border:6px solid t
 .herocard .nm,.herocard .abil,.herocard .key{position:relative;z-index:1}
 .herocard .key{position:absolute}
 .herocard::after{z-index:1}
+
+/* No scroll bars anywhere in the game (lists that are too long still scroll with the wheel or a swipe). */
+*{scrollbar-width:none}
+*::-webkit-scrollbar{display:none;width:0;height:0}
+/* The hero window grows to fit everything (no scrolling), a little wider, and starts below the Quit question. */
+#heroPanel{width:250px;max-height:none;overflow:visible;top:90px}
+#inspect{overflow:visible}
 </style>
 </head>
 <body>

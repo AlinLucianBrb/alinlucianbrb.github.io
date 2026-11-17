@@ -200,6 +200,11 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## No scroll bars; hero window below the Quit question (Nov 17)
+- No scroll bars anywhere in the game. Long lists still scroll with the mouse wheel or a swipe.
+- The hero window is a little wider (250 px) and grows to fit everything, items included, without scrolling.
+- The hero window now starts below the Menu / "Quit this match?" row, so they never overlap.
+
 ## Full portraits on the hero cards (Nov 17)
 - The portrait is no longer cut or faded on its right side. The whole picture shows, running behind the name and skill icons (staffs and weapons included).
 
