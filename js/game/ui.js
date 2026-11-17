@@ -84,26 +84,26 @@ export function initUI(callbacks) {
     const abil = el('span', 'abil idle'), atk = abilityIcon(attackIcon(d)), ult = abilityIcon(ultimateIcon(d));
     abil.append(atk, ult);
     bindTip(atk, () => { const info = cb.heroInfo(i), cur = info.unit ? info.unit.def : d;
-      return { title: 'Basic attack', color: cur.color, lines: [cur.short, { text: statLine(cur, info.stats), color: '#9db3a3' }] }; });
+      return { title: 'Basic attack', color: cur.color, lines: [cur.short, { text: statLine(cur, info.stats), color: '#ab9f8a' }] }; });
     bindTip(ult, () => { const info = cb.heroInfo(i), cur = info.unit ? info.unit.def : d, u = ULTIMATES[cur.ultimate], s = info.stats;
       return { title: 'Ultimate: ' + (u ? u.name : '?'), color: '#ffd84a', lines: [ultDesc(u, s),
-        { text: info.unit ? 'Energy ' + Math.floor(info.unit.energy) + ' / ' + s.energyMax : 'Energy ' + s.energyPerAttack + ' per attack, ' + s.energyMax + ' to fire', color: '#9db3a3' }] }; });
+        { text: info.unit ? 'Energy ' + Math.floor(info.unit.energy) + ' / ' + s.energyMax : 'Energy ' + s.energyPerAttack + ' per attack, ' + s.energyMax + ' to fire', color: '#ab9f8a' }] }; });
     name.append(nmText, lv, status); b.append(key, frame, name, abil); b._status = status; b._key = key; b._nm = nmText; b._lv = lv; b._pic = pic; b._frame = frame; b._picName = cp.name;
     b._abil = abil; b._atk = atk; b._ult = ult; b._form = d.id;
     bindTip(b, () => {
       const info = cb.heroInfo(i), cur = info.unit ? info.unit.def : d, u = ULTIMATES[cur.ultimate], ail = ailmentLine(cur, info.stats);
       /* The hero as a whole (its attack and ultimate have their own tooltips on the two icons) */
-      const lines = [roleLine(cur), { text: statLine(cur, info.stats), color: '#9db3a3' }];
-      lines.push({ text: 'Tags: ' + tagLine(cur) + ' (relics, talents and items for these tags work on it)', color: '#9db3a3' });
-      lines.push({ text: 'Damage: ' + DAMAGE_LABEL[cur.damageType || 'physical'] + (ail ? ' · inflicts ' + ail : ''), color: '#9db3a3' });
-      lines.push({ text: 'Attack and ultimate: hover the two icons under its name.', color: '#9db3a3' });
-      lines.push(info.unit ? { text: 'Click to select it. To move it: select it, press M or right-click, then click the new spot.', color: '#9db3a3' } : { text: 'Costs ' + HERO_COST + ' gold to place: one per match · key ' + b._key.textContent, color: '#9db3a3' });
+      const lines = [roleLine(cur), { text: statLine(cur, info.stats), color: '#ab9f8a' }];
+      lines.push({ text: 'Tags: ' + tagLine(cur) + ' (relics, talents and items for these tags work on it)', color: '#ab9f8a' });
+      lines.push({ text: 'Damage: ' + DAMAGE_LABEL[cur.damageType || 'physical'] + (ail ? ' · inflicts ' + ail : ''), color: '#ab9f8a' });
+      lines.push({ text: 'Attack and ultimate: hover the two icons under its name.', color: '#ab9f8a' });
+      lines.push(info.unit ? { text: 'Click to select it. To move it: select it, press M or right-click, then click the new spot.', color: '#ab9f8a' } : { text: 'Costs ' + HERO_COST + ' gold to place: one per match · key ' + b._key.textContent, color: '#ab9f8a' });
       if (info.unit) lines.push({ text: 'Level ' + info.unit.level + ': heroes gain XP from every kill while on the field.', color: '#8fd3ff' });
       if (info.path) lines.push({ text: 'Path: ' + info.path.name + '. Before it evolves: ' + PREVIEWS[info.path.id].desc, color: info.path.color || '#dcc6ff' });
       if (info.evo) {
         const names = (info.path ? [info.path] : info.evo.choices).map(c => c.name), list = names.length > 1 ? names.slice(0, -1).join(', ') + ' or ' + names.at(-1) : names[0];
         const need = info.evoLevel || info.evo.level;
-        lines.push({ text: 'At level ' + need + ' it can evolve into ' + list + ' for ' + info.evoCost + ' gold.', color: info.unit && info.unit.level >= need && info.gold >= info.evoCost ? '#f2b84b' : '#9db3a3' });
+        lines.push({ text: 'At level ' + need + ' it can evolve into ' + list + ' for ' + info.evoCost + ' gold.', color: info.unit && info.unit.level >= need && info.gold >= info.evoCost ? '#f2b84b' : '#ab9f8a' });
       }
       return { title: cur.name + ' · ' + cap(cur.archetype), color: cur.color, lines };
     });
@@ -113,10 +113,10 @@ export function initUI(callbacks) {
     'Spend gold to choose 1 of 3 random relics: permanent bonuses for the rest of this run.',
     'Rarer relics are stronger. You can reroll the offers for gold; Relic talents give free rerolls and banishes.',
     ...oddsLines(cb.luck ? cb.luck() : 0),
-    { text: 'The price goes up with each relic you buy. Key: Space (then 1, 2 or 3 to pick)', color: '#9db3a3' }] }));
-  bindTip($('auto'), () => ({ title: 'Auto-start', lines: ['Starts the next wave by itself 3 seconds after a wave is cleared. When it is on, the button is green with a glowing, pulsing border; when it is off, it is red.', { text: 'Turned off again when you retry a level.', color: '#9db3a3' }] }));
+    { text: 'The price goes up with each relic you buy. Key: Space (then 1, 2 or 3 to pick)', color: '#ab9f8a' }] }));
+  bindTip($('auto'), () => ({ title: 'Auto-start', lines: ['Starts the next wave by itself 3 seconds after a wave is cleared. When it is on, the button is green with a glowing, pulsing border; when it is off, it is red.', { text: 'Turned off again when you retry a level.', color: '#ab9f8a' }] }));
   bindTip($('spd'), () => ({ title: 'Game speed', lines: ['Switch between normal (1x) and double (2x) speed.',
-    cb.speed3x && cb.speed3x() ? { text: 'Overdrive: 3x speed unlocked.', color: '#8be28b' } : { text: 'The Overdrive talent unlocks 3x.', color: '#9db3a3' }] }));
+    cb.speed3x && cb.speed3x() ? { text: 'Overdrive: 3x speed unlocked.', color: '#8be28b' } : { text: 'The Overdrive talent unlocks 3x.', color: '#ab9f8a' }] }));
   bindTip($('menuBtn'), () => ({ title: 'Menu', lines: ['Pauses the game and asks before quitting the match. Key: P to pause, Esc to resume.'] }));
   $('meterToggle').onclick = () => {
     const open = $('meterToggle').getAttribute?.('aria-expanded') !== 'false';
@@ -135,7 +135,7 @@ export function initUI(callbacks) {
 /* Rarity odds as tooltip lines, e.g. "Odds: Common 55% · Uncommon 28% ...", plus the luck that shaped them. */
 function oddsLines(luck) {
   const odds = rarityOdds(luck);
-  return [{ text: 'Odds: ' + RARITIES.map((r, i) => r.name + ' ' + odd(odds[i])).join(' · '), color: '#9db3a3' },
+  return [{ text: 'Odds: ' + RARITIES.map((r, i) => r.name + ' ' + odd(odds[i])).join(' · '), color: '#ab9f8a' },
     ...(luck > 0 ? [{ text: 'Relic luck +' + f(luck * 100) + '%', color: '#8be28b' }] : [])];
 }
 
@@ -209,7 +209,7 @@ export function renderHUD(g, v) {
         sp.style.color = top.color; sp.style.borderColor = top.color; sp.tabIndex = 0;
         bindTip(sp, () => {
           const parts = RARITIES.map((r, i) => [r, rs.filter(x => x === i).length]).filter(([, c]) => c).map(([r, c]) => (c > 1 ? c + '× ' : '') + r.name);
-          return { title: name + (n > 1 ? ' ×' + n : ''), color: top.color, lines: [{ text: parts.join(' + '), color: '#9db3a3' }, (n > 1 ? 'Together: ' : '') + def.desc(total)] };
+          return { title: name + (n > 1 ? ' ×' + n : ''), color: top.color, lines: [{ text: parts.join(' + '), color: '#ab9f8a' }, (n > 1 ? 'Together: ' : '') + def.desc(total)] };
         });
         box.append(sp);
       }
@@ -312,7 +312,8 @@ export function renderInspector(g, v) {
   if (box._t !== t || box._m !== ownerMods.length || box._tier !== t.tier || box._lv !== t.level || box._bk !== bk) {
     box._k = 't'; box._t = t; box._m = ownerMods.length; box._tier = t.tier; box._lv = t.level; box._bk = bk; box.textContent = '';
     const d = t.def, head = el('div', 'phead'), title = el('b', '', (t.tier ? '★ ' : '') + d.name + ' · Lv ' + t.level + (coop && (t.owner || 0) !== coop.me ? ' · ' + coop.names[t.owner || 0] + "'s" : '')), close = el('button', 'linkbtn pclose', '✕');
-    title.style.color = d.color; close.onclick = cb.onCloseInspector; close.title = 'Close (Esc)'; head.append(title, close); box.append(head);
+    title.style.color = d.color; $('heroPanel').style.setProperty?.('--hc', d.color);   /* the window takes the hero's colour */
+    close.onclick = cb.onCloseInspector; close.title = 'Close (Esc)'; head.append(title, close); box.append(head);
     /* Right under the name: what the hero has done this match (icons; hover for the words). */
     const tally = el('div', 'tally'), tv = k => { const sp = el('span', 'tv'), b = el('b'); sp.append(spriteImg('icon_' + k, 'pix ico'), b); tally.append(sp); return b; };
     box._tDealt = tv('damage'); box._tKills = tv('kills'); box._tUlts = tv('ultimate');
@@ -323,7 +324,7 @@ export function renderInspector(g, v) {
       const r = el('div', 'pbar'), b = el('span', 'ebar wide' + (k === 'xp' ? ' xpbar' : '')), fill = el('i'), lbl = el('span', 'pbtxt');
       b.append(fill); r.append(spriteImg('icon_' + icon, 'pix ico'), b, lbl); box.append(r);
       bindTip(r, () => (k === 'xp' ? { title: 'Experience', lines: ['Level ' + t.level + '. Heroes gain XP from every kill while on the field.'] }
-        : { title: 'Energy', lines: ['Fills with each attack' + (t.s.energyPerSecond ? ' and over time' : '') + '; when full, the ultimate fires.', { text: 'What it does: hover the ultimate icon on the hero\'s card.', color: '#9db3a3' }] }));
+        : { title: 'Energy', lines: ['Fills with each attack' + (t.s.energyPerSecond ? ' and over time' : '') + '; when full, the ultimate fires.', { text: 'What it does: hover the ultimate icon on the hero\'s card.', color: '#ab9f8a' }] }));
       return { lbl, b, fill };
     };
     const xp = bar('xp', 'xp'), en = bar('energy', 'energy');
@@ -338,7 +339,7 @@ export function renderInspector(g, v) {
       bindTip(sp, () => ({ title: STAT_LABELS[a] + (own ? ' (main attribute)' : ''), color: own ? ATTR_COLOR[a] : undefined,
         lines: [...(own ? ['+' + pct(attributeDamage(d, t.s)) + ' damage (+1% per point)'] : []),
           ...ATTRIBUTE_EFFECTS[a].map(fx => '+' + f(t.s[a] * fx.per * 100) + '% ' + fx.label),
-          ...stackMods(explain(d, a, all).concat(own ? explain(d, 'mainAttribute', all) : [])).map(m => ({ text: describe(m, a), color: '#9db3a3' }))] }));
+          ...stackMods(explain(d, a, all).concat(own ? explain(d, 'mainAttribute', all) : [])).map(m => ({ text: describe(m, a), color: '#ab9f8a' }))] }));
       ar.append(sp);
     }
     box.append(ar);
@@ -362,7 +363,7 @@ export function renderInspector(g, v) {
       if (f(value) !== f(base)) val.classList.add('up');
       cell.append(val); grid.append(cell);
       const mods = stackMods(explain(d, key, all));
-      bindTip(cell, () => ({ title: label + ': ' + exact(key, value), lines: [{ text: 'Base ' + exact(key, base), color: '#9db3a3' },
+      bindTip(cell, () => ({ title: label + ': ' + exact(key, value), lines: [{ text: 'Base ' + exact(key, base), color: '#ab9f8a' },
         ...(key === 'damage' && attributeDamage(d, t.s) > 0 ? [{ text: '+' + pct(attributeDamage(d, t.s)) + ' · ' + STAT_LABELS[d.attribute] + ' (attribute)', color: ATTR_COLOR[d.attribute] }] : []),
         ...mods.map(m => ({ text: describe(m, key), color: m.ri >= 0 ? RARITIES[m.ri].color : SOURCE_COLOR[m.ri] || '#f2b84b' })),
         ...(mods.length || f(value) !== f(base) ? [] : [{ text: 'Nothing changes it yet', color: '#6f7d74' }])] }));
@@ -460,7 +461,7 @@ export function showPick(g) {
   const keep = $('playOnPick');
   keep.checked = !!g.playOnPick; keep.onchange = () => cb.onPlayOnPick(!!keep.checked);
   if (!keep._tip) (keep._tip = true, bindTip(keep.parentElement || keep, () => ({ title: 'Keep playing while choosing', lines: ['The match carries on behind this window while you pick a relic.',
-    { text: 'Off by default. Remembered for your next matches.', color: '#9db3a3' }] })));
+    { text: 'Off by default. Remembered for your next matches.', color: '#ab9f8a' }] })));
   $('pick').hidden = false; updatePick(g);
 }
 /* Cheap per-frame refresh of prices and disabled states while the picker is open. */

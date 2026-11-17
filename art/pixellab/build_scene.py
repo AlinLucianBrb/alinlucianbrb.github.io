@@ -125,7 +125,33 @@ def main():
             vp[x, y] = int(min(255, max(0, (d - 0.75) * 300)))
     img = Image.composite(Image.new('RGBA', (W, H), (6, 8, 12, 255)), img, vig.point(lambda v: v * 0.6))
     img.convert('RGB').save(A('ui_scene.png'))
+    overlays(fx, fy)
     print('ui_scene.png', img.size)
+
+
+
+def overlays(fx, fy):
+    """The fire's moving parts, as see-through layers the same size as the scene (the CSS lays them over it with the same
+    cover/centre-bottom fit, so they stay on the fire at any window size): ui_scene_glow.png, a warm light that flickers;
+    ui_scene_embers_0..3.png, 4 frames of sparks rising from the fire."""
+    glow = Image.new('RGBA', (W, H)); gp = glow.load()
+    for y in range(max(0, fy - 260), min(H, fy + 200)):
+        for x in range(max(0, fx - 300), min(W, fx + 300)):
+            d = math.hypot(x - fx, (y - fy + 20) * 1.3) / 280
+            if d < 1: gp[x, y] = (255, 160, 70, int(110 * (1 - d) ** 2))
+    glow.save(A('ui_scene_glow.png'))
+    rnd = random.Random(5)
+    sparks = [(rnd.uniform(-14, 14), rnd.uniform(0, 1), rnd.uniform(0.6, 1.4), rnd.uniform(-8, 8)) for _ in range(30)]
+    for f in range(4):
+        sheet = Image.new('RGBA', (W, H)); sp = sheet.load()
+        for (dx, ph, sz, drift) in sparks:
+            t = (ph + f / 4) % 1
+            x = round(fx + dx + drift * t + math.sin(t * 6 + dx) * 4); y = round(fy - 40 - t * 170)
+            a = int(255 * (1 - t))
+            c = (255, 220, 120, a) if t < 0.4 else (255, 140, 60, a)
+            for (ox, oy) in ((0, 0), (1, 0), (0, 1), (1, 1)) if sz > 1 else ((0, 0), (1, 0)):
+                if 0 <= x + ox < W and 0 <= y + oy < H: sp[x + ox, y + oy] = c
+        sheet.save(A('ui_scene_embers_%d.png' % f))
 
 
 if __name__ == '__main__':

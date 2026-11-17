@@ -97,7 +97,7 @@ export function itemLines(it) {
 /* The same, for tooltips: { text, color, desc, rank, works }, each bonus in its rank's colour with its rank. */
 export function itemBonusLines(it) {
   const i = asItem(it), t = ITEMS[i.type], out = [], lk = ilvlMult(i.ilvl);
-  out.push({ text: 'Item level ' + (i.ilvl || ILVL.old) + ' · stats ×' + (+lk.toFixed(2)), desc: '', color: '#9db3a3', rank: 0, works: false, meta: true });
+  out.push({ text: 'Item level ' + (i.ilvl || ILVL.old) + ' · stats ×' + (+lk.toFixed(2)), desc: '', color: '#ab9f8a', rank: 0, works: false, meta: true });
   if (t && t.desc) { const d = t.desc.replace(/\+(\d+(?:\.\d+)?)/, (_, n) => '+' + +(n * lk).toFixed(1)); out.push({ text: d, desc: d, color: '#ecf1e8', rank: 0, works: true }); }   /* its own stat, scaled too */
   i.bonuses.forEach((name, k) => {
     const r = relicByName(name), rank = i.ranks[k];

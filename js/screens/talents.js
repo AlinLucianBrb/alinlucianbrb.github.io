@@ -29,7 +29,7 @@ function tipFor(n) {
       : plural(way.length, 'point') + ' away; you have ' + free() + '.';
   }
   return { title: n.name + (n.notable ? ' (notable)' : ''), color: n.path ? '#cfd8cf' : cl ? cl.color : TREES[n.tree].color,
-    lines: n.root ? [n.desc] : [...(cl ? [{ text: cl.title, color: '#9db3a3' }] : n.path ? [{ text: 'Path', color: '#9db3a3' }] : []), ...n.mods.map(fmtMod), { text: status, color: '#9db3a3' }] };
+    lines: n.root ? [n.desc] : [...(cl ? [{ text: cl.title, color: '#ab9f8a' }] : n.path ? [{ text: 'Path', color: '#ab9f8a' }] : []), ...n.mods.map(fmtMod), { text: status, color: '#ab9f8a' }] };
 }
 
 function changed() {

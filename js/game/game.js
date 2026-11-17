@@ -1,5 +1,6 @@
 /* The browser shell around the engine: it turns input into commands, runs the loop, moves the camera, draws and updates the HUD.
    All game rules live in js/engine; nothing in here decides what happens in a game. */
+import { zoneOf } from '../content/zones.js';
 import { HEROES, COLS, ROWS, T, STAGES, heroIndex } from '../content/data.js';
 import { createWorld, step, STEP, playerView } from '../engine/world.js';
 import { apply } from '../engine/commands.js';
@@ -434,6 +435,7 @@ addEventListener('keydown', e => {
 /* ---- Public API used by the Play screen ---- */
 export function startGame(h) {
   hooks = h; stageN = h.stage || 1; active = true; acc = 0; last = -1;
+  if (document.body?.dataset) document.body.dataset.zone = String(zoneOf(stageN).n);   /* the zone's colour for the HUD (index.html, UI zones) */
   preloadArt();
   newRun(h.resume || null); resize();
   cancelAnimationFrame(raf); stopBg();

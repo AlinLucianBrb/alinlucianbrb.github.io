@@ -20,6 +20,7 @@ const say = (t, bad) => { $('lvMsg').textContent = t || ''; $('lvMsg').classList
 function renderLevels() {
   const p = state.profile, cleared = p.levels_cleared || 0, list = $('lvList'), next = Math.min(STAGES.length, cleared + 1);
   if (zone === null) zone = zoneOf(next).n;
+  if (document.body?.dataset) document.body.dataset.zone = String(zone);   /* the chosen zone's colour */
   const zones = $('lvZones');
   if (zones) {
     zones.textContent = '';

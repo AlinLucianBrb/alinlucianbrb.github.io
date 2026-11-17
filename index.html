@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Test TBD</title>
 <style>
-:root{--bg:#18211c;--panel:#233229;--line:#385043;--text:#ecf1e8;--muted:#9db3a3;--accent:#f2b84b;--bad:#e5645a;color-scheme:dark}
+:root{--bg:#120f0c;--panel:#1d1a15;--line:#5a4630;--text:#f1ece2;--muted:#ab9f8a;--accent:#f2b84b;--bad:#e5645a;color-scheme:dark}   /* warm: wood, bronze, parchment-white */
 *{box-sizing:border-box}
 html,body{height:100%;margin:0;overflow:hidden}
 body{background:var(--bg);color:var(--text);font:clamp(13px,1.7vh,16px)/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
@@ -115,7 +115,7 @@ select{font:inherit;background:#101813;color:var(--text);border:2px solid var(--
 .hart span{font-size:5em;font-weight:800;color:var(--hc);opacity:.85}
 .hstatbox .srow{display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid var(--line)}
 .hstatbox .srow.main b,.hstatbox .srow.main span{color:#e8c9a0}
-.hstatbox .buff{color:#9db3a3;font-size:.85em;padding:2px 0 4px 10px}
+.hstatbox .buff{color:#ab9f8a;font-size:.85em;padding:2px 0 4px 10px}
 .evotree{display:flex;flex-direction:column;align-items:center;gap:0}
 .evonode{--hc:var(--line);display:flex;flex-direction:column;gap:4px;background:#101813;border:2px solid var(--hc);border-radius:8px;padding:10px 12px;width:min(300px,100%)}
 .evonode p{margin:0}
@@ -142,7 +142,7 @@ select{font:inherit;background:#101813;color:var(--text);border:2px solid var(--
 .sellbtn.confirm{border-color:#f2b84b;color:#f2b84b}
 .invcell.full:hover,.invcell.full:focus{border-color:var(--accent)}
 .invcell .wornmark{position:absolute;top:2px;right:5px;font-size:.7em;color:#8be28b}
-.itemicon{--ic:#9db3a3;--rc:#ecf1e8;display:inline-grid;place-items:center;width:40px;height:40px;border-radius:8px;font-weight:800;font-size:.9em;color:#101813;background:var(--ic);border:3px solid var(--rc);box-shadow:inset 0 -3px 0 rgba(0,0,0,.25)}
+.itemicon{--ic:#ab9f8a;--rc:#ecf1e8;display:inline-grid;place-items:center;width:40px;height:40px;border-radius:8px;font-weight:800;font-size:.9em;color:#101813;background:var(--ic);border:3px solid var(--rc);box-shadow:inset 0 -3px 0 rgba(0,0,0,.25)}
 .slotpick{display:flex;flex-wrap:wrap;gap:4px;align-items:center;width:100%}
 .iconbtn{padding:2px;line-height:0;background:transparent;border:1px solid transparent}
 .iconbtn:hover{border-color:var(--accent)}
@@ -176,7 +176,7 @@ select{font:inherit;background:#101813;color:var(--text);border:2px solid var(--
 .tlhint{position:absolute;right:10px;bottom:8px;pointer-events:none}
 .tlink{stroke:#385043;stroke-width:5}
 .tlink.on{stroke:#f2b84b}
-.tbranch{fill:#9db3a3;font-size:28px;stroke:#101813;stroke-width:7px;paint-order:stroke;stroke-linejoin:round;font-weight:600;pointer-events:none;letter-spacing:.02em}
+.tbranch{fill:#ab9f8a;font-size:28px;stroke:#101813;stroke-width:7px;paint-order:stroke;stroke-linejoin:round;font-weight:600;pointer-events:none;letter-spacing:.02em}
 .tnode circle{fill:#1d2f55;stroke:#4a6a58;stroke-width:3;cursor:pointer}
 .tnode.on circle{stroke:#fff}
 .tnode.avail circle{stroke:#f2b84b;stroke-width:4}
@@ -612,12 +612,115 @@ button.choose{border-image-slice:24;border-image-width:24px}
 
 /* The menu background (art/pixellab/build_scene.py) is smooth-scaled art, not chunky pixels. */
 .screen.scene,.screen.scene.bright{image-rendering:auto}
+
+/* Buttons v2: 32 px plates, slice 10 (drawn 10 px into an 8 px border, so the corner caps sit on the face). */
+button{border-image-slice:10 fill;border-image-width:10px}
+.herocard,.herocard.on{border-image-slice:10;border-image-width:10px}
+
+/* ===== UI materials (art/pixellab/build_ui.py). Each kind of box has its own frame and surface, so the screens are not
+   all made of the same thing:
+   ornate wood (gold leaves, brackets): the few important panels   ·   plain wood + planks: structure (HUD, lists)
+   leather (stitched, brass corners): hero things   ·   iron (bolted steel): warnings and confirmations
+   slate (gold hairline): tooltips   ·   card (thin bronze line): cards that repeat in a grid */
+.glass,.list,.treebox,.who,.purse{border-image-source:url(assets/ui_frame_wood.png);border-image-slice:14;border-image-width:14px;border-image-outset:0;border-image-repeat:round;
+  background:url(assets/ui_planks.png) repeat}
+.menuBtns.panel{border-image-source:url(assets/ui_panel.png);border-image-slice:24;border-image-width:24px;border-image-outset:4px;background:url(assets/ui_planks.png) repeat}
+#heroPanel,.hbody,.slotpop,.invgrid{border-image-source:url(assets/ui_frame_leather.png);border-image-slice:12;border-image-width:12px;border-image-outset:0;border-image-repeat:round;
+  background:url(assets/ui_leather.png) repeat}
+#menuConfirm,#netBanner,#pauseBanner{border-image-source:url(assets/ui_frame_iron.png);border-image-slice:12;border-image-width:12px;border-image-outset:0;border-image-repeat:round;
+  background:url(assets/ui_iron.png) repeat}
+.tip{border-image-source:url(assets/ui_frame_slate.png);border-image-slice:8;border-image-width:8px;border-image-outset:0;border-width:8px;background:url(assets/ui_slate.png) repeat}
+.hcard,.evonode,.levels .lvl,.choose,#lvPick .hgrid .hcard,.slots li{border-image-source:url(assets/ui_frame_card.png);border-image-slice:6;border-image-width:6px;border-image-outset:0;border-image-repeat:stretch;
+  background:linear-gradient(180deg,#1d1a15,#141210)}
+button.choose{border-image-slice:6;border-image-width:6px}
+.choose{box-shadow:0 0 0 1px rgba(217,169,78,.35),0 0 14px rgba(217,169,78,.18)}
+/* the hero's colour shows as a soft wash at the top of its card, not a web-style stripe */
+.hcard,.evonode,.hbody{box-shadow:none;background:linear-gradient(180deg,color-mix(in srgb,var(--hc) 16%,#1d1a15) 0%,#161310 55%)}
+.hbody{background:url(assets/ui_leather.png) repeat}
+.evonode{border-top-width:10px}
+.evonode.chosen{box-shadow:0 0 0 2px var(--hc),0 0 16px color-mix(in srgb,var(--hc) 45%,transparent)}
+.evorow{border-top:none;position:relative}
+.evorow::before{content:'';position:absolute;left:8%;right:8%;top:0;height:2px;background:linear-gradient(90deg,transparent,#8f6a3a 20%,#d6a85c 50%,#8f6a3a 80%,transparent)}
+.evolink::before,.evolink::after{background:linear-gradient(#d6a85c,#8f6a3a)}
+/* attribute values: small sunken slots instead of rounded pills */
+.attr,#inspect .attr{border:3px solid transparent;border-radius:0;border-image:url(assets/ui_slot.png) 5 fill / 5px stretch;padding:0 6px 0 3px}
+.attr.main{border-color:transparent;color:#ffd97a}
+.attr.main b{color:#ffe7a8}
+.evoup{border-radius:0;border:2px solid #d9a94e;background:#2a2010;box-shadow:0 2px 0 #000}
+.hart{border-radius:0}
+/* filled bars with a little shine */
+.ebar i{background:linear-gradient(180deg,#bfe4ff 0,#5aa9ff 35%,#2e6fc0 100%)}
+.xp i{background:linear-gradient(180deg,#ffeaa0 0,#e8b04a 35%,#a8742a 100%)}
+
+/* material border widths (the frame pictures need room) */
+.glass,.list,.treebox,.who,.purse{border-width:10px;border-style:solid;border-color:transparent}
+#heroPanel,.hbody,.slotpop,.invgrid,#menuConfirm,#netBanner,#pauseBanner{border-width:12px;border-style:solid;border-color:transparent}
+.hcard,.evonode,.evonode.root,.levels .lvl,.choose,#lvPick .hgrid .hcard,.slots li{border-width:6px;border-style:solid;border-color:transparent}
+#hud .sep,#hud i.sep,.hudsep{background:#8f6a3a}
+
+/* ===== Zone colours: each zone tints the accents (titles, the HUD's glow, the chosen zone tab, level cards). */
+body{--zc:#d9a94e}
+body[data-zone="1"]{--zc:#b8d25a} body[data-zone="2"]{--zc:#4fc08e} body[data-zone="3"]{--zc:#a98bd6}
+body[data-zone="4"]{--zc:#e2864a} body[data-zone="5"]{--zc:#ff6a3a}
+#screen-play .overlay h2,#screen-levels h2,#screen-levels h1{color:color-mix(in srgb,var(--zc) 70%,#ffe7a8)}
+#hud,#hudBottom{box-shadow:0 0 0 1px color-mix(in srgb,var(--zc) 35%,transparent),0 0 18px color-mix(in srgb,var(--zc) 16%,transparent)}
+#hud .stat b{color:color-mix(in srgb,var(--zc) 40%,#fff3d6)}
+.zone.on{box-shadow:0 0 0 2px var(--zc),0 0 14px color-mix(in srgb,var(--zc) 40%,transparent)}
+.levels .lvl{background:linear-gradient(180deg,color-mix(in srgb,var(--zc) 14%,#1d1a15) 0%,#141210 60%)}
+/* ===== The hero window: leather tinted at the top by the hero's colour */
+#heroPanel{--hc:#d9a94e;background:linear-gradient(180deg,color-mix(in srgb,var(--hc) 22%,transparent) 0,transparent 70px),url(assets/ui_leather.png) repeat}
+/* ===== A lighter match HUD: the board is the star. Translucent dark wood, no planks; hero cards lose their frame. */
+#hud,#hudBottom,#meterPanel,#relics,#coopBar{background:rgba(16,13,10,.72)}
+.herocard,.herocard.on{border-image:none;border:3px solid transparent;box-shadow:inset 0 0 0 1px rgba(255,236,190,.08),0 0 0 1px rgba(0,0,0,.6)}
+.herocard.on{box-shadow:0 0 0 2px #ffd84a,0 0 12px 1px rgba(255,216,74,.5)}
+.goldbox,.actions{border-color:rgba(143,106,58,.45)}
+/* ===== Font rule: the pixel font for short labels and numbers; the smooth font only for sentences. */
+#menuConfirm .q,#inspect .tally,#inspect .pbtxt,#inspect .pst,.attr,.lvtxt,.evolink,.pickfoot,.stat small,.goldbox small,#hud .stat{font-family:var(--pixel);font-weight:400}
+#menuConfirm .q{font-size:16px}
+#inspect .pst,#inspect .pbtxt,#inspect .tally,.attr{font-size:13px}
+
+/* ===== Page banners (art/pixellab/build_levels.py): the page title sits on a strip of the game's own art. */
+#screen-heroes h1,#screen-inventory h1,#screen-leaderboard h1,#screen-settings h1,#lvChoose h1{
+  box-sizing:border-box;width:min(1100px,100%);min-height:118px;margin:0 auto 10px;display:flex;align-items:flex-end;justify-content:center;padding:0 12px 10px;
+  border:6px solid transparent;border-image:url(assets/ui_frame_card.png) 6 / 6px stretch;image-rendering:auto;
+  background:linear-gradient(180deg,rgba(0,0,0,0) 35%,rgba(8,6,4,.78)),url(assets/banner_camp.png) center 40%/cover}
+#screen-heroes h1{background-image:linear-gradient(180deg,rgba(0,0,0,0) 45%,rgba(8,6,4,.8)),url(assets/banner_heroes.png);background-position:center 60%}
+#lvChoose h1{background-image:linear-gradient(180deg,rgba(0,0,0,0) 35%,rgba(8,6,4,.8)),url(assets/level_1.png);background-position:center 55%}
+body[data-zone="2"] #lvChoose h1{background-image:linear-gradient(180deg,rgba(0,0,0,0) 35%,rgba(8,6,4,.8)),url(assets/level_2.png)}
+body[data-zone="3"] #lvChoose h1{background-image:linear-gradient(180deg,rgba(0,0,0,0) 35%,rgba(8,6,4,.8)),url(assets/level_3.png)}
+body[data-zone="4"] #lvChoose h1{background-image:linear-gradient(180deg,rgba(0,0,0,0) 35%,rgba(8,6,4,.8)),url(assets/level_4.png)}
+body[data-zone="5"] #lvChoose h1{background-image:linear-gradient(180deg,rgba(0,0,0,0) 35%,rgba(8,6,4,.8)),url(assets/level_5.png)}
+/* the level pictures and the logo are smooth-scaled art; the menu icons are 32 px drawn small */
+.levels .lvl .lvart,.logo img{image-rendering:auto}
+.menuBtns .ico,#screen-menu .ico{image-rendering:auto;width:20px;height:20px;vertical-align:-5px}
+
+.zones .zone.on{border-image-source:url(assets/ui_button.png);outline:none;box-shadow:0 0 0 2px var(--zc),0 0 16px color-mix(in srgb,var(--zc) 45%,transparent)}
+.zones .zone.on b{color:color-mix(in srgb,var(--zc) 60%,#fff3d6)}
+.levels .lvl.done{box-shadow:0 0 0 2px #c99a52;border-color:transparent}
+.levels .lvl.done small{color:#e8c47a}
+
+/* ===== Motion. The menu's campfire: a flickering glow and rising sparks, laid over the scene with the same fit. */
+#screen-menu::before,#screen-menu::after,#screen-login::before,#screen-login::after{content:'';position:absolute;inset:0;pointer-events:none;z-index:0;
+  background:url(assets/ui_scene_glow.png) center bottom/cover no-repeat;animation:fireGlow 2.6s ease-in-out infinite}
+#screen-menu::after,#screen-login::after{background:url(assets/ui_scene_embers_0.png) center bottom/cover no-repeat;animation:embers 1s steps(1) infinite}
+:where(#screen-menu,#screen-login)>*{position:relative;z-index:1}
+@keyframes fireGlow{0%,100%{opacity:.75}30%{opacity:1}55%{opacity:.6}80%{opacity:.95}}
+@keyframes embers{0%{background-image:url(assets/ui_scene_embers_0.png)}25%{background-image:url(assets/ui_scene_embers_1.png)}50%{background-image:url(assets/ui_scene_embers_2.png)}75%{background-image:url(assets/ui_scene_embers_3.png)}}
+/* a slow shine across Start and Play solo */
+button.go{position:relative;overflow:hidden}
+button.go::after{content:'';position:absolute;top:-10px;bottom:-10px;width:28px;left:-40px;pointer-events:none;
+  background:linear-gradient(100deg,transparent,rgba(255,250,220,.55),transparent);animation:shine 4.5s ease-in-out infinite}
+@keyframes shine{0%,70%{left:-40px}100%{left:calc(100% + 40px)}}
+/* the ultimate's icon breathes when it is ready */
+.herocard .ab.ready{animation:ultReady 1.4s ease-in-out infinite}
+@keyframes ultReady{0%,100%{box-shadow:0 0 0 2px #ffd84a,0 0 6px 1px rgba(255,216,74,.6)}50%{box-shadow:0 0 0 2px #fff0a8,0 0 14px 4px rgba(255,216,74,.9)}}
+@media (prefers-reduced-motion:reduce){#screen-menu::before,#screen-login::before,#screen-menu::after,#screen-login::after,button.go::after,.herocard .ab.ready{animation:none}button.go::after{display:none}}
 </style>
 </head>
 <body>
 
 <section id="screen-login" class="screen scene bright" hidden>
-  <h1 class="logo"><img class="pix" src="assets/ui_logo.png" alt="Test TBD" width="402" height="105"></h1>
+  <h1 class="logo"><img src="assets/ui_logo.png" alt="Test TBD" width="380" height="109"></h1>
   <form id="loginForm" class="field">
     <input id="liUser" placeholder="Username" autocomplete="username" aria-label="Username" required>
     <input id="liPass" type="password" placeholder="Password" autocomplete="current-password" aria-label="Password" required>
@@ -641,7 +744,7 @@ button.choose{border-image-slice:24;border-image-width:24px}
     <div class="who panel"><b id="mName"></b><div><img class="ico pix" src="assets/icon_level.png" alt="">Level <b id="mLv"></b></div><div><span class="xp"><i id="mXpFill"></i></span> <span id="mXp"></span></div></div>
     <div class="purse panel"><img class="ico pix" src="assets/icon_gold.png" alt="">Gold <b id="mGold"></b></div>
   </div>
-  <h1 class="logo"><img class="pix" src="assets/ui_logo.png" alt="Test TBD" width="402" height="105"></h1>
+  <h1 class="logo"><img src="assets/ui_logo.png" alt="Test TBD" width="380" height="109"></h1>
   <div class="menuBtns panel">
     <div id="resumeBox" class="resumebox" hidden><button class="go" id="resumeRunBtn">Resume run</button><button class="linkbtn" id="resumeDrop">Give it up</button></div>
     <button class="go" data-nav="levels"><img class="ico pix" src="assets/icon_play.png" alt="">Play solo</button>

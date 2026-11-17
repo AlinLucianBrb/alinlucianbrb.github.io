@@ -200,6 +200,32 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## New logo, menu icons, zone pictures, page banners and motion (Nov 17)
+- Logo (art/pixellab/build_logo_icons.py): a Pixel Lab emblem (a shield with an oak leaf and crossed swords) beside the name in the game's pixel font, set in shaded gold over a bronze extrusion.
+- Main menu icons: new 32 px Pixel Lab icons (play, lobby, key, helmet, chest, sapling, trophy, gear, door), drawn small and smooth.
+- Zone pictures (art/pixellab/build_levels.py, level_1..5.png): a road through each zone with its enemies marching on it, built from the match art and graded per zone (bright meadow, dark forest, violet misty mire, red canyon, ash with an ember glow).
+- Page banners: Heroes, Inventory, Leaderboard, Settings and Choose a level open with their title on a strip of game art (the heroes lined up, the camp, or the chosen zone's picture).
+- Motion: the menu's campfire flickers and throws sparks (ui_scene_glow.png, ui_scene_embers_0..3.png, laid over the scene with the same fit), a slow shine runs across Start and Play solo, and a ready ultimate's icon breathes. All of it stops under "reduce motion".
+- The old pictures are kept in art/pixellab/ui/old.
+
+## UI materials, zone colours, lighter HUD (Nov 17)
+- Each kind of box has its own material (art/pixellab/build_ui.py, "UI materials" in index.html), so the screens are no longer all the same wood:
+  - ornate wood (gold leaves, brackets): only the main menu panel;
+  - plain wood over planks: structure (HUD pieces, lists, talents, the menu's name and gold boxes);
+  - stitched leather with brass corners: hero things (the hero window, the hero page, gear pop-ups, inventory);
+  - bolted iron: warnings and confirmations (Quit, Paused, the network banner);
+  - black slate with a gold hairline: tooltips;
+  - a thin bronze card frame: cards that repeat in a grid (heroes, evolutions, levels, relics).
+- The palette is warm now (bronze lines, warm greys) instead of the old teal-green. Web-style pieces are gone: attribute pills are sunken slots, the coloured stripe on hero and evolution cards is a soft wash of the hero's colour, the dividers are bronze. XP and energy bars have a shiny fill.
+- Zone colours: the five zones (meadow green, forest teal, mire violet, canyon orange, ash red) tint the match HUD's glow and numbers, the overlay titles, the chosen zone tab and the level cards.
+- The hero window is tinted at the top in the hero's colour.
+- Lighter match HUD: translucent dark wood with no planks, and the hero cards lost their bronze frame (the gold glow shows the selected one).
+- Font rule: the pixel font for short labels and numbers (the hero window, the Quit question, HUD labels), the smooth font only for sentences.
+
+## Buttons in the frames' style (Nov 17)
+- Every button is a 32 px plate (slice 10): a 2 px bronze rim lit from the top-left, an ink line, a top-lit face, bronze corner caps with rivets, and a dark lip that disappears when pressed.
+- Plain buttons and tabs have a dark wooden face with faint grain. Start, Quit, Relic and the "on" state keep their colours as enamel faces (Start with a deeper gold rim, "on" with a bright one).
+
 ## Quieter planks (Nov 17)
 - Darker still (v0.49.2): the planks and the card shading are near-black wood.
 - The plank texture behind panels is much calmer: wide boards (24 px), barely different tones, soft seams, faint grain, one joint per board, no knots. Big panels like the hero window and the evolutions page no longer tire the eye.

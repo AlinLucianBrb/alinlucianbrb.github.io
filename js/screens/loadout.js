@@ -75,7 +75,7 @@ export const sqlHint = e => (/function|schema|column/i.test(e || '') ? ' (did yo
 /* An item's icon, framed in its rarity colour: the pixel-art picture for its type and rarity (assets/item_<type>_<rarity>.png),
    or, for an unknown type or while the picture cannot load, the type's initials on its colour. */
 export function itemIcon(row) {
-  const known = ITEMS[row.item_type], t = known || { name: row.item_type, color: '#9db3a3' };
+  const known = ITEMS[row.item_type], t = known || { name: row.item_type, color: '#ab9f8a' };
   const i = el('span', 'itemicon', t.name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase());
   i.style.setProperty('--ic', t.color); i.style.setProperty('--rc', itemColor(row));
   if (known) {
@@ -89,8 +89,8 @@ export function itemIcon(row) {
 export function itemTip(row) {
   const who = wornBy(row.id), hero = who && HEROES.find(h => h.id === who.hero);
   const t = ITEMS[row.item_type], bl = itemBonusLines(row), aff = t && t.affinity;
-  const lines = [{ text: (SLOT_LABEL[t ? t.slot : ''] || 'Unknown slot') + (aff ? ' · ' + AFFINITY_LABEL[aff] + ' item (leans toward ' + AFFINITY_LABEL[aff].toLowerCase() + ' bonuses)' : ''), color: '#9db3a3' }, ...bl.map(l => ({ text: l.text, color: l.color }))];
-  if (!bl.length) lines.push({ text: 'No bonuses', color: '#9db3a3' });
-  lines.push(who ? { text: 'Equipped on the ' + (hero ? hero.name : who.hero), color: '#8be28b' } : { text: 'Not equipped', color: '#9db3a3' });
+  const lines = [{ text: (SLOT_LABEL[t ? t.slot : ''] || 'Unknown slot') + (aff ? ' · ' + AFFINITY_LABEL[aff] + ' item (leans toward ' + AFFINITY_LABEL[aff].toLowerCase() + ' bonuses)' : ''), color: '#ab9f8a' }, ...bl.map(l => ({ text: l.text, color: l.color }))];
+  if (!bl.length) lines.push({ text: 'No bonuses', color: '#ab9f8a' });
+  lines.push(who ? { text: 'Equipped on the ' + (hero ? hero.name : who.hero), color: '#8be28b' } : { text: 'Not equipped', color: '#ab9f8a' });
   return { title: itemName(row), color: itemColor(row), lines };
 }
