@@ -10,7 +10,7 @@ Faces are calm (a soft top-lit gradient), with sparse sharp highlights: the bead
 Sizes (each frame's slice = the border-image slice in index.html, "UI kit v2"):
   panel / panel_light / tooltip: 72x72 + a 4 px margin for the leaves that overhang; slice 24 (no fill: the middle is
     transparent and the box shows ui_planks*.png, a seamless tile, as its background), outset 4, sides repeated (round)
-  buttons and tabs: 32x32, slice 10 (wooden faces for plain buttons, coloured enamel for go / bad / relic / on)
+  buttons and tabs: 32x32, slice 10 (all enamel plates like the Relic button: amber gold for plain buttons and tabs (a touch softer than go), bright gold / red / violet / green for go / bad / relic / on)
   slot / input / bar: 16x16, slice 5      chip: 8x8, slice 3
 """
 import os
@@ -204,7 +204,7 @@ def inset(fill, size=16):
 
 
 def tab(face, on):
-    img = button(face if on else '#241d16', wood=True)
+    img = button(face if on else '#a87c3a', rim='#7a5426')
     if on:
         px = img.load(); fc = hexc(face)
         for x in range(2, img.width - 2):
@@ -371,9 +371,9 @@ KIT = {
     'ui_planks': lambda: planks('#141210'),
     'ui_planks_light': lambda: planks('#1a1714', seed=2),
     'ui_planks_dark': lambda: planks('#100e0b', seed=3),
-    'ui_button': lambda: button('#3b2c20', wood=True),
-    'ui_button_hover': lambda: button('#4a382a', wood=True),
-    'ui_button_down': lambda: button('#33261b', True, wood=True),
+    'ui_button': lambda: button('#d29a3e', rim='#9a6a2a'),
+    'ui_button_hover': lambda: button('#e6b052', rim='#a8762e'),
+    'ui_button_down': lambda: button('#b8822a', True, rim='#8a5e24'),
     'ui_button_go': lambda: button('#e3a23a', rim='#9a6a2a'),
     'ui_button_go_hover': lambda: button('#f2b850', rim='#a8762e'),
     'ui_button_go_down': lambda: button('#c88c2a', True, rim='#8a5e24'),
@@ -382,9 +382,9 @@ KIT = {
     'ui_button_relic': lambda: button('#563c8c'),
     'ui_button_relic_hover': lambda: button('#6a4ea6'),
     'ui_button_on': lambda: button('#4f6a34', rim='#c99a52'),
-    'ui_button_off': lambda: button('#1f1a15', wood=True),
+    'ui_button_off': lambda: button('#6e5636', rim='#5a4428'),
     'ui_tab': lambda: tab('#2b2620', False),
-    'ui_tab_on': lambda: tab('#4a382a', True),
+    'ui_tab_on': lambda: tab('#e6b052', True),
     'ui_slot': lambda: inset('#121713'),
     'ui_input': lambda: inset('#0e120f'),
     'ui_bar': lambda: inset('#0b0e0c', 12),

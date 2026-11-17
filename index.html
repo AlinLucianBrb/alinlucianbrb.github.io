@@ -733,6 +733,12 @@ button.go::after{content:'';position:absolute;top:-10px;bottom:-10px;width:28px;
 .itemicon img{image-rendering:auto}
 .itemicon.emptyslot,.hslot.compact .itemicon.emptyslot{border:none;box-shadow:none;background:url(assets/ui_slot.png) center/100% 100%;opacity:.7}
 h3,.hbody h3{color:#e9d8b4}
+
+/* Plain buttons are amber gold plates like Play solo and Start, so they take dark text. */
+button:not(.danger):not(.relic):not(.on):not(.herocard):not(.linkbtn):not(.choose):not(.hcard):not(.lvl):not(.zone):not(.iconbtn):not(.evochoice):not(.ph):not(.invcell):not(.evoup):not(.autobtn):not(.pathbtn){color:#2a1a00;text-shadow:0 1px 0 rgba(255,240,200,.35)}
+.zones .zone.on{border-image-source:url(assets/ui_frame_card.png)}
+.tabs button.on{color:#2a1a00;text-shadow:0 1px 0 rgba(255,240,200,.4)}
+.tabs button:not(.on){filter:saturate(.75) brightness(.85)}
 </style>
 </head>
 <body>

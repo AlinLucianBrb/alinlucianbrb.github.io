@@ -200,6 +200,10 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Plain buttons in the Relic button's style (Nov 18)
+- Then gold (v0.53.2): plain buttons are amber-gold plates like Play solo and Start, with dark text (a touch softer than Start, which keeps its shine). Unselected tabs are a duller gold, the selected one bright.
+- Plain buttons and tabs are no longer wooden: they are smooth enamel plates like the Relic button, in slate blue (lighter on hover, darker when pressed or off). Start, Quit, Relic and "on" keep their colours.
+
 ## Every icon in the heroes' style; last web shapes gone (Nov 18)
 - All 183 small icons are new (art/pixellab/build_icons.py, from Pixel Lab sheets in art/pixellab/icons): stats, damage types, ailments, HUD and talent icons (icon_*), every attack and ultimate (ability_*, on a dark slot with a bronze rim, gold for ultimates), every relic (relic_*, violet rim) and every item (item_<type>_<rarity>: Common a little duller, Epic with a faint violet glow). Same names as before, so nothing in the code changed for them. The old icons are kept in art/pixellab/ui/old/icons.
 - Items fill their inventory slot, with the rarity as a soft glow and a thin line under the item instead of a thick coloured box. Empty gear slots are sunken slots instead of dashed boxes.
