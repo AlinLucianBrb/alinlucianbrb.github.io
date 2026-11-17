@@ -220,7 +220,7 @@ select{font:inherit;background:#101813;color:var(--text);border:2px solid var(--
 .stat b.boss{color:#ffd84a}
 #relics{left:10px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:stretch;gap:4px;padding:8px;max-height:55%;max-width:210px;overflow:auto}
 #relics .relicchip{margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#hudTopRight{top:10px;right:10px;display:flex;gap:6px;align-items:center}
+#hudTopRight{top:10px;right:10px;display:flex;gap:6px;align-items:center;z-index:4}   /* the Quit question stays above the hero window */
 #menuConfirm{display:flex;gap:6px;align-items:center;padding:4px 6px}
 #menuConfirm .q{font-weight:600;padding:0 4px}
 button.danger{border-color:#e5645a;color:#ffb4a8}
@@ -477,6 +477,109 @@ input:not([type=checkbox]),select,.field input,.joinrow input{border:6px solid t
 /* Talent tree: cluster icons on the notables */
 .tnode image{pointer-events:none;image-rendering:pixelated}
 .treebox{background:#0d1310}
+
+/* The hero window, compact: icons and values only, the words in the tooltips. */
+#heroPanel{width:232px;padding:6px 8px;top:62px}
+#inspect{font-size:13px}
+#inspect .phead{display:flex;align-items:center;justify-content:space-between;gap:6px}
+#inspect .phead b{font-family:var(--pixel);font-weight:400;font-size:15px;line-height:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#inspect .pclose{padding:0 2px;font-size:14px;line-height:14px;text-decoration:none;color:var(--muted)}
+#inspect .pclose:hover{color:var(--text)}
+#inspect .tally{gap:8px;margin:3px 0 4px;font-size:12px}
+#inspect .pbar{display:flex;align-items:center;gap:4px;margin:2px 0;cursor:help}
+#inspect .pbar .ebar.wide{position:relative;flex:1;width:auto;margin:0;min-height:12px;overflow:hidden}
+#inspect .pbar .pbtxt{flex:none;min-width:58px;text-align:right;font-size:11px;color:var(--text);font-variant-numeric:tabular-nums}
+#inspect .attrs{gap:4px;margin:4px 0 3px}
+#inspect .attr{gap:3px;padding:1px 6px 1px 4px;align-items:center;font-size:12px}
+#inspect .pstats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px 4px;margin-top:3px;padding-top:4px;border-top:1px solid rgba(255,255,255,.12)}
+#inspect .pst{display:flex;align-items:center;gap:3px;padding:1px 2px;border-radius:3px;cursor:help;min-width:0;font-size:12px}
+#inspect .pst:hover{background:rgba(255,255,255,.07)}
+#inspect .pst.wide{grid-column:1 / -1}
+#inspect .pst b{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#inspect .pst b.up{color:#8be28b}
+#inspect .pabbr{display:inline-grid;place-items:center;width:14px;height:14px;font-size:8px;line-height:8px;color:var(--muted);border:1px solid var(--line);border-radius:2px;flex:none}
+#inspect .gearrow{margin-top:4px;padding-top:4px;border-top:1px solid rgba(255,255,255,.12)}
+
+/* In-match hero cards: the hero from the head to the waist on the left, its name with its level (or its price) on top, and
+   its two ability icons big underneath. */
+.herocard,.herocard:has(.hico){display:block;min-width:0;height:62px;padding:4px 18px 4px 60px;font-size:13px}
+.herocard .pframe{position:absolute;left:5px;top:5px;bottom:5px;width:48px;overflow:hidden;border-radius:2px;background:rgba(0,0,0,.28);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.herocard .pframe img{position:absolute;max-width:none;image-rendering:auto;width:calc(var(--z,128) * var(--s,0.84) * 1px);left:calc(24px - var(--f,64) * var(--s,0.84) * 1px);top:calc(-1px * var(--s,0.84))}
+.herocard.poor .pframe img{filter:grayscale(.6)}
+.herocard .nm{display:flex;align-items:baseline;gap:5px;white-space:nowrap;font-size:13px;line-height:15px}
+.herocard .nm small{margin-left:0}
+.herocard .nm .cost{font-size:12px}
+.herocard .abil{gap:4px;margin-top:4px}
+.herocard .ab{width:34px;height:34px}
+.herocard .key{top:2px;right:5px}
+/* The wave buttons, smaller */
+#relic{font-size:15px;line-height:16px;padding:4px 8px}
+.split #go{font-size:15px;line-height:16px;padding:5px 10px}
+.split .autobtn{font-size:15px;min-width:60px;flex:none;padding:2px 8px 3px}
+.spdbtn{font-size:15px;line-height:16px;min-width:40px;padding:4px 6px}
+.actions{gap:4px}
+
+/* Hero cards v2: as tall as the bar, the portrait (looking right) from the card's top to its bottom, big skill icons. */
+#hudBottom{align-items:stretch}
+.heroes{align-items:stretch}
+.hwrap>.herocard{flex:1}
+.herocard,.herocard:has(.hico){height:auto;min-height:64px;padding:4px 16px 4px 66px;display:flex;flex-direction:column;justify-content:flex-start}
+.herocard .pframe{left:3px;top:3px;bottom:3px;width:58px;border-radius:2px}
+.herocard .pframe img{width:calc(var(--z,128) * var(--s,1.1) * 1px);left:calc(29px - var(--f,64) * var(--s,1.1) * 1px);top:calc(-2px * var(--s,1.1))}
+.herocard .pframe.flip img{transform:scaleX(-1)}
+.herocard .nm{font-size:14px;line-height:16px}
+.herocard .abil{flex:1;align-items:flex-end;gap:5px;margin-top:3px}
+.herocard .ab{width:42px;height:42px}
+/* narrower Relic / Start / Auto / Speed */
+.split{flex:none;min-width:0}
+.split #go{flex:none;font-size:15px;padding:5px 10px}
+.split .autobtn{min-width:0;padding:2px 7px 3px;font-size:14px}
+.spdbtn{min-width:0;padding:4px 6px;font-size:14px}
+#relic{font-size:14px;line-height:15px;padding:2px 6px}
+.split #go,.split .autobtn,.spdbtn{line-height:15px;padding-top:3px;padding-bottom:4px}
+
+/* Hero cards, styled: a dark card tinted by the hero's colour, the portrait in a framed window lit from behind in that
+   colour, the name in the pixel font with an outline, Lv as a small badge, the price with a coin, skill icons in slots. */
+.herocard{border-image-slice:8;background-clip:padding-box;background:linear-gradient(180deg,color-mix(in srgb,var(--hc) 30%,#22302a) 0%,#18211c 100%) padding-box;box-shadow:none;transition:filter .12s,transform .12s}
+.herocard:hover{filter:brightness(1.12)}
+.herocard:active{transform:translateY(1px)}
+.herocard.on{border-image-slice:8;background:linear-gradient(180deg,color-mix(in srgb,var(--hc) 45%,#2b3d33) 0%,#1f2c25 100%) padding-box;box-shadow:0 0 0 1px #ffd84a,0 0 10px 1px rgba(255,216,74,.45)}
+.herocard::after{content:'';position:absolute;left:69px;right:12px;top:24px;height:1px;background:linear-gradient(90deg,color-mix(in srgb,var(--hc) 70%,transparent),transparent);pointer-events:none}
+.herocard .pframe{background:radial-gradient(ellipse 70% 60% at 50% 32%,color-mix(in srgb,var(--hc) 55%,transparent) 0%,color-mix(in srgb,var(--hc) 14%,#0d1410) 70%,#0b110e 100%);
+  box-shadow:inset 0 0 0 1px #0b100d,inset 0 0 0 2px color-mix(in srgb,var(--hc) 65%,#000),0 1px 0 rgba(255,255,255,.07);border-radius:3px}
+.herocard .pframe::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 62%,rgba(8,12,10,.55) 100%);box-shadow:inset 0 0 0 1px #0b100d,inset 0 0 0 2px color-mix(in srgb,var(--hc) 65%,#000);border-radius:3px;pointer-events:none}
+.herocard .nm{align-items:center;gap:6px;font-family:var(--pixel);font-weight:400;font-size:15px;line-height:17px;color:#fff3d6;
+  text-shadow:0 1px 0 #0b100d,1px 0 0 #0b100d,-1px 0 0 #0b100d,0 -1px 0 #0b100d}
+.herocard .nm small{font-family:var(--pixel);font-weight:400;font-size:11px;line-height:11px;color:#bfe6ff;padding:2px 4px 1px;border-radius:3px;
+  background:rgba(10,20,30,.6);box-shadow:inset 0 0 0 1px rgba(143,211,255,.45);text-shadow:none}
+.herocard .nm .cost{display:inline-flex;align-items:center;gap:3px;font-size:13px;color:#ffd84a}
+.herocard .nm .cost::before{content:'';width:12px;height:12px;background:url(assets/icon_gold.png) center/contain no-repeat;image-rendering:pixelated}
+.herocard .nm .cost:empty,.herocard .nm small:empty{display:none}
+.herocard,.herocard:has(.hico){padding-right:24px}
+.herocard.poor .nm .cost{color:#ff8a7e}
+.herocard .key{top:4px;right:4px;min-width:13px;height:13px;padding:0 2px;display:grid;place-items:center;font-family:var(--pixel);font-size:10px;line-height:10px;color:#cfdccf;
+  background:rgba(0,0,0,.4);border-radius:3px;box-shadow:inset 0 -2px 0 rgba(0,0,0,.4),inset 0 0 0 1px rgba(255,255,255,.14)}
+.herocard .abil{margin-top:5px}
+.herocard .ab{border-radius:4px;background:#0c120f;box-shadow:inset 0 0 0 1px #0b100d,0 0 0 1px rgba(255,255,255,.12),0 2px 0 rgba(0,0,0,.45)}
+.herocard .ab img{border-radius:3px}
+.herocard .ab::after{content:'';position:absolute;inset:0;border-radius:4px;box-shadow:inset 0 1px 0 rgba(255,255,255,.22),inset 0 -2px 0 rgba(0,0,0,.35);pointer-events:none}
+
+/* The portrait blends into the card: no frame or window, edge to edge on the card's left, fading out to the right and
+   at the bottom, over a soft glow in the hero's colour. */
+.herocard .pframe{left:0;top:0;bottom:0;width:66px;border-radius:0;box-shadow:none;
+  background:radial-gradient(ellipse 60% 55% at 45% 35%,color-mix(in srgb,var(--hc) 40%,transparent) 0%,transparent 100%);
+  -webkit-mask-image:linear-gradient(90deg,#000 62%,transparent 100%);mask-image:linear-gradient(90deg,#000 62%,transparent 100%)}
+.herocard .pframe::after{display:none}
+.herocard .pframe img{width:calc(var(--z,128) * var(--s,1.3) * 1px);left:calc(30px - var(--f,64) * var(--s,1.3) * 1px);top:calc(1px - 2px * var(--s,1.3))}
+.herocard .pframe img{-webkit-mask-image:linear-gradient(180deg,#000 80%,transparent 100%);mask-image:linear-gradient(180deg,#000 80%,transparent 100%)}
+
+/* The whole portrait is shown, not cut at the right: it spans the card behind the name and the skill icons. */
+.herocard .pframe{right:0;width:auto;z-index:0;-webkit-mask-image:none;mask-image:none;
+  background:radial-gradient(ellipse 40% 60% at 22% 35%,color-mix(in srgb,var(--hc) 40%,transparent) 0%,transparent 100%)}
+.herocard .pframe img{left:calc(30px - var(--f,64) * var(--s,1.3) * 1px)}
+.herocard .nm,.herocard .abil,.herocard .key{position:relative;z-index:1}
+.herocard .key{position:absolute}
+.herocard::after{z-index:1}
 </style>
 </head>
 <body>
@@ -648,7 +751,7 @@ input:not([type=checkbox]),select,.field input,.joinrow input{border:6px solid t
       <button id="camOut" aria-label="Zoom out" title="Zoom out (−)">−</button>
       <button id="camFit" title="Fit the map to the screen (F)">Fit</button>
     </div>
-    <!-- Bottom: gold, heroes, Relic, then Start wave with Auto-start built in, and Speed beside it. -->
+    <!-- Bottom: gold, heroes, Relic, then Start with Auto-start built in, and Speed beside it. -->
     <div id="hudBottom" class="glass">
       <div class="goldbox"><small><img class="ico pix" src="assets/icon_gold.png" alt="">Gold</small><b id="gold"></b><small id="interest" class="interest" hidden></small></div>
       <div class="heroes" id="tbtns"></div>
@@ -656,7 +759,7 @@ input:not([type=checkbox]),select,.field input,.joinrow input{border:6px solid t
         <button id="relic" class="relic">Relic</button>
         <div class="waverow">
           <div class="split">
-            <button id="go" class="go big" title="Start the next wave (Enter)">Start wave</button>
+            <button id="go" class="go big" title="Start the next wave (Enter)">Start</button>
             <button id="auto" class="autobtn" aria-pressed="false" aria-label="Auto-start">AUTO</button>
           </div>
           <button id="spd" class="spdbtn" aria-label="Game speed">1x</button>

@@ -62,6 +62,9 @@ BROKEN = ['.gggggggg...', 'gWWWWg.WWg..', 'gWgggg.ggWg.', 'gWg...g..Wg.', '.gWg.
           '....ggg.....']
 TOXDROP = [r.replace('R', 't').replace('D', 'T') for r in DROP]
 
+VINE = ['.....T......', '....TtT.....', '...T.t.T....', '..t..t..t...', '.tT..t..Tt..', '.....t......', '..T..t..T...', '...TtTtT....',
+        '....TTT.....', '...T.T.T....']
+
 GLYPHS = {
     # resources (HUD and menus)
     'gold': COIN, 'xp': XPSTAR, 'lives': HEART, 'wave': FLAG, 'level': CROWN,
@@ -69,6 +72,11 @@ GLYPHS = {
     'strength': FIST, 'dexterity': FEATHER, 'intellect': EYE,
     # stats
     'damage': SWORD, 'range': BOW, 'speed': BOOT, 'castspeed': HOURGLASS, 'crit': CRIT, 'energy': ENERGY, 'pen': PEN,
+    # more stats for the compact hero window: targets, duration, crit damage, the two penetrations, minions, chains
+    'targets': TARGET, 'duration': CLOCK, 'critdmg': CRIT, 'armorpen': PEN, 'respen': PEN, 'minion': WOLF, 'jumps': BOLT, 'chill': SNOW,
+    # added damage of a type and the ailment it brings (the hero window shows flat added damage as +N and chances as N%)
+    'dmg_physical': SWORD, 'dmg_arcane': ORB, 'dmg_fire': FLAME, 'dmg_cold': SNOW, 'dmg_lightning': BOLT, 'dmg_toxic': TOXDROP, 'dmg_holy': STAR, 'dmg_shadow': SKULL,
+    'ail_bleed_s': DROP, 'ail_poison_s': TOXDROP, 'ail_burn_s': FLAME, 'ail_shock_s': BOLT, 'ail_freeze_s': SNOW, 'ail_root_s': VINE, 'ail_corruption_s': SKULL,
     # a hero's tally in the match (hero window): kills and ultimates
     'kills': SKULL, 'ultimate': STAR,
     # main menu
@@ -81,7 +89,10 @@ GLYPHS = {
     'talent_fortune': CLOVER, 'talent_investor': COINS, 'talent_merchant': SCALES, 'talent_treasure': CHEST, 'talent_training': DUMBBELL,
 }
 EXTRA = {'v': '#f2e2ff', 'c': '#8edcff', 'C': '#3f8fc4'}
-PALETTES = {'xp': {'c': '#8fd3ff', 'v': '#e8f6ff'}, 'talent_lightning': {'v': '#fff6a0', 'p': '#ffe45c'}, 'talent_sorcery': {'y': '#c39bf2', 'Y': '#6b4fa0', 'u': '#f2e2ff', 'z': '#9a5cd6'},
+YELLOW_BOLT = {'v': '#fff6a0', 'p': '#ffe45c'}
+PALETTES = {'dmg_lightning': YELLOW_BOLT, 'ail_shock_s': YELLOW_BOLT, 'jumps': YELLOW_BOLT, 'critdmg': {'y': '#ff6a5a', 'z': '#ffd0c4', 'w': '#ffffff'}, 'respen': {'g': '#8edcff', 'G': '#3f8fc4'},
+            'dmg_shadow': {'b': '#c39bf2', 'k': '#2a1640'}, 'ail_corruption_s': {'b': '#9a5cd6', 'k': '#1a0c2a'}, 'dmg_holy': {'w': '#fff0a8', 'W': '#f2b84b'},
+            'dmg_physical': {}, 'xp': {'c': '#8fd3ff', 'v': '#e8f6ff'}, 'talent_lightning': {'v': '#fff6a0', 'p': '#ffe45c'}, 'talent_sorcery': {'y': '#c39bf2', 'Y': '#6b4fa0', 'u': '#f2e2ff', 'z': '#9a5cd6'},
             'talents': {'p': '#8be28b', 'v': '#e0ffd8'}, 'talent_cold': {}, 'talent_wealth': {}, 'talent_investor': {}}
 
 

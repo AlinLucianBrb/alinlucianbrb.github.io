@@ -7,7 +7,7 @@ import { exportLog, resume } from '../engine/replay.js';
 import { heroStats } from '../engine/stats.js';
 import { draw, addBeam, tickBeams, addSlash, tickSlashes, addAnim, tickAnims, addImpact, boltImpacts } from './render.js';
 import { preload as preloadArt, get as sprite } from './sprites.js';
-import { createCamera, fitCamera, clampCamera, zoomAt, panBy, toWorld } from './camera.js';
+import { createCamera, fitCamera, clampCamera, zoomAt, panBy, toWorld, toScreen, scaleAt } from './camera.js';
 import * as ui from './ui.js';
 import { createHost, createGuest } from '../net/lockstep.js';
 import { pathChoice } from '../engine/preview.js';
@@ -266,6 +266,16 @@ const pointers = new Map();
 let dragged = false, pinch = null;
 const local = e => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
 const cellAt = (px, py) => { const [x, y] = toWorld(v.cam, px, py); return [Math.floor(x / T), Math.floor(y / T)]; };
+/* The hero whose figure is under a screen point: anywhere on its sprite (about 1.6 tiles tall above its feet, 0.8 wide),
+   not only its tile. The one in front wins where two overlap. */
+function heroAt(px, py) {
+  let best = null, by = -Infinity;
+  for (const h of w.heroes) {
+    const fy = h.y + T * 0.3, [X, Y] = toScreen(v.cam, h.x, fy), s = scaleAt(fy) * v.cam.z, hw = 0.4 * T * s, hh = 1.6 * T * s;
+    if (px > X - hw && px < X + hw && py > Y - hh && py < Y + 0.15 * T * s && fy > by) { best = h; by = fy; }
+  }
+  return best;
+}
 
 cv.addEventListener('pointerdown', e => {
   const [x, y] = local(e), id = e.pointerId ?? 1;
@@ -276,7 +286,7 @@ cv.addEventListener('pointerdown', e => {
 });
 cv.addEventListener('pointermove', e => {
   const [x, y] = local(e), p = pointers.get(e.pointerId ?? 1);
-  if (!p) { if (e.pointerType !== 'touch') setHover(cellAt(x, y)); return; }
+  if (!p) { if (e.pointerType !== 'touch') { setHover(cellAt(x, y)); v.hoverHero = heroAt(x, y); } return; }
   if (pointers.size === 2 && pinch) {
     const [a, b] = [...pointers.values()], mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
     p.x = x; p.y = y;
@@ -304,15 +314,16 @@ function endPointer(e, cancelled) {
     cv.classList.remove('dragging');
     if (!cancelled && !dragged) {
       const [x, y] = local(e); v.hover = cellAt(x, y);
-      if (p.button === 0) clickCell(...v.hover);
-      else if (p.button === 2) rightClickCell(...v.hover);   /* right-click: move the selected hero (or the one clicked) */
+      const hit = heroAt(x, y);   /* a click anywhere on a hero's figure counts as on that hero */
+      if (p.button === 0) clickCell(...v.hover, hit);
+      else if (p.button === 2) rightClickCell(...v.hover, hit);   /* right-click: move the selected hero (or the one clicked) */
     }
     dragged = false;
   }
 }
 cv.addEventListener('pointerup', e => endPointer(e, false));
 cv.addEventListener('pointercancel', e => endPointer(e, true));
-cv.addEventListener('pointerleave', e => { if (!pointers.size) v.hover = null; });
+cv.addEventListener('pointerleave', e => { if (!pointers.size) { v.hover = null; v.hoverHero = null; } });
 cv.addEventListener('contextmenu', e => e.preventDefault && e.preventDefault());
 cv.addEventListener('wheel', e => {
   if (e.preventDefault) e.preventDefault();
@@ -320,9 +331,10 @@ cv.addEventListener('wheel', e => {
   zoomAt(v.cam, x, y, Math.exp(-(e.deltaY || 0) * 0.0015)); clampCamera(v.cam, v.cw, v.ch);
 }, { passive: false });
 
-function clickCell(cx, cy) {
+function clickCell(cx, cy, hit = null) {
   if (w.phase === 'over' || w.picking) return;
   const inside = cx >= 0 && cy >= 0 && cx < COLS && cy < ROWS;
+  if (hit && !v.moving && !canPlace(v.sel)) { v.selected = hit; ui.renderInspector(w, v); return; }   /* clicked on a hero's figure */
   const existing = inside && w.heroes.find(t => t.cx === cx && t.cy === cy);
   if (v.moving) {
     if (existing === v.moving || !inside) { v.moving = null; ui.renderInspector(w, v); return; }
@@ -338,10 +350,10 @@ function clickCell(cx, cy) {
 }
 /* Right-click: on one of your heroes, select it and start moving it; elsewhere, start (or stop) moving the selected hero.
    While moving, the grid shows; a click on the new spot moves it there, Esc or a right-click cancels. */
-function rightClickCell(cx, cy) {
+function rightClickCell(cx, cy, hit = null) {
   if (w.phase === 'over' || w.picking) return;
   if (v.moving) { v.moving = null; ui.renderInspector(w, v); return; }
-  const h = w.heroes.find(t => t.cx === cx && t.cy === cy && w.mine(t));
+  const h = (hit && w.mine(hit) ? hit : null) || w.heroes.find(t => t.cx === cx && t.cy === cy && w.mine(t));
   if (h) { v.selected = h; v.sel = h.type; }
   toggleMove();
 }

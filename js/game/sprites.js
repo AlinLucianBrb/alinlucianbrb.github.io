@@ -81,6 +81,16 @@ export const enemyHeight = (type, T = 40) => (ENEMY_ANIM[type] ? ENEMY_ANIM[type
 export const heroAnim = def => (def.form || def.mounted ? null : HERO_ANIM[def.id] || null);
 /* The image of a hero for the menus: its portrait when it has one, otherwise its sprite. */
 export const heroPortrait = id => (HERO_ANIM[id] ? HERO_ANIM[id].portrait : 'hero_' + id);
+/* The in-match hero card shows the hero from the head to about the waist: the picture to use, how far across it the figure
+   is (its middle, in the picture's pixels), and its size. Base heroes use their 128 px portrait; an evolved form its
+   64 px sprite (for now). */
+const PORTRAIT_FOCUS = { druid: 51, mage: 40, paladin: 57, priest: 55, ranger: 58, rogue: 53, shaman: 79, warlock: 46, warrior: 56 };
+/* Portraits drawn looking to the viewer's left; on the card they are mirrored so every hero looks right, into the card. */
+const PORTRAIT_FACES_LEFT = new Set(['druid', 'mage', 'paladin', 'priest', 'ranger', 'rogue', 'warlock', 'warrior']);
+export function cardPicture(def) {
+  if (!def.form && HERO_ANIM[def.id]) return { name: HERO_ANIM[def.id].portrait, focus: PORTRAIT_FOCUS[def.id] || 64, size: 128, flip: PORTRAIT_FACES_LEFT.has(def.id) };
+  return { name: heroSprite(def), focus: 32, size: 64 };
+}
 const heroIds = HEROES.flatMap(h => [h.id, ...(h.evolutions || []).flatMap(s => s.choices.map(c => c.id))]);
 export const SPRITES = [...new Set([
   ...heroIds.flatMap(id => ['hero_' + id, 'hero_' + id + '_2']),            /* _2: the second animation frame */

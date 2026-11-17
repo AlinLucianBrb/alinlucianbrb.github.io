@@ -9,7 +9,7 @@ import { DAMAGE_LABEL, AILMENTS } from '../content/combat.js';
 import { rateOf } from '../engine/behaviors.js';
 import { explain, affected, attributeDamage } from '../engine/stats.js';
 import { bindTip } from '../core/tooltip.js';
-import { spriteImg, spriteUrl, heroSprite, attackIcon, ultimateIcon, relicIcon } from './sprites.js';
+import { spriteImg, spriteUrl, heroSprite, attackIcon, ultimateIcon, relicIcon, cardPicture } from './sprites.js';
 import { isBossWave } from '../engine/enemies.js';
 import { ITEMS, itemName, itemColor, itemBonusLines } from '../content/items.js';
 import { COOP } from '../content/rules.js';
@@ -25,6 +25,14 @@ const odd = x => (Math.round(x * 1000) / 10) + '%';   /* odds with one decimal *
 const cap = s => s[0].toUpperCase() + s.slice(1);
 const btns = [], rows = [];
 export const heroButton = i => btns[i];
+/* Sizes the hero card's picture so the figure from the head to the waist (about 62 of a portrait's 128 px) fills the frame,
+   centred on the figure (--s: the scale, --f: the figure's middle in picture px, --z: the picture's size). */
+function setPicture(frame, cp) {
+  /* mirrored pictures: the figure's middle is measured from the other side */
+  frame.className = 'pframe' + (cp.flip ? ' flip' : '');
+  frame.style.setProperty?.('--z', String(cp.size)); frame.style.setProperty?.('--f', String(cp.flip ? cp.size - cp.focus : cp.focus));
+  frame.style.setProperty?.('--s', String(cp.size === 128 ? 1.3 : 1.9));
+}
 let meterEmpty, cb = {}, banishBtns = [];
 
 /* Tags in words, for tooltips: relics, talents and items that name a tag work on heroes that have it. */
@@ -68,7 +76,9 @@ export function initUI(callbacks) {
     up.hidden = true; up.onclick = () => cb.onEvolveHero(i); b._wrap = wrap; b._up = up;
     b.style.setProperty?.('--hc', d.color);
     const key = el('span', 'key'), name = el('span', 'nm'), nmText = el('span', '', d.name), lv = el('small'), status = el('span', 'cost');
-    const pic = spriteImg(heroSprite(d), 'pix hico');
+    /* the hero from the head to the waist, in a frame on the card's left (cardPicture: which picture, where the figure is) */
+    const frame = el('span', 'pframe'), cp = cardPicture(d), pic = spriteImg(cp.name, 'pix');
+    frame.append(pic); setPicture(frame, cp);
     /* The hero's two abilities, like action-bar icons: the basic attack darkens and clears clockwise as its cooldown runs;
        the ultimate clears as the energy bar fills and glows gold when it is ready. */
     const abil = el('span', 'abil idle'), atk = abilityIcon(attackIcon(d)), ult = abilityIcon(ultimateIcon(d));
@@ -78,7 +88,7 @@ export function initUI(callbacks) {
     bindTip(ult, () => { const info = cb.heroInfo(i), cur = info.unit ? info.unit.def : d, u = ULTIMATES[cur.ultimate], s = info.stats;
       return { title: 'Ultimate: ' + (u ? u.name : '?'), color: '#ffd84a', lines: [ultDesc(u, s),
         { text: info.unit ? 'Energy ' + Math.floor(info.unit.energy) + ' / ' + s.energyMax : 'Energy ' + s.energyPerAttack + ' per attack, ' + s.energyMax + ' to fire', color: '#9db3a3' }] }; });
-    name.append(nmText, lv); b.append(key, name, status, pic, abil);   /* the picture comes last in the DOM; CSS shows it first */ b._status = status; b._key = key; b._nm = nmText; b._lv = lv; b._pic = pic; b._picName = heroSprite(d);
+    name.append(nmText, lv, status); b.append(key, frame, name, abil); b._status = status; b._key = key; b._nm = nmText; b._lv = lv; b._pic = pic; b._frame = frame; b._picName = cp.name;
     b._abil = abil; b._atk = atk; b._ult = ult; b._form = d.id;
     bindTip(b, () => {
       const info = cb.heroInfo(i), cur = info.unit ? info.unit.def : d, u = ULTIMATES[cur.ultimate], ail = ailmentLine(cur, info.stats);
@@ -154,7 +164,7 @@ export function renderHUD(g, v) {
     renderCoopBar(g);
   } else {
     $('go').disabled = g.phase !== 'build' || g.picking;
-    setText($('go'), g.phase === 'build' && auto ? 'Start now (' + Math.max(0, Math.ceil(g.autoT)) + 's)' : 'Start wave');
+    setText($('go'), g.phase === 'build' && auto ? 'Start ' + Math.max(0, Math.ceil(g.autoT)) + 's' : 'Start');
   }
   setText($('relic'), v.pendRelic ? 'Relic · …' : 'Relic · ' + g.relicCost());
   $('relic').disabled = !!v.pendRelic;
@@ -175,10 +185,10 @@ export function renderHUD(g, v) {
     }
     setText(b._nm, unit ? (unit.tier ? '★ ' : '') + unit.def.name : d.name);
     setText(b._lv, unit ? 'Lv ' + unit.level : '');
-    setText(b._status, unit ? '' : HERO_COST + ' gold · place it');
+    setText(b._status, unit ? '' : String(HERO_COST));   /* shown with a coin icon */
     b.classList.toggle('poor', !unit && g.gold < HERO_COST);   /* not enough gold yet: the price shows red */
-    const hc = unit ? unit.def.color : d.color, pn = heroSprite(unit ? unit.def : d);
-    if (b._picName !== pn) { b._picName = pn; b._pic.src = spriteUrl(pn); }   /* evolved: its new form */
+    const hc = unit ? unit.def.color : d.color, pn = cardPicture(unit ? unit.def : d).name;
+    if (b._picName !== pn) { b._picName = pn; b._pic.src = spriteUrl(pn); setPicture(b._frame, cardPicture(unit ? unit.def : d)); }   /* evolved: its new form */
     if (b._hc !== hc) { b._hc = hc; b.style.setProperty?.('--hc', hc); }
     updateAbilities(b, unit, unit ? unit.def : d);
     b.classList.toggle('on', sel === i && (!unit || v.selected === unit)); b.classList.toggle('placed', !!unit);
@@ -301,23 +311,29 @@ export function renderInspector(g, v) {
   const owner = g.players ? g.players[t.owner || 0] : null, ownerMods = owner ? owner.mods : g.mods;   /* the modifiers of the hero's owner */
   if (box._t !== t || box._m !== ownerMods.length || box._tier !== t.tier || box._lv !== t.level || box._bk !== bk) {
     box._k = 't'; box._t = t; box._m = ownerMods.length; box._tier = t.tier; box._lv = t.level; box._bk = bk; box.textContent = '';
-    const d = t.def, head = el('div', 'srow'), title = el('b', '', (t.tier ? '★ ' : '') + d.name + ' · Lv ' + t.level + (coop && (t.owner || 0) !== coop.me ? ' · ' + coop.names[t.owner || 0] + "'s" : '')), close = el('button', 'linkbtn', 'Close');
-    title.style.color = d.color; close.onclick = cb.onCloseInspector; head.append(title, close); box.append(head);
-    /* Right under the name: what the hero has done this match. */
+    const d = t.def, head = el('div', 'phead'), title = el('b', '', (t.tier ? '★ ' : '') + d.name + ' · Lv ' + t.level + (coop && (t.owner || 0) !== coop.me ? ' · ' + coop.names[t.owner || 0] + "'s" : '')), close = el('button', 'linkbtn pclose', '✕');
+    title.style.color = d.color; close.onclick = cb.onCloseInspector; close.title = 'Close (Esc)'; head.append(title, close); box.append(head);
+    /* Right under the name: what the hero has done this match (icons; hover for the words). */
     const tally = el('div', 'tally'), tv = k => { const sp = el('span', 'tv'), b = el('b'); sp.append(spriteImg('icon_' + k, 'pix ico'), b); tally.append(sp); return b; };
     box._tDealt = tv('damage'); box._tKills = tv('kills'); box._tUlts = tv('ultimate');
     bindTip(tally, () => ({ title: 'This match', lines: ['Damage dealt: ' + num(t.dealt), 'Kills: ' + t.kills, 'Ultimates: ' + t.ults] }));
     box.append(tally);
-    /* XP, with energy right under it (what the ultimate does is on its icon in the hero's card). */
-    const bar = (cls, k) => { const r = el('div', 'srow'), lbl = el('span', 'lvl' + cls), b = el('span', 'ebar wide' + (k === 'xp' ? ' xpbar' : '')), fill = el('i'); b.append(fill); r.append(lbl, b); box.append(r); return { lbl, b, fill }; };
-    const xp = bar('', 'xp'), en = bar(' energy', 'energy');
+    /* XP, then energy: thin bars with the numbers on them (what the ultimate does is on its icon in the hero's card). */
+    const bar = (icon, k) => {
+      const r = el('div', 'pbar'), b = el('span', 'ebar wide' + (k === 'xp' ? ' xpbar' : '')), fill = el('i'), lbl = el('span', 'pbtxt');
+      b.append(fill); r.append(spriteImg('icon_' + icon, 'pix ico'), b, lbl); box.append(r);
+      bindTip(r, () => (k === 'xp' ? { title: 'Experience', lines: ['Level ' + t.level + '. Heroes gain XP from every kill while on the field.'] }
+        : { title: 'Energy', lines: ['Fills with each attack' + (t.s.energyPerSecond ? ' and over time' : '') + '; when full, the ultimate fires.', { text: 'What it does: hover the ultimate icon on the hero\'s card.', color: '#9db3a3' }] }));
+      return { lbl, b, fill };
+    };
+    const xp = bar('xp', 'xp'), en = bar('energy', 'energy');
     box._lvl = xp.lbl; box._xfill = xp.fill; box._xbar = xp.b; box._elbl = en.lbl; box._efill = en.fill; box._ebar = en.b;
-    /* Attributes. */
+    /* Attributes: icon and value (the main one in its colour); hover for what they give. */
     const all = ownerMods.concat(t.mods, t.lvlMods || [], ...(t.buffs || []).map(b => b.mods));
     const ar = el('div', 'attrs');
     for (const a of ATTRIBUTES) {
-      const own = a === d.attribute, sp = el('span', 'attr a-' + a + (own ? ' main' : ''));   /* a-<attribute>: its icon (CSS) */
-      sp.append(el('small', '', ATTR_SHORT[a]), el('b', '', f(t.s[a])));
+      const own = a === d.attribute, sp = el('span', 'attr' + (own ? ' main' : ''));
+      sp.append(spriteImg('icon_' + a, 'pix ico'), el('b', '', f(t.s[a])));
       if (own) sp.style.color = ATTR_COLOR[a];
       bindTip(sp, () => ({ title: STAT_LABELS[a] + (own ? ' (main attribute)' : ''), color: own ? ATTR_COLOR[a] : undefined,
         lines: [...(own ? ['+' + pct(attributeDamage(d, t.s)) + ' damage (+1% per point)'] : []),
@@ -326,9 +342,9 @@ export function renderInspector(g, v) {
       ar.append(sp);
     }
     box.append(ar);
-    /* Stats: one line each, with its icon; where the value comes from (attribute, talents, items, relics, level, buffs) shows
-       on hover, so the window stays short. */
-    box.append(el('div', 'sec', 'Stats'));
+    /* Stats: a grid of icon + value; the name and where the value comes from (attribute, talents, items, relics, level,
+       buffs) show on hover, so the window stays small. */
+    const grid = el('div', 'pstats');
     for (const key in d.stats) {
       if (key === 'cooldown' || key === 'energyMax' || ATTRIBUTES.includes(key)) continue;
       if (!t.s[key] && !d.stats[key]) continue;          /* unused stats (most combat stats for now) stay hidden */
@@ -339,23 +355,22 @@ export function renderInspector(g, v) {
       const label = key === 'damage' ? (d.dps ? 'Damage per second' : 'Damage') + ' (' + DAMAGE_LABEL[d.damageType || 'physical'] + ')' : STAT_LABELS[key] || key;
       const value = isRate ? t.s[key] / t.s.cooldown : t.s[key];
       const base = isRate ? d.stats[key] / d.stats.cooldown : d.stats[key];
-      const show = x => (isChance(key) ? pct(x) : f(x));
-      const span = key === 'damage' && t.s.spread > 0 ? ' (' + f(value * (1 - t.s.spread)) + '–' + f(value * (1 + t.s.spread)) + ')' : '';
-      const row = el('div', 'srow srt'), name = el('span', 'sname'), icon = STAT_ICON[key];
-      if (icon) name.append(spriteImg('icon_' + icon, 'pix ico')); else name.append(el('i', 'ico'));
-      name.append(el('span', '', label));
-      const val = el('span', 'sval', show(value) + span); if (f(value) !== f(base)) val.classList.add('up');
-      row.append(name, val); box.append(row);
+      const show = x => fmtStat(key, x);
+      const cell = el('span', 'pst' + (key === 'damage' ? ' wide' : '')), icon = statIcon(key);
+      if (icon) cell.append(spriteImg('icon_' + icon, 'pix ico')); else cell.append(el('small', 'pabbr', abbr(label)));
+      const val = el('b', '', show(value) + (key === 'damage' && t.s.spread > 0 ? ' (' + f(value * (1 - t.s.spread)) + '–' + f(value * (1 + t.s.spread)) + ')' : ''));
+      if (f(value) !== f(base)) val.classList.add('up');
+      cell.append(val); grid.append(cell);
       const mods = stackMods(explain(d, key, all));
-      bindTip(row, () => ({ title: label, lines: [{ text: 'Base ' + show(base), color: '#9db3a3' },
+      bindTip(cell, () => ({ title: label + ': ' + exact(key, value), lines: [{ text: 'Base ' + exact(key, base), color: '#9db3a3' },
         ...(key === 'damage' && attributeDamage(d, t.s) > 0 ? [{ text: '+' + pct(attributeDamage(d, t.s)) + ' · ' + STAT_LABELS[d.attribute] + ' (attribute)', color: ATTR_COLOR[d.attribute] }] : []),
         ...mods.map(m => ({ text: describe(m, key), color: m.ri >= 0 ? RARITIES[m.ri].color : SOURCE_COLOR[m.ri] || '#f2b84b' })),
         ...(mods.length || f(value) !== f(base) ? [] : [{ text: 'Nothing changes it yet', color: '#6f7d74' }])] }));
     }
+    box.append(grid);
     /* Items: the hero's gear as icons; hover one for its stats (all of them together show as "Items" in each stat's tip). */
     const gear = owner && owner.items ? owner.items[t.base.id] || [] : [];
     if (gear.length) {
-      box.append(el('div', 'sec', 'Items'));
       const row = el('div', 'gearrow');
       for (const it of gear) {
         const known = ITEMS[it.type], cell = el('span', 'gearicon'); cell.style.setProperty('--rc', itemColor(it));
@@ -367,18 +382,38 @@ export function renderInspector(g, v) {
     }
   }
   setText(box._tDealt, num(t.dealt)); setText(box._tKills, String(t.kills)); setText(box._tUlts, String(t.ults));
-  setText(box._elbl, 'Energy ' + Math.floor(t.energy) + '/' + f(t.s.energyMax));
+  setText(box._elbl, Math.floor(t.energy) + ' / ' + f(t.s.energyMax));
   const pctE = Math.round(t.energy / t.s.energyMax * 100) + '%';
   if (box._efill.style.width !== pctE) box._efill.style.width = pctE;
   box._ebar.classList.toggle('full', t.energy >= t.s.energyMax);
   const need = HERO_LEVELS.xpToNext(t.level), maxed = t.level >= HERO_LEVELS.max;
-  setText(box._lvl, maxed ? 'XP (max level)' : 'XP ' + Math.floor(t.xp) + '/' + need);
+  setText(box._lvl, maxed ? 'max level' : Math.floor(t.xp) + ' / ' + need);
   const xp = maxed ? '100%' : Math.round(t.xp / need * 100) + '%';
   if (box._xfill.style.width !== xp) box._xfill.style.width = xp;
 }
-/* Each stat's icon in the hero window (assets/icon_<name>.png). */
-const STAT_ICON = { damage: 'damage', range: 'range', speed: 'speed', castSpeed: 'castspeed', critChance: 'crit', critDamage: 'crit',
-  energyPerAttack: 'energy', energyPerSecond: 'energy', armorPen: 'pen', resPen: 'pen' };
+/* Each stat's icon in the hero window (assets/icon_<name>.png, art/icons.py); added damage of a type and ailment chances
+   by their type. A stat without one shows a short abbreviation. */
+const STAT_ICON = { damage: 'damage', range: 'range', speed: 'speed', castSpeed: 'castspeed', critChance: 'crit', critDamage: 'critdmg',
+  energyPerAttack: 'energy', energyPerSecond: 'energy', armorPen: 'armorpen', resPen: 'respen', targets: 'targets', duration: 'duration',
+  chillTime: 'chill', jumps: 'jumps', firePen: 'respen', coldPen: 'respen', lightningPen: 'respen' };
+function statIcon(key) {
+  if (STAT_ICON[key]) return STAT_ICON[key];
+  if (key.startsWith('minion')) return 'minion';
+  let m = /^(\w+)Damage$/.exec(key); if (m && DAMAGE_LABEL[m[1]]) return 'dmg_' + m[1];
+  m = /^(\w+)Chance$/.exec(key); if (m && AILMENTS[m[1]]) return 'ail_' + m[1] + '_s';
+  return null;
+}
+const abbr = label => label.split(/[\s(]+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
+/* A stat's exact value, for its tooltip. */
+const exact = (key, x) => (isChance(key) || /Pen$/.test(key) ? pct(x) : (key === 'speed' || key === 'castSpeed' || key === 'energyPerSecond') ? f(x) + ' per second' : String(f(x)));
+/* How a stat's value reads in the compact window: chances in %, added damage as +N, rates per second, multipliers as ×N. */
+function fmtStat(key, x) {
+  if (isChance(key) || /Pen$/.test(key)) return pct(x);
+  if (/^\w+Damage$/.test(key) && key !== 'minionDamage' && key !== 'critDamage') return '+' + f(x);
+  const short = v => (Math.abs(v) >= 100 ? String(Math.round(v)) : Math.abs(v) >= 10 ? String(+v.toFixed(1)) : String(f(v)));   /* fits the small cells; the exact value is in the tooltip */
+  if (key === 'critDamage' || key === 'duration' || key === 'minionDamage' || key === 'minionSpeed') return '×' + short(x);
+  return short(x);
+}
 
 /* The evolution picker: like the relic picker, it covers the game (which pauses) and offers the hero's forms side by side. */
 export function showEvoPick(g, h) {

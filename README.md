@@ -200,6 +200,32 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Full portraits on the hero cards (Nov 17)
+- The portrait is no longer cut or faded on its right side. The whole picture shows, running behind the name and skill icons (staffs and weapons included).
+
+## Portraits blend into the hero cards (Nov 17)
+- No frame around the portrait anymore. It fills the card's left side, head to waist, over a soft glow in the hero's colour, and fades into the card on its right and bottom edges.
+
+## Styled hero cards (Nov 17)
+- Each card is tinted by its hero's colour (stronger when selected, with a gold outline).
+- The portrait sits in a framed window lit from behind in the hero's colour.
+- The name is in the pixel font with an outline, the level is a small badge, the price is a coin and the number, and the hotkey is a small keycap. The skill icons sit in bevelled slots.
+
+## Hero cards and action buttons, second pass (Nov 17)
+- Hero cards are as tall as the bottom bar. The portrait fills the card's left edge from top to bottom, mirrored where needed so every hero looks right, into the card. Name, level and price sit on top, and the two skill icons (42 px) fill the rest.
+- Start wave is now just "Start" ("Start 5s" while Auto counts down). Relic, Start, Auto and Speed are narrower and shorter.
+- Fixed: js/core/version.js was emptied by the v0.46.1 build, so the main menu failed to load. It is restored.
+
+## More top-down camera (Nov 17)
+- The camera looks down more steeply: TILT 0.8 (was 0.62) and FAR 0.8 (was 0.72) in js/game/camera.js. The field is deeper on screen and the far rows shrink less. Rules are unchanged.
+
+## In-match UI rework (Nov 17)
+- A hero is selected by clicking anywhere on its sprite, not only its tile (the front-most hero wins when two overlap). Right-click on the sprite starts moving it.
+- The hero panel is compact: icons and short values only (attributes, XP and energy bars, a 3-column stats grid, items). Hover any icon for its name and exact value. New stat icons for every damage type and ailment. A close button sits in its header.
+- The Quit popup now sits above the hero panel.
+- Relic, Start wave, Auto and Speed buttons are smaller.
+- Hero cards are redone: a zoomed portrait (head to waist) on the left, then name, level and price ("150 gold"), with bigger skill icons.
+
 ## Auto-start glow (Nov 17)
 - The Auto-start button no longer has the spinning wheel: while it is on, a bright green border glows and pulses around it. With the system's reduced-motion setting on (for example Windows with animations turned off) the glow stays, it just does not pulse; before, the wheel simply did not show then. Game version 0.45.1.
 

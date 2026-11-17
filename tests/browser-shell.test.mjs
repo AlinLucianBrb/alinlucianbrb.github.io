@@ -30,8 +30,10 @@ function rightClick(cx, cy) {
   byId.c.fire('pointerdown', { clientX: x, clientY: y, button: 2, pointerId: 1 });
   byId.c.fire('pointerup', { clientX: x, clientY: y, button: 2, pointerId: 1 });
 }
-const nameOf = card => card.children[1].children[0]._v ?? card.children[1].children[0]._text;
-const levelOf = card => card.children[1].children[1]._v ?? '';
+/* A hero card: [key, picture frame, name line (name, level, price), ability icons]. */
+const nameOf = card => card.children[2].children[0]._v ?? card.children[2].children[0]._text;
+const levelOf = card => card.children[2].children[1]._v ?? '';
+const priceOf = card => card.children[2].children[2]._v ?? '';
 const gold = () => Number(byId.gold._v);
 const wave = () => Number(String(byId.wave._v).split(' / ')[0]);
 const freeTiles = n => {
@@ -49,7 +51,7 @@ test('the screen comes alive: hero cards, gold and HUD values, no drawing errors
   startGame(hooks); dom.frames(3);
   assert.deepEqual(drawErrors, []);
   const card = dom.heroButton(0);
-  assert.equal(nameOf(card), 'Warrior'); assert.equal(card.children[2]._v, '150 gold · place it'); assert.equal(card.children[0]._v, '1');
+  assert.equal(nameOf(card), 'Warrior'); assert.equal(priceOf(card), '150', 'the price (with a coin icon), without "place it"'); assert.match(card.children[1].className, /^pframe( flip)?$/, 'the hero picture on the left'); assert.equal(card.children[0]._v, '1');
   assert.equal(levelOf(card), '', 'no level before the hero is on the map');
   assert.equal(nameOf(dom.heroButton(2)), 'Mage');
   assert.equal(card.children.some(c => c.className === 'ebar'), false, 'no energy bar on the hero buttons');
@@ -68,7 +70,7 @@ test('placing is once per hero; no hero picked by default; cards then select the
   assert.equal(world().heroes.length, 0, 'clicking the map with nothing picked places nothing');
   dom.heroButton(1).onclick(); click(...t[0]); dom.frames(1);
   assert.equal(gold(), 150, 'tests place for free (paying is tested in commands.test.mjs)'); assert.equal(world().heroes.length, 1);
-  assert.equal(dom.heroButton(1).children[2]._v, '', 'no "On the field" text');
+  assert.equal(priceOf(dom.heroButton(1)), '', 'no price once it is on the field');
   assert.equal(levelOf(dom.heroButton(1)), 'Lv 1', 'the level sits next to the name');
   assert.equal(view().sel, -1, 'after placing, nothing is picked');
   click(...t[2]); dom.frames(1);
@@ -91,7 +93,7 @@ test('placing is once per hero; no hero picked by default; cards then select the
   click(...t[1]); dom.frames(20);
   assert.equal(dom.button('Evolve'), undefined, 'no Evolve button in the panel');
   assert.ok(dom.made.some(e => e.tag === 'b' && e._text === 'Hunter · Lv 1'), 'the panel title shows the level');
-  assert.ok(dom.made.some(e => e.className === 'lvl' && e._v === 'XP 0/10'), 'XP shown');
+  assert.ok(dom.made.some(e => e.className === 'pbtxt' && e._v === '0 / 10'), 'XP shown on its bar');
   assert.equal(dom.button('Sell'), undefined, 'no selling');
   assert.equal(dom.made.some(e => e.tag === 'div' && /^When full:/.test(e._text || '')), false, 'what the ultimate does is on its icon, not in the panel');
 });
@@ -180,18 +182,19 @@ test('hero panel: a hint on moving comes first, bonuses from the same source are
   const [t] = freeTiles(1);
   dom.heroButton(0).onclick(); click(...t); click(...t); dom.frames(1);
   const kids = byId.inspect.children;
-  /* Title; under it damage dealt, kills and ultimates; then XP, energy right under it, then the attributes. No move or evolve text. */
+  /* Compact: title; under it damage dealt, kills and ultimates (icons); then the XP bar, the energy bar right under it, then
+     the attributes as icon + value. No move or evolve text; the words are in the tooltips. */
   assert.equal(kids[1].className, 'tally');
   assert.deepEqual(kids[1].children.map(c => c.children[1]._v), ['0', '0', '0'], 'damage dealt, kills, ultimates');
-  assert.equal(kids[2].children[0].className, 'lvl'); assert.match(kids[2].children[0]._v, /^XP \d+\/10$/);
-  assert.match(kids[3].children[0]._v, /^Energy \d+\/100$/, 'energy as x/max, right under XP');
+  assert.equal(kids[2].className, 'pbar'); assert.match(kids[2].children[2]._v, /^\d+ \/ 10$/, 'XP as x / next beside its bar');
+  assert.match(kids[3].children[2]._v, /^\d+ \/ 100$/, 'energy as x / max, right under XP');
   assert.equal(kids[4].className, 'attrs');
-  assert.deepEqual(kids[4].children.map(a => a.children.map(c => c._text).join(' ')), ['Str 10', 'Dex 4', 'Int 2']);
-  assert.equal(kids[4].children[0].className, 'attr a-strength main', 'strength is the main one (a-strength: its icon)'); assert.equal(kids[4].children[0].style.color, '#e5645a', 'in red');
-  assert.equal(kids[4].children[1].className, 'attr a-dexterity');
+  assert.deepEqual(kids[4].children.map(a => a.children[1]._text), ['10', '4', '2'], 'icon and value only');
+  assert.equal(kids[4].children[0].className, 'attr main', 'strength is the main one'); assert.equal(kids[4].children[0].style.color, '#e5645a', 'in red');
+  assert.equal(kids[4].children[1].className, 'attr');
   assert.equal(dom.made.some(e => /click and hold|Evolves at level/.test(e._text || '') && byId.inspect.children.includes(e)), false, 'no move or evolve text');
   assert.equal(dom.made.filter(e => e.className === 'buff' && byId.inspect.children.includes(e)).length, 0, 'no breakdown lines in the panel: they are on hover');
-  const dmgRow = kids.find(k => k.className === 'srow srt');
+  const dmgRow = kids.find(k => k.className === 'pstats').children.find(c => c.className === 'pst wide');   /* the damage cell */
   dmgRow.fire('pointerenter', { clientX: 5, clientY: 5 });
   const lines = dom.made.filter(e => e.className === 'tip').at(-1).children.map(c => c._text);
   assert.ok(lines.includes('+15% · Sharpened rounds ×2 (Relic)'), 'stacked across rarities (3.75% + 11.25%), on hover: ' + lines.join(' | '));
@@ -201,7 +204,7 @@ test('hero panel: a hint on moving comes first, bonuses from the same source are
   chips[0].fire('pointerenter', { clientX: 10, clientY: 10 });
   const tip = dom.made.filter(e => e.className === 'tip').at(-1);
   assert.deepEqual(tip.children.map(c => c._text), ['Sharpened rounds ×2', 'Common + Rare', 'Together: +15% damage']);
-  assert.ok(dom.made.some(e => e._text === 'Damage (Physical)'));
+  assert.ok(dom.made.some(e => /^Damage \(Physical\): /.test(e._text || '')), 'the damage type and exact value in the tooltip title');
   const more = stackMods([{ stat: 'x', type: 'more', value: 0.5, source: 'E', ri: -3 }, { stat: 'x', type: 'more', value: 0.5, source: 'E', ri: -3 }]);
   assert.equal(more.length, 1); assert.equal(more[0].value, 1.25, '"more" bonuses multiply: 1.5 x 1.5 = 2.25');
 });
@@ -214,7 +217,7 @@ test('talent bonuses are stacked into one "Talents" line per stat', async () => 
   startGame({ ...hooks, talents: pathTo(new Set(), 't4_might_a2') }); dom.frames(2);
   const [t] = freeTiles(1);
   dom.heroButton(0).onclick(); click(...t); click(...t); dom.frames(1);
-  byId.inspect.children.find(k => k.className === 'srow srt').fire('pointerenter', { clientX: 5, clientY: 5 });   /* the damage line's tip */
+  byId.inspect.children.find(k => k.className === 'pstats').children.find(c => c.className === 'pst wide').fire('pointerenter', { clientX: 5, clientY: 5 });   /* the damage cell's tip */
   const lines = dom.made.filter(e => e.className === 'tip').at(-1).children.map(c => c._text);
   assert.ok(lines.includes('+8% · Talents ×3'), 'one line: ' + lines.join(' | '));
   assert.ok(Math.abs(world().heroes[0].s.damage - 28 * 1.20) < 1e-9, 'talents +8% and 12 strength +12%');

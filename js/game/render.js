@@ -838,7 +838,7 @@ function drawEnemy(ctx, e) {
 /* One hero: range ring when selected, buff rings, its co-op ring, ultimate glow, the Assassin's blink copy, the sprite. */
 function drawHero(ctx, g, v, t) { at(ctx, t.x, t.y, () => drawHeroHere(ctx, g, v, t)); }
 function drawHeroHere(ctx, g, v, t) {
-  const d = t.def, [n, rot] = d.shape, under = v.hover && v.hover[0] === t.cx && v.hover[1] === t.cy;
+  const d = t.def, [n, rot] = d.shape, under = v.hoverHero ? v.hoverHero === t : v.hover && v.hover[0] === t.cx && v.hover[1] === t.cy;
   /* just moved: it rests for a second before attacking again, so it pulses, see-through, until it is ready */
   const base = t === v.moving ? 0.4 : t.settle > 0 ? 0.5 + 0.25 * (1 + Math.sin(g.tick / 4)) : 1;
   ctx.globalAlpha = base;
