@@ -7,7 +7,7 @@ import { apply } from '../engine/commands.js';
 import { exportLog, resume } from '../engine/replay.js';
 import { heroStats } from '../engine/stats.js';
 import { draw, addBeam, tickBeams, addSlash, tickSlashes, addAnim, tickAnims, addImpact, boltImpacts } from './render.js';
-import { preload as preloadArt, get as sprite } from './sprites.js';
+import { preload as preloadArt, get as sprite, heroAnim, strikeDelay, attackPeriod } from './sprites.js';
 import { createCamera, fitCamera, clampCamera, zoomAt, panBy, toWorld, toScreen, scaleAt } from './camera.js';
 import * as ui from './ui.js';
 import { createHost, createGuest } from '../net/lockstep.js';
@@ -28,7 +28,9 @@ let last = -1, acc = 0, active = false, raf = 0, hooks = {}, uiT = 0, stageN = 1
 const v = { sel: 0, hover: null, selected: null, moving: null, speed: 1, paused: false, needFit: true,
   cam: createCamera(), dpr: 1, cw: MAP_W, ch: MAP_H, vfx: { beams: [], slashes: [], anims: [] }, fx: null,
   swings: new Map() };   /* hero id -> its last swing { ang, start } (render.js plays the attack animation and faces it) */
-v.fx = { beam: (...a) => addBeam(v.vfx, ...a), slash: (...a) => { addSlash(v.vfx, ...a); if (a[7] && !a[7].echoOf) v.swings.set(a[7].id, { ang: a[2], start: -1 }); },
+/* a hand-timed attack (sprites.js strikeDelay) shows its slash when the blade lands, not during the wind-up */
+const slashDelay = t => { const A = t && !t.echoOf && t.def ? heroAnim(t.def) : null; return A ? strikeDelay(A.attack, attackPeriod(t)) : 0; };
+v.fx = { beam: (...a) => addBeam(v.vfx, ...a), slash: (...a) => { addSlash(v.vfx, a[0], a[1], a[2], a[3], a[4], a[5], a[6], slashDelay(a[7])); if (a[7] && !a[7].echoOf) v.swings.set(a[7].id, { ang: a[2], start: -1 }); },
   shot: (t, ang) => { if (!t.echoOf) v.swings.set(t.id, { ang, start: -1 }); },
   /* The Lightning Mage's storm: a bolt from the sky onto the enemy (a plain beam while the art is not loaded). */
   strike: (x, y) => { if (sprite('fx_strike')) addAnim(v.vfx, 'fx_strike', x, y - 34, 72, 0.28, 3); else addBeam(v.vfx, x + 6, y - 70, x, y, 0.12, '#ffe45c', 3); } };

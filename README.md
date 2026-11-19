@@ -200,6 +200,12 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## A real swing for the Warrior (Nov 19, v0.55.0)
+- **New attack animation:** he raises the sword, holds a coiled wind-up, then cuts down and follows through until the blade nearly touches the ground. Three hand-picked frames on a bigger 256 px canvas so the swing has room (art/pixellab/build_attacks.py, sources in art/pixellab/attacks/; the old sheet is kept in attacks/old/).
+- **Hand timing:** an attack can now give each frame its own time on screen (raise 0.08 s, wind-up 0.32 s, strike 0.45 s) instead of one fps. When the hero attacks faster than that, the timing is squeezed to fit, so the strike is never cut off.
+- **The slash lands with the blade:** for hand-timed attacks the slash effect waits for the strike frame instead of showing during the wind-up. The hit itself (damage) still happens when the attack starts, as before: no rule or SQL changes.
+- The evolutions keep their current attacks for now; they get the same treatment once the Warrior's is settled.
+
 ## Longer maces (Nov 19, v0.54.2)
 - The Heretic's and Inquisitor's mace handles are longer, so the mace head rests on the ground and they lean on it like a cane. Both forms re-animated (their attacks are 3 frames). No rule or SQL changes.
 

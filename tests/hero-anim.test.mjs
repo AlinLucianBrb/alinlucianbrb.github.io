@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { HERO_ANIM, heroAnim, heroPortrait, SPRITES } from '../js/game/sprites.js';
+import { HERO_ANIM, heroAnim, heroPortrait, SPRITES, attackFrame, strikeDelay } from '../js/game/sprites.js';
 import { HEROES, evolvedDef } from '../js/content/data.js';
 
 const pngSize = name => { const b = readFileSync(new URL('../assets/' + name + '.png', import.meta.url)); return [b.readUInt32BE(16), b.readUInt32BE(20)]; };
@@ -11,7 +11,9 @@ const pngSize = name => { const b = readFileSync(new URL('../assets/' + name + '
 test('every animation sheet holds its frames side by side, square, and is in the sprite list', () => {
   for (const A of Object.values(HERO_ANIM)) {
     for (const part of [A.idle, A.attack]) {
-      assert.deepEqual(pngSize(part.name), [A.frame * part.frames, A.frame], part.name);
+      const fr = part.frame || A.frame;
+      assert.deepEqual(pngSize(part.name), [fr * part.frames, fr], part.name);
+      if (part.durations) assert.equal(part.durations.length, part.frames, part.name);
       assert.ok(SPRITES.includes(part.name));
     }
     assert.ok(SPRITES.includes(A.portrait));
@@ -52,7 +54,20 @@ test('the heroes and every evolved form animate; forms are drawn taller than the
 
 test('one attack fits inside the hero\'s attack cooldown', () => {
   const statsOf = id => (HEROES.find(h => h.id === id) || HEROES.find(h => (h.evolutions || []).some(s => s.choices.some(c => c.id === id)))).stats;
-  for (const [id, A] of Object.entries(HERO_ANIM)) assert.ok(A.attack.frames / A.attack.fps <= statsOf(id).cooldown, id);
+  for (const [id, A] of Object.entries(HERO_ANIM)) {
+    const cd = statsOf(id).cooldown;
+    assert.equal(attackFrame(A.attack, cd + 1e-6, cd), -1, id);
+    assert.equal(attackFrame(A.attack, 0, cd), 0, id);
+  }
+});
+
+test('a hand-timed attack holds each frame for its duration, squeezed to fit a faster hero', () => {
+  const a = { frames: 3, durations: [100, 300, 400] };
+  assert.equal(attackFrame(a, 0.05), 0); assert.equal(attackFrame(a, 0.2), 1); assert.equal(attackFrame(a, 0.5), 2); assert.equal(attackFrame(a, 0.81), -1);
+  assert.equal(attackFrame(a, 0.2, 0.4), 2);   /* twice as fast: 0.2 s in is 0.4 s of the full timing */
+  assert.equal(attackFrame(a, 0.41, 0.4), -1);
+  assert.ok(Math.abs(strikeDelay(a) - 0.4) < 1e-9); assert.ok(Math.abs(strikeDelay(a, 0.4) - 0.2) < 1e-9); assert.equal(strikeDelay({ frames: 4, fps: 10 }), 0);
+  assert.equal(attackFrame({ frames: 4, fps: 10 }, 0.35), 3); assert.equal(attackFrame({ frames: 4, fps: 10 }, 0.4), -1);
 });
 
 test('every animated hero that shoots has a muzzle point (where its bolts leave it) inside its frame', () => {

@@ -34,9 +34,29 @@ export const relicIcon = name => 'relic_' + name.toLowerCase().replace(/[^a-z0-9
    square frames side by side, the figure facing left. foot: where the feet touch the ground on a frame (the hero stands on
    that point); attack.swings: which way the attack art swings; height: the figure's height in frame pixels; tiles: how tall it is drawn on the map, in tiles. A hero without
    an entry (and every evolved form, for now) uses its old two-frame sprite. portrait: the still image for the menus. */
+/* Which attack frame shows `sec` seconds into a swing, or -1 once it is over. An attack plays at its fps, or with its own
+   per-frame durations (ms); those are squeezed to fit `period` (the hero's time between attacks) when it attacks faster. */
+export function attackFrame(part, sec, period = Infinity) {
+  if (!part.durations) { const f = Math.floor(sec * part.fps); return f < part.frames ? f : -1; }
+  const total = part.durations.reduce((a, b) => a + b, 0) / 1000, k = Math.min(1, period / total);
+  let t = sec / k * 1000;
+  for (let i = 0; i < part.durations.length; i++) { if (t < part.durations[i]) return i; t -= part.durations[i]; }
+  return -1;
+}
+/* How long (s) a hand-timed attack takes to reach its last frame, the strike: its slash effect waits that long, so it shows
+   when the blade lands rather than during the wind-up. 0 for attacks played at an fps. */
+export function strikeDelay(part, period = Infinity) {
+  if (!part || !part.durations) return 0;
+  const d = part.durations, total = d.reduce((a, b) => a + b, 0) / 1000, k = Math.min(1, period / total);
+  return d.slice(0, -1).reduce((a, b) => a + b, 0) / 1000 * k;
+}
+/* A hero's time between attacks, s (its cooldown at its attack or cast speed); Infinity when it has no stats. */
+export const attackPeriod = t => (t && t.s && t.s.cooldown ? t.s.cooldown / ((t.s[(t.def && t.def.rate) || 'speed']) || 1) : Infinity);
 export const HERO_ANIM = {
   warrior: { frame: 192, foot: [91, 185], height: 125, tiles: 1.6, portrait: 'portrait_warrior',
-    idle: { name: 'anim_warrior_idle', frames: 4, fps: 5 }, attack: { name: 'anim_warrior_attack', frames: 4, fps: 12, swings: 'left' } },
+    idle: { name: 'anim_warrior_idle', frames: 4, fps: 5 },
+    /* hand-timed on a bigger frame (art/pixellab/build_attacks.py): raise, wind-up held, the strike held low */
+    attack: { name: 'anim_warrior_attack', frames: 3, frame: 256, foot: [115, 235], durations: [80, 320, 450], swings: 'left' } },
   ranger: { frame: 160, foot: [80, 140], height: 123, tiles: 1.6, muzzle: [40, 42], portrait: 'portrait_ranger',
     idle: { name: 'anim_ranger_idle', frames: 4, fps: 5 }, attack: { name: 'anim_ranger_attack', frames: 4, fps: 10, swings: 'left' } },
   mage: { frame: 160, foot: [66, 141], height: 124, tiles: 1.6, muzzle: [25, 25], portrait: 'portrait_mage',
@@ -90,7 +110,7 @@ const FORMS = {
 for (const [id, f] of Object.entries(FORMS)) {
   const b = HERO_ANIM[f.base];
   HERO_ANIM[id] = { frame: 160, focus: f.focus, foot: f.foot, height: f.height, tiles: FORM_TILES, muzzle: b.muzzle, portrait: 'portrait_' + id, form: true,
-    idle: { name: 'anim_' + id + '_idle', frames: f.idle, fps: 5 }, attack: { name: 'anim_' + id + '_attack', frames: f.attack, fps: b.attack.fps, swings: 'left' } };
+    idle: { name: 'anim_' + id + '_idle', frames: f.idle, fps: 5 }, attack: { name: 'anim_' + id + '_attack', frames: f.attack, fps: b.attack.fps || 12, swings: 'left' } };
 }
 /* Animated enemies (Pixel Lab, the same style as the heroes; sources in art/pixellab/): an 8-frame walk loop facing left,
    mirrored when the enemy walks right. foot: where the feet touch the ground; height: the figure's height in frame pixels;

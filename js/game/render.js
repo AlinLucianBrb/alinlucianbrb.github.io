@@ -1,7 +1,7 @@
 /* Canvas drawing. The world is drawn through the camera; the board is cheap enough to draw every frame, which keeps it sharp at any zoom. */
 import { COLS, ROWS, T, HEROES } from '../content/data.js';
 import { tintOf } from '../engine/effects.js';
-import { get as sprite, tiles as tileSheet, drawSprite, heroSprite, frameOf, heroAnim, terrain, drawEnemyArt, enemyHeight, ENEMY_ANIM, upright, unsquash, at, setPicture } from './sprites.js';
+import { get as sprite, tiles as tileSheet, drawSprite, heroSprite, frameOf, heroAnim, attackFrame, attackPeriod, terrain, drawEnemyArt, enemyHeight, ENEMY_ANIM, upright, unsquash, at, setPicture } from './sprites.js';
 import { project, unproject, scaleAt, setView } from './camera.js';
 import { drawAuras, drawMinions, drawMounted, KIT_PROJ, KIT_ZONE, KIT_AIL_ICON, BUFF_COLOR } from './kit-art.js';
 
@@ -202,14 +202,14 @@ export function tickBeams(vfx, dt) {
   list.length = j;
 }
 const spool = [];
-export function addSlash(vfx, x, y, ang, half, r, ttl, color) {
+export function addSlash(vfx, x, y, ang, half, r, ttl, color, delay = 0) {
   const s = spool.pop() || {};
-  s.x = x; s.y = y; s.a = ang; s.h = half; s.r = r; s.t = s.ttl = ttl * 1.8; s.c = color;   /* shown a little longer than the hit lasts, so the swing reads */
+  s.delay = delay; s.x = x; s.y = y; s.a = ang; s.h = half; s.r = r; s.t = s.ttl = ttl * 1.8; s.c = color;   /* shown a little longer than the hit lasts, so the swing reads */
   vfx.slashes.push(s);
 }
 export function tickSlashes(vfx, dt) {
   const list = vfx.slashes; let j = 0;
-  for (let i = 0; i < list.length; i++) { const s = list[i]; if ((s.t -= dt) > 0) list[j++] = s; else spool.push(s); }
+  for (let i = 0; i < list.length; i++) { const s = list[i]; if (s.delay > 0) { s.delay -= dt; list[j++] = s; continue; } if ((s.t -= dt) > 0) list[j++] = s; else spool.push(s); }
   list.length = j;
 }
 
@@ -750,7 +750,7 @@ export function draw(ctx, g, v) {
     ctx.globalAlpha = 1;
   }
   const slashArt = sprite('fx_slash'), slash2 = sprite('fx_slash2');
-  for (const s of v.vfx.slashes) at(ctx, s.x, s.y, () => {
+  for (const s of v.vfx.slashes) if (!(s.delay > 0)) at(ctx, s.x, s.y, () => {
     const a = Math.max(0, s.t / s.ttl);
     if (s.h < Math.PI - 0.01 && (slash2 || slashArt)) {   /* a sword arc thrown out toward the target, with the hero's colour along it */
       if (slash2) {   /* fx_slash2 (Pixel Lab VFX): a crescent flung outward, its far end ~75 art px out, so it stops at the reach */
@@ -919,9 +919,9 @@ function drawAnimated(ctx, g, v, t, A) {
   let part = A.idle, f = Math.floor((g.tick + t.id * 17) / 60 * A.idle.fps) % A.idle.frames, face = right ? 1 : -1;
   if (sw) {
     if (sw.start < 0 || sw.start > g.tick) sw.start = g.tick;
-    const af = Math.floor((g.tick - sw.start) / 60 * A.attack.fps);
+    const af = attackFrame(A.attack, (g.tick - sw.start) / 60, attackPeriod(t));
     /* the attack art swings toward A.attack.swings ('right' or 'left'): mirrored when the target is on the other side */
-    if (af < A.attack.frames) { part = A.attack; f = af; face = right === (A.attack.swings === 'right') ? -1 : 1; }
+    if (af >= 0) { part = A.attack; f = af; face = right === (A.attack.swings === 'right') ? -1 : 1; }
   }
   return drawAnimFrame(ctx, A, part, f, t.x, t.y + HERO_FOOT - FOOT_DY, face);
 }
@@ -932,7 +932,8 @@ function drawAnimFrame(ctx, A, part, f, x, y, face) {
   ctx.save();
   ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
   ctx.translate(x, y + FOOT_DY); ctx.scale(face > 0 ? -k : k, k * unsquash());   /* upright on the tilted board */
-  ctx.drawImage(img, f * A.frame, 0, A.frame, A.frame, -A.foot[0], -A.foot[1], A.frame, A.frame);
+  const fr = part.frame || A.frame, ft = part.foot || A.foot;   /* an attack can have a bigger frame (room for the swing) */
+  ctx.drawImage(img, f * fr, 0, fr, fr, -ft[0], -ft[1], fr, fr);
   ctx.restore();
   return true;
 }
