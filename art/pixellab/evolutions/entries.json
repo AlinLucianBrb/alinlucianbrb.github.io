@@ -1,0 +1,245 @@
+{
+ "alchemist": {
+  "foot": [
+   65,
+   139
+  ],
+  "height": 122,
+  "idle": 4,
+  "attack": 4
+ },
+ "animalic": {
+  "foot": [
+   65,
+   138
+  ],
+  "height": 122,
+  "idle": 4,
+  "attack": 4
+ },
+ "archangel": {
+  "foot": [
+   65,
+   139
+  ],
+  "height": 126,
+  "idle": 4,
+  "attack": 4
+ },
+ "assassin": {
+  "foot": [
+   65,
+   139
+  ],
+  "height": 123,
+  "idle": 4,
+  "attack": 4
+ },
+ "berserker": {
+  "foot": [
+   63,
+   139
+  ],
+  "height": 125,
+  "idle": 4,
+  "attack": 4
+ },
+ "boomeranger": {
+  "foot": [
+   70,
+   139
+  ],
+  "height": 123,
+  "idle": 4,
+  "attack": 4
+ },
+ "coldmage": {
+  "foot": [
+   54,
+   139
+  ],
+  "height": 125,
+  "idle": 4,
+  "attack": 4
+ },
+ "commander": {
+  "foot": [
+   59,
+   139
+  ],
+  "height": 125,
+  "idle": 4,
+  "attack": 4
+ },
+ "crusader": {
+  "foot": [
+   66,
+   139
+  ],
+  "height": 126,
+  "idle": 4,
+  "attack": 4
+ },
+ "earthcaller": {
+  "foot": [
+   58,
+   139
+  ],
+  "height": 123,
+  "idle": 4,
+  "attack": 3
+ },
+ "firemage": {
+  "foot": [
+   52,
+   139
+  ],
+  "height": 126,
+  "idle": 4,
+  "attack": 4
+ },
+ "gospel": {
+  "foot": [
+   67,
+   139
+  ],
+  "height": 122,
+  "idle": 4,
+  "attack": 4
+ },
+ "heretic": {
+  "foot": [
+   63,
+   139
+  ],
+  "height": 123,
+  "idle": 4,
+  "attack": 3
+ },
+ "hunter": {
+  "foot": [
+   70,
+   139
+  ],
+  "height": 125,
+  "idle": 4,
+  "attack": 4
+ },
+ "incantation": {
+  "foot": [
+   69,
+   139
+  ],
+  "height": 125,
+  "idle": 4,
+  "attack": 4
+ },
+ "infernalist": {
+  "foot": [
+   81,
+   140
+  ],
+  "height": 127,
+  "idle": 4,
+  "attack": 3
+ },
+ "inquisitor": {
+  "foot": [
+   65,
+   139
+  ],
+  "height": 125,
+  "idle": 4,
+  "attack": 3
+ },
+ "lightningmage": {
+  "foot": [
+   53,
+   139
+  ],
+  "height": 125,
+  "idle": 4,
+  "attack": 4
+ },
+ "lunar": {
+  "foot": [
+   66,
+   138
+  ],
+  "height": 124,
+  "idle": 4,
+  "attack": 4
+ },
+ "marksman": {
+  "foot": [
+   69,
+   139
+  ],
+  "height": 124,
+  "idle": 4,
+  "attack": 4
+ },
+ "naturist": {
+  "foot": [
+   90,
+   139
+  ],
+  "height": 126,
+  "idle": 4,
+  "attack": 4
+ },
+ "occult": {
+  "foot": [
+   58,
+   140
+  ],
+  "height": 126,
+  "idle": 4,
+  "attack": 4
+ },
+ "sentinel": {
+  "foot": [
+   87,
+   139
+  ],
+  "height": 125,
+  "idle": 4,
+  "attack": 4
+ },
+ "summoner": {
+  "foot": [
+   60,
+   140
+  ],
+  "height": 127,
+  "idle": 4,
+  "attack": 3
+ },
+ "totemist": {
+  "foot": [
+   58,
+   139
+  ],
+  "height": 126,
+  "idle": 4,
+  "attack": 4
+ },
+ "toxicologist": {
+  "foot": [
+   65,
+   139
+  ],
+  "height": 122,
+  "idle": 4,
+  "attack": 4
+ },
+ "witchdoctor": {
+  "foot": [
+   58,
+   139
+  ],
+  "height": 126,
+  "idle": 4,
+  "attack": 4
+ }
+}

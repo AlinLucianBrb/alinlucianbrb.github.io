@@ -1,5 +1,5 @@
-/* Animated heroes (sprites.js HERO_ANIM): each sheet is its frames side by side, and only base heroes animate (forms keep
-   their sprites for now). */
+/* Animated heroes (sprites.js HERO_ANIM): each sheet is its frames side by side; base heroes and every evolved form animate
+   (the mounted Crusader is drawn on his horse instead). */
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -18,13 +18,18 @@ test('every animation sheet holds its frames side by side, square, and is in the
   }
 });
 
-test('the new-style heroes animate; evolved forms and heroes without art keep their sprites', () => {
+test('the heroes and every evolved form animate; forms are drawn taller than their base hero', () => {
   const w = HEROES.find(h => h.id === 'warrior');
   assert.equal(heroAnim(w), HERO_ANIM.warrior);
-  assert.equal(heroAnim(evolvedDef(w, w.evolutions[0].choices[0])), null);
+  assert.equal(heroAnim(evolvedDef(w, w.evolutions[0].choices[0])), HERO_ANIM.berserker);
+  for (const h of HEROES) for (const step of h.evolutions || []) for (const c of step.choices) {
+    const d = evolvedDef(h, c), A = heroAnim(d);
+    if (d.mounted) { assert.equal(A, null, c.id + ' rides'); continue; }
+    assert.ok(A && A.form, c.id + ' animates'); assert.ok(A.tiles > HERO_ANIM[h.id].tiles, c.id + ' is grander');
+  }
   const r = HEROES.find(h => h.id === 'ranger');
   assert.equal(heroAnim(r), HERO_ANIM.ranger);
-  assert.equal(heroAnim(evolvedDef(r, r.evolutions[0].choices[0])), null);
+  assert.equal(heroAnim(evolvedDef(r, r.evolutions[0].choices[0])), HERO_ANIM.marksman);
   assert.equal(heroAnim(HEROES.find(h => h.id === 'mage')), HERO_ANIM.mage);
   assert.equal(heroAnim(HEROES.find(h => h.id === 'rogue')), HERO_ANIM.rogue);
   assert.equal(heroAnim(HEROES.find(h => h.id === 'druid')), HERO_ANIM.druid);
@@ -46,7 +51,8 @@ test('the new-style heroes animate; evolved forms and heroes without art keep th
 });
 
 test('one attack fits inside the hero\'s attack cooldown', () => {
-  for (const [id, A] of Object.entries(HERO_ANIM)) assert.ok(A.attack.frames / A.attack.fps <= HEROES.find(h => h.id === id).stats.cooldown, id);
+  const statsOf = id => (HEROES.find(h => h.id === id) || HEROES.find(h => (h.evolutions || []).some(s => s.choices.some(c => c.id === id)))).stats;
+  for (const [id, A] of Object.entries(HERO_ANIM)) assert.ok(A.attack.frames / A.attack.fps <= statsOf(id).cooldown, id);
 });
 
 test('every animated hero that shoots has a muzzle point (where its bolts leave it) inside its frame', () => {

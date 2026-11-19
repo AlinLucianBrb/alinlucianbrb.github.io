@@ -200,6 +200,25 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Longer maces (Nov 19, v0.54.2)
+- The Heretic's and Inquisitor's mace handles are longer, so the mace head rests on the ground and they lean on it like a cane. Both forms re-animated (their attacks are 3 frames). No rule or SQL changes.
+
+## Eight evolutions redrawn (Nov 19, v0.54.1)
+- **Commander:** one cape, red with white fur only (no second cape, no blue).
+- **Sentinel:** the shield is strapped to his arm.
+- **Marksman (Ranger):** a new look, a white and gold hooded cloak, gilded armour, a gold bow and a full quiver, so she reads clearly as the upgrade.
+- **Naturist (Druid):** grander: antler crown, a cloak of leaves, bark armour and a glowing crystal staff.
+- **Infernalist (Warlock):** the staff now burns red like the rest of him.
+- **Heretic and Inquisitor (Paladin):** the flails are gone; both carry a round spiked mace on a solid handle.
+- **Witch Doctor (Shaman):** a new look: skull-topped staff with green spirit fire, a bone mask and a ragged moss cloak.
+- Each was re-animated (idle and attack). Frames that drifted off-model were left out, so the Infernalist, Heretic and Inquisitor have 3-frame attacks. No rule or SQL changes.
+
+## Every evolution has its own animated art (Nov 19)
+- All 27 evolved forms are drawn in the heroes' style (art/pixellab/build_evolutions.py, sources in art/pixellab/evolutions). Each is its base hero edited in Pixel Lab: the same face, hair, height and build, with new or upgraded gear, so the evolution reads as the same person, grander.
+- Each form has an idle loop and an attack like the base heroes (anim_<form>_idle/attack.png), and a portrait (portrait_<form>.png) used on its hero card in the match. A few attack frames that drifted off-model were left out (frames.txt says which).
+- Evolved heroes are drawn taller on the map than base heroes (1.78 tiles instead of 1.6), so the progress is visible. The evolution cards on the hero page show the new art, bigger.
+- The Crusader still rides the old horse sprite when mounted (only the rider is new).
+
 ## Plain buttons in the Relic button's style (Nov 18)
 - Then gold (v0.53.2): plain buttons are amber-gold plates like Play solo and Start, with dark text (a touch softer than Start, which keeps its shine). Unselected tabs are a duller gold, the selected one bright.
 - Plain buttons and tabs are no longer wooden: they are smooth enamel plates like the Relic button, in slate blue (lighter on hover, darker when pressed or off). Start, Quit, Relic and "on" keep their colours.

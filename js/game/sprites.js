@@ -54,6 +54,44 @@ export const HERO_ANIM = {
   shaman: { frame: 160, foot: [75, 141], height: 123, tiles: 1.6, muzzle: [27, 43], portrait: 'portrait_shaman',
     idle: { name: 'anim_shaman_idle', frames: 4, fps: 5 }, attack: { name: 'anim_shaman_attack', frames: 4, fps: 10, swings: 'left' } }
 };
+/* Evolved forms (art/pixellab/build_evolutions.py): the same person as the base hero in new or upgraded gear, animated the
+   same way (idle loop, attack), drawn a little taller than the base heroes (FORM_TILES) so the evolution reads as
+   progress. base: the hero it evolves from (its muzzle and swing side are reused); foot and height in frame pixels. */
+const FORM_TILES = 1.78;
+const FORMS = {
+  alchemist: { focus: 60, base: 'rogue', foot: [65, 139], height: 122, idle: 4, attack: 4 },
+  animalic: { focus: 67, base: 'druid', foot: [65, 138], height: 122, idle: 4, attack: 4 },
+  archangel: { focus: 63, base: 'priest', foot: [65, 139], height: 126, idle: 4, attack: 4 },
+  assassin: { focus: 56, base: 'rogue', foot: [65, 139], height: 123, idle: 4, attack: 4 },
+  berserker: { focus: 56, base: 'warrior', foot: [63, 139], height: 125, idle: 4, attack: 4 },
+  boomeranger: { focus: 63, base: 'ranger', foot: [70, 139], height: 123, idle: 4, attack: 4 },
+  coldmage: { focus: 41, base: 'mage', foot: [54, 139], height: 125, idle: 4, attack: 4 },
+  commander: { focus: 53, base: 'warrior', foot: [59, 139], height: 125, idle: 4, attack: 4 },
+  crusader: { focus: 55, base: 'paladin', foot: [66, 139], height: 126, idle: 4, attack: 4 },
+  earthcaller: { focus: 66, base: 'shaman', foot: [58, 139], height: 123, idle: 4, attack: 3 },
+  firemage: { focus: 42, base: 'mage', foot: [52, 139], height: 126, idle: 4, attack: 4 },
+  gospel: { focus: 60, base: 'priest', foot: [67, 139], height: 122, idle: 4, attack: 4 },
+  heretic: { focus: 59, base: 'paladin', foot: [63, 139], height: 123, idle: 4, attack: 3 },
+  hunter: { focus: 58, base: 'ranger', foot: [70, 139], height: 125, idle: 4, attack: 4 },
+  incantation: { focus: 61, base: 'priest', foot: [69, 139], height: 125, idle: 4, attack: 4 },
+  infernalist: { focus: 55, base: 'warlock', foot: [81, 140], height: 127, idle: 4, attack: 3 },
+  inquisitor: { focus: 62, base: 'paladin', foot: [65, 139], height: 125, idle: 4, attack: 3 },
+  lightningmage: { focus: 42, base: 'mage', foot: [53, 139], height: 125, idle: 4, attack: 4 },
+  lunar: { focus: 60, base: 'druid', foot: [66, 138], height: 124, idle: 4, attack: 4 },
+  marksman: { focus: 54, base: 'ranger', foot: [69, 139], height: 124, idle: 4, attack: 4 },
+  naturist: { focus: 58, base: 'druid', foot: [90, 139], height: 126, idle: 4, attack: 4 },
+  occult: { focus: 63, base: 'warlock', foot: [58, 140], height: 126, idle: 4, attack: 4 },
+  sentinel: { focus: 69, base: 'warrior', foot: [87, 139], height: 125, idle: 4, attack: 4 },
+  summoner: { focus: 59, base: 'warlock', foot: [60, 140], height: 127, idle: 4, attack: 3 },
+  totemist: { focus: 62, base: 'shaman', foot: [58, 139], height: 126, idle: 4, attack: 4 },
+  toxicologist: { focus: 61, base: 'rogue', foot: [65, 139], height: 122, idle: 4, attack: 4 },
+  witchdoctor: { focus: 58, base: 'shaman', foot: [58, 139], height: 126, idle: 4, attack: 4 }
+};
+for (const [id, f] of Object.entries(FORMS)) {
+  const b = HERO_ANIM[f.base];
+  HERO_ANIM[id] = { frame: 160, focus: f.focus, foot: f.foot, height: f.height, tiles: FORM_TILES, muzzle: b.muzzle, portrait: 'portrait_' + id, form: true,
+    idle: { name: 'anim_' + id + '_idle', frames: f.idle, fps: 5 }, attack: { name: 'anim_' + id + '_attack', frames: f.attack, fps: b.attack.fps, swings: 'left' } };
+}
 /* Animated enemies (Pixel Lab, the same style as the heroes; sources in art/pixellab/): an 8-frame walk loop facing left,
    mirrored when the enemy walks right. foot: where the feet touch the ground; height: the figure's height in frame pixels;
    tiles: how tall it is drawn, in tiles. The walk moves one frame per stride/8 px walked, so faster enemies step faster. */
@@ -78,7 +116,7 @@ export function drawEnemyArt(ctx, type, d, x, y, face = -1, T = 40) {
 }
 /* How tall an enemy is drawn, in px (0 without animated art). */
 export const enemyHeight = (type, T = 40) => (ENEMY_ANIM[type] ? ENEMY_ANIM[type].tiles * T : 0);
-export const heroAnim = def => (def.form || def.mounted ? null : HERO_ANIM[def.id] || null);
+export const heroAnim = def => (def.mounted ? null : HERO_ANIM[def.form || def.id] || null);   /* every hero and form is animated; the Crusader on his horse is drawn by kit-art */
 /* The image of a hero for the menus: its portrait when it has one, otherwise its sprite. */
 export const heroPortrait = id => (HERO_ANIM[id] ? HERO_ANIM[id].portrait : 'hero_' + id);
 /* The in-match hero card shows the hero from the head to about the waist: the picture to use, how far across it the figure
@@ -89,6 +127,7 @@ const PORTRAIT_FOCUS = { druid: 51, mage: 40, paladin: 57, priest: 55, ranger: 5
 const PORTRAIT_FACES_LEFT = new Set(['druid', 'mage', 'paladin', 'priest', 'ranger', 'rogue', 'warlock', 'warrior']);
 export function cardPicture(def) {
   if (!def.form && HERO_ANIM[def.id]) return { name: HERO_ANIM[def.id].portrait, focus: PORTRAIT_FOCUS[def.id] || 64, size: 128, flip: PORTRAIT_FACES_LEFT.has(def.id) };
+  if (def.form && HERO_ANIM[def.form]) return { name: HERO_ANIM[def.form].portrait, focus: HERO_ANIM[def.form].focus || 64, size: 128, flip: PORTRAIT_FACES_LEFT.has(def.id) };   /* a form: its own still, framed like its base hero */
   return { name: heroSprite(def), focus: 32, size: 64 };
 }
 const heroIds = HEROES.flatMap(h => [h.id, ...(h.evolutions || []).flatMap(s => s.choices.map(c => c.id))]);

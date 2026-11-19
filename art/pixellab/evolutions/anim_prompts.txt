@@ -1,0 +1,27 @@
+berserker|attack: the berserker raises the huge greatsword and swings it in a fast, powerful slash down and across to the left, then recovers, feet planted
+commander|attack: the commander thrusts his runed greatsword forward to the left in a strong lunge, cape flowing, then pulls back, feet planted
+sentinel|attack: the sentinel braces behind his tower shield and swings his broad sword in a heavy horizontal arc to the left, feet planted
+marksman|attack: the ranger draws the long recurve bow to full tension aiming left, releases the arrow, the string snaps forward, then she lowers the bow slightly
+boomeranger|attack: the hunter winds back and hurls the boomerang forward to the left with a strong throwing motion, arm following through
+hunter|attack: the poacher draws the dark bow aiming left, releases a glowing green poison arrow, the string snaps forward
+firemage|attack: the fire mage thrusts the burning staff forward to the left, the fire crystal flares bright and casts a burst of flame, robes flutter
+coldmage|attack: the cold mage thrusts the ice staff forward to the left, the ice crystal flashes and frost bursts from it, robes flutter
+lightningmage|attack: the lightning mage thrusts the staff forward to the left, the lightning orb crackles brightly and arcs of lightning burst from his hand
+assassin|attack: the assassin lunges forward to the left and slashes fast with both curved blades in a cross, shadow wisps trailing, then returns
+toxicologist|attack: the toxicologist throws two poison daggers forward to the left with a quick snapping motion of both arms
+alchemist|attack: the alchemist winds back and lobs the glowing red flask forward to the left in an arc, arm following through
+animalic|attack: the wild druid swings the wolf skull staff forward to the left and lets out a feral roar, the pelt bristling
+naturist|attack: the druid plants the thorny staff forward to the left and the green buds flare with light as he casts, vines swaying
+lunar|attack: the lunar druid raises the crescent moon staff and points it forward to the left, the moon glows brightly and casts a beam
+incantation|attack: the priestess raises the radiant sun staff high, the halo and sun flare with golden light, then she lowers it
+archangel|attack: the archangel draws back the spear of light and hurls it forward to the left, wings flaring open behind her
+gospel|attack: the priestess lifts the glowing holy book and sings, golden light and music notes burst outward from the pages
+occult|attack: the occultist raises a hand toward the left and the floating grimoire flares with purple runes, a dark curse pulses out
+summoner|attack: the summoner thrusts the staff forward to the left, the red summoning sigil spins and flares, the imp on his shoulder flaps its wings
+infernalist|attack: the infernalist thrusts the hellfire staff forward to the left and a burst of green and black fire erupts from it
+heretic|attack: the heretic whirls the burning shadow flail overhead and smashes it forward to the left, purple flames trailing
+inquisitor|attack: the inquisitor lashes the long chain flail forward to the left, the golden spiked head flying out on its chain, then pulls it back
+crusader|attack: the crusader levels the lance and thrusts it forward to the left behind her shield, cape flowing
+witchdoctor|attack: the witch doctor lifts the blowgun staff to his lips aiming left and blows a dart, cheeks puffing, fetishes swaying
+totemist|attack: the totemist slams the totem staff down in front of him, the three spirit heads flare with red, blue and yellow light
+earthcaller|attack: the earthcaller raises the stone maul overhead and slams it down to the ground in front of him to the left, rocks bouncing up

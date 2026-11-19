@@ -1,0 +1,4 @@
+{
+ "bases": {"warrior":"fdf81a6b-dcce-5b78-8aa9-97971077a24b","ranger":"7447fe78-a97e-5029-bc79-13efa35cb77f","mage":"e2c868bc-fbf9-5268-89dc-f22b1c550412","rogue":"d9090bff-3359-568b-95f1-93e4fc1fd798","druid":"7a23ebc8-fe06-5b1f-abfd-bf06489bdba5","priest":"c25688f3-a27b-5f89-b4db-36f56aaa2d97","warlock":"d46c21e3-1f51-5763-a4c0-14e881cac80c","paladin":"90330a8f-9bcc-5990-ab3e-fa47652c5065","shaman":"5e1fcba1-d87b-5313-a6b2-9b08f6156497"},
+ "forms": {}
+}
