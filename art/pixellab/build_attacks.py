@@ -4,10 +4,12 @@ durations) for js/game/sprites.js.
 
 Run:  python3 art/pixellab/build_attacks.py
 
-Sources (art/pixellab/attacks/): <hero>_<n>_<name>.png, 256x256 frames made in Pixel Lab from the hero's still (key poses
-edited from the still, the in-betweens from animate_image with both ends pinned). Frame 0 is the stance, used only to find
-where the feet are; the rest are the attack in order. DURATIONS below are each frame's time on screen (ms): a short raise,
-a long wind-up hold, the strike held. The game squeezes them to fit when the hero attacks faster than that.
+Sources (art/pixellab/attacks/): <hero>_<n>_<name>.png, 256x256 frames. Frame 0 is the stance, used only to find where
+the feet are; the rest are the attack in order. The Warrior's were made with Pixel Lab's animate_with_skeleton_v3 from his
+still: a skeleton with sword and cape joints, posed per frame (upper body from a 3-frame sword-slash reference, legs kept on
+the idle stance), then the middle frame's blade replaced by a hand-drawn smear arc and the raised sword flipped to point back
+over his shoulder. Earlier versions are in attacks/old/. DURATIONS below are each frame's time on screen (ms): the raise held,
+a quick smear, the strike held. The game squeezes them to fit when the hero attacks faster than that.
 """
 import glob, os
 from PIL import Image
@@ -16,7 +18,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, 'attacks')
 A = lambda *p: os.path.join(HERE, '..', '..', 'assets', *p)
 F = 256
-DURATIONS = {'warrior': [80, 320, 450]}
+DURATIONS = {'warrior': [340, 60, 450]}
 
 
 def main():

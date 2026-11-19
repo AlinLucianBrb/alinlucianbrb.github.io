@@ -55,8 +55,8 @@ export const attackPeriod = t => (t && t.s && t.s.cooldown ? t.s.cooldown / ((t.
 export const HERO_ANIM = {
   warrior: { frame: 192, foot: [91, 185], height: 125, tiles: 1.6, portrait: 'portrait_warrior',
     idle: { name: 'anim_warrior_idle', frames: 4, fps: 5 },
-    /* hand-timed on a bigger frame (art/pixellab/build_attacks.py): raise, wind-up held, the strike held low */
-    attack: { name: 'anim_warrior_attack', frames: 3, frame: 256, foot: [115, 235], durations: [80, 320, 450], swings: 'left' } },
+    /* hand-timed on a bigger frame (art/pixellab/build_attacks.py): the raise held, a smear as the blade comes down, the strike held low */
+    attack: { name: 'anim_warrior_attack', frames: 3, frame: 256, foot: [115, 235], durations: [340, 60, 450], swings: 'left' } },
   ranger: { frame: 160, foot: [80, 140], height: 123, tiles: 1.6, muzzle: [40, 42], portrait: 'portrait_ranger',
     idle: { name: 'anim_ranger_idle', frames: 4, fps: 5 }, attack: { name: 'anim_ranger_attack', frames: 4, fps: 10, swings: 'left' } },
   mage: { frame: 160, foot: [66, 141], height: 124, tiles: 1.6, muzzle: [25, 25], portrait: 'portrait_mage',

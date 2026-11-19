@@ -200,6 +200,11 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## The Warrior's swing, redone from a reference (Nov 19, v0.55.1)
+- **Two-handed overhead slash:** both hands raise the sword overhead (blade cocked back over his shoulder) and hold, a steel smear arc sweeps down, and he ends leaning into the cut with the blade down to the ground. Timing: raise 0.34 s, smear 0.06 s, strike 0.45 s.
+- **Made with Pixel Lab's skeleton animation:** a skeleton with sword and cape joints, posed frame by frame. The upper body follows a 3-frame sword-slash reference; the legs stay exactly on his idle stance, so he does not drift or shift his feet. The smear is drawn by hand on the middle frame.
+- Same 256 px attack frame and hand timing as 0.55.0; the slash effect still lands with the strike. No rule or SQL changes. The previous attempts are kept in art/pixellab/attacks/old/.
+
 ## A real swing for the Warrior (Nov 19, v0.55.0)
 - **New attack animation:** he raises the sword, holds a coiled wind-up, then cuts down and follows through until the blade nearly touches the ground. Three hand-picked frames on a bigger 256 px canvas so the swing has room (art/pixellab/build_attacks.py, sources in art/pixellab/attacks/; the old sheet is kept in attacks/old/).
 - **Hand timing:** an attack can now give each frame its own time on screen (raise 0.08 s, wind-up 0.32 s, strike 0.45 s) instead of one fps. When the hero attacks faster than that, the timing is squeezed to fit, so the strike is never cut off.
