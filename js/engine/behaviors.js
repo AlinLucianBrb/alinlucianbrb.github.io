@@ -49,7 +49,7 @@ export const rearm = t => { t.cd = t.s.cooldown / rateOf(t); };
    Worlds without energy (old tests) give 1. */
 export const strike = (g, t, target) => (g.attackMult ? g.attackMult(t, target) : 1);
 /* Fills the energy bar after an attack, unless that attack fired the ultimate. */
-export const charge = (g, t) => { if (t.ultNow) { t.ultNow = false; return; } if (g.gainEnergy) g.gainEnergy(t); };
+export const charge = (g, t) => { if (g.afterAttack) g.afterAttack(t); if (t.ultNow) { t.ultNow = false; return; } if (g.gainEnergy) g.gainEnergy(t); };
 /* Ultimates look different: brighter and thicker. */
 export const look = (t, mult) => (mult > 1 ? '#fff6c8' : t.def.color);
 

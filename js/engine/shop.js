@@ -5,7 +5,7 @@ import { RELICS, RARITIES, rollRarity } from '../content/data.js';
 import { TILE_EFFECTS, TILES, GAMBLE, OUTCOMES, JACKPOT, SUMMON_BOSS, summonReward } from '../content/shop.js';
 import { tileAt, applyConduits } from './tiles.js';
 import { spawnEnemy } from './enemies.js';
-import { removeRelic, looseRelics } from './relics.js';
+import { giveRelic, removeRelic, looseRelics } from './relics.js';
 
 export const tilesOf = (w, p) => w.tiles.filter(t => t.owner === p.i);
 export const tileCost = (w, p) => TILES.first + TILES.more * tilesOf(w, p).length;
@@ -19,7 +19,7 @@ export const rollBossKind = w => Object.keys(SUMMON_BOSS.kinds)[w.rng.shop.int(O
 
 const loose = looseRelics;   /* the relics the gamble can take or raise */
 
-export function shopCommands({ fail, OK, playerOf, blocked, inBounds, drawRelics, giveRelic, recalc }) {
+export function shopCommands({ fail, OK, playerOf, blocked, inBounds, drawRelics, takeRelic, recalc }) {
   const customer = (w, c) => { const p = playerOf(w, c); return !p ? fail('no such player') : !p.shop ? fail('locked') : blocked(w, p) || { p }; };
   return {
     buyTile(w, c) {
@@ -56,7 +56,7 @@ export function shopCommands({ fail, OK, playerOf, blocked, inBounds, drawRelics
       for (const k of OUTCOMES) { if ((x -= k.chance) < 0) { o = k; break; } }
       const can = { raise: loose(p).some(r => r.r < RARITIES.length - 1), lose: loose(p).length > 0, curse: w.wave < w.maxWave };
       const id = o.id in can && !can[o.id] ? o.otherwise : o.id, got = [];
-      const give = () => { const d = drawRelics(w, p, 1, [])[0]; if (d) { const ri = w.fxm.epicRelics ? RARITIES.length - 1 : rollRarity(w.rng.shop.next(), p.gs.relicLuck); giveRelic(w, p, d.relic, ri); got.push({ name: d.relic.name, r: ri }); } };
+      const give = () => { const d = drawRelics(w, p, 1, [])[0]; if (d) { const ri = w.fxm.epicRelics ? RARITIES.length - 1 : rollRarity(w.rng.shop.next(), p.gs.relicLuck); const twice = takeRelic(w, p, d.relic, ri); for (let k = 0; k < (twice ? 2 : 1); k++) got.push({ name: d.relic.name, r: ri }); } };
       if (id === 'relic') give();
       else if (id === 'two') { give(); give(); }
       else if (id === 'jackpot') p.gold += cost * JACKPOT;

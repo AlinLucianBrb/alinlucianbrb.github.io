@@ -25,3 +25,5 @@ i04 74a527fb-6ba5-489c-8347-9577d9cf0c1b
 m01 741582ab-c76a-43d4-896a-05a1f303f83c (dust, essence, core) and afd7777f-5e9f-4a3e-a917-198a556075d2 (scrap), placed on one sheet
 r04 ec0c6c02-7090-4d87-84c6-857fe0c0f3d1
 r05 0562bf7c-b11f-4b02-830c-ba94c1766c20 (its two rows placed side by side)
+l01 1c187385-add5-4446-8d34-5ee897c5b6a3
+l02 93d10098-206c-4d20-95ab-bdec0199384b (its two rows placed side by side)

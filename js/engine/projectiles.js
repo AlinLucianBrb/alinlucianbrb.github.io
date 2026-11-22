@@ -1,5 +1,6 @@
 import { POISON_POOL } from './ultimates.js';
 import { upgradeOf, boltHit } from './upgrades.js';
+import { ricochet } from './legend-perks.js';
 /* Projectile types. A projectile has update(g, p, dt) -> false when finished, and optional onEnd(g, p). How it looks is decided by the renderer. */
 export const BOLT_SPEED = 380;   /* pixels per second */
 export const PROJECTILES = {
@@ -14,6 +15,7 @@ export const PROJECTILES = {
         p.slowed = !!(e.fx && e.fx.chill);   /* before this hit, which may slow it too */
         g.attack(p.owner, e, p.scale, 1, p.as || null);
         boltHit(g, p, e);
+        ricochet(g, p, e);
         return false;
       }
       p.x += p.dx * step; p.y += p.dy * step;
@@ -45,7 +47,7 @@ export const PROJECTILES = {
       for (const e of g.enemies) {
         if (e.dead || p.hit.has(e)) continue;
         const ex = e.x - p.x, ey = e.y - p.y;
-        if (ex * ex + ey * ey <= (e.def.radius + 8) ** 2) { p.hit.add(e); g.attack(p.owner, e, p.scale); }
+        if (ex * ex + ey * ey <= (e.def.radius + 8) ** 2) { p.hit.add(e); g.attack(p.owner, e, p.scale); ricochet(g, p, e); }
       }
       return p.dist < p.max;
     }
@@ -85,7 +87,7 @@ export const PROJECTILES = {
       for (const e of g.enemies) {
         if (e.dead || p.hit.has(e)) continue;
         const dx = e.x - p.x, dy = e.y - p.y;
-        if (dx * dx + dy * dy <= 256) { p.hit.add(e); g.attack(p.owner, e, p.scale); }
+        if (dx * dx + dy * dy <= 256) { p.hit.add(e); g.attack(p.owner, e, p.scale); if (p.out) ricochet(g, p, e); }
       }
       return true;
     },

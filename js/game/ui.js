@@ -17,6 +17,7 @@ import { UNLOCKS } from '../content/unlocks.js';
 import { SLOT_NAME } from '../content/upgrades.js';
 import { relicMult } from '../engine/relics.js';
 import { EFFECT_STATS } from '../content/effect-stats.js';
+import { LEGENDARIES, LEGENDARY } from '../content/legendaries.js';
 import { PREVIEWS } from '../content/previews.js';
 import { PLAYER_COLORS } from './render.js';
 
@@ -206,10 +207,11 @@ export function renderHUD(g, v) {
   });
   if (layout && cb.onLayoutChange) cb.onLayoutChange();
   const box = $('relics');
-  const relicKey = g.relics.map(r => r.name + r.r).join();
+  const relicKey = (g.legendary || '') + g.relics.map(r => r.name + r.r).join();
   if (box._g !== g || box._n !== relicKey) {
     box._g = g; box._n = relicKey; box.textContent = '';
-    box.hidden = !g.relics.length;
+    box.hidden = !g.relics.length && !g.legendary;
+    if (g.legendary) box.append(legendChip(g));
     if (g.relics.length) {
       /* One chip per relic, whatever the rarities of its copies; the colour is the rarest copy's. */
       const byName = new Map();
@@ -228,6 +230,19 @@ export function renderHUD(g, v) {
     }
   }
 }
+
+/* The legendary relic, first in the list of relics. */
+function legendChip(g) {
+  const l = LEGENDARIES[g.legendary], sp = el('span', 'relicchip');
+  sp.append(spriteImg(relicIcon(l.name), 'pix relicico'), el('span', '', l.name));
+  sp.style.color = sp.style.borderColor = LEGENDARY.color; sp.tabIndex = 0;
+  bindTip(sp, () => {
+    const p = g.me, more = l.id === 'souls' ? 'Kills so far: ' + (p.souls || 0) + ' of ' + l.max : l.id === 'collector' ? 'Relics until the next double: ' + (l.every - (p.taken || 0) % l.every) : '';
+    return { title: l.name, color: LEGENDARY.color, lines: [{ text: legendFor(l), color: '#ab9f8a' }, l.desc, ...(more ? [more] : [])] };
+  });
+  return sp;
+}
+const legendFor = l => 'Legendary · ' + (l.hero ? HEROES.find(h => h.id === l.hero).name : 'All your heroes');
 
 /* Shows only the heroes in this match's lineup, keyed 1..n in lineup order. */
 /* Co-op: the players' names and which one is here (null in solo). The bar at the top lists everyone. */
@@ -279,7 +294,7 @@ export function renderMeter(g) {
 
 /* Where a non-relic modifier comes from: ri -1 talent, -2 item, -3 evolution. */
 const SOURCE = { '-1': 'Talent', '-2': 'Item', '-3': 'Evolution', '-4': 'Level', '-5': 'Buff', '-6': 'Effect' };
-const SOURCE_COLOR = { '-1': '#f2b84b', '-2': '#8be28b', '-3': '#dcc6ff', '-4': '#8fd3ff', '-5': '#ff9d8a', '-6': '#ffe08a' };
+const SOURCE_COLOR = { '-1': '#f2b84b', '-2': '#8be28b', '-3': '#dcc6ff', '-4': '#8fd3ff', '-5': '#ff9d8a', '-6': '#ffe08a', '-7': '#ff9a3c' };
 const pct = x => f(x * 100) + '%';
 /* Stats shown as percentages (chances). */
 const isChance = key => /Chance$/.test(key) || !!(EFFECT_STATS[key] && EFFECT_STATS[key].pct);
@@ -471,10 +486,24 @@ function indicator(g, r, m) {
   for (const [type, n] of a.types) { const chip = el('span', 'chip'); chip.style.background = HEROES[type].color; d.append(chip, HEROES[type].name + ' ×' + n + ' '); }
   return d;
 }
+/* A legendary relic's card: for a class, its colour shows on the line under the name. */
+function legendCard(o, i) {
+  const l = LEGENDARIES[o.id], card = el('div', 'card'), b = el('button', 'choose relicard'), tag = el('small', 'rar', 'Legendary'), who = el('small', 'aff');
+  b.style.setProperty?.('--rc', LEGENDARY.color);
+  const hero = l.hero && HEROES.find(h => h.id === l.hero);
+  if (hero) { const chip = el('span', 'chip'); chip.style.background = hero.color; who.append('For: ', chip, hero.name + ', every form'); } else who.textContent = 'For: all your heroes';
+  b.append(el('small', 'pickkey', 'Key ' + (i + 1)), spriteImg(relicIcon(l.name), 'pix relicico top'), el('b', 'relicname', l.name), tag, el('small', '', l.desc), who);
+  b.onclick = () => cb.onChoose(i);
+  card.append(b);
+  return card;
+}
 /* Builds the relic choices from g.pick. Called again after a reroll or banish. */
 export function showPick(g) {
-  const box = $('choices'); box.textContent = ''; banishBtns = [];
-  g.pick.offers.forEach((o, i) => {
+  const box = $('choices'), legendary = !!g.pick.legendary; box.textContent = ''; banishBtns = [];
+  setText($('pickTitle'), legendary ? 'Choose a legendary relic' : 'Choose a relic');
+  $('pickBar').hidden = $('pickOdds').hidden = legendary;
+  if (legendary) g.pick.offers.forEach((o, i) => box.append(legendCard(o, i)));
+  else  g.pick.offers.forEach((o, i) => {
     const rar = RARITIES[o.ri], card = el('div', 'card'), b = el('button', 'choose'), tag = el('small', 'rar', rar.name), ban = el('button', 'linkbtn');
     tag.style.color = rar.color; b.classList.add('relicard'); b.style.setProperty('--rc', rar.color);   /* the card in its rarity's colour */
     const nm = el('b', 'relicname', o.relic.name);
@@ -491,6 +520,8 @@ export function showPick(g) {
 }
 /* Cheap per-frame refresh of prices and disabled states while the picker is open. */
 export function updatePick(g) {
+  $('pick').classList.toggle('live', !!g.playOnPick || !!coop);   /* lighter backdrop, so the match shows through */
+  if (g.pick && g.pick.legendary) return;
   const odds = rarityOdds(g.gs.relicLuck), box = $('pickOdds');
   if (box._luck !== g.gs.relicLuck) {
     box._luck = g.gs.relicLuck; box.textContent = '';
@@ -504,7 +535,6 @@ export function updatePick(g) {
   $('reroll').hidden = false; $('reroll').disabled = poorR; $('reroll').classList.toggle('poor', poorR);
   $('reroll').title = g.rerolls > 0 ? 'Draw three new offers (free)' : 'Draw three new offers for ' + rc + ' gold';
   setText($('pickGold'), 'Gold ' + g.gold);
-  $('pick').classList.toggle('live', !!g.playOnPick || !!coop);   /* lighter backdrop, so the match shows through */
   banishBtns.forEach(b => { setText(b, 'Banish · ' + g.banishes + ' left'); b.disabled = !(g.banishes > 0); b.hidden = !(g.banishes > 0); });
 }
 /* An ability icon: the picture, a dark sweep over it (--p: the part still to go, 0 to 1) and a countdown. */

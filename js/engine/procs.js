@@ -10,7 +10,7 @@ import { nearest } from './upgrades.js';
 export const hasEffects = s => EFFECT_KEYS.some(k => s[k] > 0);
 let busy = false;        /* inside an extra hit */
 export const isExtra = () => busy;
-function extra(f) { busy = true; try { f(); } finally { busy = false; } }
+export function extra(f) { busy = true; try { f(); } finally { busy = false; } }
 
 const beside = (w, h) => { let n = 0; for (const o of w.heroes) if (o !== h && o.id !== h.id && (o.owner || 0) === (h.owner || 0) && Math.max(Math.abs(o.cx - h.cx), Math.abs(o.cy - h.cy)) === 1) n++; return n; };
 const held = e => { if (!e.fx) return false; for (const id in e.fx) { const d = EFFECTS[id]; if (d.kind === 'slow' || d.kind === 'freeze' || d.speedMult) return true; } return false; };

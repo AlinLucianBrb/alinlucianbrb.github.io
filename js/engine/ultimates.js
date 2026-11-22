@@ -6,6 +6,7 @@ import { applyEffect } from './effects.js';
 import { T, COLS, ROWS } from '../content/data.js';
 import { pathPos } from './enemies.js';
 import { upgradeOf } from './upgrades.js';
+import { keepsEnergy, spreadRoots } from './legend-perks.js';
 export const ULTIMATES = {};
 export const registerUltimate = (id, def) => { ULTIMATES[id] = def; };
 
@@ -25,7 +26,7 @@ registerUltimate('inferno', { name: 'Inferno', desc: 'Sets every enemy on the ma
 /* Cold Mage: freezes every enemy on the map for 1 second. (At 2 seconds it fired about every 4 seconds and kept enemies
    frozen half the time: level 5 took the balance bot over two hours.) */
 export const BLIZZARD_FREEZE = 1;
-registerUltimate('blizzard', { name: 'Blizzard', desc: 'Freezes every enemy on the map for ' + BLIZZARD_FREEZE + ' second.', damageMult: 1,
+registerUltimate('blizzard', { time: true, name: 'Blizzard', desc: 'Freezes every enemy on the map for ' + BLIZZARD_FREEZE + ' second.', damageMult: 1,
   onFire(w, h) {
     const u = upgradeOf(h, 'coldmage_ult');
     for (const e of w.enemies) if (!e.dead) { applyEffect(e, 'freeze', { t: BLIZZARD_FREEZE }, h); if (u) applyEffect(e, 'frostbite', { t: u.seconds }, h); }
@@ -47,9 +48,10 @@ export function attackMult(w, h, target) {
   if (h.energy < h.s.energyMax) return basic;
   const u = ULTIMATES[h.def.ultimate];
   if (!u || buffActive(h, u)) return basic;   /* a buff ultimate waits, bar full, until its buff on the caster runs out */
-  h.energy = 0; h.ults++; h.ultNow = true;
+  if (!keepsEnergy(w, h)) h.energy = 0;
+  h.ults++; h.ultNow = true;
   if (u.onFire) u.onFire(w, h, target);
-  w.ev.emit('ultimate', { hero: h, ultimate: u });
+  w.ev.emit('ultimate', { hero: h, ultimate: u, target });
   return u.replaces ? 0 : (u.damageMult || 1);
 }
 
@@ -205,7 +207,7 @@ export function erupt(w, h) {
     if (z.type !== 'thorns' || z.owner !== h) continue;
     z.spikeT = SPIKES.show;
     const r2 = (z.r * SPIKES.reach) ** 2;
-    for (const e of w.enemies) if (!e.dead && !hit.has(e) && (e.x - z.x) ** 2 + (e.y - z.y) ** 2 <= r2) { hit.add(e); w.attack(h, e, SPIKES.scale); if (root && !e.dead) applyEffect(e, 'root', { t: root.seconds }, h); }
+    for (const e of w.enemies) if (!e.dead && !hit.has(e) && (e.x - z.x) ** 2 + (e.y - z.y) ** 2 <= r2) { hit.add(e); w.attack(h, e, SPIKES.scale); if (root && !e.dead) { applyEffect(e, 'root', { t: root.seconds }, h); spreadRoots(w, h, e, root.seconds); } }
   }
 }
 

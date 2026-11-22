@@ -11,6 +11,7 @@ import { DAMAGE_TYPES } from '../content/combat.js';
 import { registerBehavior, ready, rearm, strike, charge } from './behaviors.js';
 import { applyEffect } from './effects.js';
 import { upgradeOf, around } from './upgrades.js';
+import { hexMore } from './legend-perks.js';
 
 export const AURA = { added: 0.5, bless: 0.6, curse: 1, ripple: 0.35 };
 
@@ -44,10 +45,10 @@ registerBehavior('aura', {
     t.pulse = AURA.ripple;
     if (!first) return;
     const mult = strike(g, t, first), k = (mult || 1) * (t.auraBoost ? t.auraBoost.damage : 1), s = auraStats(t);
-    const r3 = auraRadius(t) ** 2;   /* the ultimate may have just widened it */
+    const more = a.curse ? hexMore(g, t) : 0, r3 = auraRadius(t) ** 2;   /* the ultimate may have just widened it */
     for (const e of g.enemies) {
       if (e.dead || (e.x - t.x) ** 2 + (e.y - t.y) ** 2 > r3) continue;
-      if (a.curse) applyEffect(e, a.curse, wither ? { t: AURA.curse, resDown: wither.resDown } : { t: AURA.curse }, t);
+      if (a.curse) applyEffect(e, a.curse, { t: AURA.curse, src: t, ...(more ? { more } : {}), ...(wither ? { resDown: wither.resDown } : {}) }, t);
       if (t.auraCurse) applyEffect(e, t.auraCurse.id, { t: AURA.curse, src: t }, t);
       if (s.damage > 0 && !a.harmless) g.attack(t, e, k, 1, null, s);   /* the Occult's aura only curses */
     }

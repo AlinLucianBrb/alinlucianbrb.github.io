@@ -16,6 +16,7 @@ js/screens/                login, menu, levels (level, then heroes), lobby (co-o
 js/content/                WHAT the game contains (plain data, no logic)
   rules.js                 the rules the server also uses (XP, rewards, waves, spawn timing, bosses, drops, co-op): ONE place
   effect-stats.js          stats that do something in a fight (relics, item bonuses, talent notables); the engine side is procs.js
+  legendaries.js           legendary relics; the engine side is legendaries.js and legend-perks.js (what attacks and ultimates ask)
   match-effects.js, map-effects.js   the double-edged match effects (from act 4) and the act 5 maps' effects
   shop.js                  the match shop: ground effects, the gamble, summoned bosses
   crafting.js              materials, disenchanting and crafting (the server's copy is generated from it)
@@ -207,6 +208,17 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Texts:** attack descriptions describe only the attack, ultimate tooltips only the ultimate, and the hero tooltip the hero (its attribute, delivery and source, tags, damage type). Ultimates that deal damage of their own write it as `{N}` in their description; `ultDesc()` shows it as the number it deals with the hero's stats ("about 156 damage"); "x2 damage" is kept for boosts to an attack the hero already makes. "At level 10, choose a path" is gone from the descriptions.
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
+
+## Legendary relics (Nov 22, v0.63.0)
+- **After wave 25 each player chooses one of 4 legendary relics**, for free, once per match: one for each of their heroes on the map and
+  the rest (at least one) for everyone. Not on a level's last wave, so 1-1 and 1-2 have none; endless has it. In co-op the match goes on.
+- For everyone: Plague, Overload, Perpetual motion, Iron gate, Collector. For one class, in every form: Bladestorm (Warrior), Ricochet
+  (Hunter), Arcane echo (Mage), Death mark (Rogue), Overgrowth (Druid), Lasting light (Priest), Soul harvest (Warlock), Day of wrath
+  (Paladin), Ancestors' gift (Shaman).
+- Added to the proposal where it would have done nothing: Overload also gives +25% crit chance; Lasting light also gives a short damage
+  buff on each of the Priest's attacks (the Archangel has no other buffs); Soul harvest strengthens the Occult's Hex.
+- 14 icons with an orange rim (Pixel Lab, sheets l01 and l02).
+- Rules changed (engine 33: a match saved before the update cannot be resumed). No SQL change.
 
 ## Relics and talents that do something (Nov 22, v0.62.0)
 - **14 new relics** (Executioner, First blood, Giant slayer, Shatter, Chain reaction, Thunderhead, Momentum, Overflow, Lone wolf,

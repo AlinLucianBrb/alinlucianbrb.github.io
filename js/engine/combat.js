@@ -5,6 +5,7 @@ import { DAMAGE_TYPES, AILMENTS, RES_CAP, HOLY_RES_IGNORED } from '../content/co
 import { DAMAGE_ROLL } from '../content/data.js';
 import { applyEffect } from './effects.js';
 import { isShielded } from './enemy-abilities.js';
+import { overload, spreadRoots } from './legend-perks.js';
 import { damageBonus, afterHit, afterAilment, withered } from './procs.js';
 
 /* How much of `amount` gets through, for one damage type. Armor (physical) and resistances (every other type) work the same
@@ -38,7 +39,7 @@ export function critMult(w, hero, e, rate = 1, stats = null) {
   const s = stats || hero.s, mark = e.fx && e.fx.mark, chance = (s.critChance || 0) + (mark ? mark.chance : 0);
   if (!(chance > 0) || Math.min(w.rng.combat.next(), s.lucky > 0 ? w.rng.combat.next() : 1) >= Math.min(1, chance) * rate) return w.fxm ? w.fxm.noCrit : 1;   /* Precision: plain hits are weaker */
   w.ev.emit('crit', { hero, enemy: e });
-  return (s.critDamage || 1.5) + (mark ? mark.dmg : 0);
+  return (s.critDamage || 1.5) + (mark ? mark.dmg : 0) + overload(w, hero, chance);
 }
 
 /* scale: multiplies the whole hit (ultimates, beam ramp, chain falloff). rate: how much of a "full hit" this is for ailment
@@ -67,7 +68,7 @@ export function attack(w, hero, e, scale = 1, rate = 1, as = null, stats = null)
     const got = mitigate(e, t, raw[t], true, s);
     raw[t] = got; total += got;
     w.hit(hero, e, got, t);
-    if (e.dead) { if (s.fxOn && rate === 1) afterHit(w, hero, e, total, s, { scale: base0, as, stats, own, crit: crit > 1, shocked }); return; }
+    if (e.dead) { if (s.fxOn && rate === 1) afterHit(w, hero, e, total, s, { scale: base0, as, stats, own, crit: crit > 1, shocked }); if (w.afterHit) w.afterHit(hero, e, crit > 1, rate === 1, stats); return; }
   }
   /* Ailments: only if the hero has a chance and the hit carried a damage type that can cause it. */
   for (const id in AILMENTS) {
@@ -81,6 +82,7 @@ export function attack(w, hero, e, scale = 1, rate = 1, as = null, stats = null)
     inflict(w, hero, e, id, part / rate);
   }
   if (s.fxOn && rate === 1) afterHit(w, hero, e, total, s, { scale: base0, as, stats, own, crit: crit > 1, shocked });
+  if (w.afterHit) w.afterHit(hero, e, crit > 1, rate === 1, stats);
   /* Burning creed (the Heretic's Heresy): while it lasts, any hit can burn, whatever its damage type. */
   const scorch = hero.buffs && hero.buffs.find(b => b.scorch);
   if (scorch && total > 0 && w.rng.combat.next() < scorch.scorch * rate) inflict(w, hero, e, 'burn', total / rate);
@@ -105,7 +107,7 @@ export function inflict(w, hero, e, id, hit) {
   if (a.kind === 'dot') applyEffect(e, id, { t: a.duration, dps: a.dpsOfHit * hit * (id === 'poison' && hero && hero.s && hero.s.venom > 0 ? 1 + hero.s.venom : 1), src: hero }, hero);
   else if (a.kind === 'shock') applyEffect(e, id, { t: a.duration, mag: a.resDown, resDown: a.resDown }, hero);
   else if (a.kind === 'freeze') applyEffect(e, id, { t: Math.min(a.max, a.base + a.perLifeShare * hit / e.max) }, hero);
-  else if (a.kind === 'root') applyEffect(e, id, { t: a.duration }, hero);
+  else if (a.kind === 'root') { applyEffect(e, id, { t: a.duration }, hero); spreadRoots(w, hero, e, a.duration); }
   w.ev.emit('ailment', { hero, enemy: e, id });
   afterAilment(w, hero, e, id, hit, fresh, inflict);
 }

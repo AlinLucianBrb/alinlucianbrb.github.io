@@ -273,6 +273,7 @@ test('upgrades in a real match: evolving and upgrading replays exactly, for ever
       for (const id of w.lineup) search: for (const [x, y] of w.path.slice(3)) for (const dy of [1, -1]) { const r = apply(w, { type: 'place', hero: id, cx: x, cy: y + dy }); if (r.ok) { ids.push(r.id); break search; } }
       const h = w.heroes.find(x => x.id === ids[0]); let after = 0;
       for (let k = 0; k < 60 * 2500 && w.phase !== 'over' && after < 60 * 30; k++) {
+        if (w.picking) apply(w, { type: 'choose', index: 0 });   /* the legendary relic */
         if (w.phase === 'build') apply(w, { type: 'wave' });
         step(w);
         if (h.tier < 2 && w.gold >= 500 && h.level >= w.evolveLevel(h)) apply(w, { type: 'evolve', id: h.id, choice: h.tier ? up : i });

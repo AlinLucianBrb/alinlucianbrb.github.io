@@ -29,7 +29,7 @@ const TINT_ORDER = ['freeze', 'stun', 'root', 'doom', 'shock', 'burn', 'poison',
 export function damageTaken(e) {
   const fx = e.fx; if (!fx) return 1;
   let k = 0;
-  if (fx.hex) k += EFFECTS.hex.taken;
+  if (fx.hex) k += EFFECTS.hex.taken + (fx.hex.more || 0);   /* more: the Warlock's Soul harvest */
   if (fx.doom) k += EFFECTS.doom.taken;
   if (fx.frostbite) k += EFFECTS.frostbite.taken;
   if (fx.verdict) k += EFFECTS.verdict.perStack * fx.verdict.n;
@@ -79,6 +79,7 @@ export function applyEffect(e, id, eff, by = null) {
   else if (eff.dps === cur.dps && eff.mag === cur.mag) {
     cur.t = Math.max(cur.t, eff.t);
     if ((eff.resDown || 0) > (cur.resDown || 0)) cur.resDown = eff.resDown;   /* a Withering hex on one that was plain */
+    if ((eff.more || 0) > (cur.more || 0)) cur.more = eff.more;
   }
 }
 

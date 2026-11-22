@@ -21,6 +21,8 @@ import { LEVELS_PER_ZONE } from '../content/zones.js';
 import { updateAbilities, isShielded } from './enemy-abilities.js';
 import { attachUpgrades } from './upgrades.js';
 import { attachProcs } from './procs.js';
+import { attachLegendaries, openLegendaries, updateLegendaries, legendMods, ironGate } from './legendaries.js';
+import { buffTime } from './legend-perks.js';
 import { updateProjectiles } from './projectiles.js';
 import { updateZones } from './zones.js';
 import { createMeter } from './meter.js';
@@ -34,7 +36,7 @@ import { cleanPaths, pathChoice, pathDef, previewMods, syncPreview, updatePrevie
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
 export const REROLL_GOLD = 0.25;
-export const ENGINE_VERSION = 32;     /* bump when a rule change would make old command logs play out differently */
+export const ENGINE_VERSION = 33;     /* bump when a rule change would make old command logs play out differently */
 
 /* Checks a lineup: up to LINEUP_SIZE different, playable heroes. Returns a clean copy, or the full roster if it is empty. */
 export function cleanLineup(lineup) {
@@ -54,7 +56,7 @@ function makePlayer(i, { talents = [], lineup = null, items = {}, paths = {}, re
   return {
     i, talents: [...talents], lineup: team, paths: path, items: equipped, mods, startRelics: cleanRelics(relics), gold: START_GOLD + resolve(0, 'startGold', mods), gs: null,
     shop: !!shop, gambles: 0, gambleWave: -1, gambleN: 0, lastGamble: null,   /* the match shop (shop.js) */
-    relics: [], relicsBought: 0, banned: new Set(), picking: false, pick: null, playOnPick: false, auto: false, ready: false,
+    relics: [], relicsBought: 0, banned: new Set(), legendary: null, picking: false, pick: null, playOnPick: false, auto: false, ready: false,
     /* Free relic rerolls and banishes for this match: they come only from talents. */
     rerolls: Math.round(resolve(0, 'rerolls', mods)), banishes: Math.round(resolve(0, 'banishes', mods))
   };
@@ -63,7 +65,7 @@ function makePlayer(i, { talents = [], lineup = null, items = {}, paths = {}, re
 const cleanRelics = list => (list || []).filter(r => r && RELICS.some(x => x.name === r.name) && RARITIES[r.ri]).map(r => ({ name: r.name, ri: r.ri | 0 }));
 
 /* The fields that belong to a player. On the world they mean player 1's (w.gold, w.relics...), so solo code reads as before. */
-export const PLAYER_FIELDS = ['talents', 'lineup', 'paths', 'items', 'mods', 'gold', 'gs', 'relics', 'relicsBought', 'banned', 'picking', 'pick', 'playOnPick',
+export const PLAYER_FIELDS = ['talents', 'lineup', 'paths', 'items', 'mods', 'gold', 'gs', 'relics', 'relicsBought', 'banned', 'legendary', 'picking', 'pick', 'playOnPick',
   'auto', 'ready', 'rerolls', 'banishes', 'shop', 'gambles', 'gambleWave', 'gambleN', 'lastGamble'];
 
 /* lineup: the hero ids brought into the match. items: { heroId: [{ type, rarity, bonuses }] } equipped before the match
@@ -80,7 +82,7 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
     tick: 0, phase: 'build', won: false, autoT: 3, players: ps, coop, hpMult: coopHpMult(ps.length),
     lives: 20 + ps.reduce((a, p) => a + resolve(0, 'startLives', p.mods), 0),
     wave: 0, spawnLeft: 0, spawnT: 0, kills: 0, bossKills: 0, nextHeroId: 1,
-    heroes: [], enemies: [], projs: [], zones: [],
+    heroes: [], enemies: [], projs: [], zones: [], echoes: [],   /* echoes: legendaries.js */
     tiles: [], curse: null, bossesSummoned: 0, bossNext: 1, bossKind: null,   /* the match shop */
     matchEffects: !!matchEffects, effects: [], vote: null, fxm: freshFx(),   /* match-effects.js; the map's: map-effects.js */
     ev: createBus(), fx: null,
@@ -111,7 +113,7 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
   w.relicCost = (p = ps[0]) => Math.max(1, Math.round(0.6 * (80 + 20 * p.relicsBought) * p.gs.relicCost));   /* Merchant talents make it cheaper */
   /* Rerolling the relic offers: free while the player has rerolls (talents); after that it costs gold, a quarter of what the
      relic cost, one quarter more for every gold reroll of the same choice (48 gold relic: 12, 24, 36...). */
-  w.rerollCost = (p = ps[0]) => (!p.pick || p.rerolls > 0 ? 0 : Math.max(1, Math.round(REROLL_GOLD * p.pick.paid * (1 + (p.pick.goldRerolls || 0)))));
+  w.rerollCost = (p = ps[0]) => (!p.pick || p.pick.legendary || p.rerolls > 0 ? 0 : Math.max(1, Math.round(REROLL_GOLD * p.pick.paid * (1 + (p.pick.goldRerolls || 0)))));
   w.previewRange = (i, p = ps[0]) => resolve(HEROES[i].stats.range, 'range', p.mods, HEROES[i].tags);
   w.meter = createMeter(w.ev);
   w.ev.on('kill', ({ hero, enemy }) => {
@@ -129,12 +131,13 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
   });
   attachUpgrades(w);
   attachProcs(w);
+  attachLegendaries(w);
   w.statsFor = h => statsFor(w, h);
   w.addBuff = (h, id, name, mods, seconds, by) => addBuff(w, h, id, name, mods, seconds, by);
   w.erupt = h => erupt(w, h);   /* Naturist Druid's spikes */
   /* A boss that gets through on the last wave ends the run: a level is only won by beating its final boss. */
   w.ev.on('escape', ({ enemy }) => {
-    w.lives = Math.max(0, w.lives - enemy.def.leak * w.fxm.leak);
+    if (!ironGate(w, enemy)) w.lives = Math.max(0, w.lives - enemy.def.leak * w.fxm.leak);
     if (enemy.prize) { enemy.prize.lost = true; payPrize(w, enemy); }
     if (w.lives <= 0 || (enemy.def.boss && !enemy.def.summoned && w.wave >= w.maxWave)) endRun(w, false);
   });
@@ -182,6 +185,7 @@ export function hit(w, hero, e, amount, type = 'physical', quiet = false) {
 /* by: the hero that gives it (default: the hero itself); its duration stat (the Duration relic) makes the buff last longer. */
 export function addBuff(w, h, id, name, mods, seconds, by = h) {
   if (by && by.s && by.s.duration > 0) seconds *= by.s.duration;
+  seconds *= buffTime(w, by);   /* the Priest's Lasting light */
   const list = (h.buffs ||= []), cur = list.find(b => b.id === id);
   if (cur) { cur.t = Math.max(cur.t, seconds); return; }
   list.push({ id, name, t: seconds, mods: mods.map(m => ({ ...m, scope: ['all'], source: name, ri: -5 })) });
@@ -215,6 +219,8 @@ export function statsFor(w, h) {
   const shared = w.players[h.owner || 0].mods;
   let own = h.lvlMods && h.lvlMods.length ? h.mods.concat(h.lvlMods) : h.mods;
   if (h.buffs && h.buffs.length) for (const b of h.buffs) own = own.concat(b.mods);
+  const lg = legendMods(w, h);
+  if (lg) own = own.concat(lg);
   const ley = leyMods(w, h);
   if (ley) own = own.concat(ley);
   if (h.preview) { h.pvMods = previewMods(h); own = own.concat(h.pvMods); }   /* a path's preview, at the hero's level */
@@ -244,6 +250,7 @@ function waveCleared(w) {
   if (w.wave >= w.maxWave) { endRun(w, !w.stage.endless); return; }   /* endless is never won, only ended */
   w.phase = 'build'; w.autoT = 3;
   openVote(w);
+  openLegendaries(w);
 }
 
 /* Ends the run. The 'end' event is sent only once the current step has fully finished (see step), so anything that
@@ -279,6 +286,7 @@ export function step(w) {
     BEHAVIORS[h.def.kind].update(w, h, STEP);
     if (h.preview) updatePreview(w, h, STEP);
   }
+  updateLegendaries(w, STEP);
   updateProjectiles(w, STEP);
   updateZones(w, STEP);
   sweep(w.enemies);

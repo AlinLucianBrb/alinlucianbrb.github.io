@@ -2,6 +2,7 @@
    Sprites load in the background the first time they are asked for. Until one has loaded (or if it fails, or there is no
    browser to load it, as in the tests), get() returns null and the renderer draws its plain shapes instead, so the game
    never waits for art. Images are drawn with smoothing off so the pixels stay sharp. */
+import { LEGENDARIES } from '../content/legendaries.js';
 import { HEROES, RELICS } from '../content/data.js';
 import { ITEMS } from '../content/items.js';
 import { MATERIALS } from '../content/crafting.js';
@@ -179,7 +180,7 @@ export const SPRITES = [...new Set([
   ...['flame', 'frost', 'storm'].map(n => 'minion_totem_' + n),
   ...['imp', 'demon', 'golem', 'horse'].flatMap(n => ['minion_' + n, 'minion_' + n + '_2']),
   ...MATERIALS.map(m => m.icon),
-  'fx_judgement', ...RELICS.map(r => relicIcon(r.name)),
+  'fx_judgement', ...RELICS.map(r => relicIcon(r.name)), ...Object.values(LEGENDARIES).map(l => relicIcon(l.name)),
   'proj_orb_arcane', 'proj_orb_holy', 'proj_orb_shadow', 'proj_orb_nature', 'proj_shard', 'proj_lightbolt', 'proj_skullflame', 'proj_leaf', 'fx_swing', 'fx_slash2', 'fx_crit',
   ...['arcane', 'holy', 'nature', 'shadow', 'physical', 'lightning'].map(n => 'fx_impact_' + n),
   'fx_hit', 'fx_slash', 'fx_explosion', 'fx_strike', 'fx_spikes', 'fx_moon', 'fx_moonburst', 'minion_wolf', 'minion_wolf_2',

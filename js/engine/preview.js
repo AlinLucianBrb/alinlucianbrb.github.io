@@ -48,7 +48,7 @@ export function endPreview(h) {
   h.preview = null; h.pvMods = null; h.echo = null;
 }
 
-function makeEcho(h, def) {
+export function makeEcho(h, def) {
   const e = Object.create(h);
   Object.defineProperties(e, {
     energy: { get: () => 0, set() {}, enumerable: true },       /* no energy bar of its own: never an ultimate */

@@ -12,6 +12,7 @@ import { execute } from '../combat.js';
 import { LEAK_GUARDS, pathPos } from '../enemies.js';
 import { isShielded } from '../enemy-abilities.js';
 import { upgradeOf } from '../upgrades.js';
+import { buffTime } from '../legend-perks.js';
 import { T } from '../../content/data.js';
 import '../aura.js';
 
@@ -28,7 +29,7 @@ registerUltimate('blessing', { buff: 'blessing', name: 'Blessing', desc: 'Heroes
 /* The aura's blessing (Hymn, +15% attack and cast speed) is set on the form in data.js; Crescendo is the ultimate. */
 export const CRESCENDO = { seconds: 5, radius: 2, damage: 3 };
 registerUltimate('crescendo', { active: h => !!(h.auraBoost && h.auraBoost.t > 0), name: 'Crescendo', desc: 'For 5 seconds the aura is twice as wide and deals triple damage.', damageMult: 1,
-  onFire(w, h) { h.auraBoost = { t: CRESCENDO.seconds, radius: CRESCENDO.radius, damage: CRESCENDO.damage }; } });
+  onFire(w, h) { h.auraBoost = { t: CRESCENDO.seconds * buffTime(w, h), radius: CRESCENDO.radius, damage: CRESCENDO.damage }; } });
 
 /* ---- Archangel ---- */
 /* A lance of light: flies straight out to the Archangel's range and a little beyond, hitting every enemy it passes once. */

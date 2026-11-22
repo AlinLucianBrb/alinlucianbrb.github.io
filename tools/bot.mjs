@@ -63,9 +63,10 @@ function scoreOffer(w, o) {
    how many heroes they touch). form: forms to take, by id, comma-separated ('firemage,hunter'); others are chosen by the
    skill. paths: true takes those forms as evolution paths before the match. gear: 'none', 'common', 'rare' or 'epic'
    (tools/balance/gear.mjs; items overrides it). relics: false buys none. startRelics: [{ name, ri }] given before wave 1.
+   legendary: which legendary relic to take if offered (an id; null: one by the seed).
    collect: true also returns the measurements of tools/balance/collect.mjs. */
 export function playRun({ seed = 1, stage = 1, strategy = 'trio', lineup = null, level = 1, relics = true, startRelics = [], items = null, gear = 'none',
-  form = '', paths = false, skill = 'smart', collect = false, maxTicks = 4000000 } = {}) {
+  form = '', paths = false, legendary = null, skill = 'smart', collect = false, maxTicks = 4000000 } = {}) {
   const wanted = String(form || '').split(',').filter(Boolean), smart = skill !== 'simple';
   const team = lineup || STRATEGIES[strategy];
   const way = {};
@@ -126,6 +127,7 @@ export function playRun({ seed = 1, stage = 1, strategy = 'trio', lineup = null,
   }
   while (w.phase !== 'over' && w.tick < maxTicks) {
     if (w.vote) apply(w, { type: 'vote', index: w.vote.kind === 'map' ? 0 : -1 });   /* endless: the first map effect offered; no match effects */
+    if (w.pick && w.pick.legendary) { const k = w.pick.offers.findIndex(o => o.id === legendary); apply(w, { type: 'choose', index: k >= 0 ? k : seed % w.pick.offers.length }); }
     if (w.phase === 'build') { spend(); apply(w, { type: 'wave' }); }
     else if (w.tick % 60 === 0) spend();
     if (!step(w)) break;

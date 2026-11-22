@@ -121,6 +121,7 @@ test('a match that meets every special enemy replays exactly', () => {
     w.ev.on('heroStun', () => stunned++);
     for (const [k, id] of ['warrior', 'ranger', 'mage'].entries()) place(w, id, ...t[k * 4]);
     for (let k = 0; k < 60 * 2400 && w.phase !== 'over'; k++) {
+      if (w.picking) apply(w, { type: 'choose', index: 3 });   /* the legendary relic: one for everyone */
       if (w.phase === 'build') apply(w, { type: 'wave' });
       step(w);
       for (const e of w.enemies) seen.add(e.type);

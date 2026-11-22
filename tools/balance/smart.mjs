@@ -101,6 +101,7 @@ export function bestForm(w, h, spend) {
     for (let k = c.wave; k <= Math.min(c.maxWave, c.wave + LOOKAHEAD.bossWithin); k++) if (isBossWave(k, c.stage)) { target = k; break; }
     const lives = c.lives, dealt = c.heroes.reduce((a, x) => a + x.dealt, 0), limit = (target ? LOOKAHEAD.maxSeconds : LOOKAHEAD.seconds) * 60;
     for (let t = 0; t < limit && c.phase !== 'over'; t++) {
+      if (c.pick && c.pick.legendary) apply(c, { type: 'choose', index: 0 });
       if (c.phase === 'build') { if (target && c.wave >= target) break; if (spend) spend(c); apply(c, { type: 'wave' }); }
       step(c);
     }

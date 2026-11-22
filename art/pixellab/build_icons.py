@@ -7,7 +7,7 @@ Sources: art/pixellab/icons/*.png, sheets of icons made in Pixel Lab (8 per shee
 icon is found as a blob of pixels (the sheets do not keep to an exact grid) and named by its place in the sheet, reading
 rows top to bottom and left to right (SHEETS below).
   icon_*:    the icon alone, trimmed to a tight square (the CSS sizes it; drawn small and smooth).
-  ability_*, relic_*: 32x32, the icon on a dark slot with a bronze rim (gold for ultimates, violet for relics).
+  ability_*, relic_*: 32x32, the icon on a dark slot with a bronze rim (gold for ultimates, violet for relics, orange for legendary ones).
   item_*_r:  64x64; rarity 0 (Common) is a little duller, 3 (Epic) gets a faint violet glow. The inventory cell's border
              shows the rarity colour as before.
 """
@@ -42,6 +42,8 @@ S = {
     'r03': ['r_quick_hands', 'r_quick_incantation', 'r_reinforced_gate', 'r_savage_bite', 'r_sharpened_rounds', 'r_split_bolt', 'r_tax_collector', 'r_whetstone'],
     'r04': ['r_executioner', 'r_first_blood', 'r_giant_slayer', 'r_shatter', 'r_chain_reaction', 'r_thunderhead', 'r_momentum', 'r_overflow'],
     'r05': ['r_lone_wolf', 'r_brotherhood', 'r_last_stand', 'r_trophy_hunter', 'r_fever', 'r_tempo'],
+    'l01': ['L_plague', 'L_overload', 'L_perpetual_motion', 'L_iron_gate', 'L_collector', 'L_bladestorm', 'L_ricochet', 'L_arcane_echo'],
+    'l02': ['L_death_mark', 'L_overgrowth', 'L_lasting_light', 'L_soul_harvest', 'L_day_of_wrath', 'L_ancestors_gift'],
     'm01': ['icon_mat_scrap', 'icon_mat_dust', 'icon_mat_essence', 'icon_mat_core'],
     'i01': ['i_arcane_amulet', 'i_beast_mask', 'i_bloodstone_ring', 'i_body_armour', 'i_boots', 'i_circlet', 'i_fang_necklace', 'i_feather_charm'],
     'i02': ['i_hide_armour', 'i_leather_hood', 'i_leather_jerkin', 'i_leather_trousers'],
@@ -128,6 +130,8 @@ def main():
                 badge(c, (214, 168, 92) if name.startswith('ult_') else (143, 106, 58)).save(A('ability_' + name + '.png'))
             elif name.startswith('r_'):
                 badge(c, (150, 110, 200)).save(A('relic_' + name[2:] + '.png'))
+            elif name.startswith('L_'):   # legendary relics: an orange rim
+                badge(c, (255, 150, 50)).save(A('relic_' + name[2:] + '.png'))
             else:
                 base = Image.new('RGBA', (64, 64)); s = min(1, 58 / max(c.size))
                 ic = c.resize((round(c.width * s), round(c.height * s)), Image.LANCZOS) if s < 1 else c

@@ -9,7 +9,7 @@ import { levelMods } from './levels.js';
 import { recalc, startWave, statsFor, endRun } from './world.js';
 import { shopCommands } from './shop.js';
 import { applyConduits, hasConduit } from './tiles.js';
-import { giveRelic } from './relics.js';
+import { takeRelic, takeLegendary, legendDue } from './legendaries.js';
 import { castVote, mapVoteOpen } from './match-effects.js';
 
 const OK = { ok: true };
@@ -153,7 +153,7 @@ export const COMMANDS = {
   leave(w, c) {
     const p = playerOf(w, c); if (!p || !w.coop) return fail('no such player');
     if (p.left) return fail('already left');
-    p.left = true; p.auto = true; p.pick = null; p.picking = false;
+    p.left = true; p.auto = true; p.pick = null; p.picking = false; p.legendDue = false;
     if (w.phase === 'build' && w.players.every(x => x.ready || x.auto)) startWave(w);
     return OK;
   },
@@ -189,6 +189,7 @@ export const COMMANDS = {
   reroll(w, c) {
     const p = playerOf(w, c); if (!p) return fail('no such player');
     if (!p.pick) return fail('no relic choice open');
+    if (p.pick.legendary) return fail('legendary');
     if (p.rerolls > 0) p.rerolls--;
     else {
       const cost = w.rerollCost(p);
@@ -201,6 +202,7 @@ export const COMMANDS = {
   banish(w, c) {
     const p = playerOf(w, c); if (!p) return fail('no such player');
     if (!p.pick) return fail('no relic choice open');
+    if (p.pick.legendary) return fail('legendary');
     if (!p.pick.offers[c.index]) return fail('bad index');
     if (!(p.banishes > 0)) return fail('no banishes');
     p.banishes--; p.pick.uses++;
@@ -213,14 +215,14 @@ export const COMMANDS = {
     if (!p.pick) return fail('no relic choice open');
     const o = p.pick.offers[c.index];
     if (!o) return fail('bad index');
-    giveRelic(w, p, o.relic, o.ri);
-    p.pick = null; p.picking = false; recalc(w);
+    if (p.pick.legendary) takeLegendary(w, p, o.id); else takeRelic(w, p, o.relic, o.ri);
+    p.pick = null; p.picking = false; legendDue(w, p); recalc(w);
     return OK;
   }
 };
 
 /* The match shop: tiles, gambling, summoning a boss (shop.js). */
-Object.assign(COMMANDS, shopCommands({ fail, OK, playerOf, blocked, inBounds, drawRelics, giveRelic, recalc }));
+Object.assign(COMMANDS, shopCommands({ fail, OK, playerOf, blocked, inBounds, drawRelics, takeRelic, recalc }));
 
 export function apply(w, cmd) {
   const fn = COMMANDS[cmd.type];
