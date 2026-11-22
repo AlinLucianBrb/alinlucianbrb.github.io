@@ -2,7 +2,7 @@
    timing, bosses, drops, co-op), data.js (levels, rarities, lineup size) and items.js (rolls and prices). finish_run,
    start_run, save_loadout and the lobby functions call these instead of repeating numbers, so the rules live in one place.
    Run through `npm run sql` (tools/build-sql.mjs). */
-import { ACCOUNT, REWARDS, WAVES, SPAWN, BOSSES, MIN_RUN, DROPS, COOP, ENDLESS_RULES } from '../js/content/rules.js';
+import { UNLOCK_ALL, ACCOUNT, REWARDS, WAVES, SPAWN, BOSSES, MIN_RUN, DROPS, COOP, ENDLESS_RULES } from '../js/content/rules.js';
 import { STAGES, ENDLESS, RARITIES, LINEUP_SIZE } from '../js/content/data.js';
 import { ROLL, SELL, RANKS, ILVL } from '../js/content/items.js';
 import { CRAFT } from '../js/content/crafting.js';
@@ -12,7 +12,7 @@ const num = x => String(+x.toFixed(10));
 const fn = (sig, ret, body, comment) => '-- ' + comment + '\ncreate or replace function public.' + sig + ' returns ' + ret +
   '\nlanguage sql immutable set search_path = public as $$ ' + body + ' $$;';
 
-export function rulesSql() {
+export function rulesSql(open = UNLOCK_ALL) {
   const waves = STAGES.map(s => s.waves);
   const rankCum = k => ROLL.rankWeights.map(row => row.slice(0, k).reduce((a, b) => a + b, 0));
   const rarityRows = RARITIES.map((r, i) => '(' + i + ', ' + num(r.weight) + ' * power(1 + greatest(p_luck, 0), ' + i + '))').join(', ');
@@ -21,11 +21,11 @@ export function rulesSql() {
     fn('rule_stage_count()', 'int', 'select ' + STAGES.length, 'How many levels there are.'),
     fn('rule_stage_waves(p_stage int)', 'int', 'select case when p_stage > ' + STAGES.length + ' then ' + ENDLESS_RULES.maxWaves + ' else (array[' + waves.join(', ') + '])[p_stage] end', 'Waves in a level (endless: the most there can be).'),
     fn('rule_is_endless(p_stage int)', 'boolean', 'select p_stage between ' + ENDLESS[0].n + ' and ' + ENDLESS[ENDLESS.length - 1].n, 'Endless stages come after the levels, one per zone.'),
-    fn('rule_stage_open(p_stage int, p_cleared int)', 'boolean', 'select case when public.rule_is_endless(p_stage) then p_cleared >= ' + STAGES.length + ' else p_stage <= p_cleared + 1 end', 'Whether a player who cleared that many levels can play a stage.'),
+    fn('rule_stage_open(p_stage int, p_cleared int)', 'boolean', open ? 'select true' : 'select case when public.rule_is_endless(p_stage) then p_cleared >= ' + STAGES.length + ' else p_stage <= p_cleared + 1 end', 'Whether a player who cleared that many levels can play a stage.'),
     fn('rule_endless_level(p_waves int, p_roll numeric)', 'int',
       'with b(low) as (select ' + ENDLESS_RULES.bracket + ' * ((p_waves + ' + (ENDLESS_RULES.bracket - 1) + ') / ' + ENDLESS_RULES.bracket + ' - 1)), c(lo, hi) as (select greatest(' + ENDLESS_RULES.minItemLevel + ', low), greatest(' + ENDLESS_RULES.minItemLevel + ', least(p_waves, low + ' + ENDLESS_RULES.bracket + ')) from b) ' +
       'select (lo + floor(p_roll * (hi - lo + 1)))::int from c', 'The item level of an endless drop: somewhere in the bracket of waves reached, from a random number in [0, 1).'),
-    fn('rule_unlock(p_feature text)', 'int', 'select case p_feature ' + Object.entries(UNLOCKS).map(([id, u]) => "when '" + id + "' then " + clearedFor(u.act)).join(' ') + ' end',
+    fn('rule_unlock(p_feature text)', 'int', 'select case p_feature ' + Object.entries(UNLOCKS).map(([id, u]) => "when '" + id + "' then " + (open ? 0 : clearedFor(u.act))).join(' ') + ' end',
       'Levels that must be cleared before a feature is unlocked (it unlocks on reaching its act).'),
     fn('rule_lineup_max()', 'int', 'select ' + LINEUP_SIZE, 'Heroes a player can bring into a match.'),
     fn('rule_max_players()', 'int', 'select ' + COOP.maxPlayers, 'Players in a co-op lobby.'),

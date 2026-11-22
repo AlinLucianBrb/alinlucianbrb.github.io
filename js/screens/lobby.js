@@ -31,8 +31,8 @@ function show(v) {
 function fillStages(sel, value) {
   sel.textContent = '';
   for (const s of unlocked()) { const o = el('option', '', s.endless ? stageLabel(s.n) : 'Level ' + s.code + ' · ' + s.name + ' · ' + s.waves + ' waves'); o.value = s.n; sel.append(o); }
-  const open = unlocked(), levels = open.filter(s => !s.endless);
-  sel.value = String(open.some(s => s.n === value) ? value : levels[levels.length - 1].n);
+  const open = unlocked(), next = Math.min(STAGES.length, (state.profile.levels_cleared || 0) + 1);
+  sel.value = String(open.some(s => s.n === value) ? value : next);
 }
 
 /* ---- Create ---- */

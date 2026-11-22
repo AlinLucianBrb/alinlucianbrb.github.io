@@ -8,3 +8,6 @@ PAY_FOR_HEROES.on = false;
 /* Newer Node versions (26) have a built-in localStorage that only prints a warning when it is read without a file. Tests run
    without one, as on Node 22 (GitHub's test run); a test that needs one sets a fake. */
 delete globalThis.localStorage;
+/* Levels and features are locked in tests even while everything is open for testing (UNLOCK_ALL); unlocks.test.mjs covers both. */
+import { TESTING } from '../js/content/rules.js';
+TESTING.unlockAll = false;

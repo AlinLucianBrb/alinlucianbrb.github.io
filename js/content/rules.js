@@ -4,6 +4,12 @@
    talent tree) is copied the same way by tools/content-sql.mjs; item rolls use ROLL and SELL in items.js, rarities and
    levels (STAGES) data.js. */
 
+/* FOR TESTING: true opens every level, Endless and everything the acts unlock, for every player, in the game and on the server.
+   The levels a player has really cleared are still kept as before. Back to normal: false, `npm run sql`, supabase-update.sql. */
+export const UNLOCK_ALL = true;
+/* What the game asks (the tests switch it off to check the locks). */
+export const TESTING = { unlockAll: UNLOCK_ALL };
+
 /* Account levels: XP needed to go from level L to L + 1. */
 export const ACCOUNT = { xpBase: 50, xpPerLevel: 50 };
 export const xpNeed = level => ACCOUNT.xpBase + level * ACCOUNT.xpPerLevel;

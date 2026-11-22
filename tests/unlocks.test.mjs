@@ -2,7 +2,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { STAGES } from '../js/content/data.js';
+import { STAGES, ENDLESS, stageOpen } from '../js/content/data.js';
+import { TESTING, UNLOCK_ALL } from '../js/content/rules.js';
 import { UNLOCKS, actReached, clearedFor, isUnlocked, unlocksOf, actMessage, maxSpeed } from '../js/content/unlocks.js';
 
 test('the first act goes up to wave 55, and every level after it has 55', () => {
@@ -26,9 +27,21 @@ test('game speed: 1x to start with, 2x from act 3', () => {
   assert.deepEqual([0, 5, 9, 10, 25].map(c => maxSpeed(c)), [1, 1, 1, 2, 2]); assert.equal(maxSpeed(25, true), 3, 'endless');
 });
 
+test('UNLOCK_ALL opens every level, Endless and feature, in the game and on the server; without it they are locked', async () => {
+  const { rulesSql } = await import('../tools/rules-sql.mjs'), all = [...STAGES, ...ENDLESS], count = () => all.filter(s => stageOpen(s.n, 0)).length, features = () => Object.keys(UNLOCKS).filter(id => isUnlocked(id, 0)).length;
+  assert.deepEqual([count(), features(), maxSpeed(0)], [1, 0, 1]);
+  TESTING.unlockAll = true;
+  try { assert.deepEqual([count(), features(), maxSpeed(0)], [30, Object.keys(UNLOCKS).length, 2]); assert.ok(!stageOpen(31, 0) && !stageOpen(0, 25), 'only levels there are'); } finally { TESTING.unlockAll = false; }
+  assert.ok(rulesSql(true).includes("when 'shop' then 0") && /rule_stage_open[^;]*select true/.test(rulesSql(true)) && !/rule_stage_open[^;]*select true/.test(rulesSql(false)));
+  for (const f of ['supabase-setup.sql', 'supabase-update.sql']) {
+    const s = readFileSync(new URL('../' + f, import.meta.url), 'utf8');
+    assert.ok(s.includes(rulesSql(UNLOCK_ALL)), f + ' is built with the switch as it is');
+    assert.equal(s.match(/p_won and \(r\.players > 1 or r\.stage <= me\.levels_cleared\)/g).length + (s.match(/x\.levels_cleared and \(r\.players > 1 or r\.stage <= me\.levels_cleared\)/g) || []).length, 3, f + ': a level won out of order is not on the leaderboard');
+  }
+});
 test('the server uses the same unlocks', async () => {
   const { rulesSql } = await import('../tools/rules-sql.mjs');
-  for (const [id, u] of Object.entries(UNLOCKS)) assert.ok(rulesSql().includes("when '" + id + "' then " + clearedFor(u.act)));
+  for (const [id, u] of Object.entries(UNLOCKS)) assert.ok(rulesSql(false).includes("when '" + id + "' then " + clearedFor(u.act)));
   for (const f of ['supabase-setup.sql', 'supabase-update.sql'])
     assert.ok(readFileSync(new URL('../' + f, import.meta.url), 'utf8').includes("levels_cleared >= public.rule_unlock('paths')"), f);
 });

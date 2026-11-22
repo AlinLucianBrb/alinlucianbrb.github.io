@@ -8,6 +8,7 @@ import { ENDLESS_RULES, endlessBracket, specialsOf, SPECIALS, isBossWave, killCa
 import { MAP_EFFECTS } from '../js/content/map-effects.js';
 import { MATCH_PICKS } from '../js/content/match-effects.js';
 import { maxSpeed } from '../js/content/unlocks.js';
+import { rulesSql } from '../tools/rules-sql.mjs';
 import { MAPS } from '../js/content/maps.js';
 import { createWorld, step, startWave } from '../js/engine/world.js';
 import { apply } from '../js/engine/commands.js';
@@ -94,7 +95,7 @@ test('the server: the same brackets, bosses and stages; runs are started, checke
   for (const f of ['supabase-setup.sql', 'supabase-update.sql']) {
     const s = sql(f);
     assert.ok(s.includes('25 * ((p_waves + 24) / 25 - 1)') && s.includes('greatest(75, low), greatest(75, least(p_waves, low + 25))') && s.includes('lo + floor(p_roll * (hi - lo + 1))'), f);
-    assert.ok(s.includes('select p_stage between 26 and 30') && s.includes('when public.rule_is_endless(p_stage) then p_cleared >= 25 else p_stage <= p_cleared + 1'), f);
+    assert.ok(s.includes('select p_stage between 26 and 30') && rulesSql(false).includes('when public.rule_is_endless(p_stage) then p_cleared >= 25 else p_stage <= p_cleared + 1'), f);
     assert.ok(s.includes('when public.rule_is_endless(p_stage) then p_waves / 10 else') && s.includes('when p_stage > 25 then 1000 else (array['), f);
     assert.equal(s.match(/if not public\.rule_stage_open\(p_stage, me\.levels_cleared\) then raise exception 'stage locked'/g).length, 3, f + ': start_run, create_lobby, set_lobby_stage');
     assert.ok(!/p_stage > me\.levels_cleared \+ 1/.test(s), f + ': no old check left');

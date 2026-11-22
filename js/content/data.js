@@ -2,7 +2,7 @@
    Relics and talents are lists of MODIFIERS that target a stat on heroes carrying certain tags, like Path of Exile.
    To add a hero: add an entry here. A new "kind" also needs a behavior in behaviors.js. */
 import { UPGRADES, UPGRADE_LEVEL } from './upgrades.js';
-import { ENDLESS_RULES } from './rules.js';
+import { ENDLESS_RULES, TESTING } from './rules.js';
 import { EFFECT_STATS, EFFECT_BASE } from './effect-stats.js';
 import { COMBAT_STATS, COMBAT_LABELS } from './combat.js';
 
@@ -346,8 +346,8 @@ export const ENDLESS = ZONES.map((z, i) => {
 });
 export const stageDef = n => STAGES[n - 1] || ENDLESS[n - LEVELS - 1] || null;
 export const stageLabel = n => { const s = stageDef(n); return !s ? 'Level ' + n : s.endless ? 'Endless · ' + s.name : 'Level ' + s.code; };
-/* Whether a player who cleared that many levels can play a stage. */
-export const stageOpen = (n, cleared) => { const s = stageDef(n); return !!s && (s.endless ? (cleared || 0) >= LEVELS : n <= (cleared || 0) + 1); };
+/* Whether a player who cleared that many levels can play a stage (TESTING, rules.js, opens them all). */
+export const stageOpen = (n, cleared) => { const s = stageDef(n); return !!s && (TESTING.unlockAll || (s.endless ? (cleared || 0) >= LEVELS : n <= (cleared || 0) + 1)); };
 
 export const STAT_LABELS = {
   damage: 'Damage', range: 'Range', speed: 'Attacks per second', chillTime: 'Chill duration (s)', jumps: 'Chain jumps',

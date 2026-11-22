@@ -209,6 +209,12 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Everything open for testing (Nov 22, v0.63.1)
+- **All levels, Endless and everything the acts unlock are open**, for every player: `UNLOCK_ALL` in `js/content/rules.js` (false, `npm run
+  sql` and `supabase-update.sql` put the locks back). Levels opened early say "Open (testing)"; the levels really cleared are kept as
+  before, and a level won out of order does not move the player's progress or the leaderboard.
+- **SQL changed: run `supabase-update.sql`** (the server checks the locks too). Match rules unchanged (engine 33).
+
 ## Legendary relics (Nov 22, v0.63.0)
 - **After wave 25 each player chooses one of 4 legendary relics**, for free, once per match: one for each of their heroes on the map and
   the rest (at least one) for everyone. Not on a level's last wave, so 1-1 and 1-2 have none; endless has it. In co-op the match goes on.

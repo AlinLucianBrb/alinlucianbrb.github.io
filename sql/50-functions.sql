@@ -271,15 +271,15 @@ begin
          frontier_wave = case when frontier and p_won then 0 when frontier then greatest(frontier_wave, p_waves) else frontier_wave end
    where id = auth.uid()
    returning * into me;
-  -- this mode's record (solo, or co-op with 2, 3 or 4 players)
+  -- this mode's record (solo, or co-op with 2, 3 or 4 players); solo, a level won out of order (all open for testing) does not count
   insert into public.records as x (user_id, players, levels_cleared, frontier_wave, runs, endless_wave)
-  values (auth.uid(), r.players, case when p_won then r.stage else 0 end, case when not p_won and r.stage = 1 then p_waves else 0 end, 1, case when endless then p_waves else 0 end)
+  values (auth.uid(), r.players, case when p_won and (r.players > 1 or r.stage <= me.levels_cleared) then r.stage else 0 end, case when not p_won and r.stage = 1 then p_waves else 0 end, 1, case when endless then p_waves else 0 end)
   on conflict (user_id, players) do update
     set runs = x.runs + 1,
         endless_wave = greatest(x.endless_wave, excluded.endless_wave),
-        frontier_wave = case when p_won and r.stage > x.levels_cleared then 0
+        frontier_wave = case when p_won and r.stage > x.levels_cleared and (r.players > 1 or r.stage <= me.levels_cleared) then 0
                              when not endless and r.stage = x.levels_cleared + 1 then greatest(x.frontier_wave, p_waves) else x.frontier_wave end,
-        levels_cleared = case when p_won then greatest(x.levels_cleared, r.stage) else x.levels_cleared end;
+        levels_cleared = case when p_won and (r.players > 1 or r.stage <= me.levels_cleared) then greatest(x.levels_cleared, r.stage) else x.levels_cleared end;
   il := public.rule_item_level(case when p_won then r.stage else r.stage - 1 end);   -- item level: by the level beaten (on a loss, the one below)
   chance := public.rule_drop_chance(p_won, p_waves, r.stage) * (1 + b_loot);
   if endless then chance := p_bosses * b_loot; end if;   -- one item per boss (below), and item find adds its share of them

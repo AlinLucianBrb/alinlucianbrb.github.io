@@ -1,5 +1,6 @@
 /* What each act unlocks. The acts are the zones (zones.js): reaching an act means having beaten the last level of the one
    before it. Add a feature here with the act it needs; the server's copy (rule_unlock) is generated from this table. */
+import { TESTING } from './rules.js';
 import { ZONES, LEVELS, LEVELS_PER_ZONE, zoneOf } from './zones.js';
 
 export const UNLOCKS = {
@@ -13,7 +14,7 @@ export const UNLOCKS = {
 export const actReached = cleared => zoneOf(Math.min(LEVELS, (cleared || 0) + 1)).n;
 /* How many levels must be cleared to reach an act. */
 export const clearedFor = act => (act - 1) * LEVELS_PER_ZONE;
-export const isUnlocked = (id, cleared) => (cleared || 0) >= clearedFor(UNLOCKS[id].act);
+export const isUnlocked = (id, cleared) => TESTING.unlockAll || (cleared || 0) >= clearedFor(UNLOCKS[id].act);
 /* What reaching an act unlocks, as names. */
 export const unlocksOf = act => Object.values(UNLOCKS).filter(u => u.act === act).map(u => u.name);
 /* The message after a win that reaches a new act ('' when nothing new): before and after are the levels cleared. */

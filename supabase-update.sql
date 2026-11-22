@@ -854,13 +854,13 @@ create or replace function public.rule_is_endless(p_stage int) returns boolean
 language sql immutable set search_path = public as $$ select p_stage between 26 and 30 $$;
 -- Whether a player who cleared that many levels can play a stage.
 create or replace function public.rule_stage_open(p_stage int, p_cleared int) returns boolean
-language sql immutable set search_path = public as $$ select case when public.rule_is_endless(p_stage) then p_cleared >= 25 else p_stage <= p_cleared + 1 end $$;
+language sql immutable set search_path = public as $$ select true $$;
 -- The item level of an endless drop: somewhere in the bracket of waves reached, from a random number in [0, 1).
 create or replace function public.rule_endless_level(p_waves int, p_roll numeric) returns int
 language sql immutable set search_path = public as $$ with b(low) as (select 25 * ((p_waves + 24) / 25 - 1)), c(lo, hi) as (select greatest(75, low), greatest(75, least(p_waves, low + 25)) from b) select (lo + floor(p_roll * (hi - lo + 1)))::int from c $$;
 -- Levels that must be cleared before a feature is unlocked (it unlocks on reaching its act).
 create or replace function public.rule_unlock(p_feature text) returns int
-language sql immutable set search_path = public as $$ select case p_feature when 'paths' then 5 when 'crafting' then 5 when 'shop' then 10 when 'effects' then 15 when 'speed2' then 10 end $$;
+language sql immutable set search_path = public as $$ select case p_feature when 'paths' then 0 when 'crafting' then 0 when 'shop' then 0 when 'effects' then 0 when 'speed2' then 0 end $$;
 -- Heroes a player can bring into a match.
 create or replace function public.rule_lineup_max() returns int
 language sql immutable set search_path = public as $$ select 3 $$;
@@ -1204,15 +1204,15 @@ begin
          frontier_wave = case when frontier and p_won then 0 when frontier then greatest(frontier_wave, p_waves) else frontier_wave end
    where id = auth.uid()
    returning * into me;
-  -- this mode's record (solo, or co-op with 2, 3 or 4 players)
+  -- this mode's record (solo, or co-op with 2, 3 or 4 players); solo, a level won out of order (all open for testing) does not count
   insert into public.records as x (user_id, players, levels_cleared, frontier_wave, runs, endless_wave)
-  values (auth.uid(), r.players, case when p_won then r.stage else 0 end, case when not p_won and r.stage = 1 then p_waves else 0 end, 1, case when endless then p_waves else 0 end)
+  values (auth.uid(), r.players, case when p_won and (r.players > 1 or r.stage <= me.levels_cleared) then r.stage else 0 end, case when not p_won and r.stage = 1 then p_waves else 0 end, 1, case when endless then p_waves else 0 end)
   on conflict (user_id, players) do update
     set runs = x.runs + 1,
         endless_wave = greatest(x.endless_wave, excluded.endless_wave),
-        frontier_wave = case when p_won and r.stage > x.levels_cleared then 0
+        frontier_wave = case when p_won and r.stage > x.levels_cleared and (r.players > 1 or r.stage <= me.levels_cleared) then 0
                              when not endless and r.stage = x.levels_cleared + 1 then greatest(x.frontier_wave, p_waves) else x.frontier_wave end,
-        levels_cleared = case when p_won then greatest(x.levels_cleared, r.stage) else x.levels_cleared end;
+        levels_cleared = case when p_won and (r.players > 1 or r.stage <= me.levels_cleared) then greatest(x.levels_cleared, r.stage) else x.levels_cleared end;
   il := public.rule_item_level(case when p_won then r.stage else r.stage - 1 end);   -- item level: by the level beaten (on a loss, the one below)
   chance := public.rule_drop_chance(p_won, p_waves, r.stage) * (1 + b_loot);
   if endless then chance := p_bosses * b_loot; end if;   -- one item per boss (below), and item find adds its share of them

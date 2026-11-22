@@ -4,7 +4,7 @@
    (the server records it with the run) and opens the match. "Next level" after a win comes straight to the second step. */
 import { bus } from '../core/bus.js';
 import { state } from '../core/state.js';
-import { STAGES, ENDLESS, LEVELS, stageDef, HEROES, LINEUP_SIZE, STAT_LABELS, ZONES, zoneOf } from '../content/data.js';
+import { STAGES, ENDLESS, stageDef, stageOpen, HEROES, LINEUP_SIZE, STAT_LABELS, ZONES, zoneOf } from '../content/data.js';
 import { SLOTS } from '../content/items.js';
 import { UNLOCKS, unlocksOf } from '../content/unlocks.js';
 import { MAP_EFFECTS, MAP_EFFECT_OF } from '../content/map-effects.js';
@@ -24,7 +24,7 @@ function renderLevels() {
   if (zone === null) zone = zoneOf(next).n;
   const endless = $('lvEndless'), e = ENDLESS.find(x => x.zone === zone);
   if (endless) {
-    endless.hidden = cleared < LEVELS;
+    endless.hidden = !stageOpen(e.n, cleared);
     endless.textContent = 'Endless · ' + e.name + (p.endless_wave ? ' · your best wave: ' + p.endless_wave : '');
     endless.onclick = () => { stage = e.n; lineup = []; say(''); render(); };
   }
@@ -33,7 +33,7 @@ function renderLevels() {
   if (zones) {
     zones.textContent = '';
     for (const z of ZONES) {
-      const lv = STAGES.filter(s => s.zone === z.n), done = lv.filter(s => s.n <= cleared).length, open = lv[0].n <= cleared + 1;
+      const lv = STAGES.filter(s => s.zone === z.n), done = lv.filter(s => s.n <= cleared).length, open = stageOpen(lv[0].n, cleared);
       const b = el('button', 'zone' + (z.n === zone ? ' on' : ''));
       const art = el('img', 'pix'); art.src = 'assets/level_' + z.n + '.png'; art.alt = ''; art.onerror = () => art.remove?.();
       const gives = unlocksOf(z.n);   /* what reaching this act unlocks */
@@ -45,12 +45,12 @@ function renderLevels() {
   list.textContent = '';
   STAGES.filter(s => s.zone === zone).forEach(s => {
     const b = el('button', 'lvl' + (s.n <= cleared ? ' done' : ''));
-    const c = s.n <= cleared ? 'Cleared ✓' : s.n === cleared + 1 ? (p.frontier_wave ? 'Furthest: wave ' + p.frontier_wave : 'Ready') : 'Locked';
+    const c = s.n <= cleared ? 'Cleared ✓' : s.n === cleared + 1 ? (p.frontier_wave ? 'Furthest: wave ' + p.frontier_wave : 'Ready') : stageOpen(s.n, cleared) ? 'Open (testing)' : 'Locked';
     const art = el('img', 'lvart pix'); art.src = 'assets/level_' + s.zone + '.png'; art.alt = ''; art.onerror = () => art.remove?.();
     const txt = el('span', 'lvtxt'); txt.append(el('b', '', 'Level ' + s.code), el('span', '', s.waves + ' waves'), el('small', '', c));
     const fx = MAP_EFFECTS[MAP_EFFECT_OF[s.n]];
     if (fx) { txt.append(el('small', 'mapfx', fx.name)); b.title = fx.name + ': ' + fx.text; }   /* the zone's name is on its tab above */
-    b.disabled = s.n > cleared + 1; b.append(art, txt);
+    b.disabled = !stageOpen(s.n, cleared); b.append(art, txt);
     b.onclick = () => { stage = s.n; lineup = []; say(''); render(); };
     list.append(b);
   });
