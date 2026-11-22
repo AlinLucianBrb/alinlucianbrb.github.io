@@ -20,6 +20,7 @@ import { MAP_EFFECT_OF } from '../content/map-effects.js';
 import { LEVELS_PER_ZONE } from '../content/zones.js';
 import { updateAbilities, isShielded } from './enemy-abilities.js';
 import { attachUpgrades } from './upgrades.js';
+import { attachProcs } from './procs.js';
 import { updateProjectiles } from './projectiles.js';
 import { updateZones } from './zones.js';
 import { createMeter } from './meter.js';
@@ -33,7 +34,7 @@ import { cleanPaths, pathChoice, pathDef, previewMods, syncPreview, updatePrevie
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
 export const REROLL_GOLD = 0.25;
-export const ENGINE_VERSION = 31;     /* bump when a rule change would make old command logs play out differently */
+export const ENGINE_VERSION = 32;     /* bump when a rule change would make old command logs play out differently */
 
 /* Checks a lineup: up to LINEUP_SIZE different, playable heroes. Returns a clean copy, or the full roster if it is empty. */
 export function cleanLineup(lineup) {
@@ -127,6 +128,7 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
     for (const h of w.heroes) gainXp(w, h, (enemy.def.xp || 0) * w.fxm.xp);   /* every hero on the field learns from every kill */
   });
   attachUpgrades(w);
+  attachProcs(w);
   w.statsFor = h => statsFor(w, h);
   w.addBuff = (h, id, name, mods, seconds, by) => addBuff(w, h, id, name, mods, seconds, by);
   w.erupt = h => erupt(w, h);   /* Naturist Druid's spikes */

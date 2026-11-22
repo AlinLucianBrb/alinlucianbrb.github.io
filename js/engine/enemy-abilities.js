@@ -3,6 +3,7 @@
    ability: { id, ... }. */
 import { T } from '../content/data.js';
 import { spawnEnemy } from './enemies.js';
+import { cannotHeal } from './procs.js';
 
 export const ABILITIES = {};
 export const registerAbility = (id, update) => { ABILITIES[id] = update; };
@@ -28,7 +29,7 @@ registerAbility('stun', (w, e, a, dt) => {
 
 /* Regenerator: heals all the time, faster the more life it is missing. */
 registerAbility('regen', (w, e, a, dt) => {
-  if (e.hp < e.max) e.hp = Math.min(e.max, e.hp + e.max * (a.base + a.missing * (1 - e.hp / e.max)) * dt);
+  if (e.hp < e.max && !cannotHeal(e)) e.hp = Math.min(e.max, e.hp + e.max * (a.base + a.missing * (1 - e.hp / e.max)) * dt);
 });
 
 /* Summoner: calls minions onto the path just ahead of it, up to `casts` times; a new group only once the last one is dead. */

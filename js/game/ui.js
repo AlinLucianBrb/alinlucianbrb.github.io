@@ -16,6 +16,7 @@ import { COOP } from '../content/rules.js';
 import { UNLOCKS } from '../content/unlocks.js';
 import { SLOT_NAME } from '../content/upgrades.js';
 import { relicMult } from '../engine/relics.js';
+import { EFFECT_STATS } from '../content/effect-stats.js';
 import { PREVIEWS } from '../content/previews.js';
 import { PLAYER_COLORS } from './render.js';
 
@@ -281,7 +282,7 @@ const SOURCE = { '-1': 'Talent', '-2': 'Item', '-3': 'Evolution', '-4': 'Level',
 const SOURCE_COLOR = { '-1': '#f2b84b', '-2': '#8be28b', '-3': '#dcc6ff', '-4': '#8fd3ff', '-5': '#ff9d8a', '-6': '#ffe08a' };
 const pct = x => f(x * 100) + '%';
 /* Stats shown as percentages (chances). */
-const isChance = key => /Chance$/.test(key);
+const isChance = key => /Chance$/.test(key) || !!(EFFECT_STATS[key] && EFFECT_STATS[key].pct);
 
 /* Bonuses from the same source are shown as one line, whatever their rarity: a Common and a Rare Sharpened rounds become
    "+100% · Sharpened rounds ×2 (Relic)". All talent nodes count as one source, "Talents". inc and flat values add up;
@@ -369,12 +370,12 @@ export function renderInspector(g, v) {
       const base = isRate ? d.stats[key] / d.stats.cooldown : d.stats[key];
       const show = x => fmtStat(key, x);
       const cell = el('span', 'pst' + (key === 'damage' ? ' wide' : '')), icon = statIcon(key);
-      if (icon) cell.append(spriteImg('icon_' + icon, 'pix ico')); else cell.append(el('small', 'pabbr', abbr(label)));
+      if (EFFECT_STATS[key]) cell.append(spriteImg(effectIcon(key), 'pix ico')); else if (icon) cell.append(spriteImg('icon_' + icon, 'pix ico')); else cell.append(el('small', 'pabbr', abbr(label)));
       const val = el('b', '', show(value) + (key === 'damage' && t.s.spread > 0 ? ' (' + f(value * (1 - t.s.spread)) + '–' + f(value * (1 + t.s.spread)) + ')' : ''));
       if (f(value) !== f(base)) val.classList.add('up');
       cell.append(val); grid.append(cell);
       const mods = stackMods(explain(d, key, all));
-      bindTip(cell, () => ({ title: label + ': ' + exact(key, value), lines: [{ text: 'Base ' + exact(key, base), color: '#ab9f8a' },
+      bindTip(cell, () => ({ title: label + ': ' + exact(key, value), lines: [...(EFFECT_STATS[key] ? [EFFECT_STATS[key].text(value)] : [{ text: 'Base ' + exact(key, base), color: '#ab9f8a' }]),
         ...(key === 'damage' && attributeDamage(d, t.s) > 0 ? [{ text: '+' + pct(attributeDamage(d, t.s)) + ' · ' + STAT_LABELS[d.attribute] + ' (attribute)', color: ATTR_COLOR[d.attribute] }] : []),
         ...mods.map(m => ({ text: describe(m, key), color: m.ri >= 0 ? RARITIES[m.ri].color : SOURCE_COLOR[m.ri] || '#f2b84b' })),
         ...(mods.length || f(value) !== f(base) ? [] : [{ text: 'Nothing changes it yet', color: '#6f7d74' }])] }));
@@ -408,6 +409,9 @@ export function renderInspector(g, v) {
 const STAT_ICON = { damage: 'damage', range: 'range', speed: 'speed', castSpeed: 'castspeed', critChance: 'crit', critDamage: 'critdmg',
   energyPerAttack: 'energy', energyPerSecond: 'energy', armorPen: 'armorpen', resPen: 'respen', targets: 'targets', duration: 'duration',
   chillTime: 'chill', jumps: 'jumps', firePen: 'respen', coldPen: 'respen', lightningPen: 'respen' };
+/* An effect stat shows its relic's icon, or its talent cluster's. */
+const EFFECT_TALENT = { splash: 'might', stagger: 'fire', wither: 'sunder', venom: 'toxins', lucky: 'precision', vsFrozen: 'cold', arcing: 'lightning', recast: 'sorcery', perTile: 'marksman', fifth: 'martial' };
+const effectIcon = key => EFFECT_TALENT[key] ? 'icon_talent_' + EFFECT_TALENT[key] : relicIcon(RELICS.find(r => r.fresh && r.mods(1)[0].stat === key).name);
 function statIcon(key) {
   if (STAT_ICON[key]) return STAT_ICON[key];
   if (key.startsWith('minion')) return 'minion';

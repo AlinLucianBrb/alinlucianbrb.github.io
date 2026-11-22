@@ -52,7 +52,13 @@ export function relicFits(r, p, w = null) {
 
 function drawRelics(w, p, n, taken) {
   const pool = RELICS.filter(r => !p.banned.has(r.name) && !taken.includes(r.name) && relicFits(r, p, w)), out = [];   /* only relics for the heroes on the map */
-  while (out.length < n && pool.length) out.push({ relic: pool.splice(w.rng.relic.int(pool.length), 1)[0], ri: w.fxm.epicRelics ? RARITIES.length - 1 : rollRarity(w.rng.relic.next(), p.gs.relicLuck) });
+  const draw = () => out.push({ relic: pool.splice(w.rng.relic.int(pool.length), 1)[0], ri: w.fxm.epicRelics ? RARITIES.length - 1 : rollRarity(w.rng.relic.next(), p.gs.relicLuck) });
+  while (out.length < n && pool.length) draw();
+  /* at least one relic of every offer does something in a fight (fresh), when there is one for these heroes */
+  if (n > 1 && out.length && !out.some(o => o.relic.fresh) && pool.some(r => r.fresh)) {
+    const fresh = pool.filter(r => r.fresh), o = out[out.length - 1];
+    o.relic = fresh[w.rng.relic.int(fresh.length)];
+  }
   return out;
 }
 

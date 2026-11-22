@@ -5,6 +5,7 @@ import { DAMAGE_TYPES, AILMENTS, RES_CAP, HOLY_RES_IGNORED } from '../content/co
 import { DAMAGE_ROLL } from '../content/data.js';
 import { applyEffect } from './effects.js';
 import { isShielded } from './enemy-abilities.js';
+import { damageBonus, afterHit, afterAilment, withered } from './procs.js';
 
 /* How much of `amount` gets through, for one damage type. Armor (physical) and resistances (every other type) work the same
    way: a share of the damage blocked. Armor only stops hits, not damage over time.
@@ -14,7 +15,7 @@ import { isShielded } from './enemy-abilities.js';
 export function mitigate(e, type, amount, isHit = true, s = null) {
   if (amount <= 0) return 0;
   const shock = e.fx && e.fx.shock, purge = e.fx && e.fx.purge, hex = e.fx && e.fx.hex,
-    down = (shock ? shock.resDown : 0) + (purge ? purge.resDown : 0) + (hex && hex.resDown || 0);
+    down = (shock ? shock.resDown : 0) + (purge ? purge.resDown : 0) + (hex && hex.resDown || 0) + (e.fx && e.fx.corruption ? withered(e) : 0);
   if (type === 'physical') {
     if (!isHit) return amount;
     const armor = Math.max(-1, Math.min(RES_CAP, e.armor || 0) * (s ? Math.max(0, 1 - (s.armorPen || 0)) : 1) - down);
@@ -35,7 +36,7 @@ const raw = Object.fromEntries(DAMAGE_TYPES.map(t => [t, 0]));   /* reused for e
    rate < 1 (a beam's sliver per frame) scales the chance, like ailments. Returns the multiplier for this hit (1 or the crit's). */
 export function critMult(w, hero, e, rate = 1, stats = null) {
   const s = stats || hero.s, mark = e.fx && e.fx.mark, chance = (s.critChance || 0) + (mark ? mark.chance : 0);
-  if (!(chance > 0) || w.rng.combat.next() >= Math.min(1, chance) * rate) return w.fxm ? w.fxm.noCrit : 1;   /* Precision: plain hits are weaker */
+  if (!(chance > 0) || Math.min(w.rng.combat.next(), s.lucky > 0 ? w.rng.combat.next() : 1) >= Math.min(1, chance) * rate) return w.fxm ? w.fxm.noCrit : 1;   /* Precision: plain hits are weaker */
   w.ev.emit('crit', { hero, enemy: e });
   return (s.critDamage || 1.5) + (mark ? mark.dmg : 0);
 }
@@ -49,7 +50,9 @@ export function critMult(w, hero, e, rate = 1, stats = null) {
 export function attack(w, hero, e, scale = 1, rate = 1, as = null, stats = null) {
   if (e.dead) return;
   const s = stats || hero.s, own = as || hero.def.damageType || 'physical', conv = !as && hero.def.convert;
-  scale *= critMult(w, hero, e, rate, s);
+  const shocked = !!(e.fx && e.fx.shock), base0 = scale, crit = critMult(w, hero, e, rate, s);
+  scale *= crit;
+  if (s.fxOn) scale *= damageBonus(w, hero, e, s, rate === 1);
   if (w.fxm) scale *= w.fxm.hit;
   if (hero.def.bloodPrice) scale *= 1 + hero.def.bloodPrice * Math.max(0, (w.livesStart || 0) - w.lives);
   for (const t of DAMAGE_TYPES) raw[t] = (s[t + 'Damage'] || 0) * scale;
@@ -64,7 +67,7 @@ export function attack(w, hero, e, scale = 1, rate = 1, as = null, stats = null)
     const got = mitigate(e, t, raw[t], true, s);
     raw[t] = got; total += got;
     w.hit(hero, e, got, t);
-    if (e.dead) return;
+    if (e.dead) { if (s.fxOn && rate === 1) afterHit(w, hero, e, total, s, { scale: base0, as, stats, own, crit: crit > 1, shocked }); return; }
   }
   /* Ailments: only if the hero has a chance and the hit carried a damage type that can cause it. */
   for (const id in AILMENTS) {
@@ -77,6 +80,7 @@ export function attack(w, hero, e, scale = 1, rate = 1, as = null, stats = null)
     if (w.rng.combat.next() >= Math.min(1, chance) * rate) continue;
     inflict(w, hero, e, id, part / rate);
   }
+  if (s.fxOn && rate === 1) afterHit(w, hero, e, total, s, { scale: base0, as, stats, own, crit: crit > 1, shocked });
   /* Burning creed (the Heretic's Heresy): while it lasts, any hit can burn, whatever its damage type. */
   const scorch = hero.buffs && hero.buffs.find(b => b.scorch);
   if (scorch && total > 0 && w.rng.combat.next() < scorch.scorch * rate) inflict(w, hero, e, 'burn', total / rate);
@@ -97,12 +101,13 @@ export function execute(w, hero, e, share) {
 
 /* Puts an ailment on an enemy, sized from the hit that caused it. */
 export function inflict(w, hero, e, id, hit) {
-  const a = AILMENTS[id];
-  if (a.kind === 'dot') applyEffect(e, id, { t: a.duration, dps: a.dpsOfHit * hit, src: hero }, hero);
+  const a = AILMENTS[id], fresh = !(e.fx && e.fx[id]);
+  if (a.kind === 'dot') applyEffect(e, id, { t: a.duration, dps: a.dpsOfHit * hit * (id === 'poison' && hero && hero.s && hero.s.venom > 0 ? 1 + hero.s.venom : 1), src: hero }, hero);
   else if (a.kind === 'shock') applyEffect(e, id, { t: a.duration, mag: a.resDown, resDown: a.resDown }, hero);
   else if (a.kind === 'freeze') applyEffect(e, id, { t: Math.min(a.max, a.base + a.perLifeShare * hit / e.max) }, hero);
   else if (a.kind === 'root') applyEffect(e, id, { t: a.duration }, hero);
   w.ev.emit('ailment', { hero, enemy: e, id });
+  afterAilment(w, hero, e, id, hit, fresh, inflict);
 }
 
 /* Damage over time: resisted (but not stopped by armor), boosted by shock, credited to the hero that caused it. */

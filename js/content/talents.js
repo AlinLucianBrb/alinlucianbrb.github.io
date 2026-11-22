@@ -28,28 +28,28 @@ const PATH_MODS = () => [flat('strength', 1, ALL), flat('dexterity', 1, ALL), fl
 const C = (key, title, color, a, b, start, notable) => ({ key, title, color, a, b, start, notable });
 const side = (name, ...mods) => ({ name, mods });
 /* ---- The clusters ---- */
-const element = (type, ailment, notable) => C(type, type[0].toUpperCase() + type.slice(1), { fire: '#ff7a45', cold: '#72c8f0', lightning: '#d6a2ff' }[type],
+const element = (type, ailment, notable, effect) => C(type, type[0].toUpperCase() + type.slice(1), { fire: '#ff7a45', cold: '#72c8f0', lightning: '#d6a2ff' }[type],
   side(type[0].toUpperCase() + type.slice(1) + ' Touch', flat(type + 'Damage', 2, ALL)), side('Pierce ' + type[0].toUpperCase() + type.slice(1), flat(type + 'Pen', 0.03, ALL)),
-  [flat(type + 'Damage', 1, ALL), flat(type + 'Pen', 0.02, ALL)], [notable, flat(type + 'Damage', 4, ALL), flat(type + 'Pen', 0.06, ALL), flat(ailment + 'Chance', 0.1, ALL)]);
+  [flat(type + 'Damage', 1, ALL), flat(type + 'Pen', 0.02, ALL)], [notable, effect, flat(type + 'Damage', 2, ALL), flat(type + 'Pen', 0.03, ALL), flat(ailment + 'Chance', 0.05, ALL)]);
 const K = {
   /* Combat (the top half). */
   might: C('might', 'Might', '#e5645a', side('Sharpened', inc('damage', 0.03, ALL)), side('Quick', inc('speed', 0.03, ALL)),
-    [inc('damage', 0.02, ALL), inc('speed', 0.02, ALL)], ['Overwhelm', inc('damage', 0.08, ALL), inc('speed', 0.06, ALL)]),
+    [inc('damage', 0.02, ALL), inc('speed', 0.02, ALL)], ['Overwhelm', flat('splash', 0.15, ALL), inc('damage', 0.04, ALL), inc('speed', 0.03, ALL)]),
   precision: C('precision', 'Precision', '#ffd84a', side('Keen Eye', flat('critChance', 0.02, ALL)), side('Cruel Edge', flat('critDamage', 0.1, ALL)),
-    [flat('critChance', 0.01, ALL), flat('critDamage', 0.05, ALL)], ['Deadly Precision', flat('critChance', 0.04, ALL), flat('critDamage', 0.25, ALL)]),
+    [flat('critChance', 0.01, ALL), flat('critDamage', 0.05, ALL)], ['Deadly Precision', flat('lucky', 1, ALL), flat('critChance', 0.02, ALL), flat('critDamage', 0.12, ALL)]),
   sorcery: C('sorcery', 'Sorcery', '#c39bf2', side('Spark', inc('damage', 0.05, ['spell'])), side('Quick Cast', inc('castSpeed', 0.03, ['spell'])),
-    [inc('damage', 0.03, ['spell']), inc('castSpeed', 0.02, ['spell'])], ['Arcane Flow', inc('damage', 0.1, ['spell']), inc('castSpeed', 0.08, ['spell'])]),
+    [inc('damage', 0.03, ['spell']), inc('castSpeed', 0.02, ['spell'])], ['Arcane Flow', flat('recast', 0.08, ['spell']), inc('damage', 0.05, ['spell']), inc('castSpeed', 0.04, ['spell'])]),
   marksman: C('marksman', 'Marksmanship', '#f2b84b', side('Fletching', inc('damage', 0.05, ['projectile'])), side('Far Shot', inc('range', 0.03, ['projectile'])),
-    [inc('damage', 0.03, ['projectile']), inc('range', 0.02, ['projectile'])], ['Deadeye', inc('damage', 0.1, ['projectile']), inc('range', 0.08, ['projectile'])]),
+    [inc('damage', 0.03, ['projectile']), inc('range', 0.02, ['projectile'])], ['Deadeye', flat('perTile', 0.04, ['projectile']), inc('damage', 0.05, ['projectile']), inc('range', 0.04, ['projectile'])]),
   martial: C('martial', 'Martial', '#c7ced6', side('Brawler', inc('damage', 0.05, ['melee'])), side('Quick Blade', inc('speed', 0.03, ['melee'])),
-    [inc('damage', 0.03, ['melee']), inc('speed', 0.02, ['melee'])], ['Whirlwind', inc('damage', 0.1, ['melee']), inc('speed', 0.08, ['melee'])]),
-  fire: element('fire', 'burn', 'Pyromancy'),
-  cold: element('cold', 'freeze', 'Hoarfrost'),
-  lightning: element('lightning', 'shock', 'Thunderstruck'),
+    [inc('damage', 0.03, ['melee']), inc('speed', 0.02, ['melee'])], ['Whirlwind', flat('fifth', 1, ['melee']), inc('damage', 0.05, ['melee']), inc('speed', 0.04, ['melee'])]),
+  fire: element('fire', 'burn', 'Pyromancy', flat('stagger', 0.2, ALL)),
+  cold: element('cold', 'freeze', 'Hoarfrost', flat('vsFrozen', 0.25, ALL)),
+  lightning: element('lightning', 'shock', 'Thunderstruck', flat('arcing', 1, ALL)),
   toxins: C('toxins', 'Elements and toxins', '#7ad04b', side('Kindling', inc('damage', 0.05, ELEMENTS)), side('Venom', flat('poisonChance', 0.03, ALL)),
-    [inc('damage', 0.03, ELEMENTS), flat('poisonChance', 0.02, ALL)], ['Plaguebearer', inc('damage', 0.12, ELEMENTS), flat('poisonChance', 0.1, ALL)]),
+    [inc('damage', 0.03, ELEMENTS), flat('poisonChance', 0.02, ALL)], ['Plaguebearer', flat('venom', 0.15, ALL), inc('damage', 0.06, ELEMENTS), flat('poisonChance', 0.05, ALL)]),
   sunder: C('sunder', 'Sunder', '#b0b8c0', side('Sunder', flat('armorPen', 0.04, ALL)), side('Heavy Blows', inc('damage', 0.04, ['physical'])),
-    [flat('armorPen', 0.02, ALL), inc('damage', 0.02, ['physical'])], ['Shatter Armor', flat('armorPen', 0.1, ALL), inc('damage', 0.08, ['physical'])]),
+    [flat('armorPen', 0.02, ALL), inc('damage', 0.02, ['physical'])], ['Shatter Armor', flat('wither', 0.01, ALL), flat('armorPen', 0.05, ALL), inc('damage', 0.04, ['physical'])]),
   /* Quality of life (the bottom half). Energy sits here too: it is about getting ultimates sooner. */
   energy: C('energy', 'Energy', '#5aa9ff', side('Focus', inc('energyPerAttack', 0.05, ALL)), side('Trickle', flat('energyPerSecond', 0.1, ALL)),
     [inc('energyPerAttack', 0.03, ALL), flat('energyPerSecond', 0.05, ALL)], ['Second Wind', inc('energyPerAttack', 0.12, ALL), flat('energyPerSecond', 0.2, ALL)]),

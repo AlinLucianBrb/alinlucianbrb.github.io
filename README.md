@@ -15,6 +15,7 @@ js/screens/                login, menu, levels (level, then heroes), lobby (co-o
 
 js/content/                WHAT the game contains (plain data, no logic)
   rules.js                 the rules the server also uses (XP, rewards, waves, spawn timing, bosses, drops, co-op): ONE place
+  effect-stats.js          stats that do something in a fight (relics, item bonuses, talent notables); the engine side is procs.js
   match-effects.js, map-effects.js   the double-edged match effects (from act 4) and the act 5 maps' effects
   shop.js                  the match shop: ground effects, the gamble, summoned bosses
   crafting.js              materials, disenchanting and crafting (the server's copy is generated from it)
@@ -206,6 +207,18 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Texts:** attack descriptions describe only the attack, ultimate tooltips only the ultimate, and the hero tooltip the hero (its attribute, delivery and source, tags, damage type). Ultimates that deal damage of their own write it as `{N}` in their description; `ultDesc()` shows it as the number it deals with the hero's stats ("about 156 damage"); "x2 damage" is kept for boosts to an attack the hero already makes. "At level 10, choose a path" is gone from the descriptions.
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
+
+## Relics and talents that do something (Nov 22, v0.62.0)
+- **14 new relics** (Executioner, First blood, Giant slayer, Shatter, Chain reaction, Thunderhead, Momentum, Overflow, Lone wolf,
+  Brotherhood, Last stand, Trophy hunter, Fever, Tempo): every offer has at least one; the plain ones stay. They are **item bonuses**
+  too, for the wearer. Each is a hero stat (`js/content/effect-stats.js`; `js/engine/procs.js` does them), so anything can give it.
+- **Combat talents:** the ten notables got an effect and keep half their numbers: Might splashes, Fire staggers, Sunder turns Corruption
+  into lost defenses, Toxins stops healing, Precision rolls crits twice, Cold hits the frozen harder, Lightning's shock jumps, Sorcery casts
+  again, Marksmanship gains by distance, Martial lands every 5th hit twice. The tree keeps its shape: no points are refunded.
+- Extra hits never cause more extra hits. Momentum, Overflow, Trophy hunter and Fever have ceilings (PROC).
+- 14 relic icons (Pixel Lab, sheets r04 and r05).
+- Rules changed (engine 32: a match saved before the update cannot be resumed). **SQL changed: run `supabase-update.sql`** (the item
+  bonuses the server can roll).
 
 ## Endless (Nov 22, v0.61.0)
 - **One per zone**, opened by beating 5-5 (`ENDLESS` in `data.js`, `ENDLESS_RULES` in `rules.js`): a button under the zone's levels, and

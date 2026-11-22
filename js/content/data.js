@@ -3,6 +3,7 @@
    To add a hero: add an entry here. A new "kind" also needs a behavior in behaviors.js. */
 import { UPGRADES, UPGRADE_LEVEL } from './upgrades.js';
 import { ENDLESS_RULES } from './rules.js';
+import { EFFECT_STATS, EFFECT_BASE } from './effect-stats.js';
 import { COMBAT_STATS, COMBAT_LABELS } from './combat.js';
 
 export const COLS = 12, ROWS = 8, T = 40;
@@ -42,7 +43,7 @@ export const MINION = { minionDamage: 1, minionSpeed: 1, minionCritChance: 0, mi
 /* Damage: every hit rolls between (1 - spread) and (1 + spread) of the damage stat (DAMAGE_ROLL.on turns it off for tests). */
 export const DAMAGE_SPREAD = 0.25;
 export const DAMAGE_ROLL = { on: true };
-const withEnergy = (stats, own = {}) => ({ ...stats, ...ENERGY, ...ATTRS, ...CRIT, ...COMBAT_STATS, ...MINION, resPen: 0, spread: DAMAGE_SPREAD, duration: 1, ...own });
+const withEnergy = (stats, own = {}) => ({ ...stats, ...ENERGY, ...ATTRS, ...CRIT, ...COMBAT_STATS, ...MINION, ...EFFECT_BASE, resPen: 0, spread: DAMAGE_SPREAD, duration: 1, ...own });
 
 /* Hero levels during a match: every hero on the field gains XP from each enemy killed (the enemy's xp value, see enemies.js),
    whoever landed the blow. Each level adds perLevel (scaled by levels gained); xpToNext(L) is the XP from level L to L + 1. */
@@ -354,6 +355,7 @@ export const STAT_LABELS = {
   strength: 'Strength', dexterity: 'Dexterity', intellect: 'Intellect', mainAttribute: 'Main attribute',
   castSpeed: 'Casts per second', resPen: 'Resistance penetration', duration: 'Duration (multiplier)', spread: 'Damage spread', critChance: 'Crit chance', critDamage: 'Crit damage (multiplier)',
   energyMax: 'Energy needed', energyPerAttack: 'Energy per attack', energyPerSecond: 'Energy per second',
+  ...Object.fromEntries(Object.entries(EFFECT_STATS).map(([k, e]) => [k, e.label])),
   ...COMBAT_LABELS, relicLuck: 'Relic luck',
   minionDamage: 'Minion damage (multiplier)', minionSpeed: 'Minion attack speed (multiplier)', minionCritChance: 'Minion crit chance', minionCritDamage: 'Minion crit damage (added)',
   bounty: 'Gold per kill', bountyChance: 'Chance for +2 gold per kill', rerolls: 'Free relic rerolls per match', banishes: 'Free relic banishes per match',
@@ -425,6 +427,10 @@ export const RELICS = [
   /* Attributes: a named one helps any hero (its side effect, see ATTRIBUTE_EFFECTS, and damage if it is the hero's own);
      Prowess raises whichever is the hero's own, and follows a form that changes attribute. */
   { name: 'Duration',          desc: m => '+' + f(P(50) * m) + '% duration of buffs, debuffs and damage over time',   mods: m => [hero('duration', 'inc', P(0.5) * m, ['all'])] },
+  /* Relics that do something in a fight (js/content/effect-stats.js); also item bonuses. Every offer has at least one (fresh). */
+  ...[['Executioner', 'vsLow', 0.08], ['First blood', 'vsFull', 0.08], ['Giant slayer', 'vsBoss', 0.1], ['Shatter', 'vsHeld', 0.08], ['Chain reaction', 'chainCrit', 0.1], ['Thunderhead', 'thunder', 0.05],
+    ['Momentum', 'momentum', 0.01], ['Overflow', 'overflow', 2], ['Lone wolf', 'lone', 0.06], ['Brotherhood', 'brother', 0.03], ['Last stand', 'lastStand', 0.03], ['Trophy hunter', 'trophy', 0.01], ['Fever', 'fever', 0.01], ['Tempo', 'tempo', 0.6]]
+    .map(([name, stat, v]) => ({ name, fresh: true, desc: m => EFFECT_STATS[stat].text(v * m), mods: m => [hero(stat, 'flat', v * m, ['all'])] })),
   { name: 'Brawn',             desc: m => '+' + 3 * m + ' strength',                             mods: m => [hero('strength', 'flat', 3 * m, ['all'])] },
   { name: 'Finesse',           desc: m => '+' + 3 * m + ' dexterity',                            mods: m => [hero('dexterity', 'flat', 3 * m, ['all'])] },
   { name: 'Insight',           desc: m => '+' + 3 * m + ' intellect',                            mods: m => [hero('intellect', 'flat', 3 * m, ['all'])] },

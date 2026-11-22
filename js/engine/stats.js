@@ -1,5 +1,6 @@
 /* Stat resolution, Path of Exile style:  (base + flat) x (1 + sum of "inc") x every "more". */
 import { ATTRIBUTE_DAMAGE, ATTRIBUTE_EFFECTS } from '../content/data.js';
+import { EFFECT_KEYS } from '../content/effect-stats.js';
 export const matches = (scope, tags) => scope.includes('all') || scope.some(s => tags.includes(s));
 /* need: a hero id the modifier is limited to (item bonuses only help the hero wearing the item). Hero tags include its id. */
 const applies = (m, stat, tags) => m.stat === stat && (tags ? Array.isArray(m.scope) && matches(m.scope, tags) && (!m.need || tags.includes(m.need)) : m.scope === 'global');
@@ -19,6 +20,7 @@ export function heroStats(def, mods) {
   if (own && own in def.stats) s[own] = resolve(def.stats[own] + resolve(0, 'mainAttribute', mods, def.tags), own, mods, def.tags);   /* main attribute points count like its own */
   for (const k in def.stats) if (k !== own) s[k] = resolve(def.stats[k], k, mods, def.tags, k === 'damage' && own ? attributeDamage(def, s) : 0);
   attributeEffects(s);
+  s.fxOn = EFFECT_KEYS.some(k => s[k] > 0);   /* any effect stat (procs.js) */
   return s;
 }
 /* Every attribute's side effects (ATTRIBUTE_EFFECTS), from every point: 'flat' ones are added, 'inc' ones multiply. */
