@@ -4,6 +4,7 @@ HTML/JS tower defense with accounts, a main menu, co-op for up to 4 players and 
 
 ## Structure
 ```
+CLAUDE.md                  working notes for Claude Code: conventions, every-change checklist, the art pipeline
 index.html                 page shell: one <section> per screen
 js/main.js                 boot: registers screens, picks the first one
 js/config.js               your Supabase URL and key (and optional CAPTCHA site key)
@@ -52,6 +53,7 @@ tools/balance/             the full balance report (experiments, analysis, HTML 
                            and the difficulty check per level: npm run balance:tune
 tools/build-sql.mjs        builds the two SQL files from sql/ and js/content: npm run sql
 tools/maps.mjs             designs the preset maps (js/content/maps.js): npm run maps
+tools/evo-check.mjs        browser check of evolved forms in a match (Playwright); capture-attack.mjs records an attack
 tools/rules-sql.mjs        writes the database's rule_* functions from js/content/rules.js (used by build-sql)
 sql/                       the database, in parts (tables, functions, permissions); edit these, not the built files
 .github/workflows/test.yml runs the tests on GitHub on every push
@@ -199,6 +201,12 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Texts:** attack descriptions describe only the attack, ultimate tooltips only the ultimate, and the hero tooltip the hero (its attribute, delivery and source, tags, damage type). Ultimates that deal damage of their own write it as `{N}` in their description; `ultDesc()` shows it as the number it deals with the hero's stats ("about 156 damage"); "x2 damage" is kept for boosts to an attack the hero already makes. "At level 10, choose a path" is gone from the descriptions.
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
+
+## Notes for Claude Code (Nov 22, v0.55.3)
+- **CLAUDE.md** at the top of the project: what to do on every change (tests, browser check, changelog, version, SQL),
+  the rules that are easy to break, the UI and art direction, and the Pixel Lab art pipeline step by step.
+- **tools/evo-check.mjs** and **tools/capture-attack.mjs**: the browser checks used for the art (they need Playwright:
+  `npm i -D playwright`). The Warrior forms' attack skeletons are kept in art/pixellab/attacks/. No game, rule or SQL changes.
 
 ## Warrior evolutions: new attack animation (Nov 22, v0.55.2)
 - The Berserker, Commander and Sentinel share one new 4-frame attack: wind-up (sword raised over the head), swing, strike (held), recover. It is kept light on purpose, so it reads at match zoom and doesn't get tiring at x3 or with high attack speed.
