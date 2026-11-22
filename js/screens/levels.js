@@ -7,6 +7,7 @@ import { state } from '../core/state.js';
 import { STAGES, HEROES, LINEUP_SIZE, STAT_LABELS, ZONES, zoneOf } from '../content/data.js';
 import { SLOTS } from '../content/items.js';
 import { UNLOCKS, unlocksOf } from '../content/unlocks.js';
+import { MAP_EFFECTS, MAP_EFFECT_OF } from '../content/map-effects.js';
 import { el, cap, gearCount, ensureItems, saveNow, sqlHint, activePaths, pathsUnlocked } from './loadout.js';
 import { spriteImg, heroPortrait } from '../game/sprites.js';
 import { pathChoice } from '../engine/preview.js';
@@ -40,7 +41,9 @@ function renderLevels() {
     const b = el('button', 'lvl' + (s.n <= cleared ? ' done' : ''));
     const c = s.n <= cleared ? 'Cleared ✓' : s.n === cleared + 1 ? (p.frontier_wave ? 'Furthest: wave ' + p.frontier_wave : 'Ready') : 'Locked';
     const art = el('img', 'lvart pix'); art.src = 'assets/level_' + s.zone + '.png'; art.alt = ''; art.onerror = () => art.remove?.();
-    const txt = el('span', 'lvtxt'); txt.append(el('b', '', 'Level ' + s.code), el('span', '', s.waves + ' waves'), el('small', '', c));   /* the zone's name is on its tab above */
+    const txt = el('span', 'lvtxt'); txt.append(el('b', '', 'Level ' + s.code), el('span', '', s.waves + ' waves'), el('small', '', c));
+    const fx = MAP_EFFECTS[MAP_EFFECT_OF[s.n]];
+    if (fx) { txt.append(el('small', 'mapfx', fx.name)); b.title = fx.name + ': ' + fx.text; }   /* the zone's name is on its tab above */
     b.disabled = s.n > cleared + 1; b.append(art, txt);
     b.onclick = () => { stage = s.n; lineup = []; say(''); render(); };
     list.append(b);
@@ -54,7 +57,9 @@ function toggle(id) {
 }
 
 function renderPick() {
+  const fx = MAP_EFFECTS[MAP_EFFECT_OF[stage]];
   $('lvPickTitle').textContent = 'Pick your 3 heroes';
+  if ($('lvMapFx')) { $('lvMapFx').textContent = fx ? fx.name + ': ' + fx.text : ''; $('lvMapFx').hidden = !fx; }
   $('lvCount').textContent = lineup.length + ' / ' + LINEUP_SIZE;
   $('lvStart').disabled = !lineup.length; $('lvStart').title = lineup.length ? '' : 'Choose at least one hero';
   const grid = $('lvHeroes'); grid.textContent = '';

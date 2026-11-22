@@ -740,6 +740,14 @@ button:not(.danger):not(.relic):not(.on):not(.herocard):not(.linkbtn):not(.choos
 .tabs button.on{color:#2a1a00;text-shadow:0 1px 0 rgba(255,240,200,.4)}
 .tabs button:not(.on){filter:saturate(.75) brightness(.85)}
 .evonode .evoart{width:104px;height:104px;margin:-4px 0 -6px;image-rendering:auto}
+/* Match and map effects. */
+#fxBar:not([hidden]){position:absolute;top:84px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:2}
+.fxchip{--ec:#888;padding:2px 10px;background:rgba(20,17,13,.85);border-bottom:2px solid var(--ec);color:var(--ec);font-family:var(--pixel);font-size:15px;cursor:default;pointer-events:auto}
+.votecard.choose{padding-top:30px}.votecard{width:215px;min-height:165px;display:flex;flex-direction:column;gap:6px;align-items:center;justify-content:flex-start}
+.votecard b{font-family:var(--pixel);font-weight:400;font-size:20px;color:#ffe08a}
+.votecard .good{color:#8be28b}.votecard .bad{color:#ff9d8a}.votecard .who2{color:#8fd3ff;margin-top:auto}
+.votecard.mine{outline:3px solid #ffe08a;outline-offset:-3px}
+.lvtxt .mapfx{color:#ffe08a}
 /* The match shop. */
 .buyrow{display:flex;gap:4px}.buyrow #relic{flex:1.5}
 #shopBtn{flex:1;font-size:14px;line-height:15px;padding:2px 6px}
@@ -753,7 +761,7 @@ button:not(.danger):not(.relic):not(.on):not(.herocard):not(.linkbtn):not(.choos
 .odds{display:flex;justify-content:space-between;gap:10px;font-size:.92em}
 .result{padding:4px 8px;border-left:4px solid #8be28b}.result.lose,.result.curse{border-color:#e5645a}.result.nothing{border-color:#888}
 .bossname{color:#e2864a;font-size:1.15em}
-#tileHint{position:absolute;left:50%;top:92px;transform:translateX(-50%);padding:6px 14px}
+#tileHint{position:absolute;left:50%;top:116px;transform:translateX(-50%);padding:6px 14px}
 /* Inventory: the Items and Crafting tabs. */
 #invItems:not([hidden]){display:flex;flex-direction:column;align-items:center;gap:8px}
 .invsell{flex-wrap:wrap}
@@ -844,7 +852,7 @@ button:not(.danger):not(.relic):not(.on):not(.herocard):not(.linkbtn):not(.choos
     <div class="levels" id="lvList"></div>
   </div>
   <div id="lvPick" class="lvstep" hidden>
-    <h1 id="lvPickTitle">Choose your heroes</h1>
+    <h1 id="lvPickTitle">Choose your heroes</h1><p class="muted" id="lvMapFx" hidden></p>
     <p class="muted" hidden>(<b id="lvCount"></b>)</p>
     <div class="hgrid" id="lvHeroes"></div>
     <button class="go big" id="lvStart">Start</button>
@@ -950,6 +958,8 @@ button:not(.danger):not(.relic):not(.on):not(.herocard):not(.linkbtn):not(.choos
       <span class="stat"><small><img class="ico pix" src="assets/icon_wave.png" alt="">Wave</small><b id="wave"></b></span>
       <span class="stat"><small><img class="ico pix" src="assets/icon_lives.png" alt="">Lives</small><b id="lives"></b></span>
     </div>
+    <!-- Under it: the map's effect and the match effects chosen so far. -->
+    <div id="fxBar" hidden></div>
     <!-- Co-op: everyone in the match, their colour, gold and whether they are ready. -->
     <div id="coopBar" class="glass" hidden></div>
     <div id="netBanner" class="glass" hidden></div>
@@ -998,6 +1008,11 @@ button:not(.danger):not(.relic):not(.on):not(.herocard):not(.linkbtn):not(.choos
     <div class="choices" id="evoChoices"></div>
     <div class="pickbar"><button id="evoCancel">Cancel</button><span class="muted" id="evoGold"></span></div>
     <div class="muted">The game is paused while you choose.</div>
+  </div>
+  <div class="overlay" id="voteBox" hidden>
+    <h2 id="voteTitle"></h2>
+    <div class="choices" id="voteCards"></div>
+    <div class="muted" id="voteHint"></div>
   </div>
   <div class="overlay" id="shopBox" hidden>
     <h2>Shop</h2>

@@ -43,9 +43,10 @@ registerUltimate('storm', { name: 'Storm', desc: 'A storm around the Mage strike
    (1, or the ultimate's) and empties the bar when the ultimate fires. An ultimate with replaces: true returns 0: the hero
    does not make its normal attack (the ultimate is the attack, like the Marksman's arrow). */
 export function attackMult(w, h, target) {
-  if (h.energy < h.s.energyMax) return 1;
+  const basic = w.fxm ? w.fxm.basic : 1;   /* Overcharge */
+  if (h.energy < h.s.energyMax) return basic;
   const u = ULTIMATES[h.def.ultimate];
-  if (!u || buffActive(h, u)) return 1;   /* a buff ultimate waits, bar full, until its buff on the caster runs out */
+  if (!u || buffActive(h, u)) return basic;   /* a buff ultimate waits, bar full, until its buff on the caster runs out */
   h.energy = 0; h.ults++; h.ultNow = true;
   if (u.onFire) u.onFire(w, h, target);
   w.ev.emit('ultimate', { hero: h, ultimate: u });

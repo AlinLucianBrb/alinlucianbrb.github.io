@@ -318,7 +318,7 @@ const TUNED = [
   { hpMult: 2.5, growth: 1.0869 }
 ];
 export const LEVEL_WAVES = { first: 15, step: 10, max: 55 };
-export const LATER = { lastWave: 1.08, firstWave: 1.04 };
+export const LATER = { lastWave: 1.125, firstWave: 1.04 };
 const wavesOf = n => Math.min(LEVEL_WAVES.max, LEVEL_WAVES.first + LEVEL_WAVES.step * (n - 1));
 export const STAGES = (() => {
   const out = [];

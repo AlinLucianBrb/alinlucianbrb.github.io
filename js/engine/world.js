@@ -14,6 +14,9 @@ import { CURSE } from '../content/shop.js';
 import { greedMult, applyConduits, hasConduit } from './tiles.js';
 import { payPrize, rollBossKind } from './shop.js';
 import './boss-gimmicks.js';
+import { freshFx, openVote, tickVote } from './match-effects.js';
+import { setupMap, leyMods, updateMap } from './map-effects.js';
+import { MAP_EFFECT_OF } from '../content/map-effects.js';
 import { updateAbilities, isShielded } from './enemy-abilities.js';
 import { attachUpgrades } from './upgrades.js';
 import { updateProjectiles } from './projectiles.js';
@@ -29,7 +32,7 @@ import { cleanPaths, pathChoice, pathDef, previewMods, syncPreview, updatePrevie
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
 export const REROLL_GOLD = 0.25;
-export const ENGINE_VERSION = 29;     /* bump when a rule change would make old command logs play out differently */
+export const ENGINE_VERSION = 30;     /* bump when a rule change would make old command logs play out differently */
 
 /* Checks a lineup: up to LINEUP_SIZE different, playable heroes. Returns a clean copy, or the full roster if it is empty. */
 export function cleanLineup(lineup) {
@@ -64,10 +67,10 @@ export const PLAYER_FIELDS = ['talents', 'lineup', 'paths', 'items', 'mods', 'go
 /* lineup: the hero ids brought into the match. items: { heroId: [{ type, rarity, bonuses }] } equipped before the match
    (see js/content/items.js; a plain item type id also works, as a Common item with no bonuses).
    Co-op: players: [{ talents, lineup, items }, ...] instead, one per player (2 to 4); enemies get that many times the life. */
-export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, items = {}, paths = {}, relics = [], shop = false, players = null, record = true } = {}) {
+export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, items = {}, paths = {}, relics = [], shop = false, matchEffects = false, mapEffect = MAP_EFFECT_OF[stage] || null, players = null, record = true } = {}) {
   const def = STAGES[stage - 1];
   if (!def) throw new Error('Unknown stage ' + stage);
-  const root = createRng(seed), rng = { path: root.fork('path'), relic: root.fork('relic'), combat: root.fork('combat'), gold: root.fork('gold'), shop: root.fork('shop') };
+  const root = createRng(seed), rng = { path: root.fork('path'), relic: root.fork('relic'), combat: root.fork('combat'), gold: root.fork('gold'), shop: root.fork('shop'), fx: root.fork('fx'), map: root.fork('map') };
   const ps = (players && players.length ? players : [{ talents, lineup, items, paths, relics, shop }]).map((p, i) => makePlayer(i, p));
   const path = MAPS[def.n - 1].map(c => [...c]), coop = ps.length > 1;   /* each level's fixed map (maps.js) */
   const w = {
@@ -77,12 +80,14 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
     wave: 0, spawnLeft: 0, spawnT: 0, kills: 0, bossKills: 0, nextHeroId: 1,
     heroes: [], enemies: [], projs: [], zones: [],
     tiles: [], curse: null, bossesSummoned: 0, bossNext: 1, bossKind: null,   /* the match shop */
+    matchEffects: !!matchEffects, effects: [], vote: null, fxm: freshFx(),   /* match-effects.js; the map's: map-effects.js */
     ev: createBus(), fx: null,
-    log: record ? { v: 1, ver: ENGINE_VERSION, seed: seed >>> 0, stage, talents: [...ps[0].talents], lineup: [...ps[0].lineup], paths: { ...ps[0].paths }, ...(ps[0].shop ? { shop: true } : {}), ...(ps[0].startRelics.length ? { relics: ps[0].startRelics.map(r => ({ ...r })) } : {}), items: JSON.parse(JSON.stringify(ps[0].items)), commands: [], ticks: 0,
+    log: record ? { v: 1, ver: ENGINE_VERSION, seed: seed >>> 0, stage, talents: [...ps[0].talents], lineup: [...ps[0].lineup], paths: { ...ps[0].paths }, ...(ps[0].shop ? { shop: true } : {}), ...(matchEffects ? { matchEffects: true } : {}), ...(mapEffect !== (MAP_EFFECT_OF[stage] || null) ? { mapEffect } : {}), ...(ps[0].startRelics.length ? { relics: ps[0].startRelics.map(r => ({ ...r })) } : {}), items: JSON.parse(JSON.stringify(ps[0].items)), commands: [], ticks: 0,
       ...(coop ? { players: ps.map(p => ({ talents: [...p.talents], lineup: [...p.lineup], paths: { ...p.paths }, ...(p.shop ? { shop: true } : {}), relics: p.startRelics.map(r => ({ ...r })), items: JSON.parse(JSON.stringify(p.items)) })) } : {}) } : null
   };
   for (const k of PLAYER_FIELDS) Object.defineProperty(w, k, { get: () => ps[0][k], set: v => { ps[0][k] = v; }, enumerable: true });
   w.bossKind = rollBossKind(w);
+  setupMap(w, mapEffect);
   w.ownerOf = h => ps[h.owner || 0];
   w.hit = (hero, e, amount, type, quiet) => hit(w, hero, e, amount, type, quiet);
   w.livesStart = w.lives;   /* the Heretic's blood price counts the lives lost since */
@@ -112,11 +117,11 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
       for (const h of w.heroes) gainXp(w, h, enemy.def.xp || 0);
       return;
     }
-    const curse = 1 + CURSE.gold * cursesOn(w), greed = hero ? greedMult(w, hero) : 1;   /* a cursed wave pays more; Greed pays the hero's owner */
+    const curse = (1 + CURSE.gold * cursesOn(w)) * w.fxm.killGold, greed = hero ? greedMult(w, hero) : 1;   /* a cursed wave pays more; Greed pays the hero's owner */
     for (const p of ps) p.gold += Math.round((Math.round(p.gs.bounty * enemy.def.bounty) + bonusGold(w, p)) * curse * (hero && (hero.owner || 0) === p.i ? greed : 1));   /* every player is paid for every kill */
     w.kills++;
     if (enemy.def.boss) w.bossKills++;   /* each boss defeated guarantees an item at the end of the match (finish_run) */
-    for (const h of w.heroes) gainXp(w, h, enemy.def.xp || 0);   /* every hero on the field learns from every kill */
+    for (const h of w.heroes) gainXp(w, h, (enemy.def.xp || 0) * w.fxm.xp);   /* every hero on the field learns from every kill */
   });
   attachUpgrades(w);
   w.statsFor = h => statsFor(w, h);
@@ -124,7 +129,7 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
   w.erupt = h => erupt(w, h);   /* Naturist Druid's spikes */
   /* A boss that gets through on the last wave ends the run: a level is only won by beating its final boss. */
   w.ev.on('escape', ({ enemy }) => {
-    w.lives = Math.max(0, w.lives - enemy.def.leak);
+    w.lives = Math.max(0, w.lives - enemy.def.leak * w.fxm.leak);
     if (enemy.prize) { enemy.prize.lost = true; payPrize(w, enemy); }
     if (w.lives <= 0 || (enemy.def.boss && !enemy.def.summoned && w.wave >= w.maxWave)) endRun(w, false);
   });
@@ -205,6 +210,8 @@ export function statsFor(w, h) {
   const shared = w.players[h.owner || 0].mods;
   let own = h.lvlMods && h.lvlMods.length ? h.mods.concat(h.lvlMods) : h.mods;
   if (h.buffs && h.buffs.length) for (const b of h.buffs) own = own.concat(b.mods);
+  const ley = leyMods(w, h);
+  if (ley) own = own.concat(ley);
   if (h.preview) { h.pvMods = previewMods(h); own = own.concat(h.pvMods); }   /* a path's preview, at the hero's level */
   const all = own.length ? shared.concat(own) : shared;
   h.s = heroStats(h.def, all);
@@ -217,19 +224,21 @@ export function statsFor(w, h) {
 }
 
 export function startWave(w) {
-  w.wave++; w.spawnLeft = waveCount(w.wave); w.spawnT = 0; w.phase = 'wave';
+  w.wave++; w.spawnLeft = w.fxm.half ? Math.ceil(waveCount(w.wave) / 2) : waveCount(w.wave);   /* Giants: half as many, twice as far apart */ w.spawnT = 0; w.phase = 'wave';
   for (const p of w.players) p.ready = false;
   w.ev.emit('waveStart', { wave: w.wave });
 }
 
 function waveCleared(w) {
   for (const p of w.players) {   /* each player's own wave gold and interest */
+    if (w.fxm.noWaveGold) continue;       /* Blood money */
     const interest = Math.min(Math.floor(p.gs.interestCap + 1e-9), Math.floor(p.gold * p.gs.interest + 1e-9));   /* 1e-9: float noise */
     p.gold += Math.round((15 + w.wave * 3) * p.gs.waveGold) + interest;
   }
   w.ev.emit('waveClear', { wave: w.wave });
   if (w.wave >= w.maxWave) { endRun(w, true); return; }
   w.phase = 'build'; w.autoT = 3;
+  openVote(w);
 }
 
 /* Ends the run. The 'end' event is sent only once the current step has fully finished (see step), so anything that
@@ -245,11 +254,13 @@ export function endRun(w, won) {
    choice (unless the player chose to keep playing while choosing: playOnPick). A co-op match never waits for one player.
    The next wave starts by itself when every player has Auto-start on (after the countdown). */
 export function step(w) {
-  if (w.phase === 'over' || (!w.coop && w.picking && !w.playOnPick)) return false;
+  if (w.phase === 'over' || (!w.coop && ((w.picking && !w.playOnPick) || w.vote))) return false;
   if (w.phase === 'build' && w.players.every(p => p.auto) && (w.autoT -= STEP) <= 0) startWave(w);
   if (w.phase === 'wave' && w.spawnLeft > 0 && (w.spawnT -= STEP) <= 0) {
-    spawnEnemy(w, waveEnemyType(w.wave, w.spawnLeft, w.stage)); w.spawnLeft--; w.spawnT = spawnDelay(w.wave);
+    spawnEnemy(w, waveEnemyType(w.wave, w.spawnLeft, w.stage)); w.spawnLeft--; w.spawnT = spawnDelay(w.wave) * (w.fxm.half ? 2 : 1);
   }
+  tickVote(w, STEP, recalc);
+  updateMap(w, STEP);
   updateAbilities(w, STEP);
   updateEnemies(w, STEP);
   for (const h of w.heroes) {

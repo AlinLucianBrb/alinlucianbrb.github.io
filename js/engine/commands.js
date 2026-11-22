@@ -9,19 +9,21 @@ import { levelMods } from './levels.js';
 import { recalc, startWave, statsFor } from './world.js';
 import { shopCommands } from './shop.js';
 import { applyConduits, hasConduit } from './tiles.js';
+import { giveRelic } from './relics.js';
+import { castVote } from './match-effects.js';
 
 const OK = { ok: true };
 const fail = reason => ({ ok: false, reason });
 const inBounds = (cx, cy) => Number.isInteger(cx) && Number.isInteger(cy) && cx >= 0 && cy >= 0 && cx < COLS && cy < ROWS;
 /* A free tile: on the map, not taken by a hero or a totem, and off the path (unless the hero flies: the Archangel). */
-const isFree = (w, cx, cy, except) => inBounds(cx, cy) && (!w.pathSet.has(cx + ',' + cy) || !!(except && (except.def.flying || except.def.onPath)))
+const isFree = (w, cx, cy, except) => inBounds(cx, cy) && !w.noBuild.has(cx + ',' + cy) && (!w.pathSet.has(cx + ',' + cy) || !!(except && (except.def.flying || except.def.onPath)))
   && !w.heroes.some(h => h !== except && h.cx === cx && h.cy === cy) && !w.zones.some(z => z.blocks && z.cx === cx && z.cy === cy);
 /* Can this hero stand on that tile (ignoring other heroes)? On the map, off the path unless it flies or fights on it, not on a
    blocking zone. */
-const canStand = (w, h, cx, cy) => inBounds(cx, cy) && (!w.pathSet.has(cx + ',' + cy) || !!(h.def.flying || h.def.onPath))
+const canStand = (w, h, cx, cy) => inBounds(cx, cy) && !w.noBuild.has(cx + ',' + cy) && (!w.pathSet.has(cx + ',' + cy) || !!(h.def.flying || h.def.onPath))
   && !w.zones.some(z => z.blocks && z.cx === cx && z.cy === cy);
 /* A hero moved to a tile: it waits 1 second before attacking again (settle: the screen shows it resting meanwhile). */
-const regroup = w => { if (hasConduit(w)) applyConduits(w); };   /* heroes stand elsewhere: the Conduits' neighbours changed */
+const regroup = w => { if (w.mapEffect === 'ley') for (const h of w.heroes) statsFor(w, h); if (hasConduit(w)) applyConduits(w); };   /* heroes stand elsewhere: Ley lines, and the Conduits' neighbours */
 const settle = (h, cx, cy) => { h.cx = cx; h.cy = cy; h.x = (cx + 0.5) * T; h.y = (cy + 0.5) * T; h.cd = 1; h.lock = null; h.settle = 1; };
 const blocked = (w, p) => w.phase === 'over' ? fail('over') : p.picking ? fail('busy') : null;
 const playerOf = (w, c) => w.players[c.p | 0];
@@ -48,17 +50,9 @@ export function relicFits(r, p, w = null) {
   return !!(a.global || a.types.size);
 }
 
-/* Adds a relic to a player (chosen, or won in a gamble); recalc(w) follows. */
-function giveRelic(w, p, r, ri) {
-  const m = RARITIES[ri].mult;
-  if (r.mods) for (const x of r.mods(m)) p.mods.push({ ...x, source: r.name, ri });
-  if (r.onPick) r.onPick(w, m);
-  p.relics.push({ name: r.name, r: ri });
-}
-
 function drawRelics(w, p, n, taken) {
   const pool = RELICS.filter(r => !p.banned.has(r.name) && !taken.includes(r.name) && relicFits(r, p, w)), out = [];   /* only relics for the heroes on the map */
-  while (out.length < n && pool.length) out.push({ relic: pool.splice(w.rng.relic.int(pool.length), 1)[0], ri: rollRarity(w.rng.relic.next(), p.gs.relicLuck) });
+  while (out.length < n && pool.length) out.push({ relic: pool.splice(w.rng.relic.int(pool.length), 1)[0], ri: w.fxm.epicRelics ? RARITIES.length - 1 : rollRarity(w.rng.relic.next(), p.gs.relicLuck) });
   return out;
 }
 
@@ -158,6 +152,12 @@ export const COMMANDS = {
     return OK;
   },
   auto(w, c) { const p = playerOf(w, c); if (!p) return fail('no such player'); p.auto = !!c.on; w.autoT = 3; return OK; },
+  /* Match effects: a vote for one of the offers, or -1 for none (solo, it decides). */
+  vote(w, c) {
+    const p = playerOf(w, c); if (!p) return fail('no such player');
+    const why = w.phase === 'over' ? 'over' : castVote(w, p, c.index, recalc);
+    return why ? fail(why) : OK;
+  },
   /* Keep the game running while the relic choice is open (a player setting; off by default). Allowed at any time. */
   playOnPick(w, c) { const p = playerOf(w, c); if (!p) return fail('no such player'); p.playOnPick = !!c.on; return OK; },
 

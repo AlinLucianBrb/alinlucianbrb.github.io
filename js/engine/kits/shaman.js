@@ -96,7 +96,7 @@ export const TOTEM = { max: 3, life: 12, reach: 110, kinds: ['flame', 'frost', '
 export function totemSpots(g, t) {
   const out = [];
   for (let cy = t.cy - 2; cy <= t.cy + 2; cy++) for (let cx = t.cx - 2; cx <= t.cx + 2; cx++) {
-    if (cx < 0 || cy < 0 || cx >= COLS || cy >= ROWS || g.pathSet.has(cx + ',' + cy)) continue;
+    if (cx < 0 || cy < 0 || cx >= COLS || cy >= ROWS || g.pathSet.has(cx + ',' + cy) || (g.noBuild && g.noBuild.has(cx + ',' + cy))) continue;
     if (g.heroes.some(h => h.cx === cx && h.cy === cy) || g.zones.some(z => z.blocks && z.cx === cx && z.cy === cy)) continue;
     const byPath = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => g.pathSet.has((cx + dx) + ',' + (cy + dy)));
     out.push({ cx, cy, rank: (byPath ? 0 : 100) + (cx - t.cx) ** 2 + (cy - t.cy) ** 2 });
@@ -138,7 +138,7 @@ ZONES.totem = {
     if (z.flash > 0) z.flash = Math.max(0, z.flash - dt);
     if (z.surge > 0 && (z.surgeT -= dt) <= 0) surgePulse(g, z);
     if ((z.cd -= dt) > 0) return true;
-    const h = z.owner, ms = h.ms || h.s, rate = ms.castSpeed || 1, k = TOTEM[z.kind];
+    const h = z.owner, ms = h.ms || h.s, rate = ms.castSpeed || 1, k = { ...TOTEM[z.kind], scale: TOTEM[z.kind].scale * (g.fxm ? g.fxm.basic : 1) };
     z.cd = k.every / rate / (z.fast > 0 ? 1 + (upgradeOf(h, 'totemist_ult') || { faster: 0 }).faster : 1);
     if (z.kind === 'frost') {
       for (const e of g.enemies) if (!e.dead && near(e, z, k.radius)) { applyEffect(e, 'chill', { t: 0.6 }, h); g.attack(h, e, k.scale, 1, 'cold', ms); }

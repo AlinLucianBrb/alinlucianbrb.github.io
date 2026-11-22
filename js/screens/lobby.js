@@ -173,7 +173,7 @@ async function startMatch() {
   const missing = l.members.filter(m => !here[m.user_id]);
   if (missing.length) return say('Waiting for ' + missing.map(m => m.username).join(', ') + ' to connect.');
   const seed = globalThis.crypto && crypto.getRandomValues ? crypto.getRandomValues(new Uint32Array(1))[0] : Math.floor(Math.random() * 4294967296);
-  const config = { seed, stage: l.stage, host: uid(), players: l.members.map(m => {
+  const config = { seed, stage: l.stage, host: uid(), matchEffects: isUnlocked('effects', state.profile.levels_cleared), players: l.members.map(m => {
     const meta = m.user_id === uid() ? { talents: state.profile.talents || [], lineup, paths: activePaths(), shop: hasShop(), items: wornItems() } : here[m.user_id];
     return { uid: m.user_id, name: m.username, talents: meta.talents || [], lineup: meta.lineup, paths: meta.paths || {}, shop: !!meta.shop, items: meta.items || {} };
   }) };

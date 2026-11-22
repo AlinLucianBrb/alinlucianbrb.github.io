@@ -9,7 +9,7 @@ import { apply } from '../js/engine/commands.js';
 
 test('defenses start at 0 on wave 1 and grow each wave, faster on harder levels', () => {
   assert.equal(threat(1, 1), 0); assert.equal(threat(1, 5), 0);
-  assert.equal(threat(15, 1), 14); assert.equal(threat(15, 5), 28, 'level 5 grows twice as fast');
+  assert.equal(threat(15, 1), 14); assert.ok(Math.abs(threat(15, 5) - 14 * (1 + 0.0741 * 4)) < 1e-9, 'harder levels grow faster');
   const g1 = defensesFor(ENEMIES.grunt, 1, 1);
   assert.equal(g1.armor, 0); assert.ok(Object.values(g1.res).every(r => r === 0));
   const late = defensesFor(ENEMIES.grunt, 35, 5), early = defensesFor(ENEMIES.grunt, 15, 1);
@@ -25,7 +25,9 @@ test('each enemy type has its own defenses, and armor and resistances grow toget
 });
 
 test('defenses cap at 99%, whatever the threat (ready for endless)', () => {
-  const huge = defensesFor(ENEMIES.boss, 100000, 5);
+  assert.equal(defensesFor(ENEMIES.boss, 100000, 5).armor, 0.6, 'at most 60% in the campaign');
+  for (const k of ['grunt', 'brute', 'boss', 'tough']) assert.ok(Math.abs(defensesFor(ENEMIES[k], 55, 25).res.fire - 0.6) < 0.001, k + ': 60% on the last wave of 5-5');
+  const huge = defensesFor(ENEMIES.boss, 100000, 5, 99);
   const e = { ...huge, fx: null };
   assert.ok(Math.abs(mitigate(e, 'fire', 100) - 1) < 1e-9, 'resistance capped at 99%');
   assert.ok(mitigate(e, 'physical', 100) >= 1 - 1e-9, 'armor capped at 99%');

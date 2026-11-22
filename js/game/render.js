@@ -5,6 +5,7 @@ import { get as sprite, tiles as tileSheet, drawSprite, heroSprite, frameOf, her
 import { project, unproject, scaleAt, setView } from './camera.js';
 import { isShielded } from '../engine/enemy-abilities.js';
 import { TILE_EFFECTS, TILES } from '../content/shop.js';
+import { MAP_EFFECTS } from '../content/map-effects.js';
 import { drawAuras, drawMinions, drawMounted, KIT_PROJ, KIT_ZONE, KIT_AIL_ICON, BUFF_COLOR } from './kit-art.js';
 
 const MAP_W = COLS * T, MAP_H = ROWS * T;
@@ -708,7 +709,7 @@ export function draw(ctx, g, v) {
   if (swapWith) {                        /* dropping here swaps the two: the other one shown, faded, where the carried one was */
     ctx.globalAlpha = 0.45; drawHeroStill(ctx, swapWith.def, v.moving.x, v.moving.y); ctx.globalAlpha = 1;
   }
-  if (inside && (v.moving || v.placing) && (!g.pathSet.has(h[0] + ',' + h[1]) || swapWith) && (!there || swapWith)) {
+  if (inside && (v.moving || v.placing) && (!g.pathSet.has(h[0] + ',' + h[1]) || swapWith) && !(g.noBuild && g.noBuild.has(h[0] + ',' + h[1])) && (!there || swapWith)) {
     const mv = v.moving, range = mv ? mv.s.range : g.previewRange(v.sel), x = (h[0] + 0.5) * T, y = (h[1] + 0.5) * T;
     at(ctx, x, y, () => { ctx.beginPath(); ctx.arc(x, y, range, 0, 7); ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fill(); });
     if (mv) {
@@ -717,8 +718,9 @@ export function draw(ctx, g, v) {
       ctx.globalAlpha = 1;
     }
   }
+  drawMapEffect(ctx, g);
   for (const t of g.tiles || []) drawTile(ctx, t.cx, t.cy, TILE_EFFECTS[t.effect].color, t.level, 1, t.effect);
-  if (v.tile && inside && !g.pathSet.has(h[0] + ',' + h[1])) drawTile(ctx, h[0], h[1], TILE_EFFECTS[v.tile].color, 1, 0.6, v.tile);   /* where the one being bought would go */
+  if (v.tile && inside && !g.pathSet.has(h[0] + ',' + h[1]) && !(g.noBuild && g.noBuild.has(h[0] + ',' + h[1]))) drawTile(ctx, h[0], h[1], TILE_EFFECTS[v.tile].color, 1, 0.6, v.tile);   /* where the one being bought would go */
   /* Zones lie on the ground: drawn before heroes and enemies, so puddles never cover them. */
   for (const z of g.zones || []) at(ctx, z.x, z.y, () => { if (!(ZONE_SPRITE[z.type] && ZONE_SPRITE[z.type](ctx, z))) (ZONE_DRAW[z.type] || ZONE_DRAW.storm)(ctx, z); });
   /* Path previews: an echo of the hero runs the form's attack (js/engine/preview.js); its aura, pup, imp, ride and blink are
@@ -802,6 +804,27 @@ export function draw(ctx, g, v) {
     }
     else drawSprite(ctx, a.name, a.x, a.y, a.s, 0, f, a.frames);
   });
+}
+
+/* The map's effect on the ground: brambles on the tiles that cannot be used, the Ley tiles' glow, the mud on the road, fog. */
+function drawMapEffect(ctx, g) {
+  const e = MAP_EFFECTS[g.mapEffect];
+  if (!e) return;
+  ctx.save();
+  if (g.mapEffect === 'overgrown') for (const k of g.noBuild) {
+    const [cx, cy] = k.split(',').map(Number), x = cx * T, y = cy * T;
+    ctx.fillStyle = 'rgba(24,52,24,.5)'; quad(ctx, x + 1, y + 1, x + T - 1, y + T - 1); ctx.fill();
+    at(ctx, x + T / 2, y + T / 2, () => { drawSprite(ctx, 'deco2_bush', x + T * 0.5, y + T * 0.36, T * 0.8); });
+  }
+  if (g.mapEffect === 'ley') for (const [cx, cy] of g.ley) {
+    const x = cx * T, y = cy * T, a = 0.3 + 0.15 * Math.sin(g.tick / 25 + cx);
+    ctx.fillStyle = e.color; ctx.globalAlpha = a; quad(ctx, x + 2, y + 2, x + T - 2, y + T - 2); ctx.fill();
+    ctx.globalAlpha = 0.9; ctx.strokeStyle = e.color; ctx.lineWidth = 2; quad(ctx, x + 5, y + 5, x + T - 5, y + T - 5); ctx.stroke(); ctx.globalAlpha = 1;
+  }
+  if (g.mapEffect === 'mud') { ctx.fillStyle = 'rgba(58,38,18,.38)'; for (const [cx, cy] of g.path) { quad(ctx, cx * T, cy * T, cx * T + T, cy * T + T); ctx.fill(); } }
+  if (g.mapEffect === 'fog') { ctx.fillStyle = 'rgba(196,208,216,.2)'; quad(ctx, -MAP_W, -MAP_H, 2 * MAP_W, 2 * MAP_H); ctx.fill(); }
+  if (g.mapEffect === 'storm') { ctx.fillStyle = 'rgba(16,24,46,.26)'; quad(ctx, -MAP_W, -MAP_H, 2 * MAP_W, 2 * MAP_H); ctx.fill(); }
+  ctx.restore();
 }
 
 /* A ground effect: its tile in its colour, with a mark and a dot per level. A Conduit shows the 8 tiles it draws from. */

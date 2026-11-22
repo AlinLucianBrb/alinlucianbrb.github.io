@@ -15,6 +15,7 @@ js/screens/                login, menu, levels (level, then heroes), lobby (co-o
 
 js/content/                WHAT the game contains (plain data, no logic)
   rules.js                 the rules the server also uses (XP, rewards, waves, spawn timing, bosses, drops, co-op): ONE place
+  match-effects.js, map-effects.js   the double-edged match effects (from act 4) and the act 5 maps' effects
   shop.js                  the match shop: ground effects, the gamble, summoned bosses
   crafting.js              materials, disenchanting and crafting (the server's copy is generated from it)
   upgrades.js              the level-30 upgrades: two per form, basic attack or ultimate
@@ -205,6 +206,20 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Texts:** attack descriptions describe only the attack, ultimate tooltips only the ultimate, and the hero tooltip the hero (its attribute, delivery and source, tags, damage type). Ultimates that deal damage of their own write it as `{N}` in their description; `ultDesc()` shows it as the number it deals with the hero's stats ("about 156 damage"); "x2 damage" is kept for boosts to an attack the hero already makes. "At level 10, choose a path" is gone from the descriptions.
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
+
+## Match and map effects, campaign resistances (Nov 22, v0.60.0)
+- **Match effects** (from act 4; `js/content/match-effects.js`, engine `js/engine/match-effects.js`): after clearing waves 15, 30 and
+  45 (not a level's last wave) choose one of three double-edged effects, or none, for the rest of the match; never the same twice. Ten
+  of them. Solo the match waits; in co-op everyone votes for 20 seconds, the most votes win and a tie is drawn by lot.
+- **Map effects** (act 5; `js/content/map-effects.js`, engine `js/engine/map-effects.js`): 5-1 Mud, 5-2 Fog, 5-3 Ley lines, 5-4 Storm,
+  5-5 Overgrown (the tiles beside the road cannot be used; melee heroes get 50% more range). Shown on the level screen.
+- **Campaign resistances:** at most 60%, which a grunt reaches on the last wave of 5-5 (`CAMPAIGN_CAP`, `THREAT_PER_LEVEL`); 99% is kept
+  for endless. Crowd control resistance per threat went up so it stays about as strong at 5-5 (CC.perThreat).
+- **Enemy health after 1-5** rises 12.5% a level (was 8%), so the game still gets harder: without the 99% walls the bot won every level.
+  42 bot games a level: 100% up to 4-3, 88% at 4-5, then with the map effects 100 / 69 / 86 / 86 / 86% on 5-1 to 5-5. Act 1 health is unchanged.
+- **Fixed:** the relic list did not refresh when a gamble raised a relic's rarity.
+- Rules changed (engine 30: a match saved before the update cannot be resumed). Running `supabase-update.sql` is not needed for this
+  version (one line of the unlock list changed).
 
 ## The match shop (Nov 22, v0.59.0)
 - Unlocked in **act 3**: a Shop button beside Relic (key B). It pauses a solo match, like the relic picker. The data is

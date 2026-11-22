@@ -36,16 +36,18 @@ export const ENEMIES = {
   minion:   { name: 'Minion',   color: '#8a5fb0', radius: 8,  hp: 0.4, speed: 0.9,  bounty: 0,   leak: 1, xp: 0, def: 0.003, minion: true }
 };
 export const ENEMY_SPEED = 0.65;
-/* Threat: 0 on the first wave, +1 per wave, and each level after the first adds 25% to the growth. */
-export const threat = (wave, stage = 1) => Math.max(0, wave - 1) * (1 + 0.25 * (stage - 1));
+/* Threat: 0 on the first wave, +1 per wave, and each level after the first adds THREAT_PER_LEVEL to the growth: so that a grunt on
+   the last wave of 5-5 has CAMPAIGN_CAP (60%) defenses. In the campaign no enemy has more than that; endless goes up to RES_CAP. */
+export const CAMPAIGN_CAP = 0.6, THREAT_PER_LEVEL = 0.0741;
+export const threat = (wave, stage = 1) => Math.max(0, wave - 1) * (1 + THREAT_PER_LEVEL * (stage - 1));
 /* Crowd control (freeze, root, stun; effects.js): nobody can be held forever. In every `interval` seconds an enemy can be
    held for at most `hold` seconds, less its resistance: the type's own (cc) plus perThreat per point of threat, up to max. */
-export const CC = { interval: 5, hold: 2.5, perThreat: 0.002, max: 0.9 };
+export const CC = { interval: 5, hold: 2.5, perThreat: 0.004, max: 0.9 };
 export const ccResFor = (def, wave, stage) => Math.min(CC.max, (def.cc || 0) + CC.perThreat * threat(wave, stage));
 const DEF_TYPES = ['arcane', 'fire', 'cold', 'lightning', 'toxic', 'holy', 'shadow'];
 /* An enemy's defenses on a wave: { armor, res: { type: value } }, all the same share. Capped by RES_CAP (99%) when used. */
-export function defensesFor(def, wave, stage) {
-  const t = threat(wave, stage), r = (def.def || 0) * t, res = {};
+export function defensesFor(def, wave, stage, cap = CAMPAIGN_CAP) {
+  const t = threat(wave, stage), r = Math.min(cap, (def.def || 0) * t), res = {};
   for (const k of DEF_TYPES) res[k] = r;
   return { armor: r, res };
 }
@@ -84,8 +86,8 @@ export function pathPos(path, i, out) {
 /* at: how far along the path it starts, px (summoned minions). Returns the enemy. */
 export function spawnEnemy(g, type, at = 0) {
   const def = ENEMIES[type], st = g.stage;
-  const hp = Math.max(1, Math.round(20 * st.hpMult * (g.hpMult || 1) * Math.pow(st.growth, g.wave - 1) * def.hp * (1 + CURSE.life * cursesOn(g))));   /* co-op: x players */
-  const e = { type, def, d: at, hp, max: hp, speed: Math.min(90, 50 + g.wave * 2) * def.speed * ENEMY_SPEED, x: 0, y: 0, fx: null, dead: false, escaped: false, last: null,
+  const hp = Math.max(1, Math.round(20 * st.hpMult * (g.hpMult || 1) * Math.pow(st.growth, g.wave - 1) * def.hp * (1 + CURSE.life * cursesOn(g)) * (g.fxm && !def.boss ? g.fxm.life : 1)));   /* co-op: x players */
+  const e = { type, def, d: at, hp, max: hp, speed: Math.min(90, 50 + g.wave * 2) * def.speed * ENEMY_SPEED * (g.fxm ? g.fxm.enemySpeed : 1), x: 0, y: 0, fx: null, dead: false, escaped: false, last: null,
     ccRes: ccResFor(def, g.wave, st.n), ...defensesFor(def, g.wave, st.n) };
   pathPos(g.path, at / T, e);
   g.enemies.push(e);

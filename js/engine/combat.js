@@ -35,7 +35,7 @@ const raw = Object.fromEntries(DAMAGE_TYPES.map(t => [t, 0]));   /* reused for e
    rate < 1 (a beam's sliver per frame) scales the chance, like ailments. Returns the multiplier for this hit (1 or the crit's). */
 export function critMult(w, hero, e, rate = 1, stats = null) {
   const s = stats || hero.s, mark = e.fx && e.fx.mark, chance = (s.critChance || 0) + (mark ? mark.chance : 0);
-  if (!(chance > 0) || w.rng.combat.next() >= Math.min(1, chance) * rate) return 1;
+  if (!(chance > 0) || w.rng.combat.next() >= Math.min(1, chance) * rate) return w.fxm ? w.fxm.noCrit : 1;   /* Precision: plain hits are weaker */
   w.ev.emit('crit', { hero, enemy: e });
   return (s.critDamage || 1.5) + (mark ? mark.dmg : 0);
 }
@@ -50,6 +50,7 @@ export function attack(w, hero, e, scale = 1, rate = 1, as = null, stats = null)
   if (e.dead) return;
   const s = stats || hero.s, own = as || hero.def.damageType || 'physical', conv = !as && hero.def.convert;
   scale *= critMult(w, hero, e, rate, s);
+  if (w.fxm) scale *= w.fxm.hit;
   if (hero.def.bloodPrice) scale *= 1 + hero.def.bloodPrice * Math.max(0, (w.livesStart || 0) - w.lives);
   for (const t of DAMAGE_TYPES) raw[t] = (s[t + 'Damage'] || 0) * scale;
   /* Damage between a min and a max: each hit rolls within spread of the damage stat (one roll, on the combat stream). */
@@ -107,5 +108,5 @@ export function inflict(w, hero, e, id, hit) {
 /* Damage over time: resisted (but not stopped by armor), boosted by shock, credited to the hero that caused it. */
 export function dotDamage(w, src, e, amount, type) {
   if (e.dead || amount <= 0) return;
-  w.hit(src, e, mitigate(e, type, amount, false), type);
+  w.hit(src, e, mitigate(e, type, amount * (w.fxm ? w.fxm.dot : 1), false), type);
 }

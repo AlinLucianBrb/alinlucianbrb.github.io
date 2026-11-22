@@ -15,6 +15,7 @@ import { ITEMS, itemName, itemColor, itemBonusLines } from '../content/items.js'
 import { COOP } from '../content/rules.js';
 import { UNLOCKS } from '../content/unlocks.js';
 import { SLOT_NAME } from '../content/upgrades.js';
+import { relicMult } from '../engine/relics.js';
 import { PREVIEWS } from '../content/previews.js';
 import { PLAYER_COLORS } from './render.js';
 
@@ -204,20 +205,21 @@ export function renderHUD(g, v) {
   });
   if (layout && cb.onLayoutChange) cb.onLayoutChange();
   const box = $('relics');
-  if (box._g !== g || box._n !== g.relics.length) {
-    box._g = g; box._n = g.relics.length; box.textContent = '';
+  const relicKey = g.relics.map(r => r.name + r.r).join();
+  if (box._g !== g || box._n !== relicKey) {
+    box._g = g; box._n = relicKey; box.textContent = '';
     box.hidden = !g.relics.length;
     if (g.relics.length) {
       /* One chip per relic, whatever the rarities of its copies; the colour is the rarest copy's. */
       const byName = new Map();
-      g.relics.forEach(r => { const list = byName.get(r.name) || []; list.push(r.r); byName.set(r.name, list); });
+      g.relics.forEach(r => { const list = byName.get(r.name) || []; list.push(r); byName.set(r.name, list); });
       for (const [name, rs] of byName) {
-        const top = RARITIES[Math.max(...rs)], def = RELICS.find(x => x.name === name), n = rs.length;
-        const total = rs.reduce((a, r) => a + RARITIES[r].mult, 0);   /* relic effects scale with the multiplier, so copies add up */
+        const top = RARITIES[Math.max(...rs.map(r => r.r))], def = RELICS.find(x => x.name === name), n = rs.length;
+        const total = rs.reduce((a, r) => a + relicMult(r), 0);   /* relic effects scale with the multiplier, so copies add up */
         const sp = el('span', 'relicchip'); sp.append(spriteImg(relicIcon(name), 'pix relicico'), el('span', '', name + (n > 1 ? ' ×' + n : '')));
         sp.style.color = top.color; sp.style.borderColor = top.color; sp.tabIndex = 0;
         bindTip(sp, () => {
-          const parts = RARITIES.map((r, i) => [r, rs.filter(x => x === i).length]).filter(([, c]) => c).map(([r, c]) => (c > 1 ? c + '× ' : '') + r.name);
+          const parts = RARITIES.map((r, i) => [r, rs.filter(x => x.r === i).length]).filter(([, c]) => c).map(([r, c]) => (c > 1 ? c + '× ' : '') + r.name);
           return { title: name + (n > 1 ? ' ×' + n : ''), color: top.color, lines: [{ text: parts.join(' + '), color: '#ab9f8a' }, (n > 1 ? 'Together: ' : '') + def.desc(total)] };
         });
         box.append(sp);
@@ -275,8 +277,8 @@ export function renderMeter(g) {
 }
 
 /* Where a non-relic modifier comes from: ri -1 talent, -2 item, -3 evolution. */
-const SOURCE = { '-1': 'Talent', '-2': 'Item', '-3': 'Evolution', '-4': 'Level', '-5': 'Buff' };
-const SOURCE_COLOR = { '-1': '#f2b84b', '-2': '#8be28b', '-3': '#dcc6ff', '-4': '#8fd3ff', '-5': '#ff9d8a' };
+const SOURCE = { '-1': 'Talent', '-2': 'Item', '-3': 'Evolution', '-4': 'Level', '-5': 'Buff', '-6': 'Effect' };
+const SOURCE_COLOR = { '-1': '#f2b84b', '-2': '#8be28b', '-3': '#dcc6ff', '-4': '#8fd3ff', '-5': '#ff9d8a', '-6': '#ffe08a' };
 const pct = x => f(x * 100) + '%';
 /* Stats shown as percentages (chances). */
 const isChance = key => /Chance$/.test(key);
@@ -472,7 +474,7 @@ export function showPick(g) {
     const rar = RARITIES[o.ri], card = el('div', 'card'), b = el('button', 'choose'), tag = el('small', 'rar', rar.name), ban = el('button', 'linkbtn');
     tag.style.color = rar.color; b.classList.add('relicard'); b.style.setProperty('--rc', rar.color);   /* the card in its rarity's colour */
     const nm = el('b', 'relicname', o.relic.name);
-    b.append(el('small', 'pickkey', 'Key ' + (i + 1)), spriteImg(relicIcon(o.relic.name), 'pix relicico top'), nm, tag, el('small', '', o.relic.desc(rar.mult)), indicator(g, o.relic, rar.mult));
+    b.append(el('small', 'pickkey', 'Key ' + (i + 1)), spriteImg(relicIcon(o.relic.name), 'pix relicico top'), nm, tag, el('small', '', o.relic.desc(rar.mult * g.fxm.relicPower)), indicator(g, o.relic, rar.mult * g.fxm.relicPower));
     b.onclick = () => cb.onChoose(i); ban.onclick = () => cb.onBanish(i);
     ban.title = 'Remove this relic from your pool for the rest of the run, and draw another';
     card.append(b, ban); box.append(card); banishBtns.push(ban);

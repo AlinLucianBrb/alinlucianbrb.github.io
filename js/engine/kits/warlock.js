@@ -77,7 +77,7 @@ registerBehavior('imps', {
       for (const e of g.enemies) { if (e.dead) continue; const q = (e.x - imp.x) ** 2 + (e.y - imp.y) ** 2; if (q <= bd) { bd = q; best = e; } }
       if (!best) continue;
       imp.cd = IMP.every / rate;
-      g.attack(t, best, IMP.scale, 1, null, ms);
+      g.attack(t, best, IMP.scale * (g.fxm ? g.fxm.basic : 1), 1, null, ms);
       g.fx?.beam(imp.x, imp.y, best.x, best.y, 0.1, '#c46aff', 2);
     }
     for (let i = imps.length - 1; i >= 0; i--) if (imps[i].t <= 0) imps.splice(i, 1);
