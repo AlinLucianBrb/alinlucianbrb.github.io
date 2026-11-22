@@ -9,5 +9,8 @@
     "balance:report": "node tools/balance/run.mjs",
     "balance:tune": "node tools/balance/tune.mjs",
     "maps": "node tools/maps.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.65.1"
   }
 }
