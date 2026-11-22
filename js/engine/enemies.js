@@ -12,6 +12,7 @@ import { tickEffects, tickHold } from './effects.js';
    A minion is summoned: it gives no gold or XP and does not count as a kill.
    ENEMY_SPEED scales every enemy's speed (0.65: 35% slower than the first versions).
    Add a type here, then return it from waveEnemyType. */
+const SUMMONED = { radius: 20, hp: 7.2, speed: 0.45, bounty: 0, leak: 5, xp: 25, def: 0.006, cc: 0.3, boss: true, summoned: true };
 export const ENEMIES = {
   grunt:  { name: 'Grunt',  color: '#d1564d', radius: 10, hp: 1,   speed: 1,    bounty: 1,   leak: 1,  xp: 1,  def: 0.004 },
   brute:  { name: 'Brute',  color: '#8c3b8f', radius: 14, hp: 3,   speed: 0.6,  bounty: 2.5, leak: 2,  xp: 3,  def: 0.006 },
@@ -25,6 +26,13 @@ export const ENEMIES = {
   summoner: { name: 'Summoner', color: '#a45bd6', radius: 13, hp: 3,   speed: 0.6,  bounty: 4,   leak: 2, xp: 4, def: 0.004,
     ability: { id: 'summon', minion: 'minion', count: 3, casts: 3, cooldown: 8, first: 1 } },
   tough:    { name: 'Ironhide', color: '#7c8794', radius: 14, hp: 4,   speed: 1,    bounty: 3,   leak: 2, xp: 4, def: 0.009 },
+  /* Bosses summoned from the match shop (js/content/shop.js; boss-gimmicks.js): 60% of a boss's life, paid by their prize. */
+  bossSplitter: { ...SUMMONED, name: 'Splitter', color: '#5f8f4a', ability: { id: 'split', at: 0.5, into: 'bossHalf' } },
+  bossHalf:     { ...SUMMONED, name: 'Half',     color: '#5f8f4a', radius: 16, leak: 3, xp: 10 },
+  bossCharger:  { ...SUMMONED, name: 'Charger',  color: '#c9622e', ability: { id: 'enrage', more: 1.5 } },
+  bossWarded:   { ...SUMMONED, name: 'Warded',   color: '#4a7fb8', ability: { id: 'ward', every: 5, resist: 0.75 } },
+  bossThief:    { ...SUMMONED, name: 'Thief',    color: '#c9a227', ability: { id: 'steal', every: 3, gold: 10 } },
+  bossBlinker:  { ...SUMMONED, name: 'Blinker',  color: '#8a5fd0', ability: { id: 'blink', at: [0.75, 0.5, 0.25], tiles: 2 } },
   minion:   { name: 'Minion',   color: '#8a5fb0', radius: 8,  hp: 0.4, speed: 0.9,  bounty: 0,   leak: 1, xp: 0, def: 0.003, minion: true }
 };
 export const ENEMY_SPEED = 0.65;
@@ -46,6 +54,9 @@ export function defensesFor(def, wave, stage) {
    wave's last enemy. */
 export { waveCount, spawnDelay, isBossWave } from '../content/rules.js';
 import { isBossWave, specialsOf, waveCount } from '../content/rules.js';
+import { CURSE } from '../content/shop.js';
+/* A wave cursed by a gamble (w.curse): how many curses are on the current wave. */
+export const cursesOn = g => (g.curse && g.curse.wave === g.wave ? g.curse.n : 0);
 /* How many boss waves a run that reached `waves` has seen (the server uses the same rule to check boss kills). */
 export const bossWavesUpTo = (stage, waves) => { let n = 0; for (let i = 1; i <= Math.min(waves, stage.waves); i++) if (isBossWave(i, stage)) n++; return n; };
 /* i counts down from the wave size to 1, so the mix is the same every time. */
@@ -73,7 +84,7 @@ export function pathPos(path, i, out) {
 /* at: how far along the path it starts, px (summoned minions). Returns the enemy. */
 export function spawnEnemy(g, type, at = 0) {
   const def = ENEMIES[type], st = g.stage;
-  const hp = Math.max(1, Math.round(20 * st.hpMult * (g.hpMult || 1) * Math.pow(st.growth, g.wave - 1) * def.hp));   /* co-op: x players */
+  const hp = Math.max(1, Math.round(20 * st.hpMult * (g.hpMult || 1) * Math.pow(st.growth, g.wave - 1) * def.hp * (1 + CURSE.life * cursesOn(g))));   /* co-op: x players */
   const e = { type, def, d: at, hp, max: hp, speed: Math.min(90, 50 + g.wave * 2) * def.speed * ENEMY_SPEED, x: 0, y: 0, fx: null, dead: false, escaped: false, last: null,
     ccRes: ccResFor(def, g.wave, st.n), ...defensesFor(def, g.wave, st.n) };
   pathPos(g.path, at / T, e);

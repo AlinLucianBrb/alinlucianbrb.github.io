@@ -4,6 +4,7 @@ import { tintOf } from '../engine/effects.js';
 import { get as sprite, tiles as tileSheet, drawSprite, heroSprite, frameOf, heroAnim, attackFrame, attackPeriod, terrain, drawEnemyArt, enemyHeight, ENEMY_ANIM, upright, unsquash, at, setPicture } from './sprites.js';
 import { project, unproject, scaleAt, setView } from './camera.js';
 import { isShielded } from '../engine/enemy-abilities.js';
+import { TILE_EFFECTS, TILES } from '../content/shop.js';
 import { drawAuras, drawMinions, drawMounted, KIT_PROJ, KIT_ZONE, KIT_AIL_ICON, BUFF_COLOR } from './kit-art.js';
 
 const MAP_W = COLS * T, MAP_H = ROWS * T;
@@ -661,7 +662,7 @@ function drawBoard(ctx, g, v) {
   }
   /* A grid on the map only while a hero is being placed or moved, so the tiles are easy to aim at: lines toward the far
      side converge, like the board. */
-  if (v.placing || v.moving) {
+  if (v.placing || v.moving || v.tile) {
     ctx.strokeStyle = b ? 'rgba(0,0,0,.14)' : 'rgba(255,255,255,.08)'; ctx.lineWidth = 1;
     ctx.beginPath();
     for (let i = 1; i < COLS; i++) { const a = P(i * T, 0), c = P(i * T, MAP_H); ctx.moveTo(a[0], a[1]); ctx.lineTo(c[0], c[1]); }
@@ -671,7 +672,7 @@ function drawBoard(ctx, g, v) {
   ctx.fillStyle = '#e5645a'; quad(ctx, end[0] * T + T - 6, end[1] * T, end[0] * T + T, end[1] * T + T); ctx.fill();   /* the gate */
   /* The edge of the buildable area, while a hero is being placed or moved (with the grid): a soft shadow outside and a
      light line on it. The rest of the time the field blends into the land around it. */
-  if (v.placing || v.moving || !b) {
+  if (v.placing || v.moving || v.tile || !b) {
     quad(ctx, 0, 0, MAP_W, MAP_H);
     ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 5; ctx.stroke();
     ctx.strokeStyle = 'rgba(255,255,255,.22)'; ctx.lineWidth = 1.5; ctx.stroke();
@@ -716,6 +717,8 @@ export function draw(ctx, g, v) {
       ctx.globalAlpha = 1;
     }
   }
+  for (const t of g.tiles || []) drawTile(ctx, t.cx, t.cy, TILE_EFFECTS[t.effect].color, t.level, 1, t.effect);
+  if (v.tile && inside && !g.pathSet.has(h[0] + ',' + h[1])) drawTile(ctx, h[0], h[1], TILE_EFFECTS[v.tile].color, 1, 0.6, v.tile);   /* where the one being bought would go */
   /* Zones lie on the ground: drawn before heroes and enemies, so puddles never cover them. */
   for (const z of g.zones || []) at(ctx, z.x, z.y, () => { if (!(ZONE_SPRITE[z.type] && ZONE_SPRITE[z.type](ctx, z))) (ZONE_DRAW[z.type] || ZONE_DRAW.storm)(ctx, z); });
   /* Path previews: an echo of the hero runs the form's attack (js/engine/preview.js); its aura, pup, imp, ride and blink are
@@ -799,6 +802,19 @@ export function draw(ctx, g, v) {
     }
     else drawSprite(ctx, a.name, a.x, a.y, a.s, 0, f, a.frames);
   });
+}
+
+/* A ground effect: its tile in its colour, with a mark and a dot per level. A Conduit shows the 8 tiles it draws from. */
+function drawTile(ctx, cx, cy, color, level, alpha, effect) {
+  const x = cx * T, y = cy * T;
+  ctx.save(); ctx.globalAlpha = 0.28 * alpha; ctx.fillStyle = color;
+  quad(ctx, x + 2, y + 2, x + T - 2, y + T - 2); ctx.fill();
+  ctx.globalAlpha = 0.95 * alpha; ctx.strokeStyle = color; ctx.lineWidth = 2.5;
+  quad(ctx, x + 3, y + 3, x + T - 3, y + T - 3); ctx.stroke();
+  if (effect === 'conduit') { ctx.globalAlpha = 0.35 * alpha; ctx.lineWidth = 1.5; quad(ctx, x - T + 3, y - T + 3, x + 2 * T - 3, y + 2 * T - 3); ctx.stroke(); }
+  ctx.globalAlpha = alpha;
+  at(ctx, x + T / 2, y + T - 7, () => { for (let k = 0; k < TILES.levels; k++) { ctx.beginPath(); ctx.arc(x + T / 2 + (k - 1) * 8, y + T - 7, 2.6, 0, 7); ctx.fillStyle = k < level ? color : 'rgba(0,0,0,.45)'; ctx.fill(); } });
+  ctx.restore();
 }
 
 /* Which way an enemy faces: the walk art faces left, so it turns right while it walks right (kept while it walks straight

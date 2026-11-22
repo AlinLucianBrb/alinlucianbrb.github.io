@@ -10,6 +10,7 @@ import { coop, enterLobby, closeLobby } from '../net/session.js';
 import { PLAYER_COLORS } from '../game/render.js';
 import { pathChoice } from '../engine/preview.js';
 import { el, cap, currentLineup, wornItems, ensureItems, saveNow, sqlHint, activePaths } from './loadout.js';
+import { isUnlocked } from '../content/unlocks.js';
 
 const $ = id => document.getElementById(id);
 const PING_MS = 4000, LIST_MS = 6000;
@@ -17,6 +18,7 @@ let bound = false, view = 'create', isPrivate = false, asking = null, pinger = 0
 
 const say = (t, bad = true) => { $('lbyMsg').textContent = t || ''; $('lbyMsg').classList.toggle('warn', !!bad); };
 const uid = () => state.profile.id;
+const hasShop = () => isUnlocked('shop', state.profile.levels_cleared);
 const unlocked = () => STAGES.filter(s => s.n <= (state.profile.levels_cleared || 0) + 1);
 const friendly = e => (e || '').replace(/^.*?:\s*/, '') + sqlHint(e);
 
@@ -93,7 +95,7 @@ async function enterRoom(lobby) {
 /* Tell the others what I bring (they need it to build the same match). */
 function announce() {
   if (!coop.channel) return;
-  coop.channel.track({ uid: uid(), name: state.profile.username, level: state.profile.level, talents: state.profile.talents || [], lineup: [...lineup], paths: { ...activePaths() }, items: wornItems() });
+  coop.channel.track({ uid: uid(), name: state.profile.username, level: state.profile.level, talents: state.profile.talents || [], lineup: [...lineup], paths: { ...activePaths() }, shop: hasShop(), items: wornItems() });
 }
 async function ping() {
   if (!coop.lobby) return;
@@ -172,8 +174,8 @@ async function startMatch() {
   if (missing.length) return say('Waiting for ' + missing.map(m => m.username).join(', ') + ' to connect.');
   const seed = globalThis.crypto && crypto.getRandomValues ? crypto.getRandomValues(new Uint32Array(1))[0] : Math.floor(Math.random() * 4294967296);
   const config = { seed, stage: l.stage, host: uid(), players: l.members.map(m => {
-    const meta = m.user_id === uid() ? { talents: state.profile.talents || [], lineup, paths: activePaths(), items: wornItems() } : here[m.user_id];
-    return { uid: m.user_id, name: m.username, talents: meta.talents || [], lineup: meta.lineup, paths: meta.paths || {}, items: meta.items || {} };
+    const meta = m.user_id === uid() ? { talents: state.profile.talents || [], lineup, paths: activePaths(), shop: hasShop(), items: wornItems() } : here[m.user_id];
+    return { uid: m.user_id, name: m.username, talents: meta.talents || [], lineup: meta.lineup, paths: meta.paths || {}, shop: !!meta.shop, items: meta.items || {} };
   }) };
   $('lbyStart').disabled = true; say('Starting…', false);
   const { error } = await startLobby(l.id, config);

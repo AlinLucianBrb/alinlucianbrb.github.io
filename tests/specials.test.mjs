@@ -126,7 +126,7 @@ test('a match that meets every special enemy replays exactly', () => {
       for (const e of w.enemies) seen.add(e.type);
     }
     assert.ok(w.wave >= 27, 'got to wave ' + w.wave);
-    for (const id of Object.keys(ENEMIES)) assert.ok(seen.has(id) || id === 'boss', id + ' came');
+    for (const id of Object.keys(ENEMIES)) assert.ok(seen.has(id) || ENEMIES[id].boss, id + ' came');
     assert.ok(stunned > 0, 'heroes were stunned');
     assert.ok(w.kills <= killCap(w.wave), 'never more kills than the server accepts');
     assert.equal(hashWorld(replay(exportLog(w))), hashWorld(w));

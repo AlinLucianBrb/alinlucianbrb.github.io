@@ -133,9 +133,11 @@ const VARIANTS = {
   immune:   { of: 'grunt', tiles: 1.45 },
   summoner: { of: 'boss', tiles: 1.5 },
   tough:    { of: 'brute', tiles: 1.75 },
-  minion:   { of: 'runner', tiles: 0.85 }
+  minion:   { of: 'runner', tiles: 0.85 },
+  bossSplitter: { of: 'boss', tiles: 1.75 }, bossHalf: { of: 'boss', tiles: 1.3, art: 'bossSplitter' }, bossCharger: { of: 'boss', tiles: 1.75 },
+  bossWarded: { of: 'boss', tiles: 1.75 }, bossThief: { of: 'boss', tiles: 1.75 }, bossBlinker: { of: 'boss', tiles: 1.75 }
 };
-for (const [id, v] of Object.entries(VARIANTS)) ENEMY_ANIM[id] = { ...ENEMY_ANIM[v.of], name: 'anim_' + id + '_walk', tiles: v.tiles };
+for (const [id, v] of Object.entries(VARIANTS)) ENEMY_ANIM[id] = { ...ENEMY_ANIM[v.of], name: 'anim_' + (v.art || id) + '_walk', tiles: v.tiles };
 /* An enemy's walk frame, standing on (x, y) (upright space), facing left (face -1) or right (1); alpha optional. Returns false
    until its art has loaded. d: the distance it has walked, in px. */
 export function drawEnemyArt(ctx, type, d, x, y, face = -1, T = 40) {

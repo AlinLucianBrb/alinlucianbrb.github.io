@@ -18,6 +18,11 @@ VARIANTS = {
     'immune':   dict(of='orc',     hue=0.58, mix=1.0, sat=0.22, val=1.35),   # pale steel
     'summoner': dict(of='warlord', hue=0.78, mix=0.95, sat=1.2, val=1.05),   # violet
     'tough':    dict(of='troll',   hue=0.60, mix=1.0, sat=0.35, val=0.8),    # dark iron
+    'bossSplitter': dict(of='warlord', hue=0.30, mix=0.95, sat=1.0, val=1.05),  # the summoned bosses: moss green
+    'bossCharger':  dict(of='warlord', hue=0.05, mix=0.95, sat=1.3, val=1.1),   # ember orange
+    'bossWarded':   dict(of='warlord', hue=0.57, mix=0.95, sat=1.1, val=1.1),   # ward blue
+    'bossThief':    dict(of='warlord', hue=0.13, mix=0.95, sat=1.2, val=1.15),  # stolen gold
+    'bossBlinker':  dict(of='warlord', hue=0.88, mix=0.95, sat=1.1, val=1.1),   # rose
     'minion':   dict(of='goblin',  hue=0.78, mix=0.95, sat=1.0, val=0.95),   # violet, like its summoner
 }
 

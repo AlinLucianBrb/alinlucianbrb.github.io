@@ -9,7 +9,11 @@ import { talentMods } from '../content/talents.js';
 import { resolve, heroStats, minionStats } from './stats.js';
 import { attack, dotDamage } from './combat.js';
 import { BEHAVIORS } from './behaviors.js';
-import { spawnEnemy, updateEnemies, sweep, waveCount, spawnDelay, waveEnemyType } from './enemies.js';
+import { spawnEnemy, updateEnemies, sweep, waveCount, spawnDelay, waveEnemyType, cursesOn } from './enemies.js';
+import { CURSE } from '../content/shop.js';
+import { greedMult, applyConduits, hasConduit } from './tiles.js';
+import { payPrize, rollBossKind } from './shop.js';
+import './boss-gimmicks.js';
 import { updateAbilities, isShielded } from './enemy-abilities.js';
 import { attachUpgrades } from './upgrades.js';
 import { updateProjectiles } from './projectiles.js';
@@ -25,7 +29,7 @@ import { cleanPaths, pathChoice, pathDef, previewMods, syncPreview, updatePrevie
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
 export const REROLL_GOLD = 0.25;
-export const ENGINE_VERSION = 28;     /* bump when a rule change would make old command logs play out differently */
+export const ENGINE_VERSION = 29;     /* bump when a rule change would make old command logs play out differently */
 
 /* Checks a lineup: up to LINEUP_SIZE different, playable heroes. Returns a clean copy, or the full roster if it is empty. */
 export function cleanLineup(lineup) {
@@ -36,7 +40,7 @@ export function cleanLineup(lineup) {
 
 /* One player's side of a match: its heroes' lineup, talents and items, and its own gold, relics and relic choice.
    In co-op every player has one (the map, the enemies, the lives and the waves are shared; gold and relics are not). */
-function makePlayer(i, { talents = [], lineup = null, items = {}, paths = {}, relics = [] } = {}) {
+function makePlayer(i, { talents = [], lineup = null, items = {}, paths = {}, relics = [], shop = false } = {}) {
   const team = cleanLineup(lineup), equipped = {}, path = cleanPaths(paths, team);
   for (const id of team) if (items && items[id]) { const list = (Array.isArray(items[id]) ? items[id] : [items[id]]).filter(Boolean).map(asItem); if (list.length) equipped[id] = list; }
   /* Gear that does not fit its wearer (as it will play: its path's tags included) counts as its general version. */
@@ -44,6 +48,7 @@ function makePlayer(i, { talents = [], lineup = null, items = {}, paths = {}, re
   const mods = [...talentMods(talents), ...itemMods(equipped, wearerOf)];
   return {
     i, talents: [...talents], lineup: team, paths: path, items: equipped, mods, startRelics: cleanRelics(relics), gold: START_GOLD + resolve(0, 'startGold', mods), gs: null,
+    shop: !!shop, gambles: 0, gambleWave: -1, gambleN: 0, lastGamble: null,   /* the match shop (shop.js) */
     relics: [], relicsBought: 0, banned: new Set(), picking: false, pick: null, playOnPick: false, auto: false, ready: false,
     /* Free relic rerolls and banishes for this match: they come only from talents. */
     rerolls: Math.round(resolve(0, 'rerolls', mods)), banishes: Math.round(resolve(0, 'banishes', mods))
@@ -54,16 +59,16 @@ const cleanRelics = list => (list || []).filter(r => r && RELICS.some(x => x.nam
 
 /* The fields that belong to a player. On the world they mean player 1's (w.gold, w.relics...), so solo code reads as before. */
 export const PLAYER_FIELDS = ['talents', 'lineup', 'paths', 'items', 'mods', 'gold', 'gs', 'relics', 'relicsBought', 'banned', 'picking', 'pick', 'playOnPick',
-  'auto', 'ready', 'rerolls', 'banishes'];
+  'auto', 'ready', 'rerolls', 'banishes', 'shop', 'gambles', 'gambleWave', 'gambleN', 'lastGamble'];
 
 /* lineup: the hero ids brought into the match. items: { heroId: [{ type, rarity, bonuses }] } equipped before the match
    (see js/content/items.js; a plain item type id also works, as a Common item with no bonuses).
    Co-op: players: [{ talents, lineup, items }, ...] instead, one per player (2 to 4); enemies get that many times the life. */
-export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, items = {}, paths = {}, relics = [], players = null, record = true } = {}) {
+export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, items = {}, paths = {}, relics = [], shop = false, players = null, record = true } = {}) {
   const def = STAGES[stage - 1];
   if (!def) throw new Error('Unknown stage ' + stage);
-  const root = createRng(seed), rng = { path: root.fork('path'), relic: root.fork('relic'), combat: root.fork('combat'), gold: root.fork('gold') };
-  const ps = (players && players.length ? players : [{ talents, lineup, items, paths, relics }]).map((p, i) => makePlayer(i, p));
+  const root = createRng(seed), rng = { path: root.fork('path'), relic: root.fork('relic'), combat: root.fork('combat'), gold: root.fork('gold'), shop: root.fork('shop') };
+  const ps = (players && players.length ? players : [{ talents, lineup, items, paths, relics, shop }]).map((p, i) => makePlayer(i, p));
   const path = MAPS[def.n - 1].map(c => [...c]), coop = ps.length > 1;   /* each level's fixed map (maps.js) */
   const w = {
     seed: seed >>> 0, stageN: stage, stage: def, maxWave: def.waves, rng, path, pathSet: new Set(path.map(c => c.join(','))),
@@ -71,11 +76,13 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
     lives: 20 + ps.reduce((a, p) => a + resolve(0, 'startLives', p.mods), 0),
     wave: 0, spawnLeft: 0, spawnT: 0, kills: 0, bossKills: 0, nextHeroId: 1,
     heroes: [], enemies: [], projs: [], zones: [],
+    tiles: [], curse: null, bossesSummoned: 0, bossNext: 1, bossKind: null,   /* the match shop */
     ev: createBus(), fx: null,
-    log: record ? { v: 1, ver: ENGINE_VERSION, seed: seed >>> 0, stage, talents: [...ps[0].talents], lineup: [...ps[0].lineup], paths: { ...ps[0].paths }, ...(ps[0].startRelics.length ? { relics: ps[0].startRelics.map(r => ({ ...r })) } : {}), items: JSON.parse(JSON.stringify(ps[0].items)), commands: [], ticks: 0,
-      ...(coop ? { players: ps.map(p => ({ talents: [...p.talents], lineup: [...p.lineup], paths: { ...p.paths }, relics: p.startRelics.map(r => ({ ...r })), items: JSON.parse(JSON.stringify(p.items)) })) } : {}) } : null
+    log: record ? { v: 1, ver: ENGINE_VERSION, seed: seed >>> 0, stage, talents: [...ps[0].talents], lineup: [...ps[0].lineup], paths: { ...ps[0].paths }, ...(ps[0].shop ? { shop: true } : {}), ...(ps[0].startRelics.length ? { relics: ps[0].startRelics.map(r => ({ ...r })) } : {}), items: JSON.parse(JSON.stringify(ps[0].items)), commands: [], ticks: 0,
+      ...(coop ? { players: ps.map(p => ({ talents: [...p.talents], lineup: [...p.lineup], paths: { ...p.paths }, ...(p.shop ? { shop: true } : {}), relics: p.startRelics.map(r => ({ ...r })), items: JSON.parse(JSON.stringify(p.items)) })) } : {}) } : null
   };
   for (const k of PLAYER_FIELDS) Object.defineProperty(w, k, { get: () => ps[0][k], set: v => { ps[0][k] = v; }, enumerable: true });
+  w.bossKind = rollBossKind(w);
   w.ownerOf = h => ps[h.owner || 0];
   w.hit = (hero, e, amount, type, quiet) => hit(w, hero, e, amount, type, quiet);
   w.livesStart = w.lives;   /* the Heretic's blood price counts the lives lost since */
@@ -98,9 +105,15 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
   w.rerollCost = (p = ps[0]) => (!p.pick || p.rerolls > 0 ? 0 : Math.max(1, Math.round(REROLL_GOLD * p.pick.paid * (1 + (p.pick.goldRerolls || 0)))));
   w.previewRange = (i, p = ps[0]) => resolve(HEROES[i].stats.range, 'range', p.mods, HEROES[i].tags);
   w.meter = createMeter(w.ev);
-  w.ev.on('kill', ({ enemy }) => {
+  w.ev.on('kill', ({ hero, enemy }) => {
     if (enemy.def.minion) return;   /* summoned: no gold, no XP, not a kill (the server counts only the wave's own enemies) */
-    for (const p of ps) p.gold += Math.round(p.gs.bounty * enemy.def.bounty) + bonusGold(w, p);   /* every player is paid for every kill */
+    if (enemy.def.summoned) {          /* a boss from the shop: its prize instead, and not a kill either */
+      payPrize(w, enemy);
+      for (const h of w.heroes) gainXp(w, h, enemy.def.xp || 0);
+      return;
+    }
+    const curse = 1 + CURSE.gold * cursesOn(w), greed = hero ? greedMult(w, hero) : 1;   /* a cursed wave pays more; Greed pays the hero's owner */
+    for (const p of ps) p.gold += Math.round((Math.round(p.gs.bounty * enemy.def.bounty) + bonusGold(w, p)) * curse * (hero && (hero.owner || 0) === p.i ? greed : 1));   /* every player is paid for every kill */
     w.kills++;
     if (enemy.def.boss) w.bossKills++;   /* each boss defeated guarantees an item at the end of the match (finish_run) */
     for (const h of w.heroes) gainXp(w, h, enemy.def.xp || 0);   /* every hero on the field learns from every kill */
@@ -112,7 +125,8 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
   /* A boss that gets through on the last wave ends the run: a level is only won by beating its final boss. */
   w.ev.on('escape', ({ enemy }) => {
     w.lives = Math.max(0, w.lives - enemy.def.leak);
-    if (w.lives <= 0 || (enemy.def.boss && w.wave >= w.maxWave)) endRun(w, false);
+    if (enemy.prize) { enemy.prize.lost = true; payPrize(w, enemy); }
+    if (w.lives <= 0 || (enemy.def.boss && !enemy.def.summoned && w.wave >= w.maxWave)) endRun(w, false);
   });
   /* Starting relics count as if picked before the first wave (same effect as the choose command). */
   for (const p of ps) for (const r of p.startRelics) {
@@ -142,6 +156,7 @@ function bonusGold(w, p) {
 export function hit(w, hero, e, amount, type = 'physical', quiet = false) {
   if (e.dead || !(amount > 0) || isShielded(e)) return;
   amount *= damageTaken(e);
+  if (e.taken) { e.taken[type] = (e.taken[type] || 0) + amount; if (e.ward && e.ward.type === type) amount *= e.ward.mult; }   /* the Warded boss */
   const dealt = Math.min(amount, e.hp);
   e.hp -= amount; if (hero) e.last = hero;
   if (hero) w.ev.emit('damage', { hero, enemy: e, amount: dealt, type });
@@ -196,6 +211,8 @@ export function statsFor(w, h) {
   if (h.preview) syncPreview(h, all);
   h.ms = h.def.tags.includes('minion') ? minionStats(h.s) : null;   /* its minion's stats (the wolf) */
   if (h.energy > h.s.energyMax) h.energy = h.s.energyMax;
+  h.raw = h.s;                          /* its own stats; a Conduit moves some between heroes */
+  if (hasConduit(w)) applyConduits(w);
   return h.s;
 }
 

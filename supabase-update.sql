@@ -849,7 +849,7 @@ create or replace function public.rule_stage_waves(p_stage int) returns int
 language sql immutable set search_path = public as $$ select (array[15, 25, 35, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55])[p_stage] $$;
 -- Levels that must be cleared before a feature is unlocked (it unlocks on reaching its act).
 create or replace function public.rule_unlock(p_feature text) returns int
-language sql immutable set search_path = public as $$ select case p_feature when 'paths' then 5 when 'crafting' then 5 when 'speed2' then 10 end $$;
+language sql immutable set search_path = public as $$ select case p_feature when 'paths' then 5 when 'crafting' then 5 when 'shop' then 10 when 'speed2' then 10 end $$;
 -- Heroes a player can bring into a match.
 create or replace function public.rule_lineup_max() returns int
 language sql immutable set search_path = public as $$ select 3 $$;

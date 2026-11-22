@@ -5,6 +5,7 @@ import { ZONES, LEVELS, LEVELS_PER_ZONE, zoneOf } from './zones.js';
 export const UNLOCKS = {
   paths:  { act: 2, name: 'Evolution paths' },   /* picking a path before a match; heroes still evolve in a match without one */
   crafting: { act: 2, name: 'Crafting' },
+  shop: { act: 3, name: 'The match shop' },
   speed2: { act: 3, name: '2x game speed' }
 };
 /* The act a player has reached, from the number of levels cleared. */

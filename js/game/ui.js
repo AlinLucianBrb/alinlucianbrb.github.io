@@ -121,6 +121,7 @@ export function initUI(callbacks) {
     ...oddsLines(cb.luck ? cb.luck() : 0),
     { text: 'The price goes up with each relic you buy. Key: Space (then 1, 2 or 3 to pick)', color: '#ab9f8a' }] }));
   bindTip($('auto'), () => ({ title: 'Auto-start', lines: ['Starts the next wave by itself 3 seconds after a wave is cleared. When it is on, the button is green with a glowing, pulsing border; when it is off, it is red.', { text: 'Turned off again when you retry a level.', color: '#ab9f8a' }] }));
+  bindTip($('shopBtn'), () => ({ title: 'Shop', color: '#dcc6ff', lines: ['Ground effects for tiles, a gamble, and a boss to summon for gold.', { text: 'Key: B', color: '#ab9f8a' }] }));
   bindTip($('spd'), () => ({ title: 'Game speed', lines: (cb.maxSpeed ? cb.maxSpeed() : 1) > 1 ? ['Switch between normal (1x) and double (2x) speed.']
     : ['Normal speed (1x).', { text: '2x unlocks in Act ' + UNLOCKS.speed2.act + '.', color: '#ab9f8a' }] }));
   bindTip($('menuBtn'), () => ({ title: 'Menu', lines: ['Pauses the game and asks before quitting the match. Key: P to pause, Esc to resume.'] }));
@@ -175,6 +176,7 @@ export function renderHUD(g, v) {
   setText($('relic'), v.pendRelic ? 'Relic · …' : 'Relic · ' + g.relicCost());
   $('relic').disabled = !!v.pendRelic;
   $('auto').classList.toggle('on', auto); $('auto').setAttribute('aria-pressed', String(auto));
+  $('shopBtn').hidden = !(g.me && g.me.shop); $('shopBtn').disabled = g.phase === 'over' || g.picking;
   setText($('spd'), v.speed + 'x'); $('spd').classList.toggle('on', v.speed > 1);
   let layout = false;
   HEROES.forEach((d, i) => {

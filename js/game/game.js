@@ -12,6 +12,9 @@ import { createCamera, fitCamera, clampCamera, zoomAt, panBy, toWorld, toScreen,
 import * as ui from './ui.js';
 import { createHost, createGuest } from '../net/lockstep.js';
 import { pathChoice } from '../engine/preview.js';
+import { TILE_EFFECTS } from '../content/shop.js';
+import { tileCost } from '../engine/shop.js';
+import { initShop, showShop, hideShop, updateShop } from './shop-ui.js';
 import { worldOptions } from '../net/session.js';
 
 const $ = id => document.getElementById(id);
@@ -51,7 +54,7 @@ function newRun(resumeLog = null) {
   const c = hooks.coop;
   const seed = c ? c.config.seed : resumeLog ? resumeLog.seed : newSeed();
   world = c ? createWorld(worldOptions(c.config)) : resumeLog ? resume(resumeLog)
-    : createWorld({ seed, stage: stageN, talents: hooks.talents || [], lineup: hooks.lineup, items: hooks.items || {}, paths: hooks.paths || {} });
+    : createWorld({ seed, stage: stageN, talents: hooks.talents || [], lineup: hooks.lineup, items: hooks.items || {}, paths: hooks.paths || {}, shop: !!hooks.shop });
   const me = c ? c.me : 0, current = world;
   w = playerView(world, me);
   net = !c ? null : c.isHost ? createHost({ world, transport: c.transport, me })
@@ -62,7 +65,7 @@ function newRun(resumeLog = null) {
   w.ev.on('kill', ({ enemy }) => { if (w.fx && !enemy.escaped) addImpact(v.vfx, 'fx_impact_physical', enemy, 0.9, 0.35); });
   w.ev.on('explode', ({ zone }) => { if (w.fx) addAnim(v.vfx, 'fx_explosion', zone.x, zone.y, 96, 0.45, 5); });
   w.ev.on('moonfall', ({ zone }) => { if (w.fx) addAnim(v.vfx, 'fx_moonburst', zone.x, zone.y, zone.r * 2.3, 0.45, 5); });
-  pend.length = 0; v.selected = v.moving = v.evo = null; ui.hideEvoPick(); if (v.speed > topSpeed()) v.speed = 1; v.vfx.beams.length = 0; v.vfx.slashes.length = 0; v.vfx.anims.length = 0; v.swings.clear(); v.needFit = true;
+  pend.length = 0; v.selected = v.moving = v.evo = null; ui.hideEvoPick(); closeShop(); pickTile(null); if (v.speed > topSpeed()) v.speed = 1; v.vfx.beams.length = 0; v.vfx.slashes.length = 0; v.vfx.anims.length = 0; v.swings.clear(); v.needFit = true;
   if (!c && !resumeLog && playOnPickSaved()) apply(world, { type: 'playOnPick', on: true });   /* logged, so the replay plays the same way */
   v.sel = -1;   /* no hero picked until the player picks one (its card, a key, or a hero on the map) */
   ui.setLineup(w);
@@ -168,7 +171,7 @@ function frame(now) {
   const real = Math.min(MAX_CATCHUP, Math.max(0, (now - last) / 1000)); last = now;
   const hidden = !!document.hidden;
   /* Solo: the Menu, the evolve picker and (unless the player chose otherwise) the relic picker pause. Co-op never pauses. */
-  const running = hooks.coop ? world.phase !== 'over' && !netDead : !v.paused && !v.evo && world.phase !== 'over' && (!w.picking || w.playOnPick);
+  const running = hooks.coop ? world.phase !== 'over' && !netDead : !v.paused && !v.evo && !v.shop && !v.tile && world.phase !== 'over' && (!w.picking || w.playOnPick);
   world.fx = hidden ? null : v.fx;
   if (net && !net.isHost) v.speed = net.speed;   /* a guest plays at the host's speed */
   const speed = v.speed;
@@ -204,6 +207,8 @@ function render(dt) {
   if (v.needFit) { v.needFit = false; fitToScreen(); }
   syncPick();
   if (w.picking) ui.updatePick(w);
+  if (v.shop) { if (w.phase === 'over' || w.picking) closeShop(); else updateShop(w); }
+  if (v.tile && w.phase === 'over') pickTile(null);
   if ((uiT += 1 / 60) >= 0.25) { uiT = 0; ui.renderMeter(w); if (v.selected) ui.renderInspector(w, v); }
 }
 function loopRaf(t) { raf = requestAnimationFrame(loopRaf); frame(t); }   /* the next frame is booked first, so an error can never stop the loop */
@@ -337,6 +342,12 @@ cv.addEventListener('wheel', e => {
 function clickCell(cx, cy, hit = null) {
   if (w.phase === 'over' || w.picking) return;
   const inside = cx >= 0 && cy >= 0 && cx < COLS && cy < ROWS;
+  if (v.tile) {   /* a ground effect bought in the shop: click the tile it goes on */
+    if (!inside) return pickTile(null);
+    const r = act({ type: 'buyTile', effect: v.tile, cx, cy });
+    if (r.ok) pickTile(null); else tileHint(r.reason === 'blocked' ? 'Not there: not on the path, and one effect a tile' : 'You cannot buy that now');
+    return;
+  }
   if (hit && !v.moving && !canPlace(v.sel)) { v.selected = hit; ui.renderInspector(w, v); return; }   /* clicked on a hero's figure */
   const existing = inside && w.heroes.find(t => t.cx === cx && t.cy === cy);
   if (v.moving) {
@@ -355,6 +366,7 @@ function clickCell(cx, cy, hit = null) {
    While moving, the grid shows; a click on the new spot moves it there, Esc or a right-click cancels. */
 function rightClickCell(cx, cy, hit = null) {
   if (w.phase === 'over' || w.picking) return;
+  if (v.tile) return pickTile(null);
   if (v.moving) { v.moving = null; ui.renderInspector(w, v); return; }
   const h = (hit && w.mine(hit) ? hit : null) || w.heroes.find(t => t.cx === cx && t.cy === cy && w.mine(t));
   if (h) { v.selected = h; v.sel = h.type; }
@@ -379,9 +391,23 @@ const closeInspector = () => { v.selected = v.moving = null; ui.renderInspector(
    the game like the relic picker. Choosing a form spends the gold and evolves the hero; Cancel or Esc closes it. */
 function openEvolve(h) {
   const step = h && nextStep(h);
-  if (!step || !w.mine(h) || h.level < w.evolveLevel(h) || w.phase === 'over' || w.picking) return;
+  if (!step || !w.mine(h) || h.level < w.evolveLevel(h) || w.phase === 'over' || w.picking || v.shop) return;
   v.evo = h; v.selected = h; v.sel = h.type; ui.renderInspector(w, v); ui.showEvoPick(w, h);
 }
+/* The match shop (shop-ui.js): solo it pauses the game, like the evolution picker; choosing a tile keeps it paused. */
+function openShop() {
+  if (!w || !w.me.shop || w.phase === 'over' || w.picking || v.evo || netDead) return;
+  pickTile(null); v.moving = null; v.shop = true; showShop(w);
+}
+function closeShop() { v.shop = false; hideShop(); }
+function tileHint(text) { $('tileHint').textContent = text || ''; $('tileHint').hidden = !text; }
+/* Choosing where a ground effect goes (effect: its id), or not any more (null). */
+function pickTile(effect) {
+  v.tile = effect;
+  tileHint(effect ? TILE_EFFECTS[effect].name + ' · ' + tileCost(w, w.me) + ' gold: click a tile. Esc or right-click cancels.' : '');
+}
+initShop({ onClose: closeShop, onAct: c => { act(c); updateShop(w); }, onTile: id => { closeShop(); pickTile(id); } });
+$('shopBtn').onclick = openShop;
 const closeEvolve = () => { v.evo = null; ui.hideEvoPick(); };
 const evolveSelected = () => openEvolve(v.selected);
 const chooseEvolution = i => { const h = v.evo; if (h && act({ type: 'evolve', id: h.id, choice: i }).ok) { closeEvolve(); ui.renderInspector(w, v); } };
@@ -423,16 +449,17 @@ addEventListener('keydown', e => {
   /* While choosing a relic, 1, 2 and 3 pick one; otherwise the number keys choose heroes. */
   if (w.picking && w.pick && +e.key >= 1 && +e.key <= w.pick.offers.length) act({ type: 'choose', index: +e.key - 1 });
   else if (+e.key >= 1 && +e.key <= w.lineup.length) selectType(heroIndex(w.lineup[+e.key - 1]));
-  else if (k === ' ' || k === 'r') { e.preventDefault && e.preventDefault(); if (!w.picking && !v.evo) act({ type: 'buyRelic' }); }   /* Space (or R): buy a relic */
+  else if (k === ' ' || k === 'r') { e.preventDefault && e.preventDefault(); if (!w.picking && !v.evo && !v.shop && !v.tile) act({ type: 'buyRelic' }); }   /* Space (or R): buy a relic */
   else if (k === 'm') toggleMove();
+  else if (k === 'b') { if (v.shop) closeShop(); else openShop(); }   /* B: the shop */
   else if (k === 'e') evolveSelected();
   else if (k === 'p') { if (w.phase !== 'over' && !hooks.coop) setPaused(!v.paused); }
-  else if (k === 'escape') { if (v.evo) closeEvolve(); else if (!$('menuConfirm').hidden) closeMenu(); else if (v.moving) { v.moving = null; ui.renderInspector(w, v); } else if (canPlace(v.sel) && !v.selected) { v.sel = -1; ui.renderInspector(w, v); } else closeInspector(); }
+  else if (k === 'escape') { if (v.tile) pickTile(null); else if (v.shop) closeShop(); else if (v.evo) closeEvolve(); else if (!$('menuConfirm').hidden) closeMenu(); else if (v.moving) { v.moving = null; ui.renderInspector(w, v); } else if (canPlace(v.sel) && !v.selected) { v.sel = -1; ui.renderInspector(w, v); } else closeInspector(); }
   else if (k === 'f') fitToScreen();
   else if (k === '+' || k === '=') zoomBy(1.25);
   else if (k === '-') zoomBy(0.8);
   else if (PAN_KEYS[k]) { e.preventDefault && e.preventDefault(); pan(PAN_KEYS[k][0] * 60, PAN_KEYS[k][1] * 60); }
-  else if (k === 'enter' && w.phase === 'build' && !w.picking && !v.evo) { e.preventDefault && e.preventDefault(); act({ type: 'wave' }); }   /* Enter: start the wave */
+  else if (k === 'enter' && w.phase === 'build' && !w.picking && !v.evo && !v.shop && !v.tile) { e.preventDefault && e.preventDefault(); act({ type: 'wave' }); }   /* Enter: start the wave */
 });
 
 /* ---- Public API used by the Play screen ---- */

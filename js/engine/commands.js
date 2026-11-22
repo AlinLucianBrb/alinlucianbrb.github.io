@@ -7,6 +7,8 @@ import { pathChoice, pathDef, startPreview, endPreview } from './preview.js';
 import { affected } from './stats.js';
 import { levelMods } from './levels.js';
 import { recalc, startWave, statsFor } from './world.js';
+import { shopCommands } from './shop.js';
+import { applyConduits, hasConduit } from './tiles.js';
 
 const OK = { ok: true };
 const fail = reason => ({ ok: false, reason });
@@ -19,6 +21,7 @@ const isFree = (w, cx, cy, except) => inBounds(cx, cy) && (!w.pathSet.has(cx + '
 const canStand = (w, h, cx, cy) => inBounds(cx, cy) && (!w.pathSet.has(cx + ',' + cy) || !!(h.def.flying || h.def.onPath))
   && !w.zones.some(z => z.blocks && z.cx === cx && z.cy === cy);
 /* A hero moved to a tile: it waits 1 second before attacking again (settle: the screen shows it resting meanwhile). */
+const regroup = w => { if (hasConduit(w)) applyConduits(w); };   /* heroes stand elsewhere: the Conduits' neighbours changed */
 const settle = (h, cx, cy) => { h.cx = cx; h.cy = cy; h.x = (cx + 0.5) * T; h.y = (cy + 0.5) * T; h.cd = 1; h.lock = null; h.settle = 1; };
 const blocked = (w, p) => w.phase === 'over' ? fail('over') : p.picking ? fail('busy') : null;
 const playerOf = (w, c) => w.players[c.p | 0];
@@ -43,6 +46,14 @@ export function relicFits(r, p, w = null) {
   }
   const a = affected(r, 1, defs.map((def, k) => ({ type: k, def })));
   return !!(a.global || a.types.size);
+}
+
+/* Adds a relic to a player (chosen, or won in a gamble); recalc(w) follows. */
+function giveRelic(w, p, r, ri) {
+  const m = RARITIES[ri].mult;
+  if (r.mods) for (const x of r.mods(m)) p.mods.push({ ...x, source: r.name, ri });
+  if (r.onPick) r.onPick(w, m);
+  p.relics.push({ name: r.name, r: ri });
 }
 
 function drawRelics(w, p, n, taken) {
@@ -79,6 +90,7 @@ export const COMMANDS = {
     if (way) startPreview(h, way);   /* an evolution path chosen before the match: the form's preview from level 1 */
     statsFor(w, h);
     w.heroes.push(h);
+    regroup(w);
     return { ok: true, id: h.id };
   },
   /* Spends gold to take a hero to its next evolution, once it has reached that step's level.
@@ -121,10 +133,12 @@ export const COMMANDS = {
       if (!canStand(w, h, c.cx, c.cy) || !canStand(w, o, h.cx, h.cy)) return fail('blocked');
       const [ox, oy] = [h.cx, h.cy];
       settle(h, c.cx, c.cy); settle(o, ox, oy);
+      regroup(w);
       return OK;
     }
     if (!isFree(w, c.cx, c.cy, h)) return fail('blocked');
     settle(h, c.cx, c.cy);
+    regroup(w);
     return OK;
   },
   /* Ready for the next wave. It starts once every player is ready (or has Auto-start on): solo, at once. */
@@ -186,14 +200,14 @@ export const COMMANDS = {
     if (!p.pick) return fail('no relic choice open');
     const o = p.pick.offers[c.index];
     if (!o) return fail('bad index');
-    const m = RARITIES[o.ri].mult, r = o.relic;
-    if (r.mods) for (const x of r.mods(m)) p.mods.push({ ...x, source: r.name, ri: o.ri });
-    if (r.onPick) r.onPick(w, m);
-    p.relics.push({ name: r.name, r: o.ri });
+    giveRelic(w, p, o.relic, o.ri);
     p.pick = null; p.picking = false; recalc(w);
     return OK;
   }
 };
+
+/* The match shop: tiles, gambling, summoning a boss (shop.js). */
+Object.assign(COMMANDS, shopCommands({ fail, OK, playerOf, blocked, inBounds, drawRelics, giveRelic, recalc }));
 
 export function apply(w, cmd) {
   const fn = COMMANDS[cmd.type];
