@@ -3,6 +3,8 @@ revoke all on function public.signup_check(text, text) from public, anon, authen
 grant execute on function public.signup_check(text, text) to anon, authenticated;
 revoke all on function public.get_leaderboard(int, int) from public, anon, authenticated;
 grant execute on function public.get_leaderboard(int, int) to anon, authenticated;
+revoke all on function public.get_endless_board(int, int) from public, anon, authenticated;
+grant execute on function public.get_endless_board(int, int) to anon, authenticated;
 revoke all on function public.start_run(int, uuid) from public, anon, authenticated;
 grant execute on function public.start_run(int, uuid) to authenticated;
 revoke all on function public.finish_run(uuid, int, int, boolean, int) from public, anon, authenticated;

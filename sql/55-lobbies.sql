@@ -59,8 +59,8 @@ begin
   if auth.uid() is null then raise exception 'not signed in'; end if;
   select * into me from public.profiles where id = auth.uid();
   if not found then raise exception 'no profile'; end if;
-  if p_stage < 1 or p_stage > public.rule_stage_count() then raise exception 'invalid stage'; end if;
-  if p_stage > me.levels_cleared + 1 then raise exception 'stage locked'; end if;
+  if p_stage < 1 or (p_stage > public.rule_stage_count() and not public.rule_is_endless(p_stage)) then raise exception 'invalid stage'; end if;
+  if not public.rule_stage_open(p_stage, me.levels_cleared) then raise exception 'stage locked'; end if;
   if p_private and pw is null then raise exception 'a private lobby needs a password'; end if;
   if length(pw) > 32 then raise exception 'the password can be at most 32 characters'; end if;
   if (select count(*) from public.lobbies where host = auth.uid() and created_at > now() - interval '1 minute') >= 5 then
@@ -159,8 +159,8 @@ begin
   if auth.uid() is null then raise exception 'not signed in'; end if;
   select * into me from public.profiles where id = auth.uid();
   if not exists (select 1 from public.lobbies where id = p_lobby and host = auth.uid() and status = 'open') then raise exception 'only the host can change the level'; end if;
-  if p_stage < 1 or p_stage > public.rule_stage_count() then raise exception 'invalid stage'; end if;
-  if p_stage > me.levels_cleared + 1 then raise exception 'stage locked'; end if;
+  if p_stage < 1 or (p_stage > public.rule_stage_count() and not public.rule_is_endless(p_stage)) then raise exception 'invalid stage'; end if;
+  if not public.rule_stage_open(p_stage, me.levels_cleared) then raise exception 'stage locked'; end if;
   update public.lobbies set stage = p_stage where id = p_lobby;
   return public.lobby_state(p_lobby);
 end;

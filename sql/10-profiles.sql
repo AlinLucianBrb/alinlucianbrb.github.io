@@ -11,6 +11,7 @@ create table public.profiles (
   talents text[] not null default '{}',
   levels_cleared int not null default 0,
   frontier_wave int not null default 0,
+  endless_wave int not null default 0,   -- the best wave in endless
   lineup text[] not null default '{warrior,ranger,mage}',
   equipment jsonb not null default '{}',
   materials int[] not null default '{0,0,0,0}',   -- crafting materials by rarity: Scrap, Dust, Essence, Core

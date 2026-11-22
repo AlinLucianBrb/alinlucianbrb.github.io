@@ -4,7 +4,7 @@
    (the server records it with the run) and opens the match. "Next level" after a win comes straight to the second step. */
 import { bus } from '../core/bus.js';
 import { state } from '../core/state.js';
-import { STAGES, HEROES, LINEUP_SIZE, STAT_LABELS, ZONES, zoneOf } from '../content/data.js';
+import { STAGES, ENDLESS, LEVELS, stageDef, HEROES, LINEUP_SIZE, STAT_LABELS, ZONES, zoneOf } from '../content/data.js';
 import { SLOTS } from '../content/items.js';
 import { UNLOCKS, unlocksOf } from '../content/unlocks.js';
 import { MAP_EFFECTS, MAP_EFFECT_OF } from '../content/map-effects.js';
@@ -22,6 +22,12 @@ const say = (t, bad) => { $('lvMsg').textContent = t || ''; $('lvMsg').classList
 function renderLevels() {
   const p = state.profile, cleared = p.levels_cleared || 0, list = $('lvList'), next = Math.min(STAGES.length, cleared + 1);
   if (zone === null) zone = zoneOf(next).n;
+  const endless = $('lvEndless'), e = ENDLESS.find(x => x.zone === zone);
+  if (endless) {
+    endless.hidden = cleared < LEVELS;
+    endless.textContent = 'Endless · ' + e.name + (p.endless_wave ? ' · your best wave: ' + p.endless_wave : '');
+    endless.onclick = () => { stage = e.n; lineup = []; say(''); render(); };
+  }
   if (document.body?.dataset) document.body.dataset.zone = String(zone);   /* the chosen zone's colour */
   const zones = $('lvZones');
   if (zones) {
@@ -57,9 +63,9 @@ function toggle(id) {
 }
 
 function renderPick() {
-  const fx = MAP_EFFECTS[MAP_EFFECT_OF[stage]];
+  const fx = MAP_EFFECTS[MAP_EFFECT_OF[stage]], end = stageDef(stage) && stageDef(stage).endless;
   $('lvPickTitle').textContent = 'Pick your 3 heroes';
-  if ($('lvMapFx')) { $('lvMapFx').textContent = fx ? fx.name + ': ' + fx.text : ''; $('lvMapFx').hidden = !fx; }
+  if ($('lvMapFx')) { $('lvMapFx').textContent = end ? 'Endless: you choose the map\'s effect when the match begins. Quitting saves the run.' : fx ? fx.name + ': ' + fx.text : ''; $('lvMapFx').hidden = !fx && !end; }
   $('lvCount').textContent = lineup.length + ' / ' + LINEUP_SIZE;
   $('lvStart').disabled = !lineup.length; $('lvStart').title = lineup.length ? '' : 'Choose at least one hero';
   const grid = $('lvHeroes'); grid.textContent = '';

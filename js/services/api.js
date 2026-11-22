@@ -14,7 +14,7 @@ const fill = p => {
   p.talents = p.talents || []; p.levels_cleared = p.levels_cleared || 0; p.frontier_wave = p.frontier_wave || 0;
   p.lineup = p.lineup && p.lineup.length ? p.lineup : ['warrior', 'ranger', 'mage']; p.equipment = p.equipment || {};
   p.paths = p.paths && typeof p.paths === 'object' ? p.paths : {};
-  p.materials = cleanMaterials(p.materials);
+  p.materials = cleanMaterials(p.materials); p.endless_wave = p.endless_wave || 0;
 };
 
 const USERNAME_PROBLEMS = {
@@ -42,7 +42,10 @@ export async function signIn(username, password, captchaToken) {
 export const signOut = () => sb.auth.signOut();
 export async function currentSession() { const { data } = await sb.auth.getSession(); return data.session; }
 export async function getProfile(userId) {
-  let { data, error } = await sb.from('profiles').select('id,username,level,xp,gold,best_wave,talents,levels_cleared,frontier_wave,lineup,equipment,paths,materials').eq('id', userId).maybeSingle();
+  let { data, error } = await sb.from('profiles').select('id,username,level,xp,gold,best_wave,talents,levels_cleared,frontier_wave,lineup,equipment,paths,materials,endless_wave').eq('id', userId).maybeSingle();
+  if (error) { /* database not updated for endless yet */
+    ({ data, error } = await sb.from('profiles').select('id,username,level,xp,gold,best_wave,talents,levels_cleared,frontier_wave,lineup,equipment,paths,materials').eq('id', userId).maybeSingle());
+  }
   if (error) { /* database not updated for crafting yet */
     ({ data, error } = await sb.from('profiles').select('id,username,level,xp,gold,best_wave,talents,levels_cleared,frontier_wave,lineup,equipment,paths').eq('id', userId).maybeSingle());
   }
@@ -119,6 +122,12 @@ export async function craftItem(rarity, slot, kind) {
 export async function getLeaderboard(players = 1) {
   if (!sb) return { rows: [], ...OFFLINE };
   const { data, error } = await sb.rpc('get_leaderboard', { p_limit: 20, p_players: players });
+  return { rows: data || [], error: error && error.message };
+}
+
+export async function getEndlessBoard(players = 1) {
+  if (!sb) return { rows: [], ...OFFLINE };
+  const { data, error } = await sb.rpc('get_endless_board', { p_limit: 20, p_players: players });
   return { rows: data || [], error: error && error.message };
 }
 

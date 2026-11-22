@@ -131,7 +131,7 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 | Pick a relic in the relic picker | click it | 1 / 2 / 3 |
 | Start the wave | Start wave (AUTO is red while Auto-start is off, green when on) | Enter |
 | Pause | Menu (asks before quitting; in co-op it only asks, the match goes on) | P (Esc resumes; not in co-op) |
-| Game speed | speed button: 1x, and 2x from act 3 (3x will come with endless mode) | |
+| Game speed | speed button: 1x, 2x from act 3, 3x in endless | |
 
 - The camera fits the map into the space the HUD leaves free (a little closer than an exact fit) whenever a run starts or the window changes size (until you move or zoom it yourself; Fit returns to that view).
 - **2.5D view:** the board is seen through a tilted perspective camera, Arknights style (see True perspective): the ground is squashed in depth (`TILT` in `js/game/camera.js`) and narrows toward the far side (`FAR`) while heroes, enemies and their health bars stand upright on it (`upright()` in `js/game/sprites.js`), each with a shadow and smaller further back, with a haze over the far side, a sunken road and upright scenery around the board. Heroes and enemies are drawn front to back, so whoever is nearer covers the ones behind. Range rings and ground effects lie flat on the board, so they look like ellipses.
@@ -206,6 +206,21 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Texts:** attack descriptions describe only the attack, ultimate tooltips only the ultimate, and the hero tooltip the hero (its attribute, delivery and source, tags, damage type). Ultimates that deal damage of their own write it as `{N}` in their description; `ultDesc()` shows it as the number it deals with the hero's stats ("about 156 damage"); "x2 damage" is kept for boosts to an attack the hero already makes. "At level 10, choose a path" is gone from the descriptions.
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
+
+## Endless (Nov 22, v0.61.0)
+- **One per zone**, opened by beating 5-5 (`ENDLESS` in `data.js`, `ENDLESS_RULES` in `rules.js`): a button under the zone's levels, and
+  in the co-op level list. Each run is on one of the zone's five maps; the same difficulty everywhere.
+- **The next step after 5-5:** 4% tougher on wave 1 and 12.5% on wave 55, growing on at that pace; defenses go on past 60% to 99%. A boss
+  every 10 waves, the special enemies again every 55.
+- **Before wave 1** one of three map effects is chosen; match effects come after waves 10, 20 and 30. In co-op both are votes.
+- **3x speed.** A run ends when the lives are gone or the player quits: quitting saves it (in co-op, for the player who leaves).
+- **Items:** one per boss defeated (item find from talents adds its share), each at an item level in the bracket of 25 waves
+  reached (500 waves: 475 to 500), never below 75. The inventory still holds 200.
+- **Leaderboard:** an Endless board, the best wave, for solo and each number of players.
+- Where the bot's runs end (21 games each): level 80 with item level 75 gear, wave 58 in the middle; level 100: 61; with item level 150,
+  72; with 300, 84. One run reached 416: a Gospel's Conversion kills any enemy that is not a boss, whatever its life.
+- Rules changed (engine 31: a match saved before the update cannot be resumed). **SQL changed: run `supabase-update.sql`** (endless
+  runs, drops, records and the board).
 
 ## Match and map effects, campaign resistances (Nov 22, v0.60.0)
 - **Match effects** (from act 4; `js/content/match-effects.js`, engine `js/engine/match-effects.js`): after clearing waves 15, 30 and

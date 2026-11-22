@@ -1,7 +1,7 @@
 /* The simulation. A world holds all game state and advances in fixed steps; players change it only through commands (commands.js).
    Nothing in js/engine touches the page, the clock or Math.random, so a world can run in a browser, in Node (tests, the balance bot)
    or on a server, and the same seed plus the same commands always gives the same result. */
-import { HEROES, STAGES, nextStep, COLS, ROWS, LINEUP_SIZE, RELICS, RARITIES, START_GOLD } from '../content/data.js';
+import { HEROES, stageDef, nextStep, COLS, ROWS, LINEUP_SIZE, RELICS, RARITIES, START_GOLD } from '../content/data.js';
 import { MAPS } from '../content/maps.js';
 import { itemMods, asItem } from '../content/items.js';
 import { createBus } from '../core/bus.js';
@@ -14,9 +14,10 @@ import { CURSE } from '../content/shop.js';
 import { greedMult, applyConduits, hasConduit } from './tiles.js';
 import { payPrize, rollBossKind } from './shop.js';
 import './boss-gimmicks.js';
-import { freshFx, openVote, tickVote } from './match-effects.js';
+import { freshFx, openVote, openMapVote, mapVoteOpen, tickVote } from './match-effects.js';
 import { setupMap, leyMods, updateMap } from './map-effects.js';
 import { MAP_EFFECT_OF } from '../content/map-effects.js';
+import { LEVELS_PER_ZONE } from '../content/zones.js';
 import { updateAbilities, isShielded } from './enemy-abilities.js';
 import { attachUpgrades } from './upgrades.js';
 import { updateProjectiles } from './projectiles.js';
@@ -32,7 +33,7 @@ import { cleanPaths, pathChoice, pathDef, previewMods, syncPreview, updatePrevie
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
 export const REROLL_GOLD = 0.25;
-export const ENGINE_VERSION = 30;     /* bump when a rule change would make old command logs play out differently */
+export const ENGINE_VERSION = 31;     /* bump when a rule change would make old command logs play out differently */
 
 /* Checks a lineup: up to LINEUP_SIZE different, playable heroes. Returns a clean copy, or the full roster if it is empty. */
 export function cleanLineup(lineup) {
@@ -68,11 +69,11 @@ export const PLAYER_FIELDS = ['talents', 'lineup', 'paths', 'items', 'mods', 'go
    (see js/content/items.js; a plain item type id also works, as a Common item with no bonuses).
    Co-op: players: [{ talents, lineup, items }, ...] instead, one per player (2 to 4); enemies get that many times the life. */
 export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, items = {}, paths = {}, relics = [], shop = false, matchEffects = false, mapEffect = MAP_EFFECT_OF[stage] || null, players = null, record = true } = {}) {
-  const def = STAGES[stage - 1];
+  const def = stageDef(stage);
   if (!def) throw new Error('Unknown stage ' + stage);
   const root = createRng(seed), rng = { path: root.fork('path'), relic: root.fork('relic'), combat: root.fork('combat'), gold: root.fork('gold'), shop: root.fork('shop'), fx: root.fork('fx'), map: root.fork('map') };
   const ps = (players && players.length ? players : [{ talents, lineup, items, paths, relics, shop }]).map((p, i) => makePlayer(i, p));
-  const path = MAPS[def.n - 1].map(c => [...c]), coop = ps.length > 1;   /* each level's fixed map (maps.js) */
+  const path = MAPS[def.endless ? (def.zone - 1) * LEVELS_PER_ZONE + rng.path.int(LEVELS_PER_ZONE) : def.n - 1].map(c => [...c]), coop = ps.length > 1;   /* each level's fixed map (maps.js) */
   const w = {
     seed: seed >>> 0, stageN: stage, stage: def, maxWave: def.waves, rng, path, pathSet: new Set(path.map(c => c.join(','))),
     tick: 0, phase: 'build', won: false, autoT: 3, players: ps, coop, hpMult: coopHpMult(ps.length),
@@ -87,7 +88,9 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
   };
   for (const k of PLAYER_FIELDS) Object.defineProperty(w, k, { get: () => ps[0][k], set: v => { ps[0][k] = v; }, enumerable: true });
   w.bossKind = rollBossKind(w);
+  w.setMap = id => setupMap(w, id);
   setupMap(w, mapEffect);
+  if (def.endless && !mapEffect) openMapVote(w);
   w.ownerOf = h => ps[h.owner || 0];
   w.hit = (hero, e, amount, type, quiet) => hit(w, hero, e, amount, type, quiet);
   w.livesStart = w.lives;   /* the Heretic's blood price counts the lives lost since */
@@ -236,7 +239,7 @@ function waveCleared(w) {
     p.gold += Math.round((15 + w.wave * 3) * p.gs.waveGold) + interest;
   }
   w.ev.emit('waveClear', { wave: w.wave });
-  if (w.wave >= w.maxWave) { endRun(w, true); return; }
+  if (w.wave >= w.maxWave) { endRun(w, !w.stage.endless); return; }   /* endless is never won, only ended */
   w.phase = 'build'; w.autoT = 3;
   openVote(w);
 }
@@ -250,12 +253,15 @@ export function endRun(w, won) {
   w.endPending = { won };
 }
 
+function flushEnd(w) { const e = w.endPending; w.endPending = null; w.ev.emit('end', e); }
+
 /* Advances the game by one step. Returns false (and does nothing) while the game is over, or, solo, waiting on a relic
    choice (unless the player chose to keep playing while choosing: playOnPick). A co-op match never waits for one player.
    The next wave starts by itself when every player has Auto-start on (after the countdown). */
 export function step(w) {
+  if (w.endPending) flushEnd(w);   /* ended between steps (retire) */
   if (w.phase === 'over' || (!w.coop && ((w.picking && !w.playOnPick) || w.vote))) return false;
-  if (w.phase === 'build' && w.players.every(p => p.auto) && (w.autoT -= STEP) <= 0) startWave(w);
+  if (w.phase === 'build' && !mapVoteOpen(w) && w.players.every(p => p.auto) && (w.autoT -= STEP) <= 0) startWave(w);
   if (w.phase === 'wave' && w.spawnLeft > 0 && (w.spawnT -= STEP) <= 0) {
     spawnEnemy(w, waveEnemyType(w.wave, w.spawnLeft, w.stage)); w.spawnLeft--; w.spawnT = spawnDelay(w.wave) * (w.fxm.half ? 2 : 1);
   }
@@ -276,7 +282,7 @@ export function step(w) {
   sweep(w.enemies);
   if (w.phase === 'wave' && w.spawnLeft === 0 && !w.enemies.length) waveCleared(w);
   w.tick++;
-  if (w.endPending) { const e = w.endPending; w.endPending = null; w.ev.emit('end', e); }
+  if (w.endPending) flushEnd(w);
   return true;
 }
 

@@ -2,7 +2,8 @@ import { startGame, stopGame, snapshot } from '../game/game.js';
 import { saveRun, loadRun, clearRun } from '../game/saved-run.js';
 import { startRun, finishRun, getItems } from '../services/api.js';
 import { itemName } from '../content/items.js';
-import { STAGES } from '../content/data.js';
+import { STAGES, stageDef, stageOpen } from '../content/data.js';
+import { endlessBracket } from '../content/rules.js';
 import { wornItems, activePaths } from './loadout.js';
 import { actMessage, maxSpeed, isUnlocked } from '../content/unlocks.js';
 import { runRewards } from '../core/rules.js';
@@ -27,7 +28,8 @@ export default {
     const config = params && params.coop ? coop.config : null, lobby = config && coop.lobby;
     if (params && params.coop && !config) return bus.emit('nav', { to: 'menu' });
     const stage = config ? config.stage : saved ? saved.log.stage : (params && params.stage) || 1;
-    if (!config && stage > (state.profile.levels_cleared || 0) + 1) return bus.emit('nav', { to: 'levels' });
+    const endless = !!(stageDef(stage) && stageDef(stage).endless);
+    if (!config && !stageOpen(stage, state.profile.levels_cleared)) return bus.emit('nav', { to: 'levels' });
     /* Equipped items: { heroId: { slot: itemId } } in the profile, turned into { heroId: [{ type, rarity, bonuses }] } for the game. */
     if (!state.items && Object.keys(state.profile.equipment || {}).length) {
       const { items, error } = await getItems().catch(() => ({ error: 'offline' }));
@@ -62,13 +64,13 @@ export default {
       const r = runRewards(waves, kills, rewardBonus(before.talents));
       const names = drops.map(d => itemName(d));
       return (won ? 'Level ' + (STAGES[stage - 1] ? STAGES[stage - 1].code : stage) + ' cleared! ' : '') + '+' + r.xp + ' XP, +' + r.gold + ' gold.' +
-        (names.length ? ' You found ' + (names.length > 1 ? names.length + ' items: ' : 'an item: ') + names.join(', ') + '! Equip ' + (names.length > 1 ? 'them' : 'it') + ' on the Heroes screen.' : '') +
+        (names.length > 5 ? ' You found ' + names.length + ' items' + (endless ? ' of item level ' + [...new Set(endlessBracket(waves))].join(' to ') : '') + '! Equip them on the Heroes screen.' : names.length ? ' You found ' + (names.length > 1 ? names.length + ' items: ' : 'an item: ') + names.join(', ') + '! Equip ' + (names.length > 1 ? 'them' : 'it') + ' on the Heroes screen.' : '') +
         (profile.level > before.level ? ' Level up! You are now level ' + profile.level + '.' : '') +
         (actMessage(before.levels_cleared, profile.levels_cleared) ? ' ' + actMessage(before.levels_cleared, profile.levels_cleared) : '');
     }
     const seat = config && seatOf(config, uid);
     startGame({
-      stage, talents: state.profile.talents || [], lineup: state.profile.lineup, items: equipped, paths: activePaths(), shop: isUnlocked('shop', state.profile.levels_cleared), matchEffects: isUnlocked('effects', state.profile.levels_cleared), maxSpeed: maxSpeed(state.profile.levels_cleared), onRunEnd, resume: saved ? saved.log : null,
+      stage, talents: state.profile.talents || [], lineup: state.profile.lineup, items: equipped, paths: activePaths(), shop: isUnlocked('shop', state.profile.levels_cleared), matchEffects: isUnlocked('effects', state.profile.levels_cleared), maxSpeed: maxSpeed(state.profile.levels_cleared, endless), onRunEnd, resume: saved ? saved.log : null,
       coop: config ? { config, ...seat, transport: coop.channel || offlineChannel() } : null,
       onRunStart: () => { runId = null; if (!config) clearRun(uid); starting = register(); },
       onExit: () => { if (!config) clearRun(uid); bus.emit('nav', { to: 'menu' }); },   /* quitting gives the run up (co-op: leaves the match) */

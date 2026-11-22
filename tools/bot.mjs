@@ -3,7 +3,7 @@
    best tile it can find, then spends gold on evolutions and relics. With skill 'smart' (the default) it plays like a good
    player (tools/balance/smart.mjs); 'simple' is the first, plainer bot. The experiments and the HTML report built on it are
    in tools/balance/ (npm run balance:report). */
-import { HEROES, RARITIES, STAGES, T, HERO_COST, nextStep } from '../js/content/data.js';
+import { HEROES, RARITIES, stageDef, T, HERO_COST, nextStep } from '../js/content/data.js';
 import { TREES, TREE_ID, pathTo, pointsFor } from '../js/content/talents.js';
 import { createWorld, step, summary } from '../js/engine/world.js';
 import { apply } from '../js/engine/commands.js';
@@ -125,12 +125,13 @@ export function playRun({ seed = 1, stage = 1, strategy = 'trio', lineup = null,
     for (const h of g.heroes) { const st = nextStep(h); if (st && h.level >= g.evolveLevel(h) && g.gold >= g.evolveCost(h)) apply(g, { type: 'evolve', id: h.id, choice: h.preview && !h.tier ? undefined : 0 }); }
   }
   while (w.phase !== 'over' && w.tick < maxTicks) {
+    if (w.vote) apply(w, { type: 'vote', index: w.vote.kind === 'map' ? 0 : -1 });   /* endless: the first map effect offered; no match effects */
     if (w.phase === 'build') { spend(); apply(w, { type: 'wave' }); }
     else if (w.tick % 60 === 0) spend();
     if (!step(w)) break;
     if (rec) rec.tick();
   }
-  return { world: w, result: summary(w), log: exportLog(w), stage, strategy, lineup: team, level, maxWave: STAGES[stage - 1].waves, metrics: rec ? rec.finish() : null };
+  return { world: w, result: summary(w), log: exportLog(w), stage, strategy, lineup: team, level, maxWave: stageDef(stage).waves, metrics: rec ? rec.finish() : null };
 }
 
 /* The first bot's tiles: free tiles ranked by path covered (kept for skill: 'simple'). */

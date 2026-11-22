@@ -55,6 +55,16 @@ language sql stable security definer set search_path = public as $$
   limit least(greatest(p_limit, 1), 100);
 $$;
 
+-- The endless leaderboard of a mode: the best wave.
+create or replace function public.get_endless_board(p_limit int default 20, p_players int default 1)
+returns table (username text, level int, endless_wave int)
+language sql stable security definer set search_path = public as $$
+  select p.username, p.level, r.endless_wave from public.records r join public.profiles p on p.id = r.user_id
+  where r.players = p_players and r.endless_wave > 0
+  order by r.endless_wave desc, p.level desc, p.created_at
+  limit least(greatest(p_limit, 1), 100);
+$$;
+
 -- Talent points: 1 per level above 1. Checks the point budget, that every node exists, and that each one connects to its tree's start.
 create or replace function public.save_talents(p_nodes text[]) returns public.profiles
 language plpgsql security definer set search_path = public as $$
@@ -94,11 +104,11 @@ language plpgsql security definer set search_path = public as $$
 declare me public.profiles; rid uuid; lb public.lobbies; n int := 1;
 begin
   if auth.uid() is null then raise exception 'not signed in'; end if;
-  if p_stage < 1 or p_stage > public.rule_stage_count() then raise exception 'invalid stage'; end if;
+  if p_stage < 1 or (p_stage > public.rule_stage_count() and not public.rule_is_endless(p_stage)) then raise exception 'invalid stage'; end if;
   select * into me from public.profiles where id = auth.uid();
   if not found then raise exception 'no profile'; end if;
   if p_lobby is null then
-    if p_stage > me.levels_cleared + 1 then raise exception 'stage locked'; end if;
+    if not public.rule_stage_open(p_stage, me.levels_cleared) then raise exception 'stage locked'; end if;
   else
     select * into lb from public.lobbies where id = p_lobby;
     if not found or lb.status <> 'playing' then raise exception 'that lobby has not started a match'; end if;
@@ -218,7 +228,7 @@ drop function if exists public.finish_run(uuid, int, int, boolean);
 drop function if exists public.finish_run(uuid, int, int, boolean, int);
 create function public.finish_run(p_run uuid, p_waves int, p_kills int, p_won boolean, p_bosses int default 0) returns jsonb
 language plpgsql security definer set search_path = public as $$
-declare me public.profiles; r public.runs; cap int; frontier boolean; elapsed numeric; done_waves int; dropped text := null;
+declare me public.profiles; r public.runs; cap int; frontier boolean; endless boolean; elapsed numeric; done_waves int; dropped text := null;
         drops jsonb := '[]'; b_gold numeric; b_xp numeric; b_loot numeric; chance numeric; n int; boss_cap int;
         rar int; b_rar numeric; b_extra numeric; aff text; il int; it public.player_items;
 begin
@@ -227,7 +237,8 @@ begin
   if not found then raise exception 'unknown or already finished run'; end if;
   cap := public.rule_stage_waves(r.stage);
   if p_waves < 1 or p_waves > cap or p_kills < 0 or p_kills > public.rule_kill_cap(p_waves) then raise exception 'invalid run'; end if;
-  if p_won and p_waves <> cap then raise exception 'invalid win'; end if;
+  endless := public.rule_is_endless(r.stage);
+  if p_won and (endless or p_waves <> cap) then raise exception 'invalid win'; end if;   -- endless is never won
   boss_cap := public.rule_boss_cap(r.stage, p_waves);
   if p_bosses is null or p_bosses < 0 or p_bosses > boss_cap then raise exception 'invalid boss count'; end if;
   if p_won and p_bosses < 1 then raise exception 'a level is won by beating its final boss'; end if;
@@ -240,8 +251,8 @@ begin
   if elapsed < public.rule_min_run(done_waves) then raise exception 'run too short'; end if;
 
   select * into me from public.profiles where id = auth.uid() for update;
-  if r.players = 1 and r.stage > me.levels_cleared + 1 then raise exception 'stage locked'; end if;   -- co-op: unlocked for the host
-  frontier := (r.stage = me.levels_cleared + 1);
+  if r.players = 1 and not public.rule_stage_open(r.stage, me.levels_cleared) then raise exception 'stage locked'; end if;   -- co-op: unlocked for the host
+  frontier := (not endless and r.stage = me.levels_cleared + 1);
   select coalesce(sum(t.reward_gold), 0), coalesce(sum(t.reward_xp), 0), coalesce(sum(t.reward_loot), 0),
          coalesce(sum(t.reward_rarity), 0), coalesce(sum(t.reward_extra), 0) into b_gold, b_xp, b_loot, b_rar, b_extra
     from public.talent_nodes t where t.id = any (me.talents);
@@ -255,20 +266,23 @@ begin
   update public.profiles
      set xp = me.xp, level = me.level, gold = me.gold, runs = runs + 1,
          best_wave = greatest(best_wave, p_waves),
+         endless_wave = case when endless then greatest(endless_wave, p_waves) else endless_wave end,
          levels_cleared = case when p_won and r.stage <= levels_cleared + 1 then greatest(levels_cleared, r.stage) else levels_cleared end,
          frontier_wave = case when frontier and p_won then 0 when frontier then greatest(frontier_wave, p_waves) else frontier_wave end
    where id = auth.uid()
    returning * into me;
   -- this mode's record (solo, or co-op with 2, 3 or 4 players)
-  insert into public.records as x (user_id, players, levels_cleared, frontier_wave, runs)
-  values (auth.uid(), r.players, case when p_won then r.stage else 0 end, case when not p_won and r.stage = 1 then p_waves else 0 end, 1)
+  insert into public.records as x (user_id, players, levels_cleared, frontier_wave, runs, endless_wave)
+  values (auth.uid(), r.players, case when p_won then r.stage else 0 end, case when not p_won and r.stage = 1 then p_waves else 0 end, 1, case when endless then p_waves else 0 end)
   on conflict (user_id, players) do update
     set runs = x.runs + 1,
+        endless_wave = greatest(x.endless_wave, excluded.endless_wave),
         frontier_wave = case when p_won and r.stage > x.levels_cleared then 0
-                             when r.stage = x.levels_cleared + 1 then greatest(x.frontier_wave, p_waves) else x.frontier_wave end,
+                             when not endless and r.stage = x.levels_cleared + 1 then greatest(x.frontier_wave, p_waves) else x.frontier_wave end,
         levels_cleared = case when p_won then greatest(x.levels_cleared, r.stage) else x.levels_cleared end;
   il := public.rule_item_level(case when p_won then r.stage else r.stage - 1 end);   -- item level: by the level beaten (on a loss, the one below)
   chance := public.rule_drop_chance(p_won, p_waves, r.stage) * (1 + b_loot);
+  if endless then chance := p_bosses * b_loot; end if;   -- one item per boss (below), and item find adds its share of them
   n := p_bosses + floor(chance)::int + (case when random() < chance - floor(chance) then 1 else 0 end);
   for i in 1 .. n loop
     exit when (select count(*) from public.player_items where user_id = auth.uid()) >= public.rule_max_items();
@@ -276,6 +290,7 @@ begin
     select id, affinity into dropped, aff from public.item_types where droppable order by random() limit 1;
     exit when dropped is null;
     rar := public.rule_rarity(random()::numeric, b_rar);
+    if endless then il := public.rule_endless_level(p_waves, random()::numeric); end if;   -- each item somewhere in the bracket reached
     it := public.roll_item(auth.uid(), dropped, aff, rar, il, b_extra);
     drops := drops || jsonb_build_array(jsonb_build_object('item_type', it.item_type, 'rarity', it.rarity, 'bonuses', to_jsonb(it.bonuses), 'bonus_ranks', to_jsonb(it.bonus_ranks), 'ilvl', it.ilvl));
   end loop;

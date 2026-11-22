@@ -57,18 +57,19 @@ export function defensesFor(def, wave, stage, cap = CAMPAIGN_CAP) {
 export { waveCount, spawnDelay, isBossWave } from '../content/rules.js';
 import { isBossWave, specialsOf, waveCount } from '../content/rules.js';
 import { CURSE } from '../content/shop.js';
+import { RES_CAP } from '../content/combat.js';
 /* A wave cursed by a gamble (w.curse): how many curses are on the current wave. */
 export const cursesOn = g => (g.curse && g.curse.wave === g.wave ? g.curse.n : 0);
 /* How many boss waves a run that reached `waves` has seen (the server uses the same rule to check boss kills). */
 export const bossWavesUpTo = (stage, waves) => { let n = 0; for (let i = 1; i <= Math.min(waves, stage.waves); i++) if (isBossWave(i, stage)) n++; return n; };
 /* i counts down from the wave size to 1, so the mix is the same every time. */
-function specialAt(w, i) {
-  const list = specialsOf(w), n = waveCount(w);
+function specialAt(w, i, stage) {
+  const list = specialsOf(w, stage), n = waveCount(w);
   return list.find((_, k) => i === n - Math.floor((k + 0.5) * (n - 1) / list.length)) || null;   /* never i = 1: the boss's place */
 }
 export function waveEnemyType(w, i, stage) {
   if (i === 1 && stage && isBossWave(w, stage)) return 'boss';
-  const special = specialAt(w, i);
+  const special = specialAt(w, i, stage);
   if (special) return special;
   if (w >= 4 && i % 6 === 1) return 'brute';
   if (w >= 2 && i % 4 === 0) return 'runner';
@@ -88,7 +89,7 @@ export function spawnEnemy(g, type, at = 0) {
   const def = ENEMIES[type], st = g.stage;
   const hp = Math.max(1, Math.round(20 * st.hpMult * (g.hpMult || 1) * Math.pow(st.growth, g.wave - 1) * def.hp * (1 + CURSE.life * cursesOn(g)) * (g.fxm && !def.boss ? g.fxm.life : 1)));   /* co-op: x players */
   const e = { type, def, d: at, hp, max: hp, speed: Math.min(90, 50 + g.wave * 2) * def.speed * ENEMY_SPEED * (g.fxm ? g.fxm.enemySpeed : 1), x: 0, y: 0, fx: null, dead: false, escaped: false, last: null,
-    ccRes: ccResFor(def, g.wave, st.n), ...defensesFor(def, g.wave, st.n) };
+    ccRes: ccResFor(def, g.wave, st.tier || st.n), ...defensesFor(def, g.wave, st.tier || st.n, st.endless ? RES_CAP : CAMPAIGN_CAP) };
   pathPos(g.path, at / T, e);
   g.enemies.push(e);
   return e;

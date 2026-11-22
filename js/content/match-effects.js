@@ -1,9 +1,9 @@
-/* Match effects (from act 4, js/content/unlocks.js): after clearing the waves in MATCH_PICKS the players choose one of three, or
+/* Match effects (from act 4, js/content/unlocks.js): after clearing the waves in MATCH_PICKS (endless has its own) the players choose one of three, or
    none, for the rest of the match; each is good and bad at once, and none comes twice. In co-op everyone votes. The engine side
    is js/engine/match-effects.js.
    mods: modifiers for every hero. flags: what the engine reads from w.fxm (FX_BASE); numbers multiply, true switches on.
    once: something done at the moment it is chosen. */
-export const MATCH_PICKS = { waves: [15, 30, 45], offers: 3, seconds: 20 };   /* seconds: how long a co-op vote stays open */
+export const MATCH_PICKS = { waves: [15, 30, 45], endless: [10, 20, 30], offers: 3, seconds: 20 };   /* seconds: how long a co-op vote stays open */
 const all = (stat, type, value) => ({ stat, type, value, scope: ['all'] });
 export const MATCH_EFFECTS = {
   finetaste:  { name: 'Fine taste',   good: 'Only Epic relics are offered', bad: 'Relics from now on are 35% weaker', flags: { epicRelics: true, relicPower: 0.65 } },

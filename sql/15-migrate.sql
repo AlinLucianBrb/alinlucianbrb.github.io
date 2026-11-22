@@ -4,6 +4,7 @@ alter table public.profiles add column if not exists levels_cleared int not null
 alter table public.profiles add column if not exists frontier_wave int not null default 0;
 alter table public.profiles add column if not exists lineup text[] not null default '{warrior,ranger,mage}';
 alter table public.profiles add column if not exists equipment jsonb not null default '{}';
+alter table public.profiles add column if not exists endless_wave int not null default 0;
 alter table public.profiles add column if not exists paths jsonb not null default '{}';
 alter table public.profiles add column if not exists materials int[] not null default '{0,0,0,0}';   -- crafting materials by rarity: Scrap, Dust, Essence, Core
 

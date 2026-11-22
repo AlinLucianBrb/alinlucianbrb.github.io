@@ -2,8 +2,8 @@
    timing, bosses, drops, co-op), data.js (levels, rarities, lineup size) and items.js (rolls and prices). finish_run,
    start_run, save_loadout and the lobby functions call these instead of repeating numbers, so the rules live in one place.
    Run through `npm run sql` (tools/build-sql.mjs). */
-import { ACCOUNT, REWARDS, WAVES, SPAWN, BOSSES, MIN_RUN, DROPS, COOP } from '../js/content/rules.js';
-import { STAGES, RARITIES, LINEUP_SIZE } from '../js/content/data.js';
+import { ACCOUNT, REWARDS, WAVES, SPAWN, BOSSES, MIN_RUN, DROPS, COOP, ENDLESS_RULES } from '../js/content/rules.js';
+import { STAGES, ENDLESS, RARITIES, LINEUP_SIZE } from '../js/content/data.js';
 import { ROLL, SELL, RANKS, ILVL } from '../js/content/items.js';
 import { CRAFT } from '../js/content/crafting.js';
 import { UNLOCKS, clearedFor } from '../js/content/unlocks.js';
@@ -19,7 +19,12 @@ export function rulesSql() {
   const parts = [
     '-- ===== Game rules (generated from js/content by tools/rules-sql.mjs; do not edit by hand) =====',
     fn('rule_stage_count()', 'int', 'select ' + STAGES.length, 'How many levels there are.'),
-    fn('rule_stage_waves(p_stage int)', 'int', 'select (array[' + waves.join(', ') + '])[p_stage]', 'Waves in a level.'),
+    fn('rule_stage_waves(p_stage int)', 'int', 'select case when p_stage > ' + STAGES.length + ' then ' + ENDLESS_RULES.maxWaves + ' else (array[' + waves.join(', ') + '])[p_stage] end', 'Waves in a level (endless: the most there can be).'),
+    fn('rule_is_endless(p_stage int)', 'boolean', 'select p_stage between ' + ENDLESS[0].n + ' and ' + ENDLESS[ENDLESS.length - 1].n, 'Endless stages come after the levels, one per zone.'),
+    fn('rule_stage_open(p_stage int, p_cleared int)', 'boolean', 'select case when public.rule_is_endless(p_stage) then p_cleared >= ' + STAGES.length + ' else p_stage <= p_cleared + 1 end', 'Whether a player who cleared that many levels can play a stage.'),
+    fn('rule_endless_level(p_waves int, p_roll numeric)', 'int',
+      'with b(low) as (select ' + ENDLESS_RULES.bracket + ' * ((p_waves + ' + (ENDLESS_RULES.bracket - 1) + ') / ' + ENDLESS_RULES.bracket + ' - 1)), c(lo, hi) as (select greatest(' + ENDLESS_RULES.minItemLevel + ', low), greatest(' + ENDLESS_RULES.minItemLevel + ', least(p_waves, low + ' + ENDLESS_RULES.bracket + ')) from b) ' +
+      'select (lo + floor(p_roll * (hi - lo + 1)))::int from c', 'The item level of an endless drop: somewhere in the bracket of waves reached, from a random number in [0, 1).'),
     fn('rule_unlock(p_feature text)', 'int', 'select case p_feature ' + Object.entries(UNLOCKS).map(([id, u]) => "when '" + id + "' then " + clearedFor(u.act)).join(' ') + ' end',
       'Levels that must be cleared before a feature is unlocked (it unlocks on reaching its act).'),
     fn('rule_lineup_max()', 'int', 'select ' + LINEUP_SIZE, 'Heroes a player can bring into a match.'),
@@ -32,8 +37,8 @@ export function rulesSql() {
     fn('rule_kill_cap(p_waves int)', 'int', 'select (' + WAVES.base + ' * p_waves + ' + WAVES.perWave + ' * p_waves * (p_waves + 1) / 2)::int',
       'The most kills a run that reached p_waves can have (every enemy of every wave).'),
     fn('rule_boss_cap(p_stage int, p_waves int)', 'int',
-      'select (case when p_waves >= public.rule_stage_waves(p_stage) then 1 else 0 end) + (case when p_stage >= ' + BOSSES.middleFromStage +
-      ' and p_waves >= round(public.rule_stage_waves(p_stage) / 2.0) then 1 else 0 end)', 'Boss waves a run that reached p_waves has seen.'),
+      'select case when public.rule_is_endless(p_stage) then p_waves / ' + ENDLESS_RULES.bossEvery + ' else (case when p_waves >= public.rule_stage_waves(p_stage) then 1 else 0 end) + (case when p_stage >= ' + BOSSES.middleFromStage +
+      ' and p_waves >= round(public.rule_stage_waves(p_stage) / 2.0) then 1 else 0 end) end', 'Boss waves a run that reached p_waves has seen.'),
     fn('min_run_seconds(p_waves int)', 'numeric',
       'select coalesce(sum(' + num(MIN_RUN.share) + ' * (' + (WAVES.base - 1) + ' + ' + WAVES.perWave + ' * w) * greatest(' + num(SPAWN.min) + ', ' + num(SPAWN.start) +
       ' - ' + num(SPAWN.perWave) + ' * w)), 0) from generate_series(1, greatest(p_waves, 0)) as w',
@@ -65,7 +70,7 @@ export function rulesSql() {
   return parts.join('\n') + '\n';
 }
 /* The rule functions, so permissions can lock them (only other database functions call them). */
-export const RULE_FUNCTIONS = ['rule_stage_count()', 'rule_stage_waves(int)', 'rule_unlock(text)', 'rule_lineup_max()', 'rule_max_players()', 'rule_max_items()',
+export const RULE_FUNCTIONS = ['rule_stage_count()', 'rule_stage_waves(int)', 'rule_is_endless(int)', 'rule_stage_open(int, int)', 'rule_endless_level(int, numeric)', 'rule_unlock(text)', 'rule_lineup_max()', 'rule_max_players()', 'rule_max_items()',
   'rule_xp_need(int)', 'rule_run_xp(int, int, numeric)', 'rule_run_gold(int, numeric)', 'rule_kill_cap(int)', 'rule_boss_cap(int, int)',
   'min_run_seconds(int)', 'rule_min_run(int)', 'rule_drop_chance(boolean, int, int)', 'rule_rarity(numeric, numeric)', 'rule_bonus_guaranteed(int)',
   'rule_max_bonuses()', 'rule_extra_bonus_chance()', 'rule_affinity_chance()', 'rule_rank(int, numeric)', 'rule_item_level(int)', 'rule_disenchant_yield()', 'rule_convert_cost()', 'rule_craft_cost()', 'rule_craft_gold(int)', 'item_price(int, text[], int[])'];

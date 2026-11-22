@@ -19,11 +19,11 @@ test('an act is reached by beating the last level of the one before it', () => {
 
 test('a win that reaches a new act says what it unlocked', () => {
   assert.match(actMessage(4, 5), /^Act 2, Deep Forest, is open\. Unlocked: Evolution paths, Crafting\.$/);
-  assert.equal(actMessage(3, 4), ''); assert.equal(actMessage(5, 5), '', 'playing an old level again'); assert.equal(actMessage(24, 25), '');
+  assert.equal(actMessage(3, 4), ''); assert.equal(actMessage(5, 5), '', 'playing an old level again'); assert.match(actMessage(24, 25), /Endless/);
 });
 
 test('game speed: 1x to start with, 2x from act 3', () => {
-  assert.deepEqual([0, 5, 9, 10, 25].map(maxSpeed), [1, 1, 1, 2, 2]);
+  assert.deepEqual([0, 5, 9, 10, 25].map(c => maxSpeed(c)), [1, 1, 1, 2, 2]); assert.equal(maxSpeed(25, true), 3, 'endless');
 });
 
 test('the server uses the same unlocks', async () => {

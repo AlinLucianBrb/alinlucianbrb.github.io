@@ -123,7 +123,7 @@ export function initUI(callbacks) {
     { text: 'The price goes up with each relic you buy. Key: Space (then 1, 2 or 3 to pick)', color: '#ab9f8a' }] }));
   bindTip($('auto'), () => ({ title: 'Auto-start', lines: ['Starts the next wave by itself 3 seconds after a wave is cleared. When it is on, the button is green with a glowing, pulsing border; when it is off, it is red.', { text: 'Turned off again when you retry a level.', color: '#ab9f8a' }] }));
   bindTip($('shopBtn'), () => ({ title: 'Shop', color: '#dcc6ff', lines: ['Ground effects for tiles, a gamble, and a boss to summon for gold.', { text: 'Key: B', color: '#ab9f8a' }] }));
-  bindTip($('spd'), () => ({ title: 'Game speed', lines: (cb.maxSpeed ? cb.maxSpeed() : 1) > 1 ? ['Switch between normal (1x) and double (2x) speed.']
+  bindTip($('spd'), () => ({ title: 'Game speed', lines: (cb.maxSpeed ? cb.maxSpeed() : 1) > 1 ? ['Switch between ' + (cb.maxSpeed() > 2 ? '1x, 2x and 3x' : 'normal (1x) and double (2x)') + ' speed.']
     : ['Normal speed (1x).', { text: '2x unlocks in Act ' + UNLOCKS.speed2.act + '.', color: '#ab9f8a' }] }));
   bindTip($('menuBtn'), () => ({ title: 'Menu', lines: ['Pauses the game and asks before quitting the match. Key: P to pause, Esc to resume.'] }));
   $('meterToggle').onclick = () => {
@@ -161,7 +161,7 @@ export function renderHUD(g, v) {
   $('relic').classList.toggle('poor', g.gold < g.relicCost());
   /* Boss waves: shown during the wave, and in the build phase before one. */
   const boss = g.phase === 'wave' ? isBossWave(g.wave, g.stage) : g.phase === 'build' && isBossWave(g.wave + 1, g.stage);
-  setText($('wave'), g.wave + ' / ' + g.maxWave + (boss ? (g.phase === 'wave' ? ' · Boss' : ' · Boss next') : '')); setText($('stage'), g.stage.code || g.stage.n);
+  setText($('wave'), g.wave + (g.stage.endless ? '' : ' / ' + g.maxWave) + (boss ? (g.phase === 'wave' ? ' · Boss' : ' · Boss next') : '')); setText($('stage'), g.stage.code || g.stage.n);
   $('wave').classList.toggle('boss', !!boss);
   if (coop) {
     /* Co-op: the wave starts when everyone is ready (or on Auto-start). */

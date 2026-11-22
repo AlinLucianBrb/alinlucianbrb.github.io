@@ -6,11 +6,11 @@ import { HEROES, RARITIES, RELICS, rollRarity, COLS, ROWS, T, evolvedDef, nextSt
 import { pathChoice, pathDef, startPreview, endPreview } from './preview.js';
 import { affected } from './stats.js';
 import { levelMods } from './levels.js';
-import { recalc, startWave, statsFor } from './world.js';
+import { recalc, startWave, statsFor, endRun } from './world.js';
 import { shopCommands } from './shop.js';
 import { applyConduits, hasConduit } from './tiles.js';
 import { giveRelic } from './relics.js';
-import { castVote } from './match-effects.js';
+import { castVote, mapVoteOpen } from './match-effects.js';
 
 const OK = { ok: true };
 const fail = reason => ({ ok: false, reason });
@@ -25,7 +25,7 @@ const canStand = (w, h, cx, cy) => inBounds(cx, cy) && !w.noBuild.has(cx + ',' +
 /* A hero moved to a tile: it waits 1 second before attacking again (settle: the screen shows it resting meanwhile). */
 const regroup = w => { if (w.mapEffect === 'ley') for (const h of w.heroes) statsFor(w, h); if (hasConduit(w)) applyConduits(w); };   /* heroes stand elsewhere: Ley lines, and the Conduits' neighbours */
 const settle = (h, cx, cy) => { h.cx = cx; h.cy = cy; h.x = (cx + 0.5) * T; h.y = (cy + 0.5) * T; h.cd = 1; h.lock = null; h.settle = 1; };
-const blocked = (w, p) => w.phase === 'over' ? fail('over') : p.picking ? fail('busy') : null;
+const blocked = (w, p) => w.phase === 'over' ? fail('over') : p.picking ? fail('busy') : mapVoteOpen(w) ? fail('vote') : null;
 const playerOf = (w, c) => w.players[c.p | 0];
 
 /* Does a relic do anything for this player's heroes? Economy and gate relics always do. A hero relic must touch one of the
@@ -138,7 +138,7 @@ export const COMMANDS = {
   /* Ready for the next wave. It starts once every player is ready (or has Auto-start on): solo, at once. */
   wave(w, c) {
     const p = playerOf(w, c); if (!p) return fail('no such player');
-    if (w.phase !== 'build' || p.picking) return fail('not in build phase');
+    if (w.phase !== 'build' || p.picking || mapVoteOpen(w)) return fail('not in build phase');
     p.ready = true;
     if (w.players.every(x => x.ready || x.auto)) startWave(w);
     return OK;
@@ -152,6 +152,13 @@ export const COMMANDS = {
     return OK;
   },
   auto(w, c) { const p = playerOf(w, c); if (!p) return fail('no such player'); p.auto = !!c.on; w.autoT = 3; return OK; },
+  /* Endless, solo: ends the run here, to be saved (the next step sends 'end'). */
+  retire(w) {
+    if (!w.stage.endless || w.coop) return fail('not in this match');
+    if (w.phase === 'over') return fail('over');
+    endRun(w, false);
+    return OK;
+  },
   /* Match effects: a vote for one of the offers, or -1 for none (solo, it decides). */
   vote(w, c) {
     const p = playerOf(w, c); if (!p) return fail('no such player');

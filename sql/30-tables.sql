@@ -119,6 +119,7 @@ create table if not exists public.records (
   runs int not null default 0,
   primary key (user_id, players)
 );
+alter table public.records add column if not exists endless_wave int not null default 0;   -- the best wave in endless
 create index if not exists records_board_idx on public.records (players, levels_cleared desc, frontier_wave desc);
 alter table public.lobbies enable row level security;
 alter table public.lobby_members enable row level security;

@@ -26,7 +26,15 @@ export const killCap = waves => WAVES.base * waves + WAVES.perWave * waves * (wa
 
 /* Bosses: the last wave of every level, and the middle wave too from level middleFromStage on. */
 export const BOSSES = { middleFromStage: 3 };
-export const isBossWave = (wave, stage) => wave === stage.waves || (stage.n >= BOSSES.middleFromStage && wave === Math.round(stage.waves / 2));
+/* Endless (one per zone, after the last level): bosses every bossEvery waves, the special enemies again every `special` waves, and
+   items at the bracket of waves reached (`bracket` waves wide, never below minItemLevel). It stops at maxWaves. */
+export const ENDLESS_RULES = { maxWaves: 1000, bossEvery: 10, special: 55, bracket: 25, minItemLevel: 75 };
+/* The item levels a run that reached `waves` can drop: [lowest, highest]. 500 waves: 475 to 500. */
+export function endlessBracket(waves) {
+  const low = ENDLESS_RULES.bracket * (Math.ceil(Math.max(1, waves) / ENDLESS_RULES.bracket) - 1);
+  return [Math.max(ENDLESS_RULES.minItemLevel, low), Math.max(ENDLESS_RULES.minItemLevel, Math.min(waves, low + ENDLESS_RULES.bracket))];
+}
+export const isBossWave = (wave, stage) => stage.endless ? wave > 0 && wave % ENDLESS_RULES.bossEvery === 0 : wave === stage.waves || (stage.n >= BOSSES.middleFromStage && wave === Math.round(stage.waves / 2));
 
 /* Special enemies (enemies.js has what each one does): the waves each kind comes on, and how many of that wave's enemies
    they replace (wave sizes stay the same). */
@@ -38,7 +46,8 @@ export const SPECIALS = {
   summoner: { waves: [27],         count: 3 }
 };
 /* The special enemies of a wave, in the order they come, spread evenly: the kinds take turns when a wave has several. */
-export function specialsOf(wave) {
+export function specialsOf(wave, stage = null) {
+  if (stage && stage.endless) wave = (wave - 1) % ENDLESS_RULES.special + 1;
   const list = [];
   for (const [id, s] of Object.entries(SPECIALS)) if (s.waves.includes(wave)) for (let k = 0; k < s.count; k++) list.push({ id, at: (k + 0.5) / s.count });
   return list.sort((a, b) => a.at - b.at).map(x => x.id);

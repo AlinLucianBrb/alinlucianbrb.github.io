@@ -1,7 +1,6 @@
 /* The browser shell around the engine: it turns input into commands, runs the loop, moves the camera, draws and updates the HUD.
    All game rules live in js/engine; nothing in here decides what happens in a game. */
-import { zoneOf } from '../content/zones.js';
-import { HEROES, COLS, ROWS, T, STAGES, heroIndex, nextStep, evolutionStep } from '../content/data.js';
+import { HEROES, COLS, ROWS, T, STAGES, stageDef, heroIndex, nextStep, evolutionStep } from '../content/data.js';
 import { createWorld, step, STEP, playerView } from '../engine/world.js';
 import { apply } from '../engine/commands.js';
 import { exportLog, resume } from '../engine/replay.js';
@@ -72,7 +71,7 @@ function newRun(resumeLog = null) {
   ui.setLineup(w);
   ui.setCoop(coopInfo);
   $('newRun').hidden = !!c;                 /* a co-op match is started from its lobby */
-  $('quitQ').textContent = c ? 'Leave this match?' : 'Quit this match?';
+  $('quitQ').textContent = world.stage.endless ? 'End and save this run?' : c ? 'Leave this match?' : 'Quit this match?';
   setPaused(!!resumeLog);   /* a resumed run waits, paused, until the player is ready */
   v.pickObj = undefined; ui.hidePick(); ui.hideOver(); ui.renderMeter(w); ui.renderInspector(w, v);
   syncPick();
@@ -94,7 +93,7 @@ function peerGone(uid) {
   if (i === c.host) {
     netDead = true; v.moving = null;
     ui.hidePick(); closeEvolve();
-    ui.showOver('The host left', 'The match ended at wave ' + world.wave + ' of ' + world.maxWave + '.', 'Saving your run…', false);
+    ui.showOver('The host left', 'The match ended at wave ' + world.wave + (world.stage.endless ? '' : ' of ' + world.maxWave) + '.', 'Saving your run…', false);
     const mine = world;
     Promise.resolve(hooks.onRunEnd({ waves: Math.max(1, world.wave), kills: world.kills, bosses: world.bossKills, stage: stageN, won: false, log: exportLog(world) }))
       .catch(() => 'Could not save your run.').then(msg => { if (mine === world) ui.setOverMsg(msg || ''); });
@@ -105,8 +104,8 @@ function netBanner(text) { const b = $('netBanner'); if (b) { b.textContent = te
 async function finish(done, won) {
   const world = done;   /* the world that ended (a new run may have started by the time the server answers) */
   v.moving = null; setPaused(false);
-  ui.showOver(won ? 'Level cleared!' : 'The gate has fallen',
-    won ? 'You beat all ' + world.maxWave + ' waves.' : world.lives > 0 && world.wave >= world.maxWave ? 'The final boss got through.' : 'You reached wave ' + world.wave + ' of ' + world.maxWave + '.', 'Saving your run…', won && stageN < STAGES.length && !hooks.coop);
+  ui.showOver(won ? 'Level cleared!' : world.stage.endless && world.lives > 0 ? 'Run ended' : 'The gate has fallen',
+    won ? 'You beat all ' + world.maxWave + ' waves.' : world.lives > 0 && world.wave >= world.maxWave && !world.stage.endless ? 'The final boss got through.' : 'You reached wave ' + world.wave + (world.stage.endless ? '.' : ' of ' + world.maxWave + '.'), 'Saving your run…', won && stageN < STAGES.length && !hooks.coop);
   let msg = '';
   try { msg = await hooks.onRunEnd({ waves: world.wave, kills: world.kills, bosses: world.bossKills, stage: stageN, won, log: exportLog(world) }); } catch (e) { msg = 'Could not save your run.'; }
   if (done === currentWorld()) ui.setOverMsg(msg || '');
@@ -437,7 +436,16 @@ function topSpeed() { return (hooks && hooks.maxSpeed) || 1; }
 $('spd').onclick = () => { if (net && !net.isHost) return; v.speed = v.speed < topSpeed() ? v.speed + 1 : 1; };
 $('menuBtn').onclick = onMenu;
 $('evoCancel').onclick = closeEvolve;
-$('quitYes').onclick = () => hooks.onExit();
+/* Quitting gives a run up, except in endless: there it is saved (in co-op, for the player who leaves). */
+let quitting = false;
+function quit() {
+  if (!w || !w.stage.endless || w.phase === 'over' || w.wave < 1 || netDead) return hooks.onExit();
+  if (!hooks.coop) { setPaused(false); closeShop(); act({ type: 'retire' }); step(world); return; }
+  if (quitting) return;
+  quitting = true;
+  Promise.resolve(hooks.onRunEnd({ waves: world.wave, kills: world.kills, bosses: world.bossKills, stage: stageN, won: false, log: exportLog(world) })).catch(() => '').then(() => { quitting = false; hooks.onExit(); });
+}
+$('quitYes').onclick = quit;
 $('resumeBtn').onclick = closeMenu;
 $('camIn').onclick = () => zoomBy(1.25);
 $('camOut').onclick = () => zoomBy(0.8);
@@ -469,7 +477,7 @@ addEventListener('keydown', e => {
 /* ---- Public API used by the Play screen ---- */
 export function startGame(h) {
   hooks = h; stageN = h.stage || 1; active = true; acc = 0; last = -1;
-  if (document.body?.dataset) document.body.dataset.zone = String(zoneOf(stageN).n);   /* the zone's colour for the HUD (index.html, UI zones) */
+  if (document.body?.dataset) document.body.dataset.zone = String(stageDef(stageN).zone);   /* the zone's colour for the HUD (index.html, UI zones) */
   preloadArt();
   newRun(h.resume || null); resize();
   cancelAnimationFrame(raf); stopBg();

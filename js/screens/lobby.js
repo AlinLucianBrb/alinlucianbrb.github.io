@@ -4,7 +4,7 @@
    carries each player's heroes, talents and gear, and the host's "start". Starting opens the Play screen in co-op. */
 import { bus } from '../core/bus.js';
 import { state } from '../core/state.js';
-import { STAGES, HEROES, LINEUP_SIZE, STAT_LABELS } from '../content/data.js';
+import { STAGES, ENDLESS, stageLabel, stageOpen, HEROES, LINEUP_SIZE, STAT_LABELS } from '../content/data.js';
 import { createLobby, joinLobby, listLobbies, lobbyPing, setLobbyStage, leaveLobby, startLobby, lobbyChannel } from '../services/api.js';
 import { coop, enterLobby, closeLobby } from '../net/session.js';
 import { PLAYER_COLORS } from '../game/render.js';
@@ -19,7 +19,7 @@ let bound = false, view = 'create', isPrivate = false, asking = null, pinger = 0
 const say = (t, bad = true) => { $('lbyMsg').textContent = t || ''; $('lbyMsg').classList.toggle('warn', !!bad); };
 const uid = () => state.profile.id;
 const hasShop = () => isUnlocked('shop', state.profile.levels_cleared);
-const unlocked = () => STAGES.filter(s => s.n <= (state.profile.levels_cleared || 0) + 1);
+const unlocked = () => [...STAGES, ...ENDLESS].filter(s => stageOpen(s.n, state.profile.levels_cleared));
 const friendly = e => (e || '').replace(/^.*?:\s*/, '') + sqlHint(e);
 
 function show(v) {
@@ -30,8 +30,9 @@ function show(v) {
 }
 function fillStages(sel, value) {
   sel.textContent = '';
-  for (const s of unlocked()) { const o = el('option', '', 'Level ' + s.code + ' · ' + s.name + ' · ' + s.waves + ' waves'); o.value = s.n; sel.append(o); }
-  sel.value = String(Math.min(value || unlocked().length, unlocked().length));
+  for (const s of unlocked()) { const o = el('option', '', s.endless ? stageLabel(s.n) : 'Level ' + s.code + ' · ' + s.name + ' · ' + s.waves + ' waves'); o.value = s.n; sel.append(o); }
+  const open = unlocked(), levels = open.filter(s => !s.endless);
+  sel.value = String(open.some(s => s.n === value) ? value : levels[levels.length - 1].n);
 }
 
 /* ---- Create ---- */
@@ -59,7 +60,7 @@ async function refreshList() {
   if (!rows.length) { list.append(el('li', 'muted', 'No open lobbies right now. Create one, or enter a name.')); return; }
   for (const r of rows) {
     const li = el('li'), info = el('span'), b = el('button', 'go', 'Join');
-    info.append(el('b', 'lobbycode', r.name), ' ' + (r.is_private ? '🔒 ' : '') + r.host_name + ' · Level ' + r.stage + ' · ' + r.players + '/' + r.max_players);
+    info.append(el('b', 'lobbycode', r.name), ' ' + (r.is_private ? '🔒 ' : '') + r.host_name + ' · ' + stageLabel(r.stage) + ' · ' + r.players + '/' + r.max_players);
     b.onclick = () => (r.is_private ? ask(r.name) : join(r.name));
     li.append(info, b); list.append(li);
   }
@@ -114,7 +115,7 @@ function renderRoom() {
   const l = coop.lobby; if (!l || view !== 'room') return;
   const here = coop.channel ? coop.channel.members() : {}, mine = l.host === uid();
   $('lbyCode').textContent = l.name;
-  $('lbyInfo').textContent = (l.is_private ? 'Private' : 'Public') + ' · Level ' + l.stage + ' · ' + l.members.length + '/' + l.max_players + ' players · enemies have ×' + Math.max(1, l.members.length) + ' life';
+  $('lbyInfo').textContent = (l.is_private ? 'Private' : 'Public') + ' · ' + stageLabel(l.stage) + ' · ' + l.members.length + '/' + l.max_players + ' players · enemies have ×' + Math.max(1, l.members.length) + ' life';
   const box = $('lbySlots'); box.textContent = '';
   for (let s = 0; s < l.max_players; s++) {
     const m = l.members.find(x => x.slot === s), li = el('li', m ? '' : 'empty');

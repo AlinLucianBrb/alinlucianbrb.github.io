@@ -18,10 +18,11 @@ export const isUnlocked = (id, cleared) => (cleared || 0) >= clearedFor(UNLOCKS[
 export const unlocksOf = act => Object.values(UNLOCKS).filter(u => u.act === act).map(u => u.name);
 /* The message after a win that reaches a new act ('' when nothing new): before and after are the levels cleared. */
 export function actMessage(before, after) {
+  if ((before || 0) < LEVELS && after >= LEVELS) return 'You finished the campaign! Every zone now has Endless.';
   const a = actReached(before), b = actReached(after);
   if (b <= a) return '';
   const names = unlocksOf(b);
   return 'Act ' + b + ', ' + ZONES[b - 1].name + ', is open' + (names.length ? '. Unlocked: ' + names.join(', ') + '.' : '.');
 }
-/* The fastest game speed a player can choose (3x will come with endless mode). */
-export const maxSpeed = cleared => (isUnlocked('speed2', cleared) ? 2 : 1);
+/* The fastest game speed a player can choose: 3x in endless. */
+export const maxSpeed = (cleared, endless = false) => (endless ? 3 : isUnlocked('speed2', cleared) ? 2 : 1);

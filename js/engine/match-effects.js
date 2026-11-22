@@ -3,6 +3,7 @@
    { wave, offers: [ids], votes: { player index: offer index or -1 for none }, t: seconds left (co-op) }. Solo, the match waits for
    it; in co-op it goes on, and the vote closes when everyone has voted or the time is up. */
 import { MATCH_EFFECTS, MATCH_PICKS, FX_BASE } from '../content/match-effects.js';
+import { MAP_EFFECTS } from '../content/map-effects.js';
 import { RELICS } from '../content/data.js';
 import { giveRelic, removeRelic, looseRelics } from './relics.js';
 
@@ -15,15 +16,23 @@ export const freshFx = () => ({ ...FX_BASE });
 
 /* Called when a wave has been cleared (never on the last one). */
 export function openVote(w) {
-  if (!w.matchEffects || !MATCH_PICKS.waves.includes(w.wave)) return;
+  if (!w.matchEffects || !(w.stage.endless ? MATCH_PICKS.endless : MATCH_PICKS.waves).includes(w.wave)) return;
   const pool = Object.keys(MATCH_EFFECTS).filter(id => !w.effects.includes(id)), offers = [];
   while (offers.length < MATCH_PICKS.offers && pool.length) offers.push(pool.splice(w.rng.fx.int(pool.length), 1)[0]);
   w.vote = { wave: w.wave, offers, votes: {}, t: MATCH_PICKS.seconds };
 }
+/* Endless, before the first wave: which map effect (no "none"; if nobody votes it is drawn by lot). Nothing can be placed until
+   it is decided. */
+export function openMapVote(w) {
+  const pool = Object.keys(MAP_EFFECTS), offers = [];
+  while (offers.length < MATCH_PICKS.offers) offers.push(pool.splice(w.rng.fx.int(pool.length), 1)[0]);
+  w.vote = { kind: 'map', wave: 0, offers, votes: {}, t: MATCH_PICKS.seconds };
+}
+export const mapVoteOpen = w => !!w.vote && w.vote.kind === 'map';
 /* A player's vote; changing it is allowed while the vote is open. Returns a reason, or '' if it counted. */
 export function castVote(w, p, index, recalc) {
   if (!w.vote) return 'no vote';
-  if (index !== -1 && !w.vote.offers[index]) return 'bad index';
+  if ((index !== -1 || w.vote.kind === 'map') && !w.vote.offers[index]) return 'bad index';
   w.vote.votes[p.i] = index;
   if (w.players.every(x => x.left || x.i in w.vote.votes)) closeVote(w, recalc);
   return '';
@@ -37,9 +46,9 @@ function closeVote(w, recalc) {
   const count = new Map();
   for (const p of w.players) if (p.i in w.vote.votes && !p.left) { const v = w.vote.votes[p.i]; count.set(v, (count.get(v) || 0) + 1); }
   const top = Math.max(0, ...count.values()), tied = [...count.keys()].filter(k => count.get(k) === top).sort((a, b) => a - b);
-  const won = !tied.length ? -1 : tied.length === 1 ? tied[0] : tied[w.rng.fx.int(tied.length)], id = won >= 0 ? w.vote.offers[won] : null;
+  const map = w.vote.kind === 'map', won = !tied.length ? (map ? w.rng.fx.int(w.vote.offers.length) : -1) : tied.length === 1 ? tied[0] : tied[w.rng.fx.int(tied.length)], id = won >= 0 ? w.vote.offers[won] : null;
   w.vote = null;
-  if (id) startEffect(w, id, recalc);
+  if (map) { w.setMap(id); recalc(w); } else if (id) startEffect(w, id, recalc);
   w.ev.emit('effect', { id });
 }
 export function startEffect(w, id, recalc) {

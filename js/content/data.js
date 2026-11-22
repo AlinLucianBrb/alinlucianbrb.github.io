@@ -2,6 +2,7 @@
    Relics and talents are lists of MODIFIERS that target a stat on heroes carrying certain tags, like Path of Exile.
    To add a hero: add an entry here. A new "kind" also needs a behavior in behaviors.js. */
 import { UPGRADES, UPGRADE_LEVEL } from './upgrades.js';
+import { ENDLESS_RULES } from './rules.js';
 import { COMBAT_STATS, COMBAT_LABELS } from './combat.js';
 
 export const COLS = 12, ROWS = 8, T = 40;
@@ -334,6 +335,18 @@ export const STAGES = (() => {
   }
   return out;
 })();
+
+/* Endless, the step after the last level: one for each zone, numbered after the levels, played on one of the zone's maps. Its first
+   wave and its wave LEVEL_WAVES.max are as much tougher than the last level's as each level is than the one before, and it
+   grows on at that pace. tier: the level number its defenses count as. */
+export const ENDLESS = ZONES.map((z, i) => {
+  const p = STAGES[LEVELS - 1], last = p.hpMult * Math.pow(p.growth, p.waves - 1) * LATER.lastWave, hpMult = +(p.hpMult * LATER.firstWave).toFixed(3);
+  return { n: LEVELS + 1 + i, zone: z.n, code: 'Endless', name: z.name, endless: true, tier: LEVELS + 1, waves: ENDLESS_RULES.maxWaves, hpMult, growth: +Math.pow(last / hpMult, 1 / (p.waves - 1)).toFixed(4) };
+});
+export const stageDef = n => STAGES[n - 1] || ENDLESS[n - LEVELS - 1] || null;
+export const stageLabel = n => { const s = stageDef(n); return !s ? 'Level ' + n : s.endless ? 'Endless · ' + s.name : 'Level ' + s.code; };
+/* Whether a player who cleared that many levels can play a stage. */
+export const stageOpen = (n, cleared) => { const s = stageDef(n); return !!s && (s.endless ? (cleared || 0) >= LEVELS : n <= (cleared || 0) + 1); };
 
 export const STAT_LABELS = {
   damage: 'Damage', range: 'Range', speed: 'Attacks per second', chillTime: 'Chill duration (s)', jumps: 'Chain jumps',

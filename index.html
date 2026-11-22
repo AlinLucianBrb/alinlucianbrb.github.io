@@ -740,6 +740,8 @@ button:not(.danger):not(.relic):not(.on):not(.herocard):not(.linkbtn):not(.choos
 .tabs button.on{color:#2a1a00;text-shadow:0 1px 0 rgba(255,240,200,.4)}
 .tabs button:not(.on){filter:saturate(.75) brightness(.85)}
 .evonode .evoart{width:104px;height:104px;margin:-4px 0 -6px;image-rendering:auto}
+/* Endless: under the zone's levels. */
+.endlessbtn{margin-top:8px;align-self:center;min-width:min(560px,92vw);padding:.35em 1em}
 /* Match and map effects. */
 #fxBar:not([hidden]){position:absolute;top:84px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:2}
 .fxchip{--ec:#888;padding:2px 10px;background:rgba(20,17,13,.85);border-bottom:2px solid var(--ec);color:var(--ec);font-family:var(--pixel);font-size:15px;cursor:default;pointer-events:auto}
@@ -850,6 +852,7 @@ button:not(.danger):not(.relic):not(.on):not(.herocard):not(.linkbtn):not(.choos
     <h1>Choose a level</h1>
     <div class="zones" id="lvZones"></div>
     <div class="levels" id="lvList"></div>
+    <button id="lvEndless" class="endlessbtn" hidden></button>
   </div>
   <div id="lvPick" class="lvstep" hidden>
     <h1 id="lvPickTitle">Choose your heroes</h1><p class="muted" id="lvMapFx" hidden></p>
@@ -926,6 +929,7 @@ button:not(.danger):not(.relic):not(.on):not(.herocard):not(.linkbtn):not(.choos
 
 <section id="screen-leaderboard" class="screen scene" hidden>
   <h1>Leaderboard</h1>
+  <div class="tabs" id="lbModes" role="tablist"><button data-mode="campaign" class="on">Campaign</button><button data-mode="endless">Endless</button></div>
   <div class="tabs" id="lbTabs" role="tablist"><button data-players="1" class="on">Solo</button><button data-players="2">2 players</button><button data-players="3">3 players</button><button data-players="4">4 players</button></div>
   <div class="list"><ol id="lbList"></ol></div>
   <button id="lbBack">Back</button>
