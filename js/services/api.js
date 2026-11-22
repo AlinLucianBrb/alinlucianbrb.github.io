@@ -1,6 +1,7 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/+esm';
 import { SUPABASE_URL, SUPABASE_KEY, AUTH_DOMAIN } from '../config.js';
 import { openChannel } from '../net/channel.js';
+import { cleanMaterials } from '../content/crafting.js';
 
 export const isConfigured = !SUPABASE_URL.startsWith('YOUR_');
 const sb = isConfigured ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
@@ -13,6 +14,7 @@ const fill = p => {
   p.talents = p.talents || []; p.levels_cleared = p.levels_cleared || 0; p.frontier_wave = p.frontier_wave || 0;
   p.lineup = p.lineup && p.lineup.length ? p.lineup : ['warrior', 'ranger', 'mage']; p.equipment = p.equipment || {};
   p.paths = p.paths && typeof p.paths === 'object' ? p.paths : {};
+  p.materials = cleanMaterials(p.materials);
 };
 
 const USERNAME_PROBLEMS = {
@@ -40,8 +42,11 @@ export async function signIn(username, password, captchaToken) {
 export const signOut = () => sb.auth.signOut();
 export async function currentSession() { const { data } = await sb.auth.getSession(); return data.session; }
 export async function getProfile(userId) {
-  let { data, error } = await sb.from('profiles').select('id,username,level,xp,gold,best_wave,talents,levels_cleared,frontier_wave,lineup,equipment').eq('id', userId).maybeSingle();
-  if (error) { /* database not updated yet: fall back so login still works */
+  let { data, error } = await sb.from('profiles').select('id,username,level,xp,gold,best_wave,talents,levels_cleared,frontier_wave,lineup,equipment,paths,materials').eq('id', userId).maybeSingle();
+  if (error) { /* database not updated for crafting yet */
+    ({ data, error } = await sb.from('profiles').select('id,username,level,xp,gold,best_wave,talents,levels_cleared,frontier_wave,lineup,equipment,paths').eq('id', userId).maybeSingle());
+  }
+  if (error) { /* a much older database: fall back so login still works */
     ({ data, error } = await sb.from('profiles').select('id,username,level,xp,gold,best_wave').eq('id', userId).maybeSingle());
   }
   /* The account id is who the player is in co-op (lobby host, live channel) and whose saved run is whose. */
@@ -94,6 +99,21 @@ export async function sellItem(itemId) {
   const { data, error } = await sb.rpc('sell_item', { p_item: itemId });
   if (data) fill(data);
   return { profile: data, error: error && error.message };
+}
+/* Disenchanting and crafting: the server checks and rolls everything. disenchant: a list of item ids. */
+const profileCall = async (fn, args) => {
+  if (!sb) return { profile: null, ...OFFLINE };
+  const { data, error } = await sb.rpc(fn, args);
+  if (data) fill(data);
+  return { profile: data, error: error && error.message };
+};
+export const disenchantItems = ids => profileCall('disenchant_items', { p_items: ids });
+export const convertMaterial = (rarity, times = 1) => profileCall('convert_material', { p_rarity: rarity, p_times: times });
+export async function craftItem(rarity, slot, kind) {
+  if (!sb) return { profile: null, item: null, ...OFFLINE };
+  const { data, error } = await sb.rpc('craft_item', { p_rarity: rarity, p_slot: slot, p_affinity: kind });
+  if (data && data.profile) fill(data.profile);
+  return { profile: data && data.profile, item: data && data.item, error: error && error.message };
 }
 /* players: 1 for solo, 2 to 4 for co-op. */
 export async function getLeaderboard(players = 1) {

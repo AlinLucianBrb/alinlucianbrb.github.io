@@ -14,6 +14,7 @@ mock.module(new URL('../js/services/api.js', import.meta.url).href, { namedExpor
     { id: 'i2', item_type: 'helm', rarity: 2, bonuses: ['Sharpened rounds', 'Whetstone', 'Prospector'] },
     { id: 'i3', item_type: 'helm', rarity: 0, bonuses: ['Long barrels'] }] }),
   savePaths: async paths => { pathSaves.push(paths); return { profile: { paths } }; },
+  disenchantItems: async () => ({}), convertMaterial: async () => ({}), craftItem: async () => ({}),
   sellItem: async id => { sold.push(id); return { profile: { gold: 500 + sold.length } }; },
   saveLoadout: async (lineup, equipment) => { saves.push({ lineup, equipment }); if (failNext) { failNext = false; return { error: 'boom' }; } return { profile: { lineup, equipment } }; }
 } });
@@ -141,11 +142,11 @@ test('Inventory: every item as an icon on a grid, with a tooltip saying what it 
   full[0].fire('pointerenter', { clientX: 5, clientY: 5 });
   let tip = dom.made.filter(e => e.className === 'tip').at(-1);
   assert.deepEqual(tip.children.map(c => c._text), ['Rare Helm', 'Helm', 'Item level 10 · stats ×1', '+11.25% damage (rank 3)', '+13.5% damage to melee heroes (rank 3)',
-    'Prospector: no longer works on gear', 'Equipped on the Warrior', 'Sells for 85 gold (click to select)'], 'each bonus with its rank; gold bonuses no longer work on gear; the sell price');
+    'Prospector: no longer works on gear', 'Equipped on the Warrior', 'Sells for 85 gold (click to select)', 'Disenchants into 3 Essence'], 'each bonus with its rank; gold bonuses no longer work on gear; the sell price');
   assert.equal(tip.children[3].style.color, '#5aa9ff', 'a rank 3 bonus in the rank colour (blue)');
   full[2].fire('pointerenter', { clientX: 5, clientY: 5 });
   tip = dom.made.filter(e => e.className === 'tip').at(-1);
-  assert.equal(tip.children.at(-2)._text, 'Not equipped');
+  assert.equal(tip.children.at(-3)._text, 'Not equipped');
   /* selling: click to select, then Sell, then again to confirm; worn items cannot be sold */
   full[0].onclick();
   let sellBtn = byId.invSell.children.find(c => c.tag === 'button');

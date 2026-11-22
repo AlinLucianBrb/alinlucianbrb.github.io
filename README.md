@@ -15,6 +15,7 @@ js/screens/                login, menu, levels (level, then heroes), lobby (co-o
 
 js/content/                WHAT the game contains (plain data, no logic)
   rules.js                 the rules the server also uses (XP, rewards, waves, spawn timing, bosses, drops, co-op): ONE place
+  crafting.js              materials, disenchanting and crafting (the server's copy is generated from it)
   upgrades.js              the level-30 upgrades: two per form, basic attack or ultimate
   unlocks.js               what each act unlocks (the server's copy is generated from it)
   data.js                  heroes (and archived ones for later), energy defaults, attributes, relics, rarities, levels
@@ -203,6 +204,18 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Texts:** attack descriptions describe only the attack, ultimate tooltips only the ultimate, and the hero tooltip the hero (its attribute, delivery and source, tags, damage type). Ultimates that deal damage of their own write it as `{N}` in their description; `ultDesc()` shows it as the number it deals with the hero's stats ("about 156 damage"); "x2 damage" is kept for boosts to an attack the hero already makes. "At level 10, choose a path" is gone from the descriptions.
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
+
+## Disenchanting and crafting (Nov 22, v0.58.0)
+- Unlocked in **act 2** (`js/content/unlocks.js`); the numbers are `js/content/crafting.js`, the server side `sql/52-crafting.sql`.
+- **Disenchant** (Inventory, Items tab): an item becomes 3 of its rarity's material (Scrap, Dust, Essence, Core); one at a time, or
+  every unworn item of a rarity. It asks for a second click, and worn items have to come off first.
+- **Crafting** (Inventory, Crafting tab): 5 of a material make 1 of the next. 9 of a material plus gold (25 / 75 / 200 / 500) make an
+  item: the player picks the rarity, slot and kind (general, melee, projectile, spell, minion); the server rolls its bonuses and
+  ranks like a drop's, at the item level of the highest level beaten.
+- Drops and crafting use one roll on the server (`roll_item`); the item level rule is generated too (`rule_item_level`).
+- **Fixed:** evolution paths were not loaded at login, so they seemed to be lost after a refresh.
+- Four material icons (Pixel Lab, `art/pixellab/icons/m01.png`).
+- **SQL changed: run `supabase-update.sql`** (a materials column, the crafting functions). Match rules did not change.
 
 ## Evolutions at levels 15 and 30 (Nov 22, v0.57.0)
 - **Level 15:** the first evolution (a form) is at level 15 (was 10). Form previews grow until level 14 (was 9).

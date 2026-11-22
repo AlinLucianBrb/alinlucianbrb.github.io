@@ -4,7 +4,8 @@
    Run through `npm run sql` (tools/build-sql.mjs). */
 import { ACCOUNT, REWARDS, WAVES, SPAWN, BOSSES, MIN_RUN, DROPS, COOP } from '../js/content/rules.js';
 import { STAGES, RARITIES, LINEUP_SIZE } from '../js/content/data.js';
-import { ROLL, SELL, RANKS } from '../js/content/items.js';
+import { ROLL, SELL, RANKS, ILVL } from '../js/content/items.js';
+import { CRAFT } from '../js/content/crafting.js';
 import { UNLOCKS, clearedFor } from '../js/content/unlocks.js';
 
 const num = x => String(+x.toFixed(10));
@@ -51,6 +52,11 @@ export function rulesSql() {
     fn('rule_rank(p_rarity int, p_roll numeric)', 'int',
       'select case ' + [1, 2, 3].map(k => 'when p_roll * 100 < (array[' + rankCum(k).join(', ') + '])[p_rarity + 1] then ' + k).join(' ') + ' else ' + RANKS + ' end',
       'A bonus rank from a random number in [0, 1), by the item rarity (weights in %: ' + ROLL.rankWeights.map(r => r.join('/')).join(', ') + ').'),
+    fn('rule_item_level(p_stage int)', 'int', 'select ' + ILVL.perLevel + ' * greatest(1, p_stage)', 'The item level of items from a level.'),
+    fn('rule_disenchant_yield()', 'int', 'select ' + CRAFT.yields, 'Materials from disenchanting one item.'),
+    fn('rule_convert_cost()', 'int', 'select ' + CRAFT.convert, 'Materials that make one of the next.'),
+    fn('rule_craft_cost()', 'int', 'select ' + CRAFT.cost, 'Materials for crafting an item.'),
+    fn('rule_craft_gold(p_rarity int)', 'int', 'select (array[' + CRAFT.gold.join(', ') + '])[p_rarity + 1]', 'Account gold for crafting an item of a rarity.'),
     fn('item_price(p_rarity int, p_bonuses text[], p_ranks int[])', 'int',
       'select (array[' + SELL.base.join(', ') + '])[least(greatest(p_rarity, 0), 3) + 1] + ' + SELL.perRank +
       ' * coalesce((select sum(coalesce(p_ranks[k], least(greatest(p_rarity, 0), 3) + 1)) from generate_subscripts(coalesce(p_bonuses, \'{}\'), 1) k), 0)::int',
@@ -62,5 +68,5 @@ export function rulesSql() {
 export const RULE_FUNCTIONS = ['rule_stage_count()', 'rule_stage_waves(int)', 'rule_unlock(text)', 'rule_lineup_max()', 'rule_max_players()', 'rule_max_items()',
   'rule_xp_need(int)', 'rule_run_xp(int, int, numeric)', 'rule_run_gold(int, numeric)', 'rule_kill_cap(int)', 'rule_boss_cap(int, int)',
   'min_run_seconds(int)', 'rule_min_run(int)', 'rule_drop_chance(boolean, int, int)', 'rule_rarity(numeric, numeric)', 'rule_bonus_guaranteed(int)',
-  'rule_max_bonuses()', 'rule_extra_bonus_chance()', 'rule_affinity_chance()', 'rule_rank(int, numeric)', 'item_price(int, text[], int[])'];
+  'rule_max_bonuses()', 'rule_extra_bonus_chance()', 'rule_affinity_chance()', 'rule_rank(int, numeric)', 'rule_item_level(int)', 'rule_disenchant_yield()', 'rule_convert_cost()', 'rule_craft_cost()', 'rule_craft_gold(int)', 'item_price(int, text[], int[])'];
 export const rulesPermissionsSql = () => RULE_FUNCTIONS.map(f => 'revoke all on function public.' + f + ' from public, anon, authenticated;').join('\n') + '\n';

@@ -14,11 +14,11 @@ test('an act is reached by beating the last level of the one before it', () => {
   assert.deepEqual([0, 4, 5, 9, 10, 20, 25].map(actReached), [1, 1, 2, 2, 3, 5, 5]);
   assert.deepEqual([1, 2, 3].map(clearedFor), [0, 5, 10]);
   assert.ok(!isUnlocked('paths', 4) && isUnlocked('paths', 5)); assert.ok(!isUnlocked('paths', undefined));
-  assert.deepEqual(unlocksOf(2), ['Evolution paths']); assert.deepEqual(unlocksOf(1), []);
+  assert.deepEqual(unlocksOf(2), ['Evolution paths', 'Crafting']); assert.deepEqual(unlocksOf(1), []);
 });
 
 test('a win that reaches a new act says what it unlocked', () => {
-  assert.match(actMessage(4, 5), /^Act 2, Deep Forest, is open\. Unlocked: Evolution paths\.$/);
+  assert.match(actMessage(4, 5), /^Act 2, Deep Forest, is open\. Unlocked: Evolution paths, Crafting\.$/);
   assert.equal(actMessage(3, 4), ''); assert.equal(actMessage(5, 5), '', 'playing an old level again'); assert.equal(actMessage(24, 25), '');
 });
 

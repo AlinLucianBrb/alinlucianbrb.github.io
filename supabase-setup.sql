@@ -18,6 +18,7 @@ create table public.profiles (
   frontier_wave int not null default 0,
   lineup text[] not null default '{warrior,ranger,mage}',
   equipment jsonb not null default '{}',
+  materials int[] not null default '{0,0,0,0}',   -- crafting materials by rarity: Scrap, Dust, Essence, Core
   paths jsonb not null default '{}',   -- evolution paths chosen before a match: { "druid": "animalic" }
   created_at timestamptz not null default now()
 );
@@ -855,7 +856,7 @@ create or replace function public.rule_stage_waves(p_stage int) returns int
 language sql immutable set search_path = public as $$ select (array[15, 25, 35, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55])[p_stage] $$;
 -- Levels that must be cleared before a feature is unlocked (it unlocks on reaching its act).
 create or replace function public.rule_unlock(p_feature text) returns int
-language sql immutable set search_path = public as $$ select case p_feature when 'paths' then 5 when 'speed2' then 10 end $$;
+language sql immutable set search_path = public as $$ select case p_feature when 'paths' then 5 when 'crafting' then 5 when 'speed2' then 10 end $$;
 -- Heroes a player can bring into a match.
 create or replace function public.rule_lineup_max() returns int
 language sql immutable set search_path = public as $$ select 3 $$;
@@ -907,6 +908,21 @@ language sql immutable set search_path = public as $$ select 0.6 $$;
 -- A bonus rank from a random number in [0, 1), by the item rarity (weights in %: 70/22/7/1, 45/35/15/5, 25/35/28/12, 10/25/35/30).
 create or replace function public.rule_rank(p_rarity int, p_roll numeric) returns int
 language sql immutable set search_path = public as $$ select case when p_roll * 100 < (array[70, 45, 25, 10])[p_rarity + 1] then 1 when p_roll * 100 < (array[92, 80, 60, 35])[p_rarity + 1] then 2 when p_roll * 100 < (array[99, 95, 88, 70])[p_rarity + 1] then 3 else 4 end $$;
+-- The item level of items from a level.
+create or replace function public.rule_item_level(p_stage int) returns int
+language sql immutable set search_path = public as $$ select 3 * greatest(1, p_stage) $$;
+-- Materials from disenchanting one item.
+create or replace function public.rule_disenchant_yield() returns int
+language sql immutable set search_path = public as $$ select 3 $$;
+-- Materials that make one of the next.
+create or replace function public.rule_convert_cost() returns int
+language sql immutable set search_path = public as $$ select 5 $$;
+-- Materials for crafting an item.
+create or replace function public.rule_craft_cost() returns int
+language sql immutable set search_path = public as $$ select 9 $$;
+-- Account gold for crafting an item of a rarity.
+create or replace function public.rule_craft_gold(p_rarity int) returns int
+language sql immutable set search_path = public as $$ select (array[25, 75, 200, 500])[p_rarity + 1] $$;
 -- What an item sells for: a base by rarity plus gold per bonus rank (a bonus from before ranks counts at the rarity).
 create or replace function public.item_price(p_rarity int, p_bonuses text[], p_ranks int[]) returns int
 language sql immutable set search_path = public as $$ select (array[5, 15, 40, 100])[least(greatest(p_rarity, 0), 3) + 1] + 5 * coalesce((select sum(coalesce(p_ranks[k], least(greatest(p_rarity, 0), 3) + 1)) from generate_subscripts(coalesce(p_bonuses, '{}'), 1) k), 0)::int $$;
@@ -1102,14 +1118,38 @@ drop function if exists public.finish_run(int, int, int, boolean);
 -- Talents can also raise the gold and XP the match gives (reward_gold, reward_xp in talent_nodes).
 -- Every boss defeated (p_bosses) adds one guaranteed item. Bosses come on the last wave of a level and, from level 3 on, the
 -- middle wave too, so a run cannot claim more bosses than the boss waves it reached.
+-- Rolls and stores one item: rarity + 1 bonuses or more (p_extra adds to the chance of each further one), all different, each
+-- with its own rank. On an archetype item (p_affinity) each bonus has a 60% chance to come from that archetype's bonuses (if
+-- one is left). Used by finish_run (drops) and craft_item.
+create or replace function public.roll_item(p_user uuid, p_type text, p_affinity text, p_rarity int, p_ilvl int, p_extra numeric) returns public.player_items
+language plpgsql security definer set search_path = public as $$
+declare nb int; bon text[] := '{}'; rks int[] := '{}'; pick text; it public.player_items;
+begin
+  nb := public.rule_bonus_guaranteed(p_rarity);
+  while nb < public.rule_max_bonuses() and random() < public.rule_extra_bonus_chance() + p_extra loop nb := nb + 1; end loop;
+  for k in 1 .. nb loop
+    pick := null;
+    if p_affinity is not null and random() < public.rule_affinity_chance() then
+      select id into pick from public.item_bonuses where p_affinity = any (tags) and id <> all (bon) order by random() limit 1;
+    end if;
+    if pick is null then select id into pick from public.item_bonuses where id <> all (bon) order by random() limit 1; end if;
+    exit when pick is null;
+    bon := bon || pick;
+  end loop;
+  for k in 1 .. coalesce(array_length(bon, 1), 0) loop rks := rks || public.rule_rank(p_rarity, random()::numeric); end loop;
+  insert into public.player_items (user_id, item_type, rarity, bonuses, bonus_ranks, ilvl) values (p_user, p_type, p_rarity, bon, rks, p_ilvl)
+  returning * into it;
+  return it;
+end;
+$$;
+
 drop function if exists public.finish_run(uuid, int, int, boolean);
 drop function if exists public.finish_run(uuid, int, int, boolean, int);
 create function public.finish_run(p_run uuid, p_waves int, p_kills int, p_won boolean, p_bosses int default 0) returns jsonb
 language plpgsql security definer set search_path = public as $$
 declare me public.profiles; r public.runs; cap int; frontier boolean; elapsed numeric; done_waves int; dropped text := null;
         drops jsonb := '[]'; b_gold numeric; b_xp numeric; b_loot numeric; chance numeric; n int; boss_cap int;
-        rar int; nb int; bon text[]; b_rar numeric; b_extra numeric; rks int[];
-        aff text; pick text; il int;
+        rar int; b_rar numeric; b_extra numeric; aff text; il int; it public.player_items;
 begin
   if auth.uid() is null then raise exception 'not signed in'; end if;
   select * into r from public.runs where id = p_run and user_id = auth.uid() and finished_at is null for update;
@@ -1156,7 +1196,7 @@ begin
         frontier_wave = case when p_won and r.stage > x.levels_cleared then 0
                              when r.stage = x.levels_cleared + 1 then greatest(x.frontier_wave, p_waves) else x.frontier_wave end,
         levels_cleared = case when p_won then greatest(x.levels_cleared, r.stage) else x.levels_cleared end;
-  il := 3 * (case when p_won then r.stage else greatest(1, r.stage - 1) end);   -- item level: 3 x the level beaten (on a loss, the one below); ILVL.perLevel in items.js
+  il := public.rule_item_level(case when p_won then r.stage else r.stage - 1 end);   -- item level: by the level beaten (on a loss, the one below)
   chance := public.rule_drop_chance(p_won, p_waves, r.stage) * (1 + b_loot);
   n := p_bosses + floor(chance)::int + (case when random() < chance - floor(chance) then 1 else 0 end);
   for i in 1 .. n loop
@@ -1165,24 +1205,8 @@ begin
     select id, affinity into dropped, aff from public.item_types where droppable order by random() limit 1;
     exit when dropped is null;
     rar := public.rule_rarity(random()::numeric, b_rar);
-    nb := public.rule_bonus_guaranteed(rar);
-    while nb < public.rule_max_bonuses() and random() < public.rule_extra_bonus_chance() + b_extra loop nb := nb + 1; end loop;
-    -- bonuses, all different; on an archetype item each has a 60% chance to come from that archetype's bonuses (if one is left)
-    bon := '{}';
-    for k in 1 .. nb loop
-      pick := null;
-      if aff is not null and random() < public.rule_affinity_chance() then
-        select id into pick from public.item_bonuses where aff = any (tags) and id <> all (bon) order by random() limit 1;
-      end if;
-      if pick is null then select id into pick from public.item_bonuses where id <> all (bon) order by random() limit 1; end if;
-      exit when pick is null;
-      bon := bon || pick;
-    end loop;
-    -- each bonus's rank (rule_rank: rarer items roll higher ranks more often)
-    rks := '{}';
-    for k in 1 .. coalesce(array_length(bon, 1), 0) loop rks := rks || public.rule_rank(rar, random()::numeric); end loop;
-    insert into public.player_items (user_id, item_type, rarity, bonuses, bonus_ranks, ilvl) values (auth.uid(), dropped, rar, bon, rks, il);
-    drops := drops || jsonb_build_array(jsonb_build_object('item_type', dropped, 'rarity', rar, 'bonuses', to_jsonb(bon), 'bonus_ranks', to_jsonb(rks), 'ilvl', il));
+    it := public.roll_item(auth.uid(), dropped, aff, rar, il, b_extra);
+    drops := drops || jsonb_build_array(jsonb_build_object('item_type', it.item_type, 'rarity', it.rarity, 'bonuses', to_jsonb(it.bonuses), 'bonus_ranks', to_jsonb(it.bonus_ranks), 'ilvl', it.ilvl));
   end loop;
   return jsonb_build_object('profile', to_jsonb(me), 'drop', drops -> 0 ->> 'item_type', 'drops', drops);
 end;
@@ -1207,6 +1231,88 @@ begin
   delete from public.player_items where id = it.id;
   update public.profiles set gold = gold + price where id = auth.uid() returning * into me;
   return me;
+end;
+$$;
+
+-- ===== Disenchanting and crafting (the numbers are the rule_* functions, generated from js/content/crafting.js) =====
+-- profiles.materials holds how many of each material a player has, by rarity: {Scrap, Dust, Essence, Core}.
+
+-- Whether a feature is unlocked for a player (it unlocks on reaching its act).
+create or replace function public.require_unlock(p_feature text, p_cleared int) returns void
+language plpgsql set search_path = public as $$
+begin
+  if p_cleared < public.rule_unlock(p_feature) then raise exception '% is not unlocked yet', p_feature; end if;
+end;
+$$;
+
+-- Breaks items down into materials: rule_disenchant_yield() of each item's rarity. All must be the player's and none worn.
+create or replace function public.disenchant_items(p_items uuid[]) returns public.profiles
+language plpgsql security definer set search_path = public as $$
+declare me public.profiles; n int; got int[]; y int := public.rule_disenchant_yield();
+begin
+  if auth.uid() is null then raise exception 'not signed in'; end if;
+  n := coalesce(array_length(p_items, 1), 0);
+  if n < 1 or n > public.rule_max_items() then raise exception 'choose at least one item'; end if;
+  if (select count(distinct x) from unnest(p_items) x) <> n then raise exception 'each item only once'; end if;
+  perform 1 from public.player_items where id = any (p_items) and user_id = auth.uid() order by id for update;
+  if (select count(*) from public.player_items where id = any (p_items) and user_id = auth.uid()) <> n then raise exception 'unknown item'; end if;
+  select * into me from public.profiles where id = auth.uid() for update;
+  perform public.require_unlock('crafting', me.levels_cleared);
+  if exists (select 1 from jsonb_each(coalesce(me.equipment, '{}'::jsonb)) h,
+                  jsonb_each_text(case when jsonb_typeof(h.value) = 'object' then h.value else jsonb_build_object('trinket', h.value) end) s
+              where s.value in (select x::text from unnest(p_items) x)) then
+    raise exception 'take the item off before disenchanting it';
+  end if;
+  select array[count(*) filter (where rarity = 0), count(*) filter (where rarity = 1), count(*) filter (where rarity = 2), count(*) filter (where rarity = 3)]::int[]
+    into got from public.player_items where id = any (p_items) and user_id = auth.uid();
+  delete from public.player_items where id = any (p_items) and user_id = auth.uid();
+  update public.profiles
+     set materials = array[materials[1] + y * got[1], materials[2] + y * got[2], materials[3] + y * got[3], materials[4] + y * got[4]]
+   where id = auth.uid() returning * into me;
+  return me;
+end;
+$$;
+
+-- Turns rule_convert_cost() of a material into one of the next, p_times times. p_rarity is the one given (0 to 2).
+create or replace function public.convert_material(p_rarity int, p_times int default 1) returns public.profiles
+language plpgsql security definer set search_path = public as $$
+declare me public.profiles; need int;
+begin
+  if auth.uid() is null then raise exception 'not signed in'; end if;
+  if p_rarity is null or p_rarity < 0 or p_rarity > 2 or p_times is null or p_times < 1 or p_times > 1000 then raise exception 'bad conversion'; end if;
+  select * into me from public.profiles where id = auth.uid() for update;
+  perform public.require_unlock('crafting', me.levels_cleared);
+  need := public.rule_convert_cost() * p_times;
+  if me.materials[p_rarity + 1] < need then raise exception 'not enough materials'; end if;
+  me.materials[p_rarity + 1] := me.materials[p_rarity + 1] - need;
+  me.materials[p_rarity + 2] := me.materials[p_rarity + 2] + p_times;
+  update public.profiles set materials = me.materials where id = auth.uid() returning * into me;
+  return me;
+end;
+$$;
+
+-- Makes an item of a rarity, slot and kind (p_affinity: an archetype, or null for a general item). The bonuses are rolled like a
+-- drop's (roll_item). Returns { "profile", "item" }.
+create or replace function public.craft_item(p_rarity int, p_slot text, p_affinity text default null) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare me public.profiles; it public.player_items; kind text; price int; b_extra numeric;
+begin
+  if auth.uid() is null then raise exception 'not signed in'; end if;
+  if p_rarity is null or p_rarity < 0 or p_rarity > 3 then raise exception 'bad rarity'; end if;
+  select id into kind from public.item_types where droppable and slot = p_slot and affinity is not distinct from p_affinity order by id limit 1;
+  if kind is null then raise exception 'unknown item type'; end if;
+  select * into me from public.profiles where id = auth.uid() for update;
+  perform public.require_unlock('crafting', me.levels_cleared);
+  if (select count(*) from public.player_items where user_id = auth.uid()) >= public.rule_max_items() then raise exception 'your inventory is full'; end if;
+  if me.materials[p_rarity + 1] < public.rule_craft_cost() then raise exception 'not enough materials'; end if;
+  price := public.rule_craft_gold(p_rarity);
+  if me.gold < price then raise exception 'not enough gold'; end if;
+  select coalesce(sum(t.reward_extra), 0) into b_extra from public.talent_nodes t where t.id = any (me.talents);
+  me.materials[p_rarity + 1] := me.materials[p_rarity + 1] - public.rule_craft_cost();
+  update public.profiles set materials = me.materials, gold = gold - price where id = auth.uid() returning * into me;
+  it := public.roll_item(auth.uid(), kind, p_affinity, p_rarity, public.rule_item_level(me.levels_cleared), b_extra);
+  return jsonb_build_object('profile', to_jsonb(me), 'item', jsonb_build_object('id', it.id, 'item_type', it.item_type, 'rarity', it.rarity,
+    'bonuses', to_jsonb(it.bonuses), 'bonus_ranks', to_jsonb(it.bonus_ranks), 'ilvl', it.ilvl, 'created_at', it.created_at));
 end;
 $$;
 
@@ -1424,10 +1530,18 @@ revoke all on function public.save_paths(jsonb) from public, anon, authenticated
 grant execute on function public.save_paths(jsonb) to authenticated;
 revoke all on function public.sell_item(uuid) from public, anon, authenticated;
 grant execute on function public.sell_item(uuid) to authenticated;
+revoke all on function public.disenchant_items(uuid[]) from public, anon, authenticated;
+grant execute on function public.disenchant_items(uuid[]) to authenticated;
+revoke all on function public.convert_material(int, int) from public, anon, authenticated;
+grant execute on function public.convert_material(int, int) to authenticated;
+revoke all on function public.craft_item(int, text, text) from public, anon, authenticated;
+grant execute on function public.craft_item(int, text, text) to authenticated;
 revoke all on function public.save_talents(text[]) from public, anon, authenticated;
 grant execute on function public.save_talents(text[]) to authenticated;
 -- Internal helpers: only other database functions use them.
 revoke all on function public.username_problem(text) from public, anon, authenticated;
+revoke all on function public.roll_item(uuid, text, text, int, int, numeric) from public, anon, authenticated;
+revoke all on function public.require_unlock(text, int) from public, anon, authenticated;
 revoke all on function public.lobby_code() from public, anon, authenticated;
 revoke all on function public.lobby_hash(text, text) from public, anon, authenticated;
 revoke all on function public.lobby_state(uuid) from public, anon, authenticated;
@@ -1475,4 +1589,9 @@ revoke all on function public.rule_max_bonuses() from public, anon, authenticate
 revoke all on function public.rule_extra_bonus_chance() from public, anon, authenticated;
 revoke all on function public.rule_affinity_chance() from public, anon, authenticated;
 revoke all on function public.rule_rank(int, numeric) from public, anon, authenticated;
+revoke all on function public.rule_item_level(int) from public, anon, authenticated;
+revoke all on function public.rule_disenchant_yield() from public, anon, authenticated;
+revoke all on function public.rule_convert_cost() from public, anon, authenticated;
+revoke all on function public.rule_craft_cost() from public, anon, authenticated;
+revoke all on function public.rule_craft_gold(int) from public, anon, authenticated;
 revoke all on function public.item_price(int, text[], int[]) from public, anon, authenticated;

@@ -77,7 +77,7 @@ test('the server knows every bonus and item type, and rolls with the shared rule
   assert.ok(sql.includes('public.rule_extra_bonus_chance() returns numeric\nlanguage sql immutable set search_path = public as $$ select ' + ROLL.extraChance + ' $$'));
   assert.ok(sql.includes('public.rule_affinity_chance() returns numeric\nlanguage sql immutable set search_path = public as $$ select ' + ROLL.affinityChance + ' $$'));
   assert.match(sql, /select id into pick from public\.item_bonuses where id <> all \(bon\) order by random\(\) limit 1/, 'different bonuses');
-  assert.match(sql, /where aff = any \(tags\) and id <> all \(bon\)/);
+  assert.match(sql, /where p_affinity = any \(tags\) and id <> all \(bon\)/);
   const { AFFINITY } = await import('../js/content/items.js');
   for (const b of ITEM_BONUSES) {
     const tags = Object.keys(AFFINITY).filter(k => AFFINITY[k].includes(b));
@@ -143,6 +143,7 @@ test('the server gives a dropped item 3 x the level beaten (on a loss, the level
   assert.equal(ILVL.perLevel, 3);
   const sql = readFileSync(new URL('../supabase-update.sql', import.meta.url), 'utf8');
   assert.match(sql, /ilvl int not null default 10/);
-  assert.match(sql, /il := 3 \* \(case when p_won then r\.stage else greatest\(1, r\.stage - 1\) end\);/);
+  assert.match(sql, /il := public\.rule_item_level\(case when p_won then r\.stage else r\.stage - 1 end\);/);
+  assert.match(sql, /rule_item_level\(p_stage int\) returns int\nlanguage sql immutable set search_path = public as \$\$ select 3 \* greatest\(1, p_stage\) \$\$/);
 });
 

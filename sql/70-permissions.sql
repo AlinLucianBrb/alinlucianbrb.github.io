@@ -13,10 +13,18 @@ revoke all on function public.save_paths(jsonb) from public, anon, authenticated
 grant execute on function public.save_paths(jsonb) to authenticated;
 revoke all on function public.sell_item(uuid) from public, anon, authenticated;
 grant execute on function public.sell_item(uuid) to authenticated;
+revoke all on function public.disenchant_items(uuid[]) from public, anon, authenticated;
+grant execute on function public.disenchant_items(uuid[]) to authenticated;
+revoke all on function public.convert_material(int, int) from public, anon, authenticated;
+grant execute on function public.convert_material(int, int) to authenticated;
+revoke all on function public.craft_item(int, text, text) from public, anon, authenticated;
+grant execute on function public.craft_item(int, text, text) to authenticated;
 revoke all on function public.save_talents(text[]) from public, anon, authenticated;
 grant execute on function public.save_talents(text[]) to authenticated;
 -- Internal helpers: only other database functions use them.
 revoke all on function public.username_problem(text) from public, anon, authenticated;
+revoke all on function public.roll_item(uuid, text, text, int, int, numeric) from public, anon, authenticated;
+revoke all on function public.require_unlock(text, int) from public, anon, authenticated;
 revoke all on function public.lobby_code() from public, anon, authenticated;
 revoke all on function public.lobby_hash(text, text) from public, anon, authenticated;
 revoke all on function public.lobby_state(uuid) from public, anon, authenticated;

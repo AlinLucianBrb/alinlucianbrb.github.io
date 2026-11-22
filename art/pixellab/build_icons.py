@@ -40,6 +40,7 @@ S = {
     'r01': ['r_compound_interest', 'r_cruelty', 'r_dark_pact', 'r_duration', 'r_feral_haste', 'r_fine_arrows', 'r_finesse', 'r_four_leaf_clover'],
     'r02': ['r_holy_water', 'r_hunting_instinct', 'r_insight', 'r_keen_edge', 'r_long_barrels', 'r_pack_leader', 'r_prospector', 'r_prowess'],
     'r03': ['r_quick_hands', 'r_quick_incantation', 'r_reinforced_gate', 'r_savage_bite', 'r_sharpened_rounds', 'r_split_bolt', 'r_tax_collector', 'r_whetstone'],
+    'm01': ['icon_mat_scrap', 'icon_mat_dust', 'icon_mat_essence', 'icon_mat_core'],
     'i01': ['i_arcane_amulet', 'i_beast_mask', 'i_bloodstone_ring', 'i_body_armour', 'i_boots', 'i_circlet', 'i_fang_necklace', 'i_feather_charm'],
     'i02': ['i_hide_armour', 'i_leather_hood', 'i_leather_jerkin', 'i_leather_trousers'],
     'i03': ['i_leggings', 'i_plate_armour', 'i_plate_greaves', 'i_power_charm', 'i_ranger_boots', 'i_sabatons', 'i_silk_robe', 'i_silk_slippers'],

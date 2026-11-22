@@ -13,6 +13,7 @@ create table public.profiles (
   frontier_wave int not null default 0,
   lineup text[] not null default '{warrior,ranger,mage}',
   equipment jsonb not null default '{}',
+  materials int[] not null default '{0,0,0,0}',   -- crafting materials by rarity: Scrap, Dust, Essence, Core
   paths jsonb not null default '{}',   -- evolution paths chosen before a match: { "druid": "animalic" }
   created_at timestamptz not null default now()
 );

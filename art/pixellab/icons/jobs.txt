@@ -22,3 +22,4 @@ i01 94206a72-62c2-4979-8f3f-4da2ef9773f2
 i02 71e05572-75f8-4562-a7fb-cda71bc2d6e1
 i03 e2fd3b87-a611-45fa-9e47-1513cdc402df
 i04 74a527fb-6ba5-489c-8347-9577d9cf0c1b
+m01 741582ab-c76a-43d4-896a-05a1f303f83c (dust, essence, core) and afd7777f-5e9f-4a3e-a917-198a556075d2 (scrap), placed on one sheet

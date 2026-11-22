@@ -16,8 +16,9 @@ test('the database rules are written from js/content/rules.js (one place): finis
     for (const use of ['cap := public.rule_stage_waves(r.stage);', 'p_kills > public.rule_kill_cap(p_waves)', 'boss_cap := public.rule_boss_cap(r.stage, p_waves);',
       'elapsed < public.rule_min_run(done_waves)', 'me.xp := me.xp + public.rule_run_xp(p_waves, p_kills, b_xp);', 'me.gold := me.gold + public.rule_run_gold(p_waves, b_gold);',
       'while me.xp >= public.rule_xp_need(me.level) loop', 'chance := public.rule_drop_chance(p_won, p_waves, r.stage) * (1 + b_loot);',
-      'rar := public.rule_rarity(random()::numeric, b_rar);', 'nb := public.rule_bonus_guaranteed(rar);', 'random() < public.rule_extra_bonus_chance() + b_extra',
-      'random() < public.rule_affinity_chance()', 'public.rule_rank(rar, random()::numeric)', '>= public.rule_max_items()',
+      'rar := public.rule_rarity(random()::numeric, b_rar);', 'nb := public.rule_bonus_guaranteed(p_rarity);', 'random() < public.rule_extra_bonus_chance() + p_extra',
+      'it := public.roll_item(auth.uid(), dropped, aff, rar, il, b_extra);',
+      'random() < public.rule_affinity_chance()', 'public.rule_rank(p_rarity, random()::numeric)', '>= public.rule_max_items()',
       'p_stage > public.rule_stage_count()', 'n > public.rule_lineup_max()'])
       assert.ok(sql.includes(use), f + ' uses: ' + use);
     for (const old of ['10 + 5 * r.stage', 'p_waves * (p_waves + 6)', '50 + me.level * 50', 'round((p_waves * 10 + p_kills) * (1 + b_xp))', '28 * (1 + b_rar)'])

@@ -740,6 +740,31 @@ button:not(.danger):not(.relic):not(.on):not(.herocard):not(.linkbtn):not(.choos
 .tabs button.on{color:#2a1a00;text-shadow:0 1px 0 rgba(255,240,200,.4)}
 .tabs button:not(.on){filter:saturate(.75) brightness(.85)}
 .evonode .evoart{width:104px;height:104px;margin:-4px 0 -6px;image-rendering:auto}
+/* Inventory: the Items and Crafting tabs. */
+#invItems:not([hidden]){display:flex;flex-direction:column;align-items:center;gap:8px}
+.invsell{flex-wrap:wrap}
+.disall{box-shadow:inset 0 -4px 0 var(--rc)}
+#invCraft:not([hidden]){display:flex;flex-direction:column;align-items:center;gap:14px;width:min(1360px,96vw)}
+.mats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;width:100%}
+.mat{--rc:#888;display:flex;flex-direction:column;gap:6px;padding:8px 12px;background:linear-gradient(180deg,color-mix(in srgb,var(--rc) 14%,#1d1a15),#161310);border-bottom:3px solid var(--rc)}
+.mathead{display:flex;align-items:center;gap:8px;font-family:var(--pixel);font-size:18px}
+.mathead b{font-weight:400;font-size:24px;color:#ffe08a}
+.maticon{width:32px;height:32px;object-fit:contain}
+.matrow{display:flex;gap:6px}
+.matrow .convert{flex:1;padding:.25em .4em}
+.craftform{display:grid;grid-template-columns:2.5fr 1fr 1fr;gap:12px;width:100%;align-items:stretch}
+.craftpick{display:flex;flex-direction:column;gap:8px}
+.craftrow{display:grid;grid-template-columns:64px repeat(5,minmax(0,1fr));gap:6px;align-items:center}
+#invCraft .craftopt,#invCraft .convert{padding:.35em .2em;font-size:15px;white-space:nowrap;text-align:center;justify-content:center;min-width:0}
+.craftopt.on{filter:none}.craftopt:not(.on){filter:saturate(.7) brightness(.8)}
+.craftnote{margin:4px 0 0}
+.craftcard{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px;background:linear-gradient(180deg,#1d1a15,#161310);text-align:center;min-height:210px}
+.craftcard .itemicon{width:64px;height:64px}
+.craftcost{display:flex;align-items:center;gap:6px;font-family:var(--pixel)}
+.craftcost .maticon{width:24px;height:24px}
+.craftlast{justify-content:center}
+@media (max-height:760px){.invgrid{grid-template-columns:repeat(8,minmax(0,58px))}}
+@media (max-width:820px){.mats{grid-template-columns:repeat(2,minmax(0,1fr))}.craftform{grid-template-columns:1fr}.craftrow{grid-template-columns:repeat(3,minmax(0,1fr))}.craftrow .muted{grid-column:1/-1}}
 /* Evolutions tab: the base hero on the left, its forms beside it, so the whole page fits the window without scrolling. */
 .hpage:has(.hbody.evo){width:min(1480px,96vw);max-width:none}
 .hbody.evo{padding:8px 10px}
@@ -867,10 +892,14 @@ button:not(.danger):not(.relic):not(.on):not(.herocard):not(.linkbtn):not(.choos
 <section id="screen-inventory" class="screen scene" hidden>
   <div class="topbar"><button id="invBack">Back</button><div>Items <b id="invCount"></b></div><span class="muted" id="invMsg"></span></div>
   <h1>Inventory</h1>
-  <p class="muted" id="invEmpty">No items yet. Every win drops one, every boss you defeat drops one, and losses can too.</p>
-  <div class="invgrid" id="invGrid"></div>
-  <div class="invsell" id="invSell"></div>
-  <small class="muted">Hover an item to see what it does. Equip items on each hero's page (Heroes). Click one to sell it for gold.</small>
+  <div class="tabs" id="invTabs"><button data-tab="items">Items</button><button data-tab="craft">Crafting</button></div>
+  <div id="invItems">
+    <p class="muted" id="invEmpty">No items yet. Every win drops one, every boss you defeat drops one, and losses can too.</p>
+    <div class="invgrid" id="invGrid"></div>
+    <div class="invsell" id="invSell"></div>
+    <small class="muted">Hover an item to see what it does. Equip items on each hero's page (Heroes). Click one to sell or disenchant it.</small>
+  </div>
+  <div id="invCraft" hidden></div>
 </section>
 
 <section id="screen-leaderboard" class="screen scene" hidden>

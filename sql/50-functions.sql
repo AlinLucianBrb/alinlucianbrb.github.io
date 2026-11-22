@@ -189,14 +189,38 @@ drop function if exists public.finish_run(int, int, int, boolean);
 -- Talents can also raise the gold and XP the match gives (reward_gold, reward_xp in talent_nodes).
 -- Every boss defeated (p_bosses) adds one guaranteed item. Bosses come on the last wave of a level and, from level 3 on, the
 -- middle wave too, so a run cannot claim more bosses than the boss waves it reached.
+-- Rolls and stores one item: rarity + 1 bonuses or more (p_extra adds to the chance of each further one), all different, each
+-- with its own rank. On an archetype item (p_affinity) each bonus has a 60% chance to come from that archetype's bonuses (if
+-- one is left). Used by finish_run (drops) and craft_item.
+create or replace function public.roll_item(p_user uuid, p_type text, p_affinity text, p_rarity int, p_ilvl int, p_extra numeric) returns public.player_items
+language plpgsql security definer set search_path = public as $$
+declare nb int; bon text[] := '{}'; rks int[] := '{}'; pick text; it public.player_items;
+begin
+  nb := public.rule_bonus_guaranteed(p_rarity);
+  while nb < public.rule_max_bonuses() and random() < public.rule_extra_bonus_chance() + p_extra loop nb := nb + 1; end loop;
+  for k in 1 .. nb loop
+    pick := null;
+    if p_affinity is not null and random() < public.rule_affinity_chance() then
+      select id into pick from public.item_bonuses where p_affinity = any (tags) and id <> all (bon) order by random() limit 1;
+    end if;
+    if pick is null then select id into pick from public.item_bonuses where id <> all (bon) order by random() limit 1; end if;
+    exit when pick is null;
+    bon := bon || pick;
+  end loop;
+  for k in 1 .. coalesce(array_length(bon, 1), 0) loop rks := rks || public.rule_rank(p_rarity, random()::numeric); end loop;
+  insert into public.player_items (user_id, item_type, rarity, bonuses, bonus_ranks, ilvl) values (p_user, p_type, p_rarity, bon, rks, p_ilvl)
+  returning * into it;
+  return it;
+end;
+$$;
+
 drop function if exists public.finish_run(uuid, int, int, boolean);
 drop function if exists public.finish_run(uuid, int, int, boolean, int);
 create function public.finish_run(p_run uuid, p_waves int, p_kills int, p_won boolean, p_bosses int default 0) returns jsonb
 language plpgsql security definer set search_path = public as $$
 declare me public.profiles; r public.runs; cap int; frontier boolean; elapsed numeric; done_waves int; dropped text := null;
         drops jsonb := '[]'; b_gold numeric; b_xp numeric; b_loot numeric; chance numeric; n int; boss_cap int;
-        rar int; nb int; bon text[]; b_rar numeric; b_extra numeric; rks int[];
-        aff text; pick text; il int;
+        rar int; b_rar numeric; b_extra numeric; aff text; il int; it public.player_items;
 begin
   if auth.uid() is null then raise exception 'not signed in'; end if;
   select * into r from public.runs where id = p_run and user_id = auth.uid() and finished_at is null for update;
@@ -243,7 +267,7 @@ begin
         frontier_wave = case when p_won and r.stage > x.levels_cleared then 0
                              when r.stage = x.levels_cleared + 1 then greatest(x.frontier_wave, p_waves) else x.frontier_wave end,
         levels_cleared = case when p_won then greatest(x.levels_cleared, r.stage) else x.levels_cleared end;
-  il := 3 * (case when p_won then r.stage else greatest(1, r.stage - 1) end);   -- item level: 3 x the level beaten (on a loss, the one below); ILVL.perLevel in items.js
+  il := public.rule_item_level(case when p_won then r.stage else r.stage - 1 end);   -- item level: by the level beaten (on a loss, the one below)
   chance := public.rule_drop_chance(p_won, p_waves, r.stage) * (1 + b_loot);
   n := p_bosses + floor(chance)::int + (case when random() < chance - floor(chance) then 1 else 0 end);
   for i in 1 .. n loop
@@ -252,24 +276,8 @@ begin
     select id, affinity into dropped, aff from public.item_types where droppable order by random() limit 1;
     exit when dropped is null;
     rar := public.rule_rarity(random()::numeric, b_rar);
-    nb := public.rule_bonus_guaranteed(rar);
-    while nb < public.rule_max_bonuses() and random() < public.rule_extra_bonus_chance() + b_extra loop nb := nb + 1; end loop;
-    -- bonuses, all different; on an archetype item each has a 60% chance to come from that archetype's bonuses (if one is left)
-    bon := '{}';
-    for k in 1 .. nb loop
-      pick := null;
-      if aff is not null and random() < public.rule_affinity_chance() then
-        select id into pick from public.item_bonuses where aff = any (tags) and id <> all (bon) order by random() limit 1;
-      end if;
-      if pick is null then select id into pick from public.item_bonuses where id <> all (bon) order by random() limit 1; end if;
-      exit when pick is null;
-      bon := bon || pick;
-    end loop;
-    -- each bonus's rank (rule_rank: rarer items roll higher ranks more often)
-    rks := '{}';
-    for k in 1 .. coalesce(array_length(bon, 1), 0) loop rks := rks || public.rule_rank(rar, random()::numeric); end loop;
-    insert into public.player_items (user_id, item_type, rarity, bonuses, bonus_ranks, ilvl) values (auth.uid(), dropped, rar, bon, rks, il);
-    drops := drops || jsonb_build_array(jsonb_build_object('item_type', dropped, 'rarity', rar, 'bonuses', to_jsonb(bon), 'bonus_ranks', to_jsonb(rks), 'ilvl', il));
+    it := public.roll_item(auth.uid(), dropped, aff, rar, il, b_extra);
+    drops := drops || jsonb_build_array(jsonb_build_object('item_type', it.item_type, 'rarity', it.rarity, 'bonuses', to_jsonb(it.bonuses), 'bonus_ranks', to_jsonb(it.bonus_ranks), 'ilvl', it.ilvl));
   end loop;
   return jsonb_build_object('profile', to_jsonb(me), 'drop', drops -> 0 ->> 'item_type', 'drops', drops);
 end;

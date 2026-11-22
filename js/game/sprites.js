@@ -4,6 +4,7 @@
    never waits for art. Images are drawn with smoothing off so the pixels stay sharp. */
 import { HEROES, RELICS } from '../content/data.js';
 import { ITEMS } from '../content/items.js';
+import { MATERIALS } from '../content/crafting.js';
 import { ENEMIES } from '../engine/enemies.js';
 import { ULTIMATES } from '../engine/ultimates.js';
 import '../engine/kits/index.js';   /* the hero kits register their ultimates (their icons are listed below) */
@@ -175,6 +176,7 @@ export const SPRITES = [...new Set([
     'boomerang', 'sword', 'piercing', 'seed', 'holy', 'shadow', 'hellfire', 'dart'].map(n => 'proj_' + n),
   ...['flame', 'frost', 'storm'].map(n => 'minion_totem_' + n),
   ...['imp', 'demon', 'golem', 'horse'].flatMap(n => ['minion_' + n, 'minion_' + n + '_2']),
+  ...MATERIALS.map(m => m.icon),
   'fx_judgement', ...RELICS.map(r => relicIcon(r.name)),
   'proj_orb_arcane', 'proj_orb_holy', 'proj_orb_shadow', 'proj_orb_nature', 'proj_shard', 'proj_lightbolt', 'proj_skullflame', 'proj_leaf', 'fx_swing', 'fx_slash2', 'fx_crit',
   ...['arcane', 'holy', 'nature', 'shadow', 'physical', 'lightning'].map(n => 'fx_impact_' + n),
