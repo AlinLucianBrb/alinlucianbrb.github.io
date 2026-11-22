@@ -4,6 +4,7 @@
 import { DAMAGE_TYPES, AILMENTS, RES_CAP, HOLY_RES_IGNORED } from '../content/combat.js';
 import { DAMAGE_ROLL } from '../content/data.js';
 import { applyEffect } from './effects.js';
+import { isShielded } from './enemy-abilities.js';
 
 /* How much of `amount` gets through, for one damage type. Armor (physical) and resistances (every other type) work the same
    way: a share of the damage blocked. Armor only stops hits, not damage over time.
@@ -83,7 +84,7 @@ export function attack(w, hero, e, scale = 1, rate = 1, as = null, stats = null)
 /* Kills an enemy that is not a boss and has less than `share` of its life left (Archangel, Inquisitor). The rest of its
    life is dealt as one last hit, credited to the hero. Returns true if it died. */
 export function execute(w, hero, e, share) {
-  if (e.dead || e.def.boss || e.hp > e.max * share) return false;
+  if (e.dead || e.def.boss || isShielded(e) || e.hp > e.max * share) return false;
   w.hit(hero, e, e.hp, hero.def.damageType || 'physical');
   w.ev.emit('execute', { hero, enemy: e });
   return true;

@@ -125,6 +125,16 @@ export const ENEMY_ANIM = {
   brute:  { name: 'anim_troll_walk', frame: 160, frames: 8, foot: [83, 154], height: 131, tiles: 1.65 },
   boss:   { name: 'anim_warlord_walk', frame: 160, frames: 8, foot: [79, 153], height: 128, tiles: 1.85 }
 };
+/* Special enemies: a recoloured walk of one of the above (art/pixellab/build_enemy_variants.py), at their own size. */
+const VARIANTS = {
+  stunner:  { of: 'grunt', tiles: 1.4 },
+  regener:  { of: 'brute', tiles: 1.5 },
+  immune:   { of: 'grunt', tiles: 1.45 },
+  summoner: { of: 'boss', tiles: 1.5 },
+  tough:    { of: 'brute', tiles: 1.75 },
+  minion:   { of: 'runner', tiles: 0.85 }
+};
+for (const [id, v] of Object.entries(VARIANTS)) ENEMY_ANIM[id] = { ...ENEMY_ANIM[v.of], name: 'anim_' + id + '_walk', tiles: v.tiles };
 /* An enemy's walk frame, standing on (x, y) (upright space), facing left (face -1) or right (1); alpha optional. Returns false
    until its art has loaded. d: the distance it has walked, in px. */
 export function drawEnemyArt(ctx, type, d, x, y, face = -1, T = 40) {
@@ -159,7 +169,7 @@ export const SPRITES = [...new Set([
   ...heroIds.flatMap(id => ['hero_' + id, 'hero_' + id + '_2']),            /* _2: the second animation frame */
   ...Object.values(HERO_ANIM).flatMap(a => [a.portrait, a.idle.name, a.attack.name]),
   ...Object.values(ENEMY_ANIM).map(a => a.name),
-  ...Object.keys(ENEMIES).flatMap(id => ['enemy_' + id, 'enemy_' + id + '_2']),
+  ...Object.keys(ENEMIES).filter(id => !VARIANTS[id]).flatMap(id => ['enemy_' + id, 'enemy_' + id + '_2']),   /* the older still art, shown until the walk has loaded */
   ...Object.keys(ITEMS).flatMap(id => [0, 1, 2, 3].map(r => 'item_' + id + '_' + r)),
   ...['arrow', 'arrow_gold', 'arrow_toxic', 'bolt_arcane', 'fireball', 'ice_shard', 'spark', 'dagger_toxic', 'flask_fire', 'flask_toxic',
     'boomerang', 'sword', 'piercing', 'seed', 'holy', 'shadow', 'hellfire', 'dart'].map(n => 'proj_' + n),

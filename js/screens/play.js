@@ -3,7 +3,8 @@ import { saveRun, loadRun, clearRun } from '../game/saved-run.js';
 import { startRun, finishRun, getItems } from '../services/api.js';
 import { itemName } from '../content/items.js';
 import { STAGES } from '../content/data.js';
-import { wornItems } from './loadout.js';
+import { wornItems, activePaths } from './loadout.js';
+import { actMessage, maxSpeed } from '../content/unlocks.js';
 import { runRewards } from '../core/rules.js';
 import { rewardBonus } from '../content/talents.js';
 import { bus } from '../core/bus.js';
@@ -62,11 +63,12 @@ export default {
       const names = drops.map(d => itemName(d));
       return (won ? 'Level ' + (STAGES[stage - 1] ? STAGES[stage - 1].code : stage) + ' cleared! ' : '') + '+' + r.xp + ' XP, +' + r.gold + ' gold.' +
         (names.length ? ' You found ' + (names.length > 1 ? names.length + ' items: ' : 'an item: ') + names.join(', ') + '! Equip ' + (names.length > 1 ? 'them' : 'it') + ' on the Heroes screen.' : '') +
-        (profile.level > before.level ? ' Level up! You are now level ' + profile.level + '.' : '');
+        (profile.level > before.level ? ' Level up! You are now level ' + profile.level + '.' : '') +
+        (actMessage(before.levels_cleared, profile.levels_cleared) ? ' ' + actMessage(before.levels_cleared, profile.levels_cleared) : '');
     }
     const seat = config && seatOf(config, uid);
     startGame({
-      stage, talents: state.profile.talents || [], lineup: state.profile.lineup, items: equipped, paths: state.profile.paths || {}, onRunEnd, resume: saved ? saved.log : null,
+      stage, talents: state.profile.talents || [], lineup: state.profile.lineup, items: equipped, paths: activePaths(), maxSpeed: maxSpeed(state.profile.levels_cleared), onRunEnd, resume: saved ? saved.log : null,
       coop: config ? { config, ...seat, transport: coop.channel || offlineChannel() } : null,
       onRunStart: () => { runId = null; if (!config) clearRun(uid); starting = register(); },
       onExit: () => { if (!config) clearRun(uid); bus.emit('nav', { to: 'menu' }); },   /* quitting gives the run up (co-op: leaves the match) */

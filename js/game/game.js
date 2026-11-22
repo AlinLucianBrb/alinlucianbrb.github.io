@@ -62,7 +62,7 @@ function newRun(resumeLog = null) {
   w.ev.on('kill', ({ enemy }) => { if (w.fx && !enemy.escaped) addImpact(v.vfx, 'fx_impact_physical', enemy, 0.9, 0.35); });
   w.ev.on('explode', ({ zone }) => { if (w.fx) addAnim(v.vfx, 'fx_explosion', zone.x, zone.y, 96, 0.45, 5); });
   w.ev.on('moonfall', ({ zone }) => { if (w.fx) addAnim(v.vfx, 'fx_moonburst', zone.x, zone.y, zone.r * 2.3, 0.45, 5); });
-  pend.length = 0; v.selected = v.moving = v.evo = null; ui.hideEvoPick(); if (v.speed > 2) v.speed = 1; v.vfx.beams.length = 0; v.vfx.slashes.length = 0; v.vfx.anims.length = 0; v.swings.clear(); v.needFit = true;
+  pend.length = 0; v.selected = v.moving = v.evo = null; ui.hideEvoPick(); if (v.speed > topSpeed()) v.speed = 1; v.vfx.beams.length = 0; v.vfx.slashes.length = 0; v.vfx.anims.length = 0; v.swings.clear(); v.needFit = true;
   if (!c && !resumeLog && playOnPickSaved()) apply(world, { type: 'playOnPick', on: true });   /* logged, so the replay plays the same way */
   v.sel = -1;   /* no hero picked until the player picks one (its card, a key, or a hero on the map) */
   ui.setLineup(w);
@@ -387,7 +387,7 @@ const evolveSelected = () => openEvolve(v.selected);
 const chooseEvolution = i => { const h = v.evo; if (h && act({ type: 'evolve', id: h.id, choice: i }).ok) { closeEvolve(); ui.renderInspector(w, v); } };
 const toggleMove = () => { if (v.selected && w.mine(v.selected) && w.phase !== 'over') { v.moving = v.moving === v.selected ? null : v.selected; ui.renderInspector(w, v); } };
 ui.initUI({
-  onSelectType: selectType, onEvolveHero: i => openEvolve(unitOf(i)), onCloseInspector: closeInspector, onEvolveChoice: chooseEvolution, speed3x: () => !!(w && w.gs.speed3x),
+  onSelectType: selectType, onEvolveHero: i => openEvolve(unitOf(i)), onCloseInspector: closeInspector, onEvolveChoice: chooseEvolution, maxSpeed: () => topSpeed(),
   onChoose: i => act({ type: 'choose', index: i }), onPlayOnPick: setPlayOnPick, onReroll: () => act({ type: 'reroll' }), onBanish: i => act({ type: 'banish', index: i }),
   heroInfo: i => {
     const def = HEROES[i], unit = w && unitOf(i), tier = unit ? unit.tier : 0, evo = def.evolutions[tier];   /* a step: { level, cost, choices } */
@@ -403,8 +403,9 @@ ui.initUI({
 $('go').onclick = () => act({ type: 'wave' });
 $('relic').onclick = () => act({ type: 'buyRelic' });
 $('auto').onclick = () => act({ type: 'auto', on: !w.auto });
-/* 1x, 2x, and 3x once the Overdrive talent unlocks it. */
-$('spd').onclick = () => { if (net && !net.isHost) return; v.speed = v.speed === 1 ? 2 : v.speed === 2 && w.gs.speed3x ? 3 : 1; };
+/* 1x up to the fastest speed the player has unlocked (hooks.maxSpeed, from js/content/unlocks.js). */
+function topSpeed() { return (hooks && hooks.maxSpeed) || 1; }
+$('spd').onclick = () => { if (net && !net.isHost) return; v.speed = v.speed < topSpeed() ? v.speed + 1 : 1; };
 $('menuBtn').onclick = onMenu;
 $('evoCancel').onclick = closeEvolve;
 $('quitYes').onclick = () => hooks.onExit();

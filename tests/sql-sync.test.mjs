@@ -34,7 +34,7 @@ test('the rules themselves: XP, rewards, waves, kills, bosses and the minimum ru
   const fastest = waves => { let t = 0; for (let w = 1; w <= waves; w++) t += (waveCount(w) - 1) * spawnDelay(w) / 3; return t; };
   for (const w of [1, 15, 35]) assert.ok(minRunSeconds(w) <= fastest(w) * 0.8 + 1e-9, 'the check must never reject a real run at 3x speed');
   assert.equal(MIN_RUN.floor, 15);
-  assert.ok(isBossWave(15, STAGES[0]) && !isBossWave(8, STAGES[0]) && isBossWave(13, STAGES[2]), 'the last wave, and the middle one from level 3');
+  assert.ok(isBossWave(15, STAGES[0]) && !isBossWave(8, STAGES[0]) && isBossWave(18, STAGES[2]), 'the last wave, and the middle one from level 3');
 });
 
 test('finish_run takes the boss count: one guaranteed item each, never more than the boss waves reached, and a win needs the final boss', () => {

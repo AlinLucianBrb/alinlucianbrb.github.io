@@ -36,12 +36,31 @@ export function damageTaken(e) {
    every hit on an enemy with that effect; death[id](w, e, fx) when it dies with it. */
 export const EFFECT_HOOKS = { damage: {}, death: {} };
 
+/* Freeze, root and stun hold an enemy in place. How long one enemy can be held is limited (CC in enemies.js): e.hold is
+   { t: seconds left in its interval, used, full }. Once the limit is used up it shrugs off holds until the interval ends. */
+const holds = def => def.kind === 'freeze' || def.kind === 'root';
+export const resistsHold = e => !!((e.def && e.def.ccImmune) || (e.hold && e.hold.full));
+/* Called every step before the enemy's effects: starts, counts and ends its interval. */
+export function tickHold(e, dt, cc) {
+  if (e.hold && (e.hold.t -= dt) <= 0) e.hold = null;
+  let held = false;
+  if (e.fx) for (const id in e.fx) if (holds(EFFECTS[id])) { held = true; break; }
+  if (!held) return;
+  const h = (e.hold ||= { t: cc.interval, used: 0, full: false });
+  h.used += dt;
+  if (h.used <= cc.hold * (1 - (e.ccRes || 0))) return;
+  h.full = true;
+  for (const id in e.fx) if (holds(EFFECTS[id])) delete e.fx[id];
+}
+
 /* by: the hero that applies it, whose duration stat (the Duration relic) makes it last longer. */
 export function applyEffect(e, id, eff, by = null) {
   if (typeof eff === 'number') eff = { t: eff };          /* old style: just a duration */
   if (by && by.s && by.s.duration > 0 && by.s.duration !== 1) eff = { ...eff, t: eff.t * by.s.duration };
   if (!(eff.t > 0)) return;
-  const def = EFFECTS[id], fx = (e.fx ||= {});
+  const def = EFFECTS[id];
+  if (holds(def) && resistsHold(e)) return;
+  const fx = (e.fx ||= {});
   if (def.stacks) {
     const st = (fx[id] ||= { stacks: [] }).stacks;
     st.push({ ...eff });
@@ -75,7 +94,7 @@ export function tickEffects(g, e, dt) {
       continue;
     }
     if (def.kind === 'dot' && g.dot) g.dot(f.src, e, f.dps * Math.min(dt, f.t), def.type);
-    if (def.kind === 'freeze' || def.kind === 'root') mult = 0;   /* frozen, rooted or stunned: held in place */
+    if (holds(def)) mult = 0;   /* frozen, rooted or stunned: held in place */
     else if (def.speedMult) mult *= def.speedMult;
     if ((f.t -= dt) <= 0) delete e.fx[id];
     if (e.dead) break;

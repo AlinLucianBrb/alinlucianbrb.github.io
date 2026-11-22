@@ -132,6 +132,10 @@ begin
   if p_paths is null or jsonb_typeof(p_paths) <> 'object' then raise exception 'bad paths'; end if;
   if exists (select 1 from jsonb_each(p_paths) e where not exists (select 1 from public.hero_classes h where h.id = e.key)) then raise exception 'unknown hero'; end if;
   if exists (select 1 from jsonb_each(p_paths) e where jsonb_typeof(e.value) <> 'string' or e.value #>> '{}' !~ '^[a-z]{2,24}$') then raise exception 'bad paths'; end if;
+  -- choosing a path unlocks on reaching its act; clearing them is always allowed
+  if p_paths <> '{}'::jsonb and not exists (select 1 from public.profiles where id = auth.uid() and levels_cleared >= public.rule_unlock('paths')) then
+    raise exception 'evolution paths are not unlocked yet';
+  end if;
   update public.profiles set paths = p_paths where id = auth.uid() returning * into me;
   return me;
 end $$;
@@ -169,7 +173,7 @@ begin
 end;
 $$;
 
--- Called when a run ends. Five levels: 15, 20, 25, 30 and 35 waves; a level unlocks when the one before it is cleared.
+-- Called when a run ends. Each level's waves are rule_stage_waves; a level unlocks when the one before it is cleared.
 -- The run must have been started on the server, be long enough to be real, and at most 30 runs per hour are saved.
 drop function if exists public.finish_run(int, int);
 drop function if exists public.finish_run(int, int, int, boolean);

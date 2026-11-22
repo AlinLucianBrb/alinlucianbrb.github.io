@@ -3,6 +3,7 @@ import { COLS, ROWS, T, HEROES } from '../content/data.js';
 import { tintOf } from '../engine/effects.js';
 import { get as sprite, tiles as tileSheet, drawSprite, heroSprite, frameOf, heroAnim, attackFrame, attackPeriod, terrain, drawEnemyArt, enemyHeight, ENEMY_ANIM, upright, unsquash, at, setPicture } from './sprites.js';
 import { project, unproject, scaleAt, setView } from './camera.js';
+import { isShielded } from '../engine/enemy-abilities.js';
 import { drawAuras, drawMinions, drawMounted, KIT_PROJ, KIT_ZONE, KIT_AIL_ICON, BUFF_COLOR } from './kit-art.js';
 
 const MAP_W = COLS * T, MAP_H = ROWS * T;
@@ -809,6 +810,11 @@ function enemyFace(e) {
   m.x = e.x; FACING.set(e, m);
   return m.f;
 }
+/* A summoner its minions keep from harm: a pulsing violet bubble. */
+function shieldRing(ctx, x, y, r) {
+  ctx.beginPath(); ctx.arc(x, y, r, 0, 7);
+  ctx.fillStyle = 'rgba(164,91,214,.18)'; ctx.fill(); ctx.strokeStyle = 'rgba(214,160,255,.85)'; ctx.lineWidth = 2; ctx.stroke();
+}
 /* One enemy, upright around its feet: its sprite (walk animation), health bar and ailment icons, or a plain shape. */
 function drawEnemy(ctx, e) {
   /* Walk animation: the frame changes every 9 px along the path, so faster enemies step faster and held ones stand still. */
@@ -816,6 +822,7 @@ function drawEnemy(ctx, e) {
   const look = ENEMY_ART[e.type], face = enemyFace(e), anim = drawEnemyArt(ctx, e.type, e.d, e.x, e.y, face, T);
   const art = anim || (look && drawSprite(ctx, frameOf('enemy_' + e.type, (e.d / 9 | 0) % 2 === 1), e.x, e.y - look.s * 0.44, look.s));
   if (art) {
+    if (isShielded(e)) shieldRing(ctx, e.x, e.y - enemyHeight(e.type, T) * unsquash() / 2, enemyHeight(e.type, T) * 0.62);   /* its minions protect it */
     const top = anim ? e.y - enemyHeight(e.type, T) * unsquash() + 2 : e.y - look.s * 0.94 + look.s * look.top, f = e.hp / e.max, bw = Math.max(22, e.def.radius * 2.2);
     ctx.fillStyle = 'rgba(0,0,0,.75)'; ctx.fillRect(e.x - bw / 2 - 1, top - 7, bw + 2, 6);
     ctx.fillStyle = hpColor(f); ctx.fillRect(e.x - bw / 2, top - 6, bw * Math.max(0, f), 4);
@@ -840,7 +847,7 @@ function drawHero(ctx, g, v, t) { at(ctx, t.x, t.y, () => drawHeroHere(ctx, g, v
 function drawHeroHere(ctx, g, v, t) {
   const d = t.def, [n, rot] = d.shape, under = v.hoverHero ? v.hoverHero === t : v.hover && v.hover[0] === t.cx && v.hover[1] === t.cy;
   /* just moved: it rests for a second before attacking again, so it pulses, see-through, until it is ready */
-  const base = t === v.moving ? 0.4 : t.settle > 0 ? 0.5 + 0.25 * (1 + Math.sin(g.tick / 4)) : 1;
+  const base = t === v.moving ? 0.4 : t.settle > 0 || t.stun > 0 ? 0.5 + 0.25 * (1 + Math.sin(g.tick / 4)) : 1;
   ctx.globalAlpha = base;
   /* under the pointer: a glow around the figure, like a highlighted unit in WoW (gold; blue when dropping the carried hero
      here would swap the two) */
@@ -907,6 +914,7 @@ function drawHeroHere(ctx, g, v, t) {
     ctx.beginPath(); ctx.arc(t.x, t.y, 18, 0, 7); ctx.strokeStyle = '#f2b84b'; ctx.lineWidth = 2.5; ctx.stroke();
   }
   ctx.globalAlpha = 1;
+  if (t.stun > 0) upright(ctx, t.x, t.y + HERO_FOOT, () => drawSprite(ctx, 'ail_stun', t.x, t.y + HERO_FOOT - T * (anim ? anim.tiles : 1.2) * unsquash() - 10, 18));   /* stunned by an enemy: the icon over its head */
 }
 
 /* An animated hero (sprites.js HERO_ANIM): the attack plays from its last swing (v.swings, set by the swing's effect),

@@ -852,7 +852,10 @@ create or replace function public.rule_stage_count() returns int
 language sql immutable set search_path = public as $$ select 25 $$;
 -- Waves in a level.
 create or replace function public.rule_stage_waves(p_stage int) returns int
-language sql immutable set search_path = public as $$ select (array[15, 20, 25, 30, 35, 40, 45, 50, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55])[p_stage] $$;
+language sql immutable set search_path = public as $$ select (array[15, 25, 35, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55])[p_stage] $$;
+-- Levels that must be cleared before a feature is unlocked (it unlocks on reaching its act).
+create or replace function public.rule_unlock(p_feature text) returns int
+language sql immutable set search_path = public as $$ select case p_feature when 'paths' then 5 when 'speed2' then 10 end $$;
 -- Heroes a player can bring into a match.
 create or replace function public.rule_lineup_max() returns int
 language sql immutable set search_path = public as $$ select 3 $$;
@@ -1042,6 +1045,10 @@ begin
   if p_paths is null or jsonb_typeof(p_paths) <> 'object' then raise exception 'bad paths'; end if;
   if exists (select 1 from jsonb_each(p_paths) e where not exists (select 1 from public.hero_classes h where h.id = e.key)) then raise exception 'unknown hero'; end if;
   if exists (select 1 from jsonb_each(p_paths) e where jsonb_typeof(e.value) <> 'string' or e.value #>> '{}' !~ '^[a-z]{2,24}$') then raise exception 'bad paths'; end if;
+  -- choosing a path unlocks on reaching its act; clearing them is always allowed
+  if p_paths <> '{}'::jsonb and not exists (select 1 from public.profiles where id = auth.uid() and levels_cleared >= public.rule_unlock('paths')) then
+    raise exception 'evolution paths are not unlocked yet';
+  end if;
   update public.profiles set paths = p_paths where id = auth.uid() returning * into me;
   return me;
 end $$;
@@ -1079,7 +1086,7 @@ begin
 end;
 $$;
 
--- Called when a run ends. Five levels: 15, 20, 25, 30 and 35 waves; a level unlocks when the one before it is cleared.
+-- Called when a run ends. Each level's waves are rule_stage_waves; a level unlocks when the one before it is cleared.
 -- The run must have been started on the server, be long enough to be real, and at most 30 runs per hour are saved.
 drop function if exists public.finish_run(int, int);
 drop function if exists public.finish_run(int, int, int, boolean);
@@ -1450,6 +1457,7 @@ revoke insert, update, delete on public.profiles from anon, authenticated;
 
 revoke all on function public.rule_stage_count() from public, anon, authenticated;
 revoke all on function public.rule_stage_waves(int) from public, anon, authenticated;
+revoke all on function public.rule_unlock(text) from public, anon, authenticated;
 revoke all on function public.rule_lineup_max() from public, anon, authenticated;
 revoke all on function public.rule_max_players() from public, anon, authenticated;
 revoke all on function public.rule_max_items() from public, anon, authenticated;

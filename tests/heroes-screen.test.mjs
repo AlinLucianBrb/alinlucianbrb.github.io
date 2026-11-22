@@ -89,6 +89,16 @@ test('Information: five gear slots, one line each; clicking a slot lists the ite
   assert.equal(iconBtns(open('trinket')).length, 0); chooser().children[0].children[1].onclick();
 });
 
+test('Evolutions tab: paths are locked until act 2; a path saved before is kept but not used', () => {
+  state.profile.levels_cleared = 4; state.profile.paths = { ranger: 'hunter' };
+  byId.hrTabs.children[1].onclick();
+  const tree = byId.hrBody.children[0], b = find(tree.children[2].children[2], n => n.className === 'pathbtn');
+  assert.equal(b._text, 'Paths unlock in Act 2'); assert.equal(b.disabled, true);
+  assert.equal(tree.children[1]._text, 'Level 10 · 500 gold · choose one in the match');
+  assert.deepEqual(state.profile.paths, { ranger: 'hunter' });
+  state.profile.levels_cleared = 5; state.profile.paths = {};
+});
+
 test('Evolutions tab: the base hero, then its three forms', () => {
   byId.hrTabs.children[1].onclick();
   const tree = byId.hrBody.children[0];

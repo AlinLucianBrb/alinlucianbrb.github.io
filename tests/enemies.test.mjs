@@ -42,8 +42,8 @@ test('spawned enemies carry the defenses of their wave', () => {
 
 test('bosses: the last wave of every level, and the middle wave from level 3 on', () => {
   const bossWaves = s => Array.from({ length: s.waves }, (_, i) => i + 1).filter(n => isBossWave(n, s));
-  assert.deepEqual(bossWaves(STAGES[0]), [15]); assert.deepEqual(bossWaves(STAGES[1]), [20]);
-  assert.deepEqual(bossWaves(STAGES[2]), [13, 25]); assert.deepEqual(bossWaves(STAGES[4]), [18, 35]);
+  assert.deepEqual(bossWaves(STAGES[0]), [15]); assert.deepEqual(bossWaves(STAGES[1]), [25]);
+  assert.deepEqual(bossWaves(STAGES[2]), [18, 35]); assert.deepEqual(bossWaves(STAGES[4]), [28, 55]);
   /* The boss is the last enemy of its wave and takes the place of one enemy, so wave sizes (and the server's kill limit) stay the same. */
   const s = STAGES[0], types = [];
   for (let i = waveCount(15); i >= 1; i--) types.push(waveEnemyType(15, i, s));
@@ -76,7 +76,7 @@ test('the final boss must die: if it gets through on the last wave, the level is
 
 test('a boss that gets through on a middle wave only costs lives', () => {
   const w = createWorld({ seed: 2, stage: 3 });
-  w.wave = 12; apply(w, { type: 'wave' }); w.spawnLeft = 1; w.spawnT = 0; step(w);
+  w.wave = 17; apply(w, { type: 'wave' }); w.spawnLeft = 1; w.spawnT = 0; step(w);
   const boss = w.enemies.find(e => e.def.boss), lives = w.lives;
   boss.d = (w.path.length - 1.01) * 40; step(w);
   assert.notEqual(w.phase, 'over', 'the run goes on'); assert.equal(w.lives, lives - ENEMIES.boss.leak);
@@ -89,7 +89,7 @@ test('boss kills are counted (each guarantees an item), and the server caps them
   const boss = w.enemies.find(e => e.def.boss);
   w.hit(null, boss, 1e9);
   assert.equal(w.bossKills, 1);
-  assert.deepEqual([bossWavesUpTo(STAGES[0], 14), bossWavesUpTo(STAGES[0], 15), bossWavesUpTo(STAGES[2], 13), bossWavesUpTo(STAGES[2], 25), bossWavesUpTo(STAGES[4], 17)], [0, 1, 1, 2, 0]);
+  assert.deepEqual([bossWavesUpTo(STAGES[0], 14), bossWavesUpTo(STAGES[0], 15), bossWavesUpTo(STAGES[2], 18), bossWavesUpTo(STAGES[2], 35), bossWavesUpTo(STAGES[4], 27)], [0, 1, 1, 2, 0]);
   /* The SQL rule, written out: the last wave, plus the middle wave (rounded half up) from level 3 on. */
   const sqlCap = (stage, waves) => { const cap = STAGES[stage - 1].waves; return (waves >= cap ? 1 : 0) + (stage >= 3 && waves >= Math.round(cap / 2) ? 1 : 0); };
   for (const s of STAGES) for (let n = 1; n <= s.waves; n++) assert.equal(sqlCap(s.n, n), bossWavesUpTo(s, n), 'level ' + s.n + ' wave ' + n);

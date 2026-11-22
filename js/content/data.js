@@ -292,7 +292,7 @@ applyFormTuning();
 
 /* The levels: LEVELS of them in ZONES (zones.js). Each has a wave count, an enemy health multiplier and a per-wave growth rate;
    name is its zone's (shown with the zone's picture, assets/level_<zone>.png) and code its "zone-level" label ("1-3").
-   Waves: 15 on the first level, 5 more each level, up to 55 (from level 9 on every level has 55).
+   Waves: 15 on the first level, 10 more each level, up to 55 at the end of the first act (every level after it has 55).
    The first five (zone 1, Green Meadow) were tuned (Nov 11) at their point on the progression curve (PROGRESSION in
    tools/balance/suites.mjs: level 1 at player level 1 with no gear, up to level 5 at player level 30 with epic gear), so the
    weakest tenth of teams clears each a bit more than half the time: hpMult 3.4 / 4 / 4.95 / 5.65 / 6.2, each starting a
@@ -306,7 +306,7 @@ const TUNED = [
   { hpMult: 5.65, growth: 1.103 },
   { hpMult: 6.2,  growth: 1.105 }
 ];
-export const LEVEL_WAVES = { first: 15, step: 5, max: 55 };
+export const LEVEL_WAVES = { first: 15, step: 10, max: 55 };
 export const LATER = { lastWave: 1.12, firstWave: 1.04 };
 const wavesOf = n => Math.min(LEVEL_WAVES.max, LEVEL_WAVES.first + LEVEL_WAVES.step * (n - 1));
 export const STAGES = (() => {
@@ -333,7 +333,7 @@ export const STAT_LABELS = {
   ...COMBAT_LABELS, relicLuck: 'Relic luck',
   minionDamage: 'Minion damage (multiplier)', minionSpeed: 'Minion attack speed (multiplier)', minionCritChance: 'Minion crit chance', minionCritDamage: 'Minion crit damage (added)',
   bounty: 'Gold per kill', bountyChance: 'Chance for +2 gold per kill', rerolls: 'Free relic rerolls per match', banishes: 'Free relic banishes per match',
-  speed3x: '3x game speed', heroXp: 'Hero XP', relicCost: 'Relic price', relicOffers: 'Chance of one more relic offer',
+  heroXp: 'Hero XP', relicCost: 'Relic price', relicOffers: 'Chance of one more relic offer',
   itemRarity: 'Item rarity luck', itemBonusChance: 'Chance of an extra item bonus', heroStartLevel: 'Starting hero level', evolveLevel: 'Level needed to evolve', rewardGold: 'Gold at the end of a match', rewardXp: 'XP at the end of a match', rewardLoot: 'Item find', startGold: 'Starting gold', startLives: 'Starting lives', waveGold: 'Wave clear gold', evolveCost: 'Evolution cost', interest: 'Interest', interestCap: 'Interest limit'
 };
 

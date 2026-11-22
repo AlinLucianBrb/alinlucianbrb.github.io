@@ -13,6 +13,7 @@ import { spriteImg, spriteUrl, heroSprite, attackIcon, ultimateIcon, relicIcon, 
 import { isBossWave } from '../engine/enemies.js';
 import { ITEMS, itemName, itemColor, itemBonusLines } from '../content/items.js';
 import { COOP } from '../content/rules.js';
+import { UNLOCKS } from '../content/unlocks.js';
 import { PREVIEWS } from '../content/previews.js';
 import { PLAYER_COLORS } from './render.js';
 
@@ -115,8 +116,8 @@ export function initUI(callbacks) {
     ...oddsLines(cb.luck ? cb.luck() : 0),
     { text: 'The price goes up with each relic you buy. Key: Space (then 1, 2 or 3 to pick)', color: '#ab9f8a' }] }));
   bindTip($('auto'), () => ({ title: 'Auto-start', lines: ['Starts the next wave by itself 3 seconds after a wave is cleared. When it is on, the button is green with a glowing, pulsing border; when it is off, it is red.', { text: 'Turned off again when you retry a level.', color: '#ab9f8a' }] }));
-  bindTip($('spd'), () => ({ title: 'Game speed', lines: ['Switch between normal (1x) and double (2x) speed.',
-    cb.speed3x && cb.speed3x() ? { text: 'Overdrive: 3x speed unlocked.', color: '#8be28b' } : { text: 'The Overdrive talent unlocks 3x.', color: '#ab9f8a' }] }));
+  bindTip($('spd'), () => ({ title: 'Game speed', lines: (cb.maxSpeed ? cb.maxSpeed() : 1) > 1 ? ['Switch between normal (1x) and double (2x) speed.']
+    : ['Normal speed (1x).', { text: '2x unlocks in Act ' + UNLOCKS.speed2.act + '.', color: '#ab9f8a' }] }));
   bindTip($('menuBtn'), () => ({ title: 'Menu', lines: ['Pauses the game and asks before quitting the match. Key: P to pause, Esc to resume.'] }));
   $('meterToggle').onclick = () => {
     const open = $('meterToggle').getAttribute?.('aria-expanded') !== 'false';

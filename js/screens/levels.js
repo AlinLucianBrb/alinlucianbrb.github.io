@@ -6,7 +6,8 @@ import { bus } from '../core/bus.js';
 import { state } from '../core/state.js';
 import { STAGES, HEROES, LINEUP_SIZE, STAT_LABELS, ZONES, zoneOf } from '../content/data.js';
 import { SLOTS } from '../content/items.js';
-import { el, cap, gearCount, ensureItems, saveNow, sqlHint } from './loadout.js';
+import { UNLOCKS, unlocksOf } from '../content/unlocks.js';
+import { el, cap, gearCount, ensureItems, saveNow, sqlHint, activePaths, pathsUnlocked } from './loadout.js';
 import { spriteImg, heroPortrait } from '../game/sprites.js';
 import { pathChoice } from '../engine/preview.js';
 
@@ -28,7 +29,8 @@ function renderLevels() {
       const lv = STAGES.filter(s => s.zone === z.n), done = lv.filter(s => s.n <= cleared).length, open = lv[0].n <= cleared + 1;
       const b = el('button', 'zone' + (z.n === zone ? ' on' : ''));
       const art = el('img', 'pix'); art.src = 'assets/level_' + z.n + '.png'; art.alt = ''; art.onerror = () => art.remove?.();
-      b.append(art, el('b', '', z.name), el('small', '', open ? done + ' / ' + lv.length + ' cleared' : 'Locked'));
+      const gives = unlocksOf(z.n);   /* what reaching this act unlocks */
+      b.append(art, el('b', '', 'Act ' + z.n + ' · ' + z.name), el('small', '', open ? done + ' / ' + lv.length + ' cleared' : 'Locked' + (gives.length ? ' · unlocks ' + gives.join(', ').toLowerCase() : '')));
       b.disabled = !open; b.onclick = () => { zone = z.n; renderLevels(); };
       zones.append(b);
     }
@@ -56,18 +58,18 @@ function renderPick() {
   $('lvCount').textContent = lineup.length + ' / ' + LINEUP_SIZE;
   $('lvStart').disabled = !lineup.length; $('lvStart').title = lineup.length ? '' : 'Choose at least one hero';
   const grid = $('lvHeroes'); grid.textContent = '';
-  const paths = state.profile.paths || {};
+  const paths = activePaths();
   for (const h of HEROES) {
     const on = lineup.includes(h.id), card = el('div', 'hcard pick' + (on ? ' picked' : '')), head = el('div', 'hhead');
     card.style.setProperty('--hc', h.color); card.tabIndex = 0; card.setAttribute?.('role', 'button');
     head.append(el('b', '', h.name), el('small', 'muted', cap(h.archetype) + ' · ' + STAT_LABELS[h.attribute]));
     const c = paths[h.id] && pathChoice(h.id, paths[h.id]);
-    const gear = el('button', 'linkbtn gearpath', 'Gear & path');   /* the hero's page (Heroes), then back here */
-    gear.title = 'Change this hero\'s gear and evolution path';
+    const gear = el('button', 'linkbtn gearpath', pathsUnlocked() ? 'Gear & path' : 'Gear');   /* the hero's page (Heroes), then back here */
+    gear.title = pathsUnlocked() ? 'Change this hero\'s gear and evolution path' : 'Change this hero\'s gear';
     gear.onclick = e => { e.stopPropagation?.(); bus.emit('nav', { to: 'heroes', params: { hero: h.id, back: { to: 'levels', params: { stage, lineup: [...lineup] } } } }); };
     const foot = el('div', 'pickfoot'); foot.append(gear, el('span', 'pickmark', on ? '✓ ' + (lineup.indexOf(h.id) + 1) : 'Add'));
     const info = el('small', 'muted', 'Gear ' + gearCount(h.id) + ' / ' + SLOTS.length + ' · ');
-    info.append(el('span', c ? 'pathline' : '', c ? 'Path: ' + c.name : 'No path'));
+    info.append(el('span', c ? 'pathline' : '', c ? 'Path: ' + c.name : pathsUnlocked() ? 'No path' : 'Paths: Act ' + UNLOCKS.paths.act));
     card.append(spriteImg(heroPortrait(h.id), 'pix hcardart'), head, el('p', 'hdesc', h.short), info, foot);
     card.onclick = () => toggle(h.id);
     card.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault?.(); toggle(h.id); } };

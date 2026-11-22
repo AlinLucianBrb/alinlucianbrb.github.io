@@ -60,7 +60,7 @@ const K = {
   gate: C('gate', 'Gate', '#c9b37e', side('Stout Gate', gflat('startLives', 1)), side('Bargain', more('evolveCost', -0.02)),
     [gflat('startLives', 1), more('evolveCost', -0.01)], ['Fortified Gate', gflat('startLives', 2), more('evolveCost', -0.05)]),
   tempo: C('tempo', 'Tempo', '#8fd3ff', side('Quick Study', ginc('heroXp', 0.05)), side('Scholar', ginc('rewardXp', 0.05)),
-    [ginc('heroXp', 0.03), ginc('rewardXp', 0.03)], ['Overdrive', gflat('speed3x', 1), ginc('heroXp', 0.1), ginc('rewardXp', 0.1)]),
+    [ginc('heroXp', 0.03), ginc('rewardXp', 0.03)], ['Overdrive', ginc('heroXp', 0.1), ginc('rewardXp', 0.1)]),
   fortune: C('fortune', 'Fortune', '#f2b84b', side('Bookkeeper', ginc('rewardGold', 0.05)), side('Scavenger', ginc('rewardLoot', 0.08)),
     [ginc('rewardGold', 0.03), ginc('rewardLoot', 0.04)], ['Fortune', ginc('rewardGold', 0.1), ginc('rewardLoot', 0.15)]),
   /* Investor: Compound interest as a talent. */

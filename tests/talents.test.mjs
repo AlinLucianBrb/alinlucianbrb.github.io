@@ -35,7 +35,7 @@ test('clusters: 6 or 8 nodes, two kinds of stats: the beginning and the end (not
   }
   const stats = new Set(tree.nodes.flatMap(n => n.mods.map(m => m.stat)));
   for (const s of ['damage', 'speed', 'critChance', 'critDamage', 'castSpeed', 'fireDamage', 'coldDamage', 'lightningDamage', 'armorPen', 'firePen', 'coldPen', 'lightningPen',
-    'energyPerAttack', 'rerolls', 'banishes', 'startGold', 'waveGold', 'startLives', 'evolveCost', 'heroXp', 'rewardXp', 'rewardGold', 'rewardLoot', 'speed3x', 'range',
+    'energyPerAttack', 'rerolls', 'banishes', 'startGold', 'waveGold', 'startLives', 'evolveCost', 'heroXp', 'rewardXp', 'rewardGold', 'rewardLoot', 'range',
     'interest', 'interestCap', 'relicCost', 'relicOffers', 'itemRarity', 'itemBonusChance', 'heroStartLevel', 'evolveLevel'])
     assert.ok(stats.has(s), 'some talent gives ' + s);
 });
@@ -136,18 +136,17 @@ test('talents become modifiers that only hit the intended heroes', () => {
   assert.equal(heroStats(ranger, fire).fireDamage, 2, 'added fire damage for every hero');
 });
 
-test('non-damage talents: rewards, relic rerolls and banishes, hero XP and 3x speed', async () => {
+test('non-damage talents: rewards, relic rerolls and banishes, hero XP', async () => {
   const { createWorld } = await import('../js/engine/world.js');
   const rb = rewardBonus(cluster('fortune').nodes.map(n => n.id));
   assert.ok(near(rb.gold, 0.03 + 0.1 + 0.15) && near(rb.loot, 0.04 + 0.15 + 0.24) && rb.xp === 0, JSON.stringify(rb));
   assert.deepEqual(rewardBonus([]), { gold: 0, xp: 0, loot: 0 });
   const plain = createWorld({ seed: 1 });
-  assert.equal(plain.rerolls, 0); assert.equal(plain.banishes, 0); assert.equal(plain.gs.speed3x, false); assert.equal(plain.gs.heroXp, 1);
+  assert.equal(plain.rerolls, 0); assert.equal(plain.banishes, 0); assert.equal(plain.gs.heroXp, 1);
   const relics = createWorld({ seed: 1, talents: cluster('relics').nodes.map(n => n.id) });
   assert.equal(relics.rerolls, 4); assert.equal(relics.banishes, 4);
   const tempo = createWorld({ seed: 1, talents: pathTo(new Set(), 't4_tempo_n') });
-  assert.equal(tempo.gs.speed3x, true, 'Overdrive unlocks 3x speed');
-  assert.equal(fmtMod(NODES.get('t4_tempo_n').mods[0]), 'Unlocks 3x game speed');
+  assert.ok(tempo.gs.heroXp > 1.1, 'Overdrive: hero XP (3x speed is no longer a talent)');
   assert.equal(fmtMod(NODES.get('t4_precision_b1').mods[0]), '+10% crit damage');
   assert.equal(fmtMod(NODES.get('t4_fire_b1').mods[0]), '+3% fire penetration');
 });

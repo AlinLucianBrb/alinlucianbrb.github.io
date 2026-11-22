@@ -10,6 +10,7 @@ import { resolve, heroStats, minionStats } from './stats.js';
 import { attack, dotDamage } from './combat.js';
 import { BEHAVIORS } from './behaviors.js';
 import { spawnEnemy, updateEnemies, sweep, waveCount, spawnDelay, waveEnemyType } from './enemies.js';
+import { updateAbilities, isShielded } from './enemy-abilities.js';
 import { updateProjectiles } from './projectiles.js';
 import { updateZones } from './zones.js';
 import { createMeter } from './meter.js';
@@ -23,7 +24,7 @@ import { cleanPaths, pathChoice, pathDef, previewMods, syncPreview, updatePrevie
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
 export const REROLL_GOLD = 0.25;
-export const ENGINE_VERSION = 26;     /* bump when a rule change would make old command logs play out differently */
+export const ENGINE_VERSION = 27;     /* bump when a rule change would make old command logs play out differently */
 
 /* Checks a lineup: up to LINEUP_SIZE different, playable heroes. Returns a clean copy, or the full roster if it is empty. */
 export function cleanLineup(lineup) {
@@ -97,6 +98,7 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
   w.previewRange = (i, p = ps[0]) => resolve(HEROES[i].stats.range, 'range', p.mods, HEROES[i].tags);
   w.meter = createMeter(w.ev);
   w.ev.on('kill', ({ enemy }) => {
+    if (enemy.def.minion) return;   /* summoned: no gold, no XP, not a kill (the server counts only the wave's own enemies) */
     for (const p of ps) p.gold += Math.round(p.gs.bounty * enemy.def.bounty) + bonusGold(w, p);   /* every player is paid for every kill */
     w.kills++;
     if (enemy.def.boss) w.bossKills++;   /* each boss defeated guarantees an item at the end of the match (finish_run) */
@@ -136,7 +138,7 @@ function bonusGold(w, p) {
    Curses make the enemy take more (damageTaken). quiet: damage passed on by an effect (the Witch Doctor's link), which
    must not set off the effects again. */
 export function hit(w, hero, e, amount, type = 'physical', quiet = false) {
-  if (e.dead || !(amount > 0)) return;
+  if (e.dead || !(amount > 0) || isShielded(e)) return;
   amount *= damageTaken(e);
   const dealt = Math.min(amount, e.hp);
   e.hp -= amount; if (hero) e.last = hero;
@@ -174,7 +176,7 @@ export function recalc(w) {
       bounty: resolve(5, 'bounty', m), evolveCost: Math.max(0.25, resolve(1, 'evolveCost', m)),
       waveGold: resolve(1, 'waveGold', m), interest: resolve(0, 'interest', m), interestCap: resolve(0, 'interestCap', m),
       relicLuck: resolve(0, 'relicLuck', m), bountyChance: resolve(0, 'bountyChance', m),
-      heroXp: Math.max(0, resolve(1, 'heroXp', m)), speed3x: resolve(0, 'speed3x', m) > 0,
+      heroXp: Math.max(0, resolve(1, 'heroXp', m)),
       relicCost: Math.max(0.25, resolve(1, 'relicCost', m)), relicOffers: Math.max(0, resolve(0, 'relicOffers', m)),
       heroStartLevel: Math.max(0, Math.round(resolve(0, 'heroStartLevel', m))), evolveLevel: Math.min(0, Math.round(resolve(0, 'evolveLevel', m)))
     };
@@ -229,9 +231,11 @@ export function step(w) {
   if (w.phase === 'wave' && w.spawnLeft > 0 && (w.spawnT -= STEP) <= 0) {
     spawnEnemy(w, waveEnemyType(w.wave, w.spawnLeft, w.stage)); w.spawnLeft--; w.spawnT = spawnDelay(w.wave);
   }
+  updateAbilities(w, STEP);
   updateEnemies(w, STEP);
   for (const h of w.heroes) {
     tickBuffs(w, h, STEP);
+    if (h.stun > 0) { h.stun -= STEP; continue; }   /* stunned by an enemy: it does nothing until it wears off */
     if (h.settle > 0) h.settle -= STEP;   /* just moved: resting before its next attack (shown on screen) */
     if (h.s.energyPerSecond > 0 && w.phase === 'wave') gainEnergy(h, h.s.energyPerSecond * STEP);
     BEHAVIORS[h.def.kind].update(w, h, STEP);

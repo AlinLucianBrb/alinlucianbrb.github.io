@@ -16,7 +16,8 @@ import { spriteImg, heroPortrait } from '../game/sprites.js';
 import { PREVIEWS } from '../content/previews.js';
 import { pathChoice, pathDef } from '../engine/preview.js';
 import { savePaths } from '../services/api.js';
-import { el, cap, items, itemById, equipment, gearOf, setGear, freeFor, wornItems, gearCount, ensureItems, saveNow, sqlHint, itemIcon, itemTip } from './loadout.js';
+import { UNLOCKS } from '../content/unlocks.js';
+import { el, cap, items, itemById, equipment, gearOf, setGear, freeFor, wornItems, gearCount, ensureItems, saveNow, sqlHint, itemIcon, itemTip, activePaths, pathsUnlocked } from './loadout.js';
 
 const $ = id => document.getElementById(id);
 const f = x => +x.toFixed(2);
@@ -30,7 +31,7 @@ function changed() {
   render();
 }
 /* Evolution paths: { heroId: formId } on the profile. */
-const pathOf = id => { const p = state.profile.paths || {}; return p[id] ? pathChoice(id, p[id]) : null; };
+const pathOf = id => { const p = activePaths(); return p[id] ? pathChoice(id, p[id]) : null; };
 async function setPath(id, form) {
   const before = { ...(state.profile.paths || {}) }, next = { ...before };
   if (form) next[id] = form; else delete next[id];
@@ -145,7 +146,7 @@ function renderEvolutions(box, h) {
   root.append(spriteImg(heroPortrait(h.id), 'pix evoart'));   /* last in the DOM; CSS shows it first */
   tree.append(root);
   for (const step of h.evolutions) {
-    tree.append(el('div', 'evolink', 'Level ' + step.level + ' · ' + step.cost + ' gold · choose one now (a path) or in the match'));
+    tree.append(el('div', 'evolink', 'Level ' + step.level + ' · ' + step.cost + ' gold · choose one ' + (pathsUnlocked() ? 'now (a path) or ' : '') + 'in the match'));
     const row = el('div', 'evorow');
     for (const c of step.choices) {
       const d = evolvedDef(h, c), cu = ULTIMATES[d.ultimate], n = el('div', 'evonode');
@@ -154,7 +155,9 @@ function renderEvolutions(box, h) {
       n.append(nm, el('small', 'muted', DAMAGE_LABEL[d.damageType] + ' damage · +25% to all its stats' + (d.attribute !== h.attribute ? ' · becomes a ' + STAT_LABELS[d.attribute].toLowerCase() + ' hero' : '')), el('p', '', c.short));
       if (cu) n.append(el('small', '', 'Ultimate: ' + cu.name + ': ' + ultDesc(cu, heroStats(d, []))));
       if (PREVIEWS[c.id]) n.append(el('small', 'preview', 'Before level 10: ' + PREVIEWS[c.id].desc));
-      const chosen = (state.profile.paths || {})[h.id] === c.id, pb = el('button', 'pathbtn', chosen ? 'Chosen path ✓ (click to clear)' : 'Choose this path');
+      const open = pathsUnlocked(), chosen = activePaths()[h.id] === c.id;
+      const pb = el('button', 'pathbtn', !open ? 'Paths unlock in Act ' + UNLOCKS.paths.act : chosen ? 'Chosen path ✓ (click to clear)' : 'Choose this path');
+      pb.disabled = !open;
       n.classList.toggle('chosen', chosen);
       pb.onclick = () => setPath(h.id, chosen ? null : c.id);
       n.append(pb, spriteImg('hero_' + c.id, 'pix evoart'));

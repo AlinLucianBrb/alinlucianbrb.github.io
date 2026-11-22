@@ -9,7 +9,7 @@ import { createLobby, joinLobby, listLobbies, lobbyPing, setLobbyStage, leaveLob
 import { coop, enterLobby, closeLobby } from '../net/session.js';
 import { PLAYER_COLORS } from '../game/render.js';
 import { pathChoice } from '../engine/preview.js';
-import { el, cap, currentLineup, wornItems, ensureItems, saveNow, sqlHint } from './loadout.js';
+import { el, cap, currentLineup, wornItems, ensureItems, saveNow, sqlHint, activePaths } from './loadout.js';
 
 const $ = id => document.getElementById(id);
 const PING_MS = 4000, LIST_MS = 6000;
@@ -93,7 +93,7 @@ async function enterRoom(lobby) {
 /* Tell the others what I bring (they need it to build the same match). */
 function announce() {
   if (!coop.channel) return;
-  coop.channel.track({ uid: uid(), name: state.profile.username, level: state.profile.level, talents: state.profile.talents || [], lineup: [...lineup], paths: { ...(state.profile.paths || {}) }, items: wornItems() });
+  coop.channel.track({ uid: uid(), name: state.profile.username, level: state.profile.level, talents: state.profile.talents || [], lineup: [...lineup], paths: { ...activePaths() }, items: wornItems() });
 }
 async function ping() {
   if (!coop.lobby) return;
@@ -132,7 +132,7 @@ function renderRoom() {
   $('lbyWait').textContent = mine
     ? (l.members.length < 2 ? 'Share the name ' + l.name + ' with your friends. A match needs at least 2 players.' : missing.length ? 'Waiting for ' + missing.map(m => m.username).join(', ') + ' to connect…' : 'Everyone is here.')
     : 'Waiting for the host to start the match…';
-  $('lbyMine').textContent = lineup.map(withPath(state.profile.paths)).join(', ');
+  $('lbyMine').textContent = lineup.map(withPath(activePaths())).join(', ');
   $('lbyChange').textContent = picking ? 'Done' : 'Change';
   $('lbyHeroes').hidden = !picking;
   if (picking) renderHeroes();
@@ -172,7 +172,7 @@ async function startMatch() {
   if (missing.length) return say('Waiting for ' + missing.map(m => m.username).join(', ') + ' to connect.');
   const seed = globalThis.crypto && crypto.getRandomValues ? crypto.getRandomValues(new Uint32Array(1))[0] : Math.floor(Math.random() * 4294967296);
   const config = { seed, stage: l.stage, host: uid(), players: l.members.map(m => {
-    const meta = m.user_id === uid() ? { talents: state.profile.talents || [], lineup, paths: state.profile.paths || {}, items: wornItems() } : here[m.user_id];
+    const meta = m.user_id === uid() ? { talents: state.profile.talents || [], lineup, paths: activePaths(), items: wornItems() } : here[m.user_id];
     return { uid: m.user_id, name: m.username, talents: meta.talents || [], lineup: meta.lineup, paths: meta.paths || {}, items: meta.items || {} };
   }) };
   $('lbyStart').disabled = true; say('Starting…', false);

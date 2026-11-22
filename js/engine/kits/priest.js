@@ -10,6 +10,7 @@ import { PROJECTILES } from '../projectiles.js';
 import { ZONES } from '../zones.js';
 import { execute } from '../combat.js';
 import { LEAK_GUARDS, pathPos } from '../enemies.js';
+import { isShielded } from '../enemy-abilities.js';
 import { T } from '../../content/data.js';
 import '../aura.js';
 
@@ -92,7 +93,7 @@ registerUltimate('conversion', { name: 'Conversion', desc: 'The toughest enemy i
   onFire(w, h) {
     let tg = null;
     const r2 = h.s.range * h.s.range;
-    for (const e of w.enemies) if (!e.dead && !e.def.boss && (e.x - h.x) ** 2 + (e.y - h.y) ** 2 <= r2 && (!tg || e.hp > tg.hp)) tg = e;
+    for (const e of w.enemies) if (!e.dead && !e.def.boss && !isShielded(e) && (e.x - h.x) ** 2 + (e.y - h.y) ** 2 <= r2 && (!tg || e.hp > tg.hp)) tg = e;
     if (!tg) return;
     w.projs.push({ type: 'spirit', owner: h, enemy: tg.type, d: tg.d, x: tg.x, y: tg.y, t: CONVERSION.seconds, next: 0 });
     w.hit(h, tg, tg.hp, 'holy');

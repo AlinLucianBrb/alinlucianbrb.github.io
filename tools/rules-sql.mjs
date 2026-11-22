@@ -5,6 +5,7 @@
 import { ACCOUNT, REWARDS, WAVES, SPAWN, BOSSES, MIN_RUN, DROPS, COOP } from '../js/content/rules.js';
 import { STAGES, RARITIES, LINEUP_SIZE } from '../js/content/data.js';
 import { ROLL, SELL, RANKS } from '../js/content/items.js';
+import { UNLOCKS, clearedFor } from '../js/content/unlocks.js';
 
 const num = x => String(+x.toFixed(10));
 const fn = (sig, ret, body, comment) => '-- ' + comment + '\ncreate or replace function public.' + sig + ' returns ' + ret +
@@ -18,6 +19,8 @@ export function rulesSql() {
     '-- ===== Game rules (generated from js/content by tools/rules-sql.mjs; do not edit by hand) =====',
     fn('rule_stage_count()', 'int', 'select ' + STAGES.length, 'How many levels there are.'),
     fn('rule_stage_waves(p_stage int)', 'int', 'select (array[' + waves.join(', ') + '])[p_stage]', 'Waves in a level.'),
+    fn('rule_unlock(p_feature text)', 'int', 'select case p_feature ' + Object.entries(UNLOCKS).map(([id, u]) => "when '" + id + "' then " + clearedFor(u.act)).join(' ') + ' end',
+      'Levels that must be cleared before a feature is unlocked (it unlocks on reaching its act).'),
     fn('rule_lineup_max()', 'int', 'select ' + LINEUP_SIZE, 'Heroes a player can bring into a match.'),
     fn('rule_max_players()', 'int', 'select ' + COOP.maxPlayers, 'Players in a co-op lobby.'),
     fn('rule_max_items()', 'int', 'select ' + DROPS.maxItems, 'Items a player can hold.'),
@@ -56,7 +59,7 @@ export function rulesSql() {
   return parts.join('\n') + '\n';
 }
 /* The rule functions, so permissions can lock them (only other database functions call them). */
-export const RULE_FUNCTIONS = ['rule_stage_count()', 'rule_stage_waves(int)', 'rule_lineup_max()', 'rule_max_players()', 'rule_max_items()',
+export const RULE_FUNCTIONS = ['rule_stage_count()', 'rule_stage_waves(int)', 'rule_unlock(text)', 'rule_lineup_max()', 'rule_max_players()', 'rule_max_items()',
   'rule_xp_need(int)', 'rule_run_xp(int, int, numeric)', 'rule_run_gold(int, numeric)', 'rule_kill_cap(int)', 'rule_boss_cap(int, int)',
   'min_run_seconds(int)', 'rule_min_run(int)', 'rule_drop_chance(boolean, int, int)', 'rule_rarity(numeric, numeric)', 'rule_bonus_guaranteed(int)',
   'rule_max_bonuses()', 'rule_extra_bonus_chance()', 'rule_affinity_chance()', 'rule_rank(int, numeric)', 'item_price(int, text[], int[])'];

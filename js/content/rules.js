@@ -28,6 +28,22 @@ export const killCap = waves => WAVES.base * waves + WAVES.perWave * waves * (wa
 export const BOSSES = { middleFromStage: 3 };
 export const isBossWave = (wave, stage) => wave === stage.waves || (stage.n >= BOSSES.middleFromStage && wave === Math.round(stage.waves / 2));
 
+/* Special enemies (enemies.js has what each one does): the waves each kind comes on, and how many of that wave's enemies
+   they replace (wave sizes stay the same). */
+export const SPECIALS = {
+  stunner:  { waves: [7, 27, 47],  count: 4 },
+  tough:    { waves: [13, 43],     count: 4 },
+  immune:   { waves: [18, 28, 38], count: 8 },
+  regener:  { waves: [22, 52],     count: 6 },
+  summoner: { waves: [27],         count: 3 }
+};
+/* The special enemies of a wave, in the order they come, spread evenly: the kinds take turns when a wave has several. */
+export function specialsOf(wave) {
+  const list = [];
+  for (const [id, s] of Object.entries(SPECIALS)) if (s.waves.includes(wave)) for (let k = 0; k < s.count; k++) list.push({ id, at: (k + 0.5) / s.count });
+  return list.sort((a, b) => a.at - b.at).map(x => x.id);
+}
+
 /* Anti-cheat timing: a finished run must have lasted at least `floor` seconds, and at least `share` of the time its waves
    take to spawn (at 1x; the game runs up to 3x). */
 export const MIN_RUN = { floor: 15, share: 0.25 };

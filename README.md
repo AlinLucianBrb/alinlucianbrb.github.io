@@ -15,6 +15,7 @@ js/screens/                login, menu, levels (level, then heroes), lobby (co-o
 
 js/content/                WHAT the game contains (plain data, no logic)
   rules.js                 the rules the server also uses (XP, rewards, waves, spawn timing, bosses, drops, co-op): ONE place
+  unlocks.js               what each act unlocks (the server's copy is generated from it)
   data.js                  heroes (and archived ones for later), energy defaults, attributes, relics, rarities, levels
   previews.js              what each evolution path shows before level 10 (the form previews)
   items.js                 items that drop after matches (one slot per hero)
@@ -27,7 +28,7 @@ js/engine/                 HOW the game works (no page, no clock, no Math.random
   replay.js                command logs: exportLog(), replay(), verify()
   hash.js                  fingerprint of a world (tests)
   ultimates.js             what a hero does when its energy bar is full
-  stats.js, behaviors.js, enemies.js, projectiles.js, effects.js, meter.js
+  stats.js, behaviors.js, enemies.js, enemy-abilities.js (special enemies), projectiles.js, effects.js, meter.js
   aura.js                  auras: heroes whose ring pulses on everything inside (Incantation, Occult)
   preview.js               evolution paths at work: the path's tags, the preview's echo of the form, its growth
   kits/                    the newer heroes, one file each (priest, warlock, paladin, shaman) plus common.js; each registers
@@ -102,7 +103,7 @@ A solo run is kept on this browser every few seconds and when the page is hidden
 
 ## Levels and zones
 - **25 levels in 5 zones** of 5 (`js/content/zones.js`): Green Meadow (levels 1-1 to 1-5, the five levels from before), Deep Forest, Mire, Red Canyon and Ashlands. Each zone has its picture (`assets/level_<zone>.png`), shown on its levels. A level is called by its code, "zone-level" (1-3 is Green Meadow's third), in the level list, the HUD, the leaderboard, lobbies and saved runs. A level unlocks when the previous one is cleared; the level screen shows the five zones (each with its levels cleared, or Locked) and the chosen zone's levels, opening on the zone you are working on.
-- **Waves:** 15 on the first level, 5 more each level, up to 55 (from level 2-4 on every level has 55) (`LEVEL_WAVES` in `data.js`).
+- **Waves:** 15 on the first level, 10 more each level, up to 55 at the end of act 1 (every level after 1-5 has 55) (`LEVEL_WAVES` in `data.js`).
 - **Enemy health** (`STAGES` in `data.js`): Green Meadow's five levels are tuned (see the balance pass); the others follow a formula, not balanced yet: each level's last wave is 12% tougher than the one before and its first wave 4% tougher (`LATER`).
 - **Preset maps** (`js/content/maps.js`): every level has its own fixed map, the same in every match, not a random one. The paths twist and turn: about 14 turns on level 1-1 down to 4 on level 5-5 (the lower the level, the longer and twistier the road). They run from the left edge to the right edge and never touch themselves, not even diagonally. `npm run maps` (`tools/maps.mjs`) designed them with a seeded search; change its `SEED` or `TURNS` and run it again for new ones.
 - The leaderboard shows levels cleared, then the furthest wave on the level a player is working on, with a tab for solo and one for each co-op size.
@@ -126,7 +127,7 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 | Pick a relic in the relic picker | click it | 1 / 2 / 3 |
 | Start the wave | Start wave (AUTO is red while Auto-start is off, green when on) | Enter |
 | Pause | Menu (asks before quitting; in co-op it only asks, the match goes on) | P (Esc resumes; not in co-op) |
-| Game speed | speed button: 1x, 2x, and 3x with the Overdrive talent | |
+| Game speed | speed button: 1x, and 2x from act 3 (3x will come with endless mode) | |
 
 - The camera fits the map into the space the HUD leaves free (a little closer than an exact fit) whenever a run starts or the window changes size (until you move or zoom it yourself; Fit returns to that view).
 - **2.5D view:** the board is seen through a tilted perspective camera, Arknights style (see True perspective): the ground is squashed in depth (`TILT` in `js/game/camera.js`) and narrows toward the far side (`FAR`) while heroes, enemies and their health bars stand upright on it (`upright()` in `js/game/sprites.js`), each with a shadow and smaller further back, with a haze over the far side, a sunken road and upright scenery around the board. Heroes and enemies are drawn front to back, so whoever is nearer covers the ones behind. Range rings and ground effects lie flat on the board, so they look like ellipses.
@@ -201,6 +202,24 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Texts:** attack descriptions describe only the attack, ultimate tooltips only the ultimate, and the hero tooltip the hero (its attribute, delivery and source, tags, damage type). Ultimates that deal damage of their own write it as `{N}` in their description; `ultDesc()` shows it as the number it deals with the hero's stats ("about 156 damage"); "x2 damage" is kept for boosts to an attack the hero already makes. "At level 10, choose a path" is gone from the descriptions.
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
+
+## Acts, special enemies and stun limits (Nov 22, v0.56.0)
+- **Acts:** the five zones are the acts. Act 1 goes 15, 25, 35, 45, 55 waves and every level after it has 55. Enemy health per
+  level was not retuned: with more waves, 1-5 ends about 7x tougher than before, and so do the levels after it.
+- **Unlocks** (`js/content/unlocks.js`): reaching act 2 (beating 1-5) unlocks picking evolution paths before a match; heroes
+  still evolve in a match before that. Paths saved earlier are kept, just not used until then. Winning 1-5 (and so on) says
+  what it unlocked; the level screen's act tabs show it too.
+- **Game speed:** 1x to start with, 2x from act 3. 3x is no longer a talent (Overdrive keeps its hero XP and end-of-match XP) and
+  will come with endless mode.
+- **Special enemies** (`SPECIALS` in `rules.js`, `ENEMIES` in `enemies.js`, `enemy-abilities.js`): they replace some of their wave.
+  **Stunner** (waves 7, 27, 47) stuns the nearest hero for 1.5 s every 6 s; **Ironhide** (13, 43) has high life and defenses at
+  normal speed; **Unstoppable** (18, 28, 38) cannot be frozen, rooted or stunned; **Regenerator** (22, 52) heals, faster the more
+  life it is missing; **Summoner** (27) calls 3 minions up to 3 times and cannot be hurt while one lives. Minions give no gold or
+  XP and are not kills. They use recoloured walks (`art/pixellab/build_enemy_variants.py`).
+- **Crowd control limit** (`CC` in `enemies.js`): an enemy can be held (freeze, root, stun) at most 2.5 s in every 5 s, less its
+  crowd control resistance, which grows with the wave and the level; bosses start with 30%.
+- Rules changed (engine 27: a match saved before the update cannot be resumed). **SQL changed: run `supabase-update.sql`** (waves
+  per level, and paths only once unlocked).
 
 ## Tests on Node 26 (Nov 22, v0.55.4)
 - `npm test` passes on Node 26 as well as Node 22: Node 26's own localStorage printed a warning that two tests counted as a
