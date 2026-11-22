@@ -43,7 +43,7 @@ test('a hero with a path keeps its own attack and ultimate, carries the form\'s 
   const { w, h } = withPath('druid', 'animalic');
   assert.equal(h.def.kind, 'bolt'); assert.equal(h.def.ultimate, 'grasp');
   assert.ok(h.def.tags.includes('minion') && h.def.tags.includes('melee'), 'the form\'s tags');
-  h.level = 10;
+  h.level = 15;
   assert.equal(apply(w, { type: 'evolve', id: h.id, choice: 1 }).reason, 'path', 'not another form');
   assert.ok(apply(w, { type: 'evolve', id: h.id }).ok, 'no choice needed');
   assert.equal(h.def.form, 'animalic'); assert.equal(h.preview, null); assert.equal(h.echo, null);
@@ -51,14 +51,14 @@ test('a hero with a path keeps its own attack and ultimate, carries the form\'s 
 
 test('a form with its own attribute swaps the values: the Animalic Druid is dexterity, with the Druid\'s intellect', () => {
   const druid = HEROES.find(x => x.id === 'druid');
-  const { w, h } = withPath('druid', 'animalic', 10);
+  const { w, h } = withPath('druid', 'animalic', 15);
   const lvl = h.s.intellect - druid.stats.intellect;   /* the points from levels */
   assert.equal(h.echo.def.attribute, 'dexterity');
   assert.ok(Math.abs(h.echo.s.dexterity - h.s.intellect) < 1e-9, 'the pup already uses the dexterity he will have');
   apply(w, { type: 'evolve', id: h.id });
   assert.equal(h.def.attribute, 'dexterity');
   assert.ok(Math.abs(h.s.dexterity - (druid.stats.intellect + lvl) * 1.25) < 1e-9, 'levels carry over (and the evolution adds 25%)');
-  assert.ok(Math.abs(h.s.intellect - (druid.stats.dexterity + 9) * 1.25) < 1e-9, 'the Druid\'s dexterity, +1 a level');
+  assert.ok(Math.abs(h.s.intellect - (druid.stats.dexterity + 14) * 1.25) < 1e-9, 'the Druid\'s dexterity, +1 a level');
 });
 
 test('"every Nth" previews: the form\'s own attack, about once in N attacks, credited to the hero, and the base attack slows to match', () => {
@@ -80,8 +80,8 @@ test('"every Nth" previews: the form\'s own attack, about once in N attacks, cre
 });
 
 test('previews grow with level: fewer attacks between form attacks, a larger converted share', () => {
-  assert.equal(everyAt(PREVIEWS.commander.every, 1), 5); assert.equal(everyAt(PREVIEWS.commander.every, 9), 3); assert.equal(everyAt(PREVIEWS.commander.every, 20), 3);
-  const a = withPath('mage', 'firemage', 1).h, b = withPath('mage', 'firemage', 9).h;
+  assert.equal(everyAt(PREVIEWS.commander.every, 1), 5); assert.equal(everyAt(PREVIEWS.commander.every, 14), 3); assert.equal(everyAt(PREVIEWS.commander.every, 20), 3);
+  const a = withPath('mage', 'firemage', 1).h, b = withPath('mage', 'firemage', 14).h;
   assert.ok(Math.abs(a.def.convert.fire - 0.2) < 1e-9 && Math.abs(b.def.convert.fire - 0.5) < 1e-9);
   assert.ok(b.s.burnChance > a.s.burnChance);
 });
@@ -128,7 +128,7 @@ test('aura previews: the form\'s aura, smaller and weaker', () => {
 test('the Sentinel pushes, the Inquisitor stacks Verdict up to the cap, the Gospel gives energy, the Crusader rides', () => {
   { const { w, h } = withPath('warrior', 'sentinel', 1); w.wave = 2; const e = onPath(w, h, 0); const d0 = e.d; h.cd = 0; step(w); assert.ok(e.d < d0, 'pushed back'); }
   { const { w, h } = withPath('paladin', 'inquisitor', 1); const e = onPath(w, h, 0); run(w, 6); assert.equal(e.fx.verdict.n, 1, 'one stack at level 1'); }
-  { const { w, h } = withPath('paladin', 'inquisitor', 9); const e = onPath(w, h, 0); run(w, 8); assert.equal(e.fx.verdict.n, 3, 'three by level 9'); }
+  { const { w, h } = withPath('paladin', 'inquisitor', 14); const e = onPath(w, h, 0); run(w, 8); assert.equal(e.fx.verdict.n, 3, 'three by level 14'); }
   {
     const { w, h } = withPath('priest', 'gospel', 1, 5, ['warrior']);
     let ally;
@@ -146,7 +146,7 @@ test('a match with a path replays exactly, and the evolution happens in the plan
     for (const [x, y] of w.path.slice(4)) { if (apply(w, { type: 'place', hero: heroId, cx: x, cy: y + 1 }).ok || apply(w, { type: 'place', hero: heroId, cx: x, cy: y - 1 }).ok) break; }
     apply(w, { type: 'auto', on: true }); apply(w, { type: 'wave' });
     const h = w.heroes[0];
-    while (w.phase !== 'over' && (h.level < 10 || w.gold < 150)) step(w);
+    while (w.phase !== 'over' && (h.level < 15 || w.gold < 500)) step(w);
     if (w.phase !== 'over') assert.ok(apply(w, { type: 'evolve', id: h.id }).ok);
     for (let i = 0; i < 60 * 30 && w.phase !== 'over'; i++) step(w);
     if (h.tier) assert.equal(h.def.form, form);

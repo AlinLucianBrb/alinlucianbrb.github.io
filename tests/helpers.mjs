@@ -47,9 +47,9 @@ export const dealt = e => Math.round((e.max - e.hp) * 1e6) / 1e6;
 
 /* Level 1 as gentle as it was before the Nov 11 balance pass (enemy health x1, not x5.25), for tests that need a few heroes
    with no relics to live long enough to level up and evolve; the difficulty itself is tested in bot.test.mjs. */
-export function gentleLevel1(t) {
-  const old = STAGES[0].hpMult; STAGES[0].hpMult = 1;
-  t.after(() => { STAGES[0].hpMult = old; });
+export function gentleLevel1(t, changes = {}) {
+  const old = { ...STAGES[0] }; Object.assign(STAGES[0], { hpMult: 1, ...changes });
+  t.after(() => { Object.assign(STAGES[0], old); });
 }
 
 /* Runs fn with a temporary change to an object, then puts it back. */

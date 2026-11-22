@@ -16,7 +16,7 @@ test('a whole bot run replays to the identical final state', () => {
 });
 
 test('replay covers every command type: place, move, evolve, reroll, banish, choose, auto, wave', tc => {
-  gentleLevel1(tc);
+  gentleLevel1(tc, { hpMult: 0.5, waves: 25 });   /* long enough to reach level 15 and to play on as the form */
   /* Everything goes through commands: gold is earned by playing, never set directly, or the replay could not reproduce it. */
   const gear = { ranger: [{ type: 'power_charm', rarity: 2, bonuses: ['Quick hands', 'Keen edge'], ranks: [3, 2] }, { type: 'boots', rarity: 0, bonuses: ['Fine arrows'], ranks: [1] }] };
   const w = createWorld({ seed: 21, stage: 1, items: gear, talents: pathTo(new Set(), 't4_relics_s') });   /* a reroll and a banish */
@@ -25,7 +25,7 @@ test('replay covers every command type: place, move, evolve, reroll, banish, cho
   apply(w, { type: 'place', hero: 'warrior', cx: t[2][0], cy: t[2][1] });
   apply(w, { type: 'wave' });
   apply(w, { type: 'auto', on: true });
-  while ((w.gold < 260 || w.heroes[0].level < 10) && w.phase !== 'over') step(w);   /* earn the gold and the level by playing */
+  while ((w.gold < 700 || w.heroes[0].level < 15) && w.phase !== 'over') step(w);   /* earn the gold and the level by playing */
   assert.ok(apply(w, { type: 'evolve', id: a, choice: 2 }).ok);   /* the Ranger becomes a Hunter */
   assert.ok(apply(w, { type: 'buyRelic' }).ok);
   assert.ok(apply(w, { type: 'reroll' }).ok);

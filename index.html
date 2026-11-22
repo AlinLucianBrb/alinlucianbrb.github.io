@@ -740,6 +740,20 @@ button:not(.danger):not(.relic):not(.on):not(.herocard):not(.linkbtn):not(.choos
 .tabs button.on{color:#2a1a00;text-shadow:0 1px 0 rgba(255,240,200,.4)}
 .tabs button:not(.on){filter:saturate(.75) brightness(.85)}
 .evonode .evoart{width:104px;height:104px;margin:-4px 0 -6px;image-rendering:auto}
+/* Evolutions tab: the base hero on the left, its forms beside it, so the whole page fits the window without scrolling. */
+.hpage:has(.hbody.evo){width:min(1480px,96vw);max-width:none}
+.hbody.evo{padding:8px 10px}
+.hbody.evo .evotree{display:grid;grid-template-columns:minmax(170px,.7fr) 3.6fr;grid-template-rows:auto 1fr;column-gap:14px;align-items:stretch}
+.hbody.evo .evonode.root{grid-row:1/3;width:auto;align-self:center}
+.hbody.evo .evolink{padding:0 0 4px;text-align:center}
+.hbody.evo .evolink::before,.hbody.evo .evolink::after{display:none}
+.hbody.evo .evorow{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding-top:8px}
+.hbody.evo .evonode{padding:4px 8px;gap:2px;font-size:.92em;line-height:1.28}
+.hbody.evo .evonode .evoart{width:84px;height:84px}
+.hbody.evo .evonode .preview{margin-bottom:2px}
+.evoups{display:flex;flex-direction:column;gap:2px;margin:2px 0 4px;padding-top:4px;border-top:1px solid #4a3a22}
+.evoups .evoup2 b{color:#8be28b}
+@media (max-height:820px){.hbody.evo .evonode{font-size:.84em}.hbody.evo .evonode .evoart{width:64px;height:64px}}
 </style>
 </head>
 <body>

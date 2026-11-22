@@ -4,11 +4,17 @@
 import { inflict } from './combat.js';
 import { applyEffect } from './effects.js';
 import { OIL } from './ultimates.js';
+import { upgradeOf, around } from './upgrades.js';
 export const ZONES = {
   /* Strikes every enemy inside the circle every `every` seconds, for `scale` of the owner's hit (which can shock). */
   storm: {
     update(g, z, dt) {
       z.t -= dt; z.next -= dt;
+      if (z.follow) {   /* Chasing storm: drifts to the leading enemy */
+        let lead = null;
+        for (const e of g.enemies) if (!e.dead && (!lead || e.d > lead.d)) lead = e;
+        if (lead) { const dx = lead.x - z.x, dy = lead.y - z.y, d = Math.hypot(dx, dy), s = Math.min(d, z.follow * dt); if (d > 0) { z.x += dx / d * s; z.y += dy / d * s; } }
+      }
       if (z.next <= 0) {
         z.next += z.every;
         const r2 = z.r * z.r;
@@ -34,6 +40,7 @@ ZONES.trap = {
     if (!stepped) return true;
     const r2 = z.r * z.r;
     for (const e of g.enemies) if (!e.dead && (e.x - z.x) ** 2 + (e.y - z.y) ** 2 <= r2) g.attack(z.owner, e, z.scale);
+    if (z.pool) g.zones.push({ type: 'poisonpool', owner: z.owner, x: z.x, y: z.y, r: z.pool.radius, t: z.pool.seconds, next: 0, every: 1, small: true });
     g.ev.emit('trap', { zone: z });
     g.fx?.slash(z.x, z.y, 0, Math.PI, z.r, 0.3, '#7ad04b');
     return false;
@@ -41,12 +48,24 @@ ZONES.trap = {
 };
 
 /* Sentinel's barricade: blocks the path at progress d (see updateEnemies in enemies.js) until it runs out. */
-ZONES.barrier = { update(g, z, dt) { return (z.t -= dt) > 0; } };
+ZONES.barrier = { update(g, z, dt) {
+  if ((z.t -= dt) > 0) return true;
+  if (z.burst) {   /* Shattering wall */
+    for (const e of around(g, z.x, z.y, z.burst.radius)) g.attack(z.owner, e, z.burst.scale);
+    g.ev.emit('explode', { zone: z });
+  }
+  return false;
+} };
 
 /* Toxicologist's puddle of poison: once a second, poisons every enemy in it, as if hit by the Toxicologist. */
 ZONES.poisonpool = {
   update(g, z, dt) {
     z.t -= dt; z.next -= dt;
+    const spread = !z.small && upgradeOf(z.owner, 'toxicologist_ult');
+    if (spread) {   /* Outbreak: whoever was in it and is dead now leaves a smaller puddle (which does not spread further) */
+      for (const e of z.in || []) if (e.dead && !e.escaped) g.zones.push({ type: 'poisonpool', owner: z.owner, x: e.x, y: e.y, r: spread.radius, t: spread.seconds, next: 0, every: z.every, small: true });
+      z.in = around(g, z.x, z.y, z.r);
+    }
     if (z.next <= 0) {
       z.next += z.every;
       const r2 = z.r * z.r;
@@ -71,6 +90,8 @@ ZONES.oil = {
     if (!boom) return true;
     const b2 = OIL.blast * OIL.blast;
     for (const e of g.enemies) if (!e.dead && (e.x - z.x) ** 2 + (e.y - z.y) ** 2 <= b2) g.attack(z.owner, e, OIL.scale, 1, 'fire');
+    const scorch = upgradeOf(z.owner, 'alchemist_ult');   /* burning ground */
+    if (scorch) g.zones.push({ type: 'pulse', owner: z.owner, x: z.x, y: z.y, next: 0, r: scorch.radius, t: scorch.seconds, life: scorch.seconds, every: scorch.every, scale: scorch.scale, as: 'fire', look: 'hellfire' });
     g.ev.emit('explode', { zone: z });
     g.fx?.slash(z.x, z.y, 0, Math.PI, OIL.blast, 0.35, '#ff9f43');
     return false;
@@ -86,7 +107,8 @@ ZONES.thorns = {
     if (z.next <= 0 && z.t > 0) {
       z.next += z.every;
       const r2 = z.r * z.r;
-      for (const e of g.enemies) if (!e.dead && (e.x - z.x) ** 2 + (e.y - z.y) ** 2 <= r2) g.attack(z.owner, e, z.scale);
+      const snare = upgradeOf(z.owner, 'naturist_attack');
+      for (const e of g.enemies) if (!e.dead && (e.x - z.x) ** 2 + (e.y - z.y) ** 2 <= r2) { g.attack(z.owner, e, z.scale); if (snare) applyEffect(e, 'snared', { t: snare.seconds }, z.owner); }
     }
     return z.t > 0 || z.spikeT > 0;
   }

@@ -1,4 +1,4 @@
-/* The Paladin: a heavy hammer swing, 30% of it Holy (convert on the hero), and Consecration. At level 10:
+/* The Paladin: a heavy hammer swing, 30% of it Holy (convert on the hero), and Consecration. At level 15:
    - Heretic: a burning shadow flail that grows stronger with every life lost this run (bloodPrice); Heresy pays a life to
      empower every hero on the map;
    - Inquisitor: a long chain flail at the toughest enemy in range, stacking Verdict (+5% damage taken per stack, up to 10);
@@ -14,6 +14,7 @@ import { applyEffect, EFFECTS } from '../effects.js';
 import { knockback, pathPos } from '../enemies.js';
 import { T } from '../../content/data.js';
 import { pulseZone } from './common.js';
+import { upgradeOf } from '../upgrades.js';
 
 /* ---- Paladin ---- */
 export const CONSECRATION = { seconds: 5, radius: 70, every: 0.5, scale: 0.6 };
@@ -29,7 +30,11 @@ registerUltimate('heresy', { buff: 'heresy', name: 'Heresy', desc: 'Every hero o
   onFire(w, h) {
     const pay = w.lives > HERESY.minLives && (h.heresyPaid || 0) < HERESY.maxPaid;
     if (pay) { w.lives -= 1; h.heresyPaid = (h.heresyPaid || 0) + 1; }
-    for (const o of w.heroes) w.addBuff(o, 'heresy', pay ? 'Heresy (paid)' : 'Heresy', pay ? HERESY.paid : HERESY.mods, HERESY.seconds, h);
+    const creed = upgradeOf(h, 'heretic_ult');
+    for (const o of w.heroes) {
+      w.addBuff(o, 'heresy', pay ? 'Heresy (paid)' : 'Heresy', pay ? HERESY.paid : HERESY.mods, HERESY.seconds, h);
+      if (creed) o.buffs.find(b => b.id === 'heresy').scorch = creed.chance;   /* Burning creed: any hit can burn (combat.js) */
+    }
     w.ev.emit('heresy', { hero: h, paid: pay });
   } });
 
@@ -48,10 +53,13 @@ registerBehavior('verdict', {
     const mult = strike(g, t, tg);
     rearm(t);
     if (mult !== 0) {
-      g.attack(t, tg, mult);
-      if (!tg.dead) addVerdict(tg, t);
-      g.fx?.beam(t.x, t.y - 6, tg.x, tg.y, 0.12, mult > 1 ? '#fff6c8' : 'rgba(200,200,190,.85)', mult > 1 ? 4 : 2);   /* the chain */
-      g.fx?.slash(tg.x, tg.y, Math.atan2(tg.y - t.y, tg.x - t.x), Math.PI / 4, 18, 0.15, look(t, mult));
+      const fork = upgradeOf(t, 'inquisitor_attack') && pickStrongest(g, t, t.s.range, tg);   /* Forked chain */
+      for (const e of fork ? [tg, fork] : [tg]) {
+        g.attack(t, e, mult);
+        if (!e.dead) addVerdict(e, t);
+        g.fx?.beam(t.x, t.y - 6, e.x, e.y, 0.12, mult > 1 ? '#fff6c8' : 'rgba(200,200,190,.85)', mult > 1 ? 4 : 2);   /* the chain */
+        g.fx?.slash(e.x, e.y, Math.atan2(e.y - t.y, e.x - t.x), Math.PI / 4, 18, 0.15, look(t, mult));
+      }
     }
     charge(g, t);
   }
@@ -60,10 +68,11 @@ registerBehavior('verdict', {
 export const PURGE = { seconds: 6, resDown: 0.3, execute: 0.15 };
 registerUltimate('purge', { name: 'Purge', desc: 'Every enemy in range loses 30% armor and 30% resistances for 6 seconds; a non-boss under 15% life dies.', damageMult: 1,
   onFire(w, h) {
-    const r2 = h.s.range * h.s.range;
+    const r2 = h.s.range * h.s.range, guilty = upgradeOf(h, 'inquisitor_ult');
     for (const e of [...w.enemies]) {
       if (e.dead || (e.x - h.x) ** 2 + (e.y - h.y) ** 2 > r2) continue;
       applyEffect(e, 'purge', { t: PURGE.seconds, resDown: PURGE.resDown }, h);
+      if (guilty) for (let k = 0; k < guilty.stacks; k++) addVerdict(e, h);
       execute(w, h, e, PURGE.execute);
     }
     w.fx?.slash(h.x, h.y, 0, Math.PI, h.s.range, 0.45, 'rgba(255,246,200,.35)');
@@ -112,10 +121,20 @@ function moveTo(r, x, y, step) {
   if (d <= step) { r.x = x; r.y = y; return true; }
   r.x += dx / d * step; r.y += dy / d * step; return false;
 }
+function trample(g, t, r, hit) {
+  const r2 = CHARGE.reach * CHARGE.reach;
+  for (const e of g.enemies) {
+    if (e.dead || hit.has(e) || (e.x - r.x) ** 2 + (e.y - r.y) ** 2 > r2) continue;
+    hit.add(e);
+    g.attack(t, e, r.mult);
+    knockback(g, e, CHARGE.knock);
+  }
+}
 function ride(g, t, r, dt) {
   const step = CHARGE.speed * dt;
   if (r.phase === 'out') { if (moveTo(r, r.tx, r.ty, step)) r.phase = 'ride'; return; }
   if (r.phase === 'back') {
+    if (upgradeOf(t, 'crusader_attack')) trample(g, t, r, (r.hitBack ||= new Set()));   /* Return charge */
     if (r.onPath) {                       /* back along the path to his tile */
       const before = r.x; r.d = r.d < r.home ? Math.min(r.home, r.d + step) : Math.max(r.home, r.d - step); pathPos(g.path, r.d / T, r);
       if (Math.abs(r.x - before) > 0.5) r.face = r.x < before ? -1 : 1;
@@ -129,20 +148,18 @@ function ride(g, t, r, dt) {
   r.d = r.to < r.d ? Math.max(r.to, r.d - step) : Math.min(r.to, r.d + step);   /* toward the last enemy, either way along the path */
   pathPos(g.path, r.d / T, r);
   if (Math.abs(r.x - before) > 0.5) r.face = r.x < before ? -1 : 1;
-  const r2 = CHARGE.reach * CHARGE.reach;
-  for (const e of g.enemies) {
-    if (e.dead || r.hit.has(e) || (e.x - r.x) ** 2 + (e.y - r.y) ** 2 > r2) continue;
-    r.hit.add(e);
-    g.attack(t, e, r.mult);
-    knockback(g, e, CHARGE.knock);
-  }
+  trample(g, t, r, r.hit);
   if (r.d === r.to) r.phase = 'back';
 }
 /* Cavalry: three phantom riders gallop the whole path from the gate back to the entrance, hitting every enemy once for 2x a
    hit and pushing it back 1.5 tiles. */
 export const CAVALRY = { speed: 320, reach: 26, scale: 2, knock: 1.5 * T, riders: 3 };
 registerUltimate('cavalry', { name: 'Cavalry', desc: 'Three phantom riders gallop the whole path from the gate to the entrance, hitting every enemy once and pushing it back.', damageMult: 1,
-  onFire(w, h) { w.projs.push({ type: 'cavalry', owner: h, d: (w.path.length - 1.001) * T, x: 0, y: 0, hit: new Set() }); } });
+  onFire(w, h) {
+    const end = (w.path.length - 1.001) * T, u = upgradeOf(h, 'crusader_ult');
+    w.projs.push({ type: 'cavalry', owner: h, d: end, x: 0, y: 0, hit: new Set() });
+    if (u) w.projs.push({ type: 'cavalry', owner: h, d: end + u.behind * T, x: 0, y: 0, hit: new Set(), riders: u.riders });   /* Second wave: rides in behind them */
+  } });
 PROJECTILES.cavalry = {
   update(g, p, dt) {
     p.d -= CAVALRY.speed * dt;

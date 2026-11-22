@@ -1,5 +1,5 @@
 /* All DOM work for the game screen. Values are only written when they change, to avoid needless page updates. */
-import { HEROES, RARITIES, RELICS, STAT_LABELS, rarityOdds, HERO_LEVELS, ATTRIBUTES, ATTRIBUTE_EFFECTS, HERO_COST } from '../content/data.js';
+import { HEROES, RARITIES, RELICS, STAT_LABELS, rarityOdds, HERO_LEVELS, ATTRIBUTES, ATTRIBUTE_EFFECTS, HERO_COST, nextStep } from '../content/data.js';
 /* Attribute short names and colours: strength red, dexterity green, intellect blue. */
 export const ATTR_SHORT = { strength: 'Str', dexterity: 'Dex', intellect: 'Int' };
 export const ATTR_COLOR = { strength: '#e5645a', dexterity: '#5fd46f', intellect: '#5aa9ff' };
@@ -14,6 +14,7 @@ import { isBossWave } from '../engine/enemies.js';
 import { ITEMS, itemName, itemColor, itemBonusLines } from '../content/items.js';
 import { COOP } from '../content/rules.js';
 import { UNLOCKS } from '../content/unlocks.js';
+import { SLOT_NAME } from '../content/upgrades.js';
 import { PREVIEWS } from '../content/previews.js';
 import { PLAYER_COLORS } from './render.js';
 
@@ -68,6 +69,10 @@ function statLine(d, s) {
   return 'Damage ' + dmg + ' · Range ' + range + ' · ' + f((s[d.rate || 'speed'] || 1) / s.cooldown) + (d.rate === 'castSpeed' ? ' casts/s' : ' attacks/s');
 }
 
+/* One star per evolution before a hero's name; and what its upgrade does, as a tooltip line for the ability it changes. */
+const stars = h => (h.tier ? '★'.repeat(h.tier) + ' ' : '');
+const upgradeLine = (def, slot) => (def.upgrade && def.upgrade.slot === slot ? [{ text: '★★ ' + def.upgrade.name + ': ' + def.upgrade.short, color: '#8be28b' }] : []);
+
 export function initUI(callbacks) {
   cb = callbacks;
   HEROES.forEach((d, i) => {
@@ -85,9 +90,9 @@ export function initUI(callbacks) {
     const abil = el('span', 'abil idle'), atk = abilityIcon(attackIcon(d)), ult = abilityIcon(ultimateIcon(d));
     abil.append(atk, ult);
     bindTip(atk, () => { const info = cb.heroInfo(i), cur = info.unit ? info.unit.def : d;
-      return { title: 'Basic attack', color: cur.color, lines: [cur.short, { text: statLine(cur, info.stats), color: '#ab9f8a' }] }; });
+      return { title: 'Basic attack', color: cur.color, lines: [cur.short, ...upgradeLine(cur, 'attack'), { text: statLine(cur, info.stats), color: '#ab9f8a' }] }; });
     bindTip(ult, () => { const info = cb.heroInfo(i), cur = info.unit ? info.unit.def : d, u = ULTIMATES[cur.ultimate], s = info.stats;
-      return { title: 'Ultimate: ' + (u ? u.name : '?'), color: '#ffd84a', lines: [ultDesc(u, s),
+      return { title: 'Ultimate: ' + (u ? u.name : '?'), color: '#ffd84a', lines: [ultDesc(u, s), ...upgradeLine(cur, 'ultimate'),
         { text: info.unit ? 'Energy ' + Math.floor(info.unit.energy) + ' / ' + s.energyMax : 'Energy ' + s.energyPerAttack + ' per attack, ' + s.energyMax + ' to fire', color: '#ab9f8a' }] }; });
     name.append(nmText, lv, status); b.append(key, frame, name, abil); b._status = status; b._key = key; b._nm = nmText; b._lv = lv; b._pic = pic; b._frame = frame; b._picName = cp.name;
     b._abil = abil; b._atk = atk; b._ult = ult; b._form = d.id;
@@ -104,7 +109,7 @@ export function initUI(callbacks) {
       if (info.evo) {
         const names = (info.path ? [info.path] : info.evo.choices).map(c => c.name), list = names.length > 1 ? names.slice(0, -1).join(', ') + ' or ' + names.at(-1) : names[0];
         const need = info.evoLevel || info.evo.level;
-        lines.push({ text: 'At level ' + need + ' it can evolve into ' + list + ' for ' + info.evoCost + ' gold.', color: info.unit && info.unit.level >= need && info.gold >= info.evoCost ? '#f2b84b' : '#ab9f8a' });
+        lines.push({ text: 'At level ' + need + ' it can ' + (info.evo.upgrade ? 'upgrade its basic attack or its ultimate' : 'evolve into ' + list) + ' for ' + info.evoCost + ' gold.', color: info.unit && info.unit.level >= need && info.gold >= info.evoCost ? '#f2b84b' : '#ab9f8a' });
       }
       return { title: cur.name + ' · ' + cap(cur.archetype), color: cur.color, lines };
     });
@@ -177,14 +182,15 @@ export function renderHUD(g, v) {
     if (!b._inLineup) return;
     const unit = g.unitOf ? g.unitOf(i) : g.heroes.find(h => h.type === i);   /* your own hero of this class */
     /* Evolve button above the card: shown once the hero has the level, with the cost; dimmed until you have the gold. */
-    const step = unit && unit.base.evolutions[unit.tier], due = !!step && unit.level >= g.evolveLevel(unit) && g.phase !== 'over';
+    const step = unit && nextStep(unit), due = !!step && unit.level >= g.evolveLevel(unit) && g.phase !== 'over';
     if (b._up.hidden === due) b._up.hidden = !due;
     if (due) {
       const cost = g.evolveCost(unit), short = g.gold < cost;
-      setText(b._up, '▲ Evolve · ' + cost); b._up.disabled = short; b._up.classList.toggle('short', short);
-      b._up.title = short ? 'Evolving costs ' + cost + ' gold (you have ' + g.gold + ')' : 'Evolve the ' + unit.def.name + ' for ' + cost + ' gold';
+      const verb = step.upgrade ? 'Upgrade' : 'Evolve';
+      setText(b._up, '▲ ' + verb + ' · ' + cost); b._up.disabled = short; b._up.classList.toggle('short', short);
+      b._up.title = short ? (step.upgrade ? 'Upgrading' : 'Evolving') + ' costs ' + cost + ' gold (you have ' + g.gold + ')' : verb + ' the ' + unit.def.name + ' for ' + cost + ' gold';
     }
-    setText(b._nm, unit ? (unit.tier ? '★ ' : '') + unit.def.name : d.name);
+    setText(b._nm, unit ? stars(unit) + unit.def.name : d.name);
     setText(b._lv, unit ? 'Lv ' + unit.level : '');
     setText(b._status, unit ? '' : String(HERO_COST));   /* shown with a coin icon */
     b.classList.toggle('poor', !unit && g.gold < HERO_COST);   /* not enough gold yet: the price shows red */
@@ -299,7 +305,7 @@ function describe(m, key) {
   return v + ' · ' + m.source + (m.n > 1 ? ' ×' + m.n : '') + ' (' + (m.ri >= 0 ? 'Relic' : SOURCE[m.ri] || 'Talent') + ')';
 }
 /* Whether a hero can evolve right now: it has a next step, has reached its level and you have the gold. */
-export const canEvolve = (g, h) => { const s = h.base.evolutions[h.tier]; return !!s && h.level >= g.evolveLevel(h) && g.gold >= g.evolveCost(h) && g.phase !== 'over'; };
+export const canEvolve = (g, h) => { const s = nextStep(h); return !!s && h.level >= g.evolveLevel(h) && g.gold >= g.evolveCost(h) && g.phase !== 'over'; };
 
 /* The inspector is rebuilt only when the selection, the modifiers or the move state change, so buttons never vanish under a click.
    There are no Move or Evolve buttons: select a hero and press M or right-click to move it (then click the new spot), and the evolution choices appear here
@@ -312,7 +318,7 @@ export function renderInspector(g, v) {
   const owner = g.players ? g.players[t.owner || 0] : null, ownerMods = owner ? owner.mods : g.mods;   /* the modifiers of the hero's owner */
   if (box._t !== t || box._m !== ownerMods.length || box._tier !== t.tier || box._lv !== t.level || box._bk !== bk) {
     box._k = 't'; box._t = t; box._m = ownerMods.length; box._tier = t.tier; box._lv = t.level; box._bk = bk; box.textContent = '';
-    const d = t.def, head = el('div', 'phead'), title = el('b', '', (t.tier ? '★ ' : '') + d.name + ' · Lv ' + t.level + (coop && (t.owner || 0) !== coop.me ? ' · ' + coop.names[t.owner || 0] + "'s" : '')), close = el('button', 'linkbtn pclose', '✕');
+    const d = t.def, head = el('div', 'phead'), title = el('b', '', stars(t) + d.name + ' · Lv ' + t.level + (coop && (t.owner || 0) !== coop.me ? ' · ' + coop.names[t.owner || 0] + "'s" : '')), close = el('button', 'linkbtn pclose', '✕');
     title.style.color = d.color; $('heroPanel').style.setProperty?.('--hc', d.color);   /* the window takes the hero's colour */
     close.onclick = cb.onCloseInspector; close.title = 'Close (Esc)'; head.append(title, close); box.append(head);
     /* Right under the name: what the hero has done this match (icons; hover for the words). */
@@ -419,11 +425,12 @@ function fmtStat(key, x) {
 
 /* The evolution picker: like the relic picker, it covers the game (which pauses) and offers the hero's forms side by side. */
 export function showEvoPick(g, h) {
-  const step = h.base.evolutions[h.tier]; if (!step) return;
+  const step = nextStep(h); if (!step) return;
   const cost = g.evolveCost(h), box = $('evoChoices'); box.textContent = '';
-  setText($('evoTitle'), 'Evolve the ' + h.def.name + ' · ' + cost + ' gold');
+  setText($('evoTitle'), (step.upgrade ? 'Upgrade the ' : 'Evolve the ') + h.def.name + ' · ' + cost + ' gold');
   step.choices.forEach((c, i) => {
     if (h.preview && c.id !== h.preview.form) return;   /* a hero with a path evolves only into its form */
+    if (step.upgrade) { box.append(upgradeCard(h, c, i, g.gold < cost)); return; }
     const d = h.def, u = ULTIMATES[c.ultimate || d.ultimate], color = c.color || d.color, card = el('div', 'card'), b = el('button', 'choose');
     const nm = el('b', '', c.name); nm.style.color = color; b.style.borderColor = color;
     b.append(nm, el('small', 'rar', DAMAGE_LABEL[c.damageType || d.damageType] + ' damage'), el('small', '', c.short),
@@ -434,6 +441,15 @@ export function showEvoPick(g, h) {
   });
   setText($('evoGold'), g.gold < cost ? 'You need ' + cost + ' gold (you have ' + g.gold + ').' : 'Gold: ' + g.gold);
   $('evoPick').hidden = false;
+}
+/* The second evolution: what it upgrades, with the icon of that ability. */
+function upgradeCard(h, c, i, poor) {
+  const d = h.def, card = el('div', 'card'), b = el('button', 'choose'), nm = el('b', '', c.name), u = ULTIMATES[d.ultimate];
+  nm.style.color = d.color; b.classList.add('relicard'); b.style.setProperty?.('--rc', d.color);
+  b.append(spriteImg(c.slot === 'attack' ? attackIcon(d) : ultimateIcon(d), 'pix relicico top'), nm,
+    el('small', 'rar', SLOT_NAME[c.slot] + (c.slot === 'ultimate' && u ? ': ' + u.name : '')), el('small', '', c.short));
+  b.disabled = poor; b.onclick = () => cb.onEvolveChoice(i);
+  card.append(b); return card;
 }
 export const hideEvoPick = () => { $('evoPick').hidden = true; };
 

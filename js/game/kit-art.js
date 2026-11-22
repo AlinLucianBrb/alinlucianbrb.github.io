@@ -55,7 +55,7 @@ export const KIT_PROJ = {
   },
   /* Cavalry: three phantom riders in a row, pale gold and see-through, galloping toward the entrance. */
   cavalry(ctx, p) {
-    for (let k = 0; k < 3; k++) {
+    for (let k = 0; k < (p.riders || 3); k++) {
       const back = k * 26, a = 0.6 - k * 0.15;
       ctx.globalAlpha = a;
       const x = p.x + (p.dx || 0) * back, y = p.y + (p.dy || 0) * back;

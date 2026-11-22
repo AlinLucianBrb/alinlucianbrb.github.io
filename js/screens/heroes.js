@@ -7,7 +7,7 @@
 import { bus } from '../core/bus.js';
 import { state } from '../core/state.js';
 import { bindTip } from '../core/tooltip.js';
-import { HEROES, STAT_LABELS, ATTRIBUTES, ATTRIBUTE_EFFECTS, evolvedDef } from '../content/data.js';
+import { HEROES, STAT_LABELS, ATTRIBUTES, ATTRIBUTE_EFFECTS, EVOLVE_LEVEL, evolvedDef } from '../content/data.js';
 import { SLOTS, SLOT_LABEL, itemMods, itemName, itemColor, itemBonusLines } from '../content/items.js';
 import { DAMAGE_LABEL } from '../content/combat.js';
 import { ULTIMATES, ultDesc } from '../engine/ultimates.js';
@@ -17,6 +17,7 @@ import { PREVIEWS } from '../content/previews.js';
 import { pathChoice, pathDef } from '../engine/preview.js';
 import { savePaths } from '../services/api.js';
 import { UNLOCKS } from '../content/unlocks.js';
+import { UPGRADES, UPGRADE_LEVEL, SLOT_NAME } from '../content/upgrades.js';
 import { el, cap, items, itemById, equipment, gearOf, setGear, freeFor, wornItems, gearCount, ensureItems, saveNow, sqlHint, itemIcon, itemTip, activePaths, pathsUnlocked } from './loadout.js';
 
 const $ = id => document.getElementById(id);
@@ -114,7 +115,7 @@ function renderInfo(box, h) {
   img.onerror = () => { img.remove(); art.classList.remove('art'); };
   pic.append(art, el('p', 'hdesc', h.short));
   const c = pathOf(h.id);
-  pic.append(el('p', 'hdesc pathline', c ? 'Path: ' + c.name + '. Before level 10: ' + PREVIEWS[c.id].desc : 'No path yet: pick one on the Evolutions tab, or choose in the match.'));
+  pic.append(el('p', 'hdesc pathline', c ? 'Path: ' + c.name + '. Before level ' + EVOLVE_LEVEL + ': ' + PREVIEWS[c.id].desc : 'No path yet: pick one on the Evolutions tab, or choose in the match.'));
   /* Stats, with the equipped items included (gear that does not fit the hero counts as its general version). */
   const worn = wornItems()[h.id], s = heroStats(asPlayed(h), itemMods(worn ? { [h.id]: worn } : {}, wearer(h)));
   stats.append(el('h3', '', 'Stats' + (worn ? ' (with gear)' : '')));
@@ -137,7 +138,7 @@ function renderInfo(box, h) {
   box.append(gear, pic, stats);
 }
 
-/* Evolutions tab: the base hero on top, then each evolution step with its forms side by side. */
+/* Evolutions tab: the base hero, then its forms side by side, each with its two level-30 upgrades. */
 function renderEvolutions(box, h) {
   const tree = el('div', 'evotree'), root = el('div', 'evonode root'), u = ULTIMATES[h.ultimate];
   root.style.setProperty('--hc', h.color);
@@ -154,7 +155,12 @@ function renderEvolutions(box, h) {
       const nm = el('b', '', c.name); nm.style.color = d.color;
       n.append(nm, el('small', 'muted', DAMAGE_LABEL[d.damageType] + ' damage · +25% to all its stats' + (d.attribute !== h.attribute ? ' · becomes a ' + STAT_LABELS[d.attribute].toLowerCase() + ' hero' : '')), el('p', '', c.short));
       if (cu) n.append(el('small', '', 'Ultimate: ' + cu.name + ': ' + ultDesc(cu, heroStats(d, []))));
-      if (PREVIEWS[c.id]) n.append(el('small', 'preview', 'Before level 10: ' + PREVIEWS[c.id].desc));
+      if (PREVIEWS[c.id]) n.append(el('small', 'preview', 'Before level ' + EVOLVE_LEVEL + ': ' + PREVIEWS[c.id].desc));
+      /* The second evolution: one of two upgrades. */
+      const ups = el('div', 'evoups');
+      ups.append(el('small', 'muted', 'Level ' + UPGRADE_LEVEL + ' · ' + step.cost + ' gold · choose one in the match'));
+      for (const up of UPGRADES[c.id]) { const line = el('small', 'evoup2'); line.append(el('b', '', up.name + ' '), el('span', 'muted', '(' + SLOT_NAME[up.slot].toLowerCase() + ') '), el('span', '', up.short)); ups.append(line); }
+      n.append(ups);
       const open = pathsUnlocked(), chosen = activePaths()[h.id] === c.id;
       const pb = el('button', 'pathbtn', !open ? 'Paths unlock in Act ' + UNLOCKS.paths.act : chosen ? 'Chosen path ✓ (click to clear)' : 'Choose this path');
       pb.disabled = !open;

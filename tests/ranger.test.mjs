@@ -18,7 +18,7 @@ function ranger(seed = 31) {
   const w = richWorld({ seed });
   let tile; for (let cx = 4; !tile && cx < 12; cx++) for (let cy = 2; cy < 8; cy++) if (!w.pathSet.has(cx + ',' + cy)) { tile = [cx, cy]; break; }
   const h = place(w, 'ranger', ...tile);
-  h.level = 10; h.lvlMods = levelMods(10); w.statsFor(h);   /* test only: skip the XP */
+  h.level = 15; h.lvlMods = levelMods(15); w.statsFor(h);   /* test only: skip the XP */
   return { w, h };
 }
 const evolveTo = (w, h, form) => apply(w, { type: 'evolve', id: h.id, choice: FORMS.indexOf(form) });
@@ -94,12 +94,12 @@ test('Hunter: toxic arrows; the ultimate lays 3 traps on the path in range, whic
 });
 
 test('a match where the Ranger evolves (each form) replays exactly', tc => {
-  gentleLevel1(tc);
+  gentleLevel1(tc, { hpMult: 0.5, waves: 25 });   /* long enough to reach level 15 and to play on as the form */
   for (const form of FORMS) {
     const w = createWorld({ seed: 4 }), t = tilesNearPath(w, 6);
     place(w, 'warrior', ...t[1]); const r = place(w, 'ranger', ...t[3]); place(w, 'mage', ...t[5]);
     apply(w, { type: 'auto', on: true });
-    while ((r.level < 10 || w.gold < 150) && w.phase !== 'over') step(w);
+    while ((r.level < 15 || w.gold < 500) && w.phase !== 'over') step(w);
     assert.ok(evolveTo(w, r, form).ok, form);
     for (let i = 0; i < 5000 && step(w); i++);
     assert.ok(r.ults > 0, form + ' used its ultimate');

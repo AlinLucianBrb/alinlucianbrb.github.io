@@ -739,6 +739,7 @@ export function draw(ctx, g, v) {
   }
   drawScenery(ctx, v, board && board.g === g ? board : null, false);
   for (const t of g.heroes) if (t.wolf && t.def.kind === 'wolf') at(ctx, t.wolf.x, t.wolf.y, () => drawWolf(ctx, t));
+  for (const t of g.heroes) if (t.spirits) for (const s of t.spirits) at(ctx, s.x, s.y, () => { ctx.globalAlpha = 0.55; drawWolf(ctx, { wolf: s, rage: 0 }, 0.9); ctx.globalAlpha = 1; });   /* The pack */
   for (const e of echoes) drawEcho(ctx, g, e);
   drawMinions(ctx, withEchoes);
   /* Co-op guests: heroes placed or moved, still on their way to the host, faded where they will stand. */
@@ -981,7 +982,7 @@ function drawWolf(ctx, t, size = 1) {
 }
 
 /* Small icons over an enemy for each ailment it has (bleeding, burning, poisoned, slowed, frozen, shocked, rooted); two slows show one icon. */
-const AIL_ICON = { bleed: 'ail_bleed', burn: 'ail_burn', poison: 'ail_poison', chill: 'ail_slow', oiled: 'ail_slow', freeze: 'ail_freeze', shock: 'ail_shock', root: 'ail_root', ...KIT_AIL_ICON };
+const AIL_ICON = { bleed: 'ail_bleed', burn: 'ail_burn', poison: 'ail_poison', chill: 'ail_slow', oiled: 'ail_slow', snared: 'ail_slow', frostbite: 'ail_freeze', wildfire: 'ail_burn', freeze: 'ail_freeze', shock: 'ail_shock', root: 'ail_root', ...KIT_AIL_ICON };
 function ailmentIcons(ctx, e, x, y) {
   if (!e.fx) return;
   let i = 0, shown = '';

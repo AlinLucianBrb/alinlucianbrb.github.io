@@ -21,7 +21,7 @@ function setup(lineup = ['priest', 'warrior'], seed = 5) {
   const w = richWorld({ seed, lineup });
   const free = []; for (let cx = 3; cx < 11; cx++) for (let cy = 1; cy < 8; cy++) if (!w.pathSet.has(cx + ',' + cy)) free.push([cx, cy]);
   const h = place(w, 'priest', ...free[0]);
-  h.level = 10; h.lvlMods = levelMods(10); w.statsFor(h);
+  h.level = 15; h.lvlMods = levelMods(15); w.statsFor(h);
   return { w, h, free };
 }
 const evolveTo = (w, h, form) => assert.ok(apply(w, { type: 'evolve', id: h.id, choice: FORMS.indexOf(form) }).ok);
@@ -133,7 +133,7 @@ test('a match with each Priest form replays exactly, and every form uses its ult
     for (const [x, y] of w.path.slice(4)) { if (apply(w, { type: 'place', hero: 'priest', cx: x, cy: y + 1 }).ok || apply(w, { type: 'place', hero: 'priest', cx: x, cy: y - 1 }).ok) break; }
     apply(w, { type: 'auto', on: true }); apply(w, { type: 'wave' });
     const h = w.heroes[0];
-    while (w.phase !== 'over' && (h.level < 10 || w.gold < 150)) step(w);
+    while (w.phase !== 'over' && (h.level < 15 || w.gold < 500)) step(w);
     if (w.phase !== 'over') assert.ok(apply(w, { type: 'evolve', id: h.id, choice: FORMS.indexOf(form) }).ok);
     for (let i = 0; i < 60 * 90 && w.phase !== 'over'; i++) step(w);
     assert.ok(h.ults > 0 || w.phase === 'over', form + ' used its ultimate');

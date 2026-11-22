@@ -13,7 +13,7 @@ test('the XP curve: 10 to reach level 2, 2 more for each level after; level 10 t
   let sum = 0; for (let L = 1; L < 10; L++) sum += HERO_LEVELS.xpToNext(L);
   assert.equal(sum, 162);
   assert.deepEqual([ENEMIES.grunt.xp, ENEMIES.runner.xp, ENEMIES.brute.xp], [1, 1, 3]);
-  assert.ok(HEROES.every(h => h.evolutions[0].level === 10));
+  assert.ok(HEROES.every(h => h.evolutions[0].level === 15));
 });
 
 test('every hero on the field gains the XP of each kill, whoever landed it', () => {
@@ -43,15 +43,15 @@ test('levels stop at the maximum', () => {
   if (h.level === HERO_LEVELS.max) assert.equal(h.xp, 0);
 });
 
-test('heroes reach level 10 during a normal level 1, and can then evolve with enough gold', tc => {
-  gentleLevel1(tc);
+test('heroes reach level 15 near the end of level 1, and can then evolve with enough gold', tc => {
+  gentleLevel1(tc, { hpMult: 0.5 });
   const w = createWorld({ seed: 2 }), t = tilesNearPath(w, 6);
   const war = place(w, 'warrior', ...t[1]); place(w, 'ranger', ...t[3]); place(w, 'mage', ...t[5]);
   apply(w, { type: 'auto', on: true });
-  while (war.level < 10 && w.phase !== 'over') step(w);
-  assert.equal(war.level, 10, 'level 10 reached before the level ends');
-  assert.ok(w.wave >= 6 && w.wave <= 13, 'around the middle of the level (wave ' + w.wave + ')');
-  assert.ok(w.heroes.every(h => h.level === 10), 'all three level together');
-  while (w.gold < 150 && w.phase !== 'over') step(w);
+  while (war.level < 15 && w.phase !== 'over') step(w);
+  assert.equal(war.level, 15, 'level 15 reached before the level ends (wave ' + w.wave + ')');
+  assert.ok(w.wave >= 11 && w.wave <= 15, 'near the end of the level (wave ' + w.wave + ')');
+  assert.ok(w.heroes.every(h => h.level === 15), 'all three level together');
+  while (w.gold < 500 && w.phase !== 'over') step(w);
   assert.ok(apply(w, { type: 'evolve', id: war.id, choice: 0 }).ok);
 });

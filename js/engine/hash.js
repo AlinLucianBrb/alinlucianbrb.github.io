@@ -6,7 +6,7 @@ export function hashWorld(w) {
   return fnv([
     w.tick, w.phase, w.wave, w.bossKills, r(w.gold), w.rerolls, w.banishes, w.rng.gold.state, w.lives, w.kills, w.path.map(c => c.join(',')).join('>'), w.rng.relic.state, w.rng.combat.state,
     w.relics.map(x => x.name + x.r).join(','),
-    w.heroes.map(h => [h.id, h.type, h.cx, h.cy, r(h.dealt), h.kills, h.tier, r(h.energy), h.ults, r(h.stun || 0), h.level, h.xp, h.def.form || '', (h.buffs || []).map(b => b.id + r(b.t)).join('+')].join(':')).join(';'),
+    w.heroes.map(h => [h.id, h.type, h.cx, h.cy, r(h.dealt), h.kills, h.tier, r(h.energy), h.ults, r(h.stun || 0), h.level, h.xp, h.def.form || '', h.def.upgrade ? h.def.upgrade.id : '', (h.buffs || []).map(b => b.id + r(b.t)).join('+')].join(':')).join(';'),
     w.enemies.map(e => [e.type, r(e.d), r(e.hp), e.hold ? r(e.hold.used) : 0].join(':')).join(';'),
     (w.zones || []).map(z => [z.type, r(z.t), r(z.x), r(z.y)].join(':')).join(';'),
     w.projs.map(p => [p.type, r(p.x), r(p.y)].join(':')).join(';'),

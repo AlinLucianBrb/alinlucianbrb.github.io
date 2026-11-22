@@ -1,7 +1,7 @@
 /* The simulation. A world holds all game state and advances in fixed steps; players change it only through commands (commands.js).
    Nothing in js/engine touches the page, the clock or Math.random, so a world can run in a browser, in Node (tests, the balance bot)
    or on a server, and the same seed plus the same commands always gives the same result. */
-import { HEROES, STAGES, COLS, ROWS, LINEUP_SIZE, RELICS, RARITIES, START_GOLD } from '../content/data.js';
+import { HEROES, STAGES, nextStep, COLS, ROWS, LINEUP_SIZE, RELICS, RARITIES, START_GOLD } from '../content/data.js';
 import { MAPS } from '../content/maps.js';
 import { itemMods, asItem } from '../content/items.js';
 import { createBus } from '../core/bus.js';
@@ -11,6 +11,7 @@ import { attack, dotDamage } from './combat.js';
 import { BEHAVIORS } from './behaviors.js';
 import { spawnEnemy, updateEnemies, sweep, waveCount, spawnDelay, waveEnemyType } from './enemies.js';
 import { updateAbilities, isShielded } from './enemy-abilities.js';
+import { attachUpgrades } from './upgrades.js';
 import { updateProjectiles } from './projectiles.js';
 import { updateZones } from './zones.js';
 import { createMeter } from './meter.js';
@@ -24,7 +25,7 @@ import { cleanPaths, pathChoice, pathDef, previewMods, syncPreview, updatePrevie
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
 export const REROLL_GOLD = 0.25;
-export const ENGINE_VERSION = 27;     /* bump when a rule change would make old command logs play out differently */
+export const ENGINE_VERSION = 28;     /* bump when a rule change would make old command logs play out differently */
 
 /* Checks a lineup: up to LINEUP_SIZE different, playable heroes. Returns a clean copy, or the full roster if it is empty. */
 export function cleanLineup(lineup) {
@@ -87,9 +88,9 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
   w.attackMult = (h, target) => attackMult(w, h, target);
   w.gainEnergy = (h, amount) => gainEnergy(h, amount);
   /* Gold for a hero's next evolution, or null when it has none left (its owner's talents can make it cheaper). */
-  w.evolveCost = h => { const e = (h.base || h.def).evolutions[h.tier]; return e ? Math.round(e.cost * w.ownerOf(h).gs.evolveCost) : null; };
+  w.evolveCost = h => { const e = nextStep(h); return e ? Math.round(e.cost * w.ownerOf(h).gs.evolveCost) : null; };
   /* The level a hero needs for its next evolution: the step's level, lowered by Training talents (never below 1). */
-  w.evolveLevel = h => { const e = (h.base || h.def).evolutions[h.tier]; return e ? Math.max(1, (e.level || 1) + w.ownerOf(h).gs.evolveLevel) : null; };
+  w.evolveLevel = h => { const e = nextStep(h); return e ? Math.max(1, (e.level || 1) + w.ownerOf(h).gs.evolveLevel) : null; };
   /* Each relic costs 12 more than the one before (60% of 80 + 20 per relic bought), per player. */
   w.relicCost = (p = ps[0]) => Math.max(1, Math.round(0.6 * (80 + 20 * p.relicsBought) * p.gs.relicCost));   /* Merchant talents make it cheaper */
   /* Rerolling the relic offers: free while the player has rerolls (talents); after that it costs gold, a quarter of what the
@@ -104,6 +105,7 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
     if (enemy.def.boss) w.bossKills++;   /* each boss defeated guarantees an item at the end of the match (finish_run) */
     for (const h of w.heroes) gainXp(w, h, enemy.def.xp || 0);   /* every hero on the field learns from every kill */
   });
+  attachUpgrades(w);
   w.statsFor = h => statsFor(w, h);
   w.addBuff = (h, id, name, mods, seconds, by) => addBuff(w, h, id, name, mods, seconds, by);
   w.erupt = h => erupt(w, h);   /* Naturist Druid's spikes */

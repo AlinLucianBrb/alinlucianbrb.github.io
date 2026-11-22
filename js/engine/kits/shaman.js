@@ -1,5 +1,5 @@
 /* The Shaman: chain lightning (the chain behavior in behaviors.js) and Ancestral call (heroes nearby attack and cast faster).
-   At level 10:
+   At level 15:
    - Witch Doctor: fast poison darts; each one Voodoo-links its target with up to 2 enemies near it for 4 seconds, and 30% of
      the damage any linked enemy takes is dealt to the others; Plague of locusts sends a swarm down the path;
    - Totemist: each cast plants a totem on a free grass tile near him (up to 3, 12 s each), in turn Flame, Frost and Storm;
@@ -14,6 +14,7 @@ import { inflict } from '../combat.js';
 import { applyEffect, EFFECT_HOOKS } from '../effects.js';
 import { knockback, pathPos } from '../enemies.js';
 import { T, COLS, ROWS } from '../../content/data.js';
+import { upgradeOf, around } from '../upgrades.js';
 
 const near = (a, b, r) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2 <= r * r;
 
@@ -29,14 +30,14 @@ registerUltimate('ancestral', { buff: 'ancestral', name: 'Ancestral call', desc:
 /* Voodoo link: a group of enemies; damage to one passes 30% to each other linked enemy still in the group. */
 export const LINK = { seconds: 4, others: 2, reach: 80, share: 0.3 };
 export function voodoo(g, tg, by = null) {
-  const grp = { members: [tg] };
+  const u = upgradeOf(by, 'witchdoctor_attack') || LINK, grp = { members: [tg], share: u.share };
   const others = g.enemies.filter(e => !e.dead && e !== tg && near(e, tg, LINK.reach)).sort((a, b) => ((a.x - tg.x) ** 2 + (a.y - tg.y) ** 2) - ((b.x - tg.x) ** 2 + (b.y - tg.y) ** 2) || b.d - a.d);
-  grp.members.push(...others.slice(0, LINK.others));
+  grp.members.push(...others.slice(0, u.others));
   for (const m of grp.members) (m.fx ||= {}).link = { t: LINK.seconds * (by && by.s && by.s.duration || 1), grp };
   return grp;
 }
 EFFECT_HOOKS.damage.link = (w, hero, e, amount, type, f) => {
-  for (const o of f.grp.members) if (o !== e && !o.dead && o.fx && o.fx.link && o.fx.link.grp === f.grp) w.hit(hero, o, amount * LINK.share, type, true);
+  for (const o of f.grp.members) if (o !== e && !o.dead && o.fx && o.fx.link && o.fx.link.grp === f.grp) w.hit(hero, o, amount * (f.grp.share ?? LINK.share), type, true);
 };
 /* The darts go to the enemy furthest along the path that is not linked yet, so the links spread; if every enemy in range is
    linked, to the first. */
@@ -69,9 +70,13 @@ registerUltimate('locusts', { name: 'Plague of locusts', desc: 'A swarm flies th
   onFire(w, h) { w.projs.push({ type: 'swarm', owner: h, d: (w.path.length - 1.001) * T, x: 0, y: 0, next: 0 }); } });
 PROJECTILES.swarm = {
   update(g, p, dt) {
-    if (p.d <= 0) return false;   /* reached the entrance */
+    const end = (g.path.length - 1.001) * T;
+    if (p.back ? p.d >= end : p.d <= 0) {   /* reached the entrance: done, or (Returning swarm) the way back */
+      if (p.back || !upgradeOf(p.owner, 'witchdoctor_ult')) return false;
+      p.back = true;
+    }
     p.t = (p.t || 0) + dt;          /* time flying (the drawing's flutter) */
-    p.d = Math.max(0, p.d - LOCUSTS.speed * dt);
+    p.d = p.back ? Math.min(end, p.d + LOCUSTS.speed * dt) : Math.max(0, p.d - LOCUSTS.speed * dt);
     pathPos(g.path, p.d / T, p);
     if ((p.next -= dt) <= 0) {
       p.next = LOCUSTS.every;
@@ -124,12 +129,17 @@ registerBehavior('totems', {
 });
 ZONES.totem = {
   update(g, z, dt) {
-    if ((z.t -= dt) <= 0) return false;
+    if (z.fast > 0) z.fast -= dt;
+    if ((z.t -= dt) <= 0) {
+      const u = upgradeOf(z.owner, 'totemist_attack');   /* Bursting totems */
+      if (u) { for (const e of around(g, z.x, z.y, u.radius)) g.attack(z.owner, e, u.scale, 1, ELEMENT[z.kind], z.owner.ms || z.owner.s); g.ev.emit('explode', { zone: z }); }
+      return false;
+    }
     if (z.flash > 0) z.flash = Math.max(0, z.flash - dt);
     if (z.surge > 0 && (z.surgeT -= dt) <= 0) surgePulse(g, z);
     if ((z.cd -= dt) > 0) return true;
     const h = z.owner, ms = h.ms || h.s, rate = ms.castSpeed || 1, k = TOTEM[z.kind];
-    z.cd = k.every / rate;
+    z.cd = k.every / rate / (z.fast > 0 ? 1 + (upgradeOf(h, 'totemist_ult') || { faster: 0 }).faster : 1);
     if (z.kind === 'frost') {
       for (const e of g.enemies) if (!e.dead && near(e, z, k.radius)) { applyEffect(e, 'chill', { t: 0.6 }, h); g.attack(h, e, k.scale, 1, 'cold', ms); }
       return true;
@@ -162,6 +172,7 @@ registerUltimate('surge', { name: 'Totem surge', desc: 'Every totem stands its f
     for (const z of w.zones) {
       if (z.type !== 'totem' || z.owner !== h || z.t <= 0) continue;
       z.t = TOTEM.life; z.surge = SURGE.pulses;
+      const u = upgradeOf(h, 'totemist_ult'); if (u) z.fast = u.seconds;   /* Overcharge */
       surgePulse(w, z);
     }
   } });
@@ -182,7 +193,8 @@ registerBehavior('fissure', {
       /* the crack's points along the path, a little jagged (drawing only) */
       const pts = [], q = { x: 0, y: 0 };
       for (let d = d0, i = 0; d <= d1; d += 6, i++) { pathPos(g.path, d / T, q); pts.push([q.x + Math.sin(i * 2.1) * 3, q.y + Math.cos(i * 1.7) * 3]); }
-      g.zones.push({ type: 'fissure', owner: t, d0, d1, x: lead.x, y: lead.y, t: FISSURE.show, life: FISSURE.show, pts });
+      const after = upgradeOf(t, 'earthcaller_attack'), show = FISSURE.show + (after ? after.delay : 0);
+      g.zones.push({ type: 'fissure', owner: t, d0, d1, x: lead.x, y: lead.y, t: show, life: show, pts, ...(after ? { after: after.delay, scale: mult * after.scale } : {}) });
       for (const e of g.enemies) {
         if (e.dead || e.d < d0 || e.d > d1) continue;
         g.attack(t, e, mult);
@@ -192,12 +204,16 @@ registerBehavior('fissure', {
     charge(g, t);
   }
 });
-ZONES.fissure = { update: (g, z, dt) => (z.t -= dt) > 0 };   /* only drawn */
+ZONES.fissure = { update(g, z, dt) {   /* only drawn, unless an aftershock is coming */
+  if (z.after > 0 && (z.after -= dt) <= 0) for (const e of g.enemies) if (!e.dead && e.d >= z.d0 && e.d <= z.d1) g.attack(z.owner, e, z.scale);
+  return (z.t -= dt) > 0;
+} };
 /* Tectonic shift: every enemy on the map takes 2x a hit and is pushed back 2.25 tiles (bosses 35% of it; no enemy more
    than 3 tiles a wave, see KNOCKBACK). */
 export const TECTONIC = { scale: 2, knock: 2.25 * T };   /* knockbacks 50% stronger (Nov 12): was 1.5 tiles */
 registerUltimate('tectonic', { name: 'Tectonic shift', desc: 'The ground heaves: every enemy on the map takes {2} and is pushed back 2.25 tiles.', damageMult: 1,
   onFire(w, h) {
-    for (const e of [...w.enemies]) { if (e.dead) continue; w.attack(h, e, TECTONIC.scale); knockback(w, e, TECTONIC.knock); }
+    const slow = upgradeOf(h, 'earthcaller_ult');
+    for (const e of [...w.enemies]) { if (e.dead) continue; w.attack(h, e, TECTONIC.scale); knockback(w, e, TECTONIC.knock); if (slow && !e.dead) applyEffect(e, 'chill', { t: slow.seconds }, h); }
     w.ev.emit('tectonic', { hero: h });
   } });

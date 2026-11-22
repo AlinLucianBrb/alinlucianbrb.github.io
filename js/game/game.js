@@ -1,7 +1,7 @@
 /* The browser shell around the engine: it turns input into commands, runs the loop, moves the camera, draws and updates the HUD.
    All game rules live in js/engine; nothing in here decides what happens in a game. */
 import { zoneOf } from '../content/zones.js';
-import { HEROES, COLS, ROWS, T, STAGES, heroIndex } from '../content/data.js';
+import { HEROES, COLS, ROWS, T, STAGES, heroIndex, nextStep, evolutionStep } from '../content/data.js';
 import { createWorld, step, STEP, playerView } from '../engine/world.js';
 import { apply } from '../engine/commands.js';
 import { exportLog, resume } from '../engine/replay.js';
@@ -378,7 +378,7 @@ const closeInspector = () => { v.selected = v.moving = null; ui.renderInspector(
 /* Evolving: the Evolve button above a hero's card (or key E on the selected hero) opens the evolution picker, which pauses
    the game like the relic picker. Choosing a form spends the gold and evolves the hero; Cancel or Esc closes it. */
 function openEvolve(h) {
-  const step = h && h.base.evolutions[h.tier];
+  const step = h && nextStep(h);
   if (!step || !w.mine(h) || h.level < w.evolveLevel(h) || w.phase === 'over' || w.picking) return;
   v.evo = h; v.selected = h; v.sel = h.type; ui.renderInspector(w, v); ui.showEvoPick(w, h);
 }
@@ -390,7 +390,7 @@ ui.initUI({
   onSelectType: selectType, onEvolveHero: i => openEvolve(unitOf(i)), onCloseInspector: closeInspector, onEvolveChoice: chooseEvolution, maxSpeed: () => topSpeed(),
   onChoose: i => act({ type: 'choose', index: i }), onPlayOnPick: setPlayOnPick, onReroll: () => act({ type: 'reroll' }), onBanish: i => act({ type: 'banish', index: i }),
   heroInfo: i => {
-    const def = HEROES[i], unit = w && unitOf(i), tier = unit ? unit.tier : 0, evo = def.evolutions[tier];   /* a step: { level, cost, choices } */
+    const def = HEROES[i], unit = w && unitOf(i), tier = unit ? unit.tier : 0, evo = unit ? nextStep(unit) : evolutionStep(def, 0);   /* a step: { level, cost, choices } */
     const evoCost = evo && w ? Math.round(evo.cost * w.gs.evolveCost) : evo ? evo.cost : null;
     const evoLevel = evo && w ? Math.max(1, evo.level + w.gs.evolveLevel) : evo ? evo.level : null;
     const path = !tier && w && w.paths && w.paths[def.id] ? pathChoice(def.id, w.paths[def.id]) : null;   /* the form chosen before the match */

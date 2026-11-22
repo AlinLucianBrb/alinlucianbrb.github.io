@@ -30,7 +30,7 @@ function evolved(heroId, form, lineup = [heroId]) {
   const w = richWorld({ lineup });
   let h;
   for (const [x, y] of w.path.slice(5)) { for (const dy of [1, -1]) if (!h && apply(w, { type: 'place', hero: heroId, cx: x, cy: y + dy }).ok) h = w.heroes.at(-1); if (h) break; }
-  h.level = 10; h.lvlMods = levelMods(10); w.statsFor(h);
+  h.level = 15; h.lvlMods = levelMods(15); w.statsFor(h);
   if (form) assert.ok(apply(w, { type: 'evolve', id: h.id, choice: H(heroId).evolutions[0].choices.findIndex(c => c.id === form) }).ok);
   return { w, h };
 }

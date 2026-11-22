@@ -23,7 +23,7 @@ function setup(lineup = ['shaman', 'warrior'], seed = 5) {
   const w = richWorld({ seed, lineup });
   let h;
   for (const [x, y] of w.path.slice(5)) { for (const dy of [1, -1]) { if (!h && x >= 0 && x < 16 && y + dy >= 0 && y + dy < 10 && apply(w, { type: 'place', hero: 'shaman', cx: x, cy: y + dy }).ok) h = w.heroes.at(-1); } if (h) break; }
-  h.level = 10; h.lvlMods = levelMods(10); w.statsFor(h);
+  h.level = 15; h.lvlMods = levelMods(15); w.statsFor(h);
   return { w, h };
 }
 const evolveTo = (w, h, form) => assert.ok(apply(w, { type: 'evolve', id: h.id, choice: FORMS.indexOf(form) }).ok);
@@ -81,7 +81,7 @@ test('a Shaman on the Totemist path keeps one totem and cycles Flame, Frost, Sto
   const w = richWorld({ seed: 5, lineup: ['shaman', 'warrior'], paths: { shaman: 'totemist' } });
   let tile; for (let cx = 4; !tile && cx < 12; cx++) for (let cy = 2; cy < 8; cy++) if (!w.pathSet.has(cx + ',' + cy)) { tile = [cx, cy]; break; }
   const h = place(w, 'shaman', ...tile);
-  h.level = 10; h.lvlMods = levelMods(10); w.statsFor(h);
+  h.level = 15; h.lvlMods = levelMods(15); w.statsFor(h);
   onPath(w, h, 0);
   const kinds = [], mine = () => w.zones.filter(z => z.type === 'totem' && z.t > 0);
   for (let i = 0; i < 60 * 60 && kinds.length < 4; i++) {
@@ -144,7 +144,7 @@ test('a match with each Shaman form replays exactly, and every form uses its ult
     for (const [x, y] of w.path.slice(4)) { if (apply(w, { type: 'place', hero: 'shaman', cx: x, cy: y + 1 }).ok || apply(w, { type: 'place', hero: 'shaman', cx: x, cy: y - 1 }).ok) break; }
     apply(w, { type: 'auto', on: true }); apply(w, { type: 'wave' });
     const h = w.heroes[0];
-    while (w.phase !== 'over' && (h.level < 10 || w.gold < 150)) step(w);
+    while (w.phase !== 'over' && (h.level < 15 || w.gold < 500)) step(w);
     if (w.phase !== 'over') assert.ok(apply(w, { type: 'evolve', id: h.id, choice: FORMS.indexOf(form) }).ok);
     for (let i = 0; i < 60 * 90 && w.phase !== 'over'; i++) step(w);
     assert.ok(h.ults > 0 || w.phase === 'over', form + ' used its ultimate');

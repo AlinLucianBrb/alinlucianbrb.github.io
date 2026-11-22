@@ -9,6 +9,10 @@ const EXTRA = {
   mark: { name: 'Marked', kind: 'mark', tint: '#c77dff' },
   /* Standing in the Alchemist's flammable puddle: half speed. */
   oiled: { name: 'Oiled', kind: 'slow', speedMult: 0.5, tint: '#8a6d3b' },
+  /* Upgrades: the Naturist's thorns slow, Blizzard's Frostbite (more damage taken), Inferno's Wildfire (explodes on death). */
+  snared: { name: 'Snared', kind: 'slow', speedMult: 0.7, tint: '#6b8f3a' },
+  frostbite: { name: 'Frostbite', kind: 'curse', taken: 0.3, tint: '#8fd3ff' },
+  wildfire: { name: 'Wildfire', kind: 'curse', tint: '#ff8a3d' },
   /* Curses (put there by abilities, not by damage types or chance rolls). taken: extra damage the enemy takes from everything
      (they add up; bosses take half, see damageTaken). One of each kind; a stronger one replaces a weaker one. */
   hex:     { name: 'Hex', kind: 'curse', taken: 0.25, speedMult: 0.85, tint: '#6b3fa0' },         /* Occult's aura (0.2 before the Nov 11 balance pass) */
@@ -27,6 +31,7 @@ export function damageTaken(e) {
   let k = 0;
   if (fx.hex) k += EFFECTS.hex.taken;
   if (fx.doom) k += EFFECTS.doom.taken;
+  if (fx.frostbite) k += EFFECTS.frostbite.taken;
   if (fx.verdict) k += EFFECTS.verdict.perStack * fx.verdict.n;
   return 1 + (e.def && e.def.boss ? k / 2 : k);
 }
@@ -71,7 +76,10 @@ export function applyEffect(e, id, eff, by = null) {
   if (!cur) { fx[id] = { ...eff }; return; }
   /* Only the strongest of a kind counts: bigger damage over time or bigger shock wins; otherwise keep the longer one. */
   if ((eff.dps || 0) > (cur.dps || 0) || (eff.mag || 0) > (cur.mag || 0)) fx[id] = { ...eff };
-  else if (eff.dps === cur.dps && eff.mag === cur.mag) cur.t = Math.max(cur.t, eff.t);
+  else if (eff.dps === cur.dps && eff.mag === cur.mag) {
+    cur.t = Math.max(cur.t, eff.t);
+    if ((eff.resDown || 0) > (cur.resDown || 0)) cur.resDown = eff.resDown;   /* a Withering hex on one that was plain */
+  }
 }
 
 

@@ -47,7 +47,7 @@ test('offers follow the heroes on the map, not the whole lineup; an evolved hero
   const h = place(w, 'warrior', ...t);
   assert.ok(!fits('Arcane focus'), 'only the Warrior on the map: no spell relics');
   assert.ok(fits('Fine arrows'), 'a basic Warrior with no path could still become a Commander (projectile)');
-  h.level = 10; assert.ok(apply(w, { type: 'evolve', id: h.id, choice: 0 }).ok);   /* Berserker */
+  h.level = 15; assert.ok(apply(w, { type: 'evolve', id: h.id, choice: 0 }).ok);   /* Berserker */
   assert.ok(!fits('Fine arrows'), 'evolved: only the Berserker counts');
   assert.ok(fits('Prospector'), 'economy relics always');
 });

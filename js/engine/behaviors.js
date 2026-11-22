@@ -3,7 +3,8 @@
    types, armor, resistances and ailments (combat.js), and draw through g.fx?.beam().
    Every attack follows the same pattern: strike(g, t) right before it (the ultimate when the energy bar is full, see
    ultimates.js), then charge(g, t) once it has hit something. */
-import { pathPos } from './enemies.js';
+import { pathPos, knockback } from './enemies.js';
+import { upgradeOf } from './upgrades.js';
 import { T } from '../content/data.js';
 
 export const BEHAVIORS = {};
@@ -54,14 +55,17 @@ export const look = (t, mult) => (mult > 1 ? '#fff6c8' : t.def.color);
 
 /* One swing: hits every enemy inside the arc and range, facing the target. */
 function swingAt(g, t, tg, mult, ttl) {
-  const ang = Math.atan2(tg.y - t.y, tg.x - t.x), half = Math.min(Math.PI, (t.def.arc || 120) * Math.PI / 360), r2 = t.s.range * t.s.range;
+  const ang = Math.atan2(tg.y - t.y, tg.x - t.x), half = upgradeOf(t, 'heretic_attack') ? Math.PI : Math.min(Math.PI, (t.def.arc || 120) * Math.PI / 360), r2 = t.s.range * t.s.range;
+  const push = upgradeOf(t, 'sentinel_attack');
   for (const e of g.enemies) {
     if (e.dead) continue;
     const dx = e.x - t.x, dy = e.y - t.y;
     if (dx * dx + dy * dy > r2) continue;
     let da = Math.abs(Math.atan2(dy, dx) - ang);
     if (da > Math.PI) da = 2 * Math.PI - da;
-    if (da <= half) g.attack(t, e, mult);
+    if (da > half) continue;
+    g.attack(t, e, mult);
+    if (push && !e.dead) knockback(g, e, push.knock * T);
   }
   g.fx?.slash(t.x, t.y, ang, half, t.s.range, ttl, look(t, mult), t);   /* t: the screen plays the hero's attack */
 }
@@ -85,6 +89,7 @@ registerBehavior('doubleswing', {
     if (t.second > 0 && (t.second -= dt) <= 0) {
       const tg = pickTarget(g, t, t.s.range);
       if (tg) swingAt(g, t, tg, t.secondMult || 1, 0.16);
+      if (--t.swingsLeft > 0) t.second = DOUBLE_SWING_GAP;   /* Third swing */
     }
     if (!ready(t, dt)) return;
     const tg = pickTarget(g, t, t.s.range);
@@ -92,7 +97,7 @@ registerBehavior('doubleswing', {
     const mult = strike(g, t, tg);
     if (mult === 0) { rearm(t); charge(g, t); return; }
     swingAt(g, t, tg, mult, 0.16);
-    t.second = DOUBLE_SWING_GAP; t.secondMult = mult;
+    t.second = DOUBLE_SWING_GAP; t.secondMult = mult; t.swingsLeft = (upgradeOf(t, 'berserker_attack') || { swings: 2 }).swings - 1;
     rearm(t); charge(g, t);
   }
 });
@@ -174,7 +179,10 @@ registerBehavior('boom', {
     const a = Math.atan2(tg.y - t.y, tg.x - t.x), mult = strike(g, t, tg);
     if (mult === 0) { rearm(t); charge(g, t); return; }
     t.proj = { type: 'boomerang', owner: t, x: t.x, y: t.y, dx: Math.cos(a), dy: Math.sin(a), dist: 0, max: t.s.range, out: true, hit: new Set(), scale: mult, rot: 0 };
-    g.projs.push(t.proj); charge(g, t);
+    g.projs.push(t.proj);
+    const twin = upgradeOf(t, 'boomeranger_attack');
+    if (twin) g.projs.push({ ...t.proj, dx: Math.cos(a + twin.spread), dy: Math.sin(a + twin.spread), hit: new Set(), scale: mult * twin.scale, extra: true });
+    charge(g, t);
   }
 });
 
@@ -204,12 +212,12 @@ registerBehavior('chain', {
 
 /* ---- Rogue forms. "The strongest, toughest enemy" is the toughest KIND in range first (boss, then brute, grunt, runner:
    TOUGHNESS), even at 1 life left; among the same kind, the one with the most life left. ---- */
-export const TOUGHNESS = { boss: 4, brute: 3, grunt: 2, runner: 1 };
+export const TOUGHNESS = { boss: 4, tough: 3.5, brute: 3, summoner: 3, regener: 3, stunner: 2.5, immune: 2.5, grunt: 2, runner: 1, minion: 0 };
 const tough = e => TOUGHNESS[e.type] || 0;
-export function pickStrongest(g, t, range) {
+export function pickStrongest(g, t, range, except = null) {
   const r2 = range * range; let best = null;
   for (const e of g.enemies) {
-    if (e.dead) continue;
+    if (e.dead || e === except) continue;
     const dx = e.x - t.x, dy = e.y - t.y;
     if (dx * dx + dy * dy <= r2 && (!best || tough(e) > tough(best) || (tough(e) === tough(best) && e.hp > best.hp))) best = e;
   }
@@ -231,6 +239,13 @@ registerBehavior('assassin', {
     g.fx?.beam(t.x, t.y, bx, by, 0.12, 'rgba(155,107,214,.55)', 2);
     g.fx?.slash(bx, by, Math.atan2(tg.y - by, tg.x - bx), Math.PI / 3, 26, 0.18, look(t, mult));
     g.attack(t, tg, mult);
+    const spree = upgradeOf(t, 'assassin_attack');   /* a kill strikes the next one at once */
+    for (let k = 0, last = tg; spree && last.dead && k < spree.chain; k++) {
+      const next = pickStrongest(g, t, t.s.range);
+      if (!next) break;
+      g.fx?.slash(next.x, next.y, 0, Math.PI / 3, 26, 0.18, look(t, mult));
+      g.attack(t, next, mult); last = next;
+    }
     rearm(t); charge(g, t);
   }
 });
@@ -251,6 +266,8 @@ function thrower(lookName, speed, types) {
       const mult = strike(g, t, tg);
       if (mult === 0) { rearm(t); charge(g, t); return; }
       t._tg = tg; throwPair(g, t, mult, lookName, speed, typeof types === 'function' ? types(t) : types); t._tg = null;
+      const other = upgradeOf(t, 'toxicologist_attack') && pickStrongest(g, t, t.s.range, tg);   /* a third dagger */
+      if (other) g.projs.push({ type: 'bolt', owner: t, target: other, x: t.x, y: t.y, scale: mult, color: look(t, mult), size: mult > 1 ? 7 : 5, look: lookName, speed, dx: 1, dy: 0, as: null });
       rearm(t); charge(g, t);
     }
   };
@@ -275,25 +292,47 @@ registerBehavior('wolf', {
     const stop = tg ? reach * 0.6 : 1;
     if (dist > stop) { const step = Math.min(dist - stop, WOLF.speed * (big ? WOLF.rageSpeed : 1) * dt); w.x += dx / dist * step; w.y += dy / dist * step; }
     if (Math.abs(dx) > 2) w.face = dx < 0 ? -1 : 1;
+    spiritWolves(g, t, dt, big);
     t.cd -= dt;
     if (!tg || t.cd > 0 || dist > reach) return;
     const mult = strike(g, t, tg), ms = t.ms || t.s;
     t.cd = t.s.cooldown / (rateOf(t) * (t.s.minionSpeed || 1));
     if (mult === 0) { charge(g, t); return; }
-    const ang = Math.atan2(tg.y - w.y, tg.x - w.x), half = WOLF.arc * Math.PI / 360, r2 = (reach + 6) ** 2, dmg = mult * (big ? 2 : 1);
+    const ang = Math.atan2(tg.y - w.y, tg.x - w.x), half = WOLF.arc * Math.PI / 360, r2 = (reach + 6) ** 2, dmg = mult * (big ? 2 : 1), scent = upgradeOf(t, 'animalic_attack');
     for (const e of g.enemies) {
       if (e.dead) continue;
       const ex = e.x - w.x, ey = e.y - w.y;
       if (ex * ex + ey * ey > r2) continue;
       let da = Math.abs(Math.atan2(ey, ex) - ang);
       if (da > Math.PI) da = 2 * Math.PI - da;
-      if (da <= half || ex * ex + ey * ey < 100) g.attack(t, e, dmg, 1, null, ms);
+      if (da <= half || ex * ex + ey * ey < 100) g.attack(t, e, dmg * (scent && e.fx && e.fx.bleed ? 1 + scent.more : 1), 1, null, ms);
     }
     w.bite = 0.15;
     g.fx?.slash(w.x, w.y, ang, half, reach + 6, 0.16, look(t, mult));
     charge(g, t);
   }
 });
+
+/* The pack: spirit wolves beside the enraged wolf, each after its own enemy (the next ones along the path), biting it for
+   `scale` of a hit. t.spirits: [{ x, y, face, bite, cd }] while enraged. */
+function spiritWolves(g, t, dt, big) {
+  const u = upgradeOf(t, 'animalic_ult');
+  if (!u || !big) { t.spirits = null; return; }
+  t.spirits ||= Array.from({ length: u.wolves }, (_, k) => ({ x: t.wolf.x + (k ? 16 : -16), y: t.wolf.y + 8, face: 1, bite: 0, cd: 0.2 * k }));
+  const list = [...pickTargets(g, t, t.s.range, u.wolves + 1)];
+  t.spirits.forEach((w, k) => {
+    if (w.bite > 0) w.bite = Math.max(0, w.bite - dt);
+    w.cd -= dt;
+    const tg = list[Math.min(k + 1, list.length - 1)];
+    if (!tg) return;
+    const dx = tg.x - w.x, dy = tg.y - w.y, dist = Math.hypot(dx, dy), stop = WOLF.reach * 0.6;
+    if (dist > stop) { const s = Math.min(dist - stop, WOLF.speed * WOLF.rageSpeed * dt); w.x += dx / dist * s; w.y += dy / dist * s; }
+    if (Math.abs(dx) > 2) w.face = dx < 0 ? -1 : 1;
+    if (w.cd > 0 || dist > WOLF.reach) return;
+    w.cd = t.s.cooldown / (rateOf(t) * (t.s.minionSpeed || 1)); w.bite = 0.15;
+    g.attack(t, tg, u.scale, 1, null, t.ms || t.s);
+  });
+}
 
 /* Naturist Druid: grows a patch of thorns on the path just ahead of the enemy furthest along it within range (one per
    cast, so cast speed grows them faster). A patch lasts 1.5 seconds and hurts every enemy standing in it a few times a
@@ -330,12 +369,15 @@ registerBehavior('moonbeam', {
     const mult = strike(g, t, first);
     rearm(t);
     if (mult !== 0) {
-      const r2 = t.s.range * t.s.range;
+      const r2 = t.s.range * t.s.range, wax = upgradeOf(t, 'lunar_attack'), gaze = wax ? new Map() : null;
       for (const e of g.enemies) {
         if (e.dead || (e.x - t.x) ** 2 + (e.y - t.y) ** 2 > r2) continue;
-        g.attack(t, e, MOONBEAM.scale * mult);
+        const held = wax ? ((t.gaze && t.gaze.get(e)) || 0) : 0;   /* seconds this enemy has been in the light */
+        if (wax) gaze.set(e, held + t.s.cooldown / rateOf(t));
+        g.attack(t, e, MOONBEAM.scale * mult * (wax ? 1 + Math.min(wax.max, held * wax.perSecond) : 1));
         g.fx?.beam(t.x, t.y - 6, e.x, e.y, 0.14, mult > 1 ? '#ffffff' : 'rgba(200,220,255,.75)', mult > 1 ? 3 : 2);
       }
+      t.gaze = gaze;
     }
     charge(g, t);
   }

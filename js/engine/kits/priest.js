@@ -1,4 +1,4 @@
-/* The Priest: a support caster. Smite (a bolt of light) and Blessing (nearby heroes +30% damage); at level 10 she becomes
+/* The Priest: a support caster. Smite (a bolt of light) and Blessing (nearby heroes +30% damage); at level 15 she becomes
    - Incantation: an aura (js/engine/aura.js) that burns enemies and speeds up the heroes inside; Crescendo widens and
      strengthens it;
    - Archangel: a lance of light that pierces a line; she can stand on the path; Judgement executes the toughest enemy;
@@ -11,6 +11,7 @@ import { ZONES } from '../zones.js';
 import { execute } from '../combat.js';
 import { LEAK_GUARDS, pathPos } from '../enemies.js';
 import { isShielded } from '../enemy-abilities.js';
+import { upgradeOf } from '../upgrades.js';
 import { T } from '../../content/data.js';
 import '../aura.js';
 
@@ -40,9 +41,13 @@ registerBehavior('lance', {
     const mult = strike(g, t, tg);
     rearm(t);
     if (mult !== 0) {
-      const len = Math.hypot(tg.x - t.x, tg.y - t.y) || 1;
-      g.projs.push({ type: 'lance', owner: t, x: t.x, y: t.y - 8, dx: (tg.x - t.x) / len, dy: (tg.y - t.y + 8) / len, dist: 0, max: t.s.range + 30,
-        hit: new Set(), scale: mult, color: look(t, mult) });
+      const twin = upgradeOf(t, 'archangel_attack');   /* Twin lances: one more, at another enemy */
+      const list = twin ? [...pickTargets(g, t, t.s.range, twin.lances)] : [tg];
+      for (const e of list) {
+        const len = Math.hypot(e.x - t.x, e.y - t.y) || 1;
+        g.projs.push({ type: 'lance', owner: t, x: t.x, y: t.y - 8, dx: (e.x - t.x) / len, dy: (e.y - t.y + 8) / len, dist: 0, max: t.s.range + 30,
+          hit: new Set(), scale: mult, color: look(t, mult) });
+      }
     }
     charge(g, t);
   }
@@ -51,11 +56,15 @@ registerBehavior('lance', {
 export const JUDGEMENT = { scale: 8, execute: 0.25, show: 0.5 };
 registerUltimate('judgement', { name: 'Judgement', desc: 'A giant blade falls on the toughest enemy in range for {8}. A non-boss left under 25% life dies.', damageMult: 1,
   onFire(w, h) {
-    const tg = pickStrongest(w, h, h.s.range);
-    if (!tg) return;
-    w.zones.push({ type: 'judgement', owner: h, x: tg.x, y: tg.y, r: 26, t: JUDGEMENT.show, life: JUDGEMENT.show });
-    w.attack(h, tg, JUDGEMENT.scale);
-    execute(w, h, tg, JUDGEMENT.execute);
+    const u = upgradeOf(h, 'archangel_ult');   /* Last judgement: falls again after a kill */
+    for (let k = 0; k <= (u ? u.again : 0); k++) {
+      const tg = pickStrongest(w, h, h.s.range);
+      if (!tg) return;
+      w.zones.push({ type: 'judgement', owner: h, x: tg.x, y: tg.y, r: 26, t: JUDGEMENT.show, life: JUDGEMENT.show });
+      w.attack(h, tg, JUDGEMENT.scale);
+      execute(w, h, tg, JUDGEMENT.execute);
+      if (!tg.dead) return;
+    }
   } });
 ZONES.judgement = { update: (g, z, dt) => (z.t -= dt) > 0 };   /* only drawn */
 
@@ -72,8 +81,8 @@ registerBehavior('psalm', {
     rearm(t);
     if (mult !== 0) for (const tg of list) g.projs.push({ type: 'bolt', owner: t, target: tg, x: t.x, y: t.y, scale: mult, color: look(t, mult),
       size: mult > 1 ? 8 : 5, look: t.def.projLook || 'orb', speed: t.def.projSpeed || 0, dx: 1, dy: 0 });
-    const r2 = PSALM.radius * PSALM.radius;
-    for (const o of g.heroes) if (o !== t && (o.x - t.x) ** 2 + (o.y - t.y) ** 2 <= r2) gainEnergy(o, PSALM.energy);
+    const r2 = PSALM.radius * PSALM.radius, lift = upgradeOf(t, 'gospel_attack');
+    for (const o of g.heroes) if (o !== t && (o.x - t.x) ** 2 + (o.y - t.y) ** 2 <= r2) { gainEnergy(o, PSALM.energy); if (lift) g.addBuff(o, 'psalm', lift.name, lift.mods, lift.seconds, t); }
     charge(g, t);
   }
 });
@@ -91,12 +100,14 @@ LEAK_GUARDS.push((g, e) => {
 export const CONVERSION = { seconds: 6, speed: 45, every: 0.4, reach: 24, scale: 1.2 };
 registerUltimate('conversion', { name: 'Conversion', desc: 'The toughest enemy in range (not a boss) turns and walks back down the path for 6 seconds, striking every enemy it meets.', damageMult: 1,
   onFire(w, h) {
-    let tg = null;
     const r2 = h.s.range * h.s.range;
-    for (const e of w.enemies) if (!e.dead && !e.def.boss && !isShielded(e) && (e.x - h.x) ** 2 + (e.y - h.y) ** 2 <= r2 && (!tg || e.hp > tg.hp)) tg = e;
-    if (!tg) return;
-    w.projs.push({ type: 'spirit', owner: h, enemy: tg.type, d: tg.d, x: tg.x, y: tg.y, t: CONVERSION.seconds, next: 0 });
-    w.hit(h, tg, tg.hp, 'holy');
+    for (let n = (upgradeOf(h, 'gospel_ult') || { count: 1 }).count; n > 0; n--) {
+      let tg = null;
+      for (const e of w.enemies) if (!e.dead && !e.def.boss && !isShielded(e) && (e.x - h.x) ** 2 + (e.y - h.y) ** 2 <= r2 && (!tg || e.hp > tg.hp)) tg = e;
+      if (!tg) return;
+      w.projs.push({ type: 'spirit', owner: h, enemy: tg.type, d: tg.d, x: tg.x, y: tg.y, t: CONVERSION.seconds, next: 0 });
+      w.hit(h, tg, tg.hp, 'holy');
+    }
   } });
 PROJECTILES.spirit = {
   update(g, p, dt) {

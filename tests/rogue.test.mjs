@@ -21,7 +21,7 @@ function hero(id = 'rogue', seed = 31) {
   const w = richWorld({ seed, lineup: [id] });
   let tile; for (let cx = 4; !tile && cx < 12; cx++) for (let cy = 2; cy < 8; cy++) if (!w.pathSet.has(cx + ',' + cy)) { tile = [cx, cy]; break; }
   const h = place(w, id, ...tile);
-  h.level = 10; h.lvlMods = levelMods(10); w.statsFor(h);   /* test only: skip the XP */
+  h.level = 15; h.lvlMods = levelMods(15); w.statsFor(h);   /* test only: skip the XP */
   return { w, h };
 }
 const evolveTo = (w, h, form) => assert.ok(apply(w, { type: 'evolve', id: h.id, choice: FORMS.indexOf(form) }).ok);
@@ -169,7 +169,7 @@ test('ground spots: under enemies in range first (furthest along first), then th
 test('Hunter traps use the same spots: under enemies in range, or toward the entrance', () => {
   const w = richWorld({ seed: 31 });
   let tile; for (let cx = 4; !tile && cx < 12; cx++) for (let cy = 2; cy < 8; cy++) if (!w.pathSet.has(cx + ',' + cy)) { tile = [cx, cy]; break; }
-  const h = place(w, 'ranger', ...tile); h.level = 10; h.lvlMods = levelMods(10); w.statsFor(h);
+  const h = place(w, 'ranger', ...tile); h.level = 15; h.lvlMods = levelMods(15); w.statsFor(h);
   assert.ok(apply(w, { type: 'evolve', id: h.id, choice: 2 }).ok);
   const r2 = h.s.range ** 2, inRange = w.path.map((c, i) => i).filter(i => ((w.path[i][0] + 0.5) * T - h.x) ** 2 + ((w.path[i][1] + 0.5) * T - h.y) ** 2 <= r2);
   const j = inRange.at(-1), e = enemyAt(w, (w.path[j][0] + 0.5) * T, (w.path[j][1] + 0.5) * T, j * T, 1e9);
@@ -182,7 +182,7 @@ test('Boomerang Ranger: the spinning blade hits for 3x', () => {
   assert.equal(ORBIT_SCALE, 3);
   const w = richWorld({ seed: 31 });
   let tile; for (let cx = 4; !tile && cx < 12; cx++) for (let cy = 2; cy < 8; cy++) if (!w.pathSet.has(cx + ',' + cy)) { tile = [cx, cy]; break; }
-  const h = place(w, 'ranger', ...tile); h.level = 10; h.lvlMods = levelMods(10); w.statsFor(h);
+  const h = place(w, 'ranger', ...tile); h.level = 15; h.lvlMods = levelMods(15); w.statsFor(h);
   apply(w, { type: 'evolve', id: h.id, choice: 1 });
   enemyAt(w, h.x + 50, h.y, 10, 1e9);
   h.energy = h.s.energyMax; h.cd = 0; BEHAVIORS[h.def.kind].update(w, h, 1 / 60);
@@ -221,7 +221,7 @@ test('a match with each Rogue form replays exactly', () => {
     for (const [x, y] of w.path.slice(4)) { if (apply(w, { type: 'place', hero: 'rogue', cx: x, cy: y + 1 }).ok || apply(w, { type: 'place', hero: 'rogue', cx: x, cy: y - 1 }).ok) break; }
     apply(w, { type: 'auto', on: true }); apply(w, { type: 'wave' });
     const h = w.heroes[0];
-    while (w.phase !== 'over' && (h.level < 10 || w.gold < 150)) step(w);
+    while (w.phase !== 'over' && (h.level < 15 || w.gold < 500)) step(w);
     if (w.phase !== 'over') assert.ok(apply(w, { type: 'evolve', id: h.id, choice: FORMS.indexOf(form) }).ok);
     for (let i = 0; i < 60 * 90 && w.phase !== 'over'; i++) step(w);
     assert.ok(w.heroes[0].ults > 0 || w.phase === 'over', form + ' used its ultimate');

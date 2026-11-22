@@ -1,4 +1,4 @@
-/* The Warlock: shadow bolts that Corrupt (shadow damage over time that grows with every stack), and Soul drain. At level 10:
+/* The Warlock: shadow bolts that Corrupt (shadow damage over time that grows with every stack), and Soul drain. At level 15:
    - Occult: an aura (js/engine/aura.js) that Hexes every enemy inside (+25% damage taken from everything, 15% slower); Doom
      makes Hexed enemies take +50% more and explode in shadow when they die;
    - Summoner: each cast summons an imp (up to 3, 10 s each) that throws small bolts; Demon gate brings a Greater Demon;
@@ -13,6 +13,7 @@ import { AILMENTS } from '../../content/combat.js';
 import { pathPos, knockback } from '../enemies.js';
 import { T } from '../../content/data.js';
 import { pulseZone, lob } from './common.js';
+import { upgradeOf } from '../upgrades.js';
 import '../aura.js';
 
 const near = (a, b, r) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2 <= r * r;
@@ -48,8 +49,12 @@ export const DOOM = { seconds: 4, blast: 50, share: 0.1 };
 registerUltimate('doom', { active: h => !!(h.auraCurse && h.auraCurse.t > 0), name: 'Doom', desc: 'For 4 seconds Hexed enemies take +50% more damage; any that die explode in shadow, hitting enemies around them.', damageMult: 1,
   onFire(w, h) { h.auraCurse = { id: 'doom', t: DOOM.seconds }; } });
 EFFECT_HOOKS.death.doom = (w, e, f) => {
-  const src = f.src || e.last;
-  for (const o of w.enemies) if (o !== e && !o.dead && near(o, e, DOOM.blast)) w.dot(src, o, e.max * DOOM.share, 'shadow');
+  const src = f.src || e.last, u = upgradeOf(src, 'occult_ult');
+  for (const o of w.enemies) {
+    if (o === e || o.dead || !near(o, e, DOOM.blast)) continue;
+    if (u) applyEffect(o, 'doom', { t: u.seconds, src }, src);   /* Spreading doom: before the blast, so a death by it counts */
+    w.dot(src, o, e.max * DOOM.share, 'shadow');
+  }
   w.ev.emit('explode', { zone: { x: e.x, y: e.y } });
 };
 
@@ -82,7 +87,7 @@ registerBehavior('imps', {
     const mult = strike(g, t, tg);
     rearm(t);
     if (mult !== 0) {
-      if (imps.length >= (t.impMax || IMP.max)) imps.shift();   /* a path preview keeps just one */
+      if (imps.length >= (t.impMax || (upgradeOf(t, 'summoner_attack') || IMP).max)) imps.shift();   /* a path preview keeps just one */
       const k = g.rng.combat.int(6);   /* where it hovers around the target, on the seeded stream */
       imps.push({ x: t.x, y: t.y - 20, ox: (k - 2.5) * 12, oy: (k % 3) * 8, t: IMP.life, cd: 0.3, face: 1 });
     }
@@ -92,7 +97,12 @@ registerBehavior('imps', {
 function updateDemon(g, t, dt, ms) {
   const d = t.demon;
   if (!d) return;
-  if ((d.t -= dt) <= 0) { t.demon = null; return; }
+  if ((d.t -= dt) <= 0) {
+    const u = upgradeOf(t, 'summoner_ult');   /* Parting fire */
+    t.demon = null;
+    if (u) { for (const e of g.enemies) if (!e.dead && near(e, d, u.radius)) g.attack(t, e, u.scale, 1, null, ms); g.ev.emit('explode', { zone: { x: d.x, y: d.y } }); }
+    return;
+  }
   if (d.cleave > 0) d.cleave = Math.max(0, d.cleave - dt);
   const tg = pickTarget(g, t, t.s.range * 1.3);
   const gx = tg ? tg.x : t.x + 20, gy = tg ? tg.y : t.y + 14, dx = gx - d.x, dy = gy - d.y, dist = Math.hypot(dx, dy);
@@ -133,7 +143,7 @@ registerBehavior('hellfire', {
     if (mult !== 0) {
       const dur = Math.max(0.2, Math.hypot(tg.x - t.x, tg.y - t.y) / HELLFIRE.speed);
       pathPos(g.path, Math.min(g.path.length - 1.001, (tg.d + tg.speed * dur) / T), aim);
-      g.projs.push(lob(t, aim.x, aim.y, HELLFIRE.speed, pulseZone(t, 0, 0, { r: HELLFIRE.radius, t: HELLFIRE.seconds, every: HELLFIRE.every,
+      g.projs.push(lob(t, aim.x, aim.y, HELLFIRE.speed, pulseZone(t, 0, 0, { r: HELLFIRE.radius, t: HELLFIRE.seconds * (upgradeOf(t, 'infernalist_attack') || { longer: 1 }).longer, every: HELLFIRE.every,
         scale: HELLFIRE.scale * mult, burst: HELLFIRE.burst * mult, look: 'hellfire', boom: mult > 1 }), 'hellfire'));
     }
     charge(g, t);
@@ -164,6 +174,8 @@ ZONES.meteor = {
   update(g, z, dt) {
     if ((z.t -= dt) > 0) return true;
     for (const e of g.enemies) if (!e.dead && near(e, z, z.r)) { g.attack(z.owner, e, INFERNAL.scale); if (!e.dead) knockback(g, e, INFERNAL.knock); }
+    const u = upgradeOf(z.owner, 'infernalist_ult');   /* Molten crater */
+    if (u) g.zones.push(pulseZone(z.owner, z.x, z.y, { r: z.r, t: u.seconds, every: u.every, scale: u.scale, look: 'hellfire' }));
     g.ev.emit('explode', { zone: z });
     return false;
   }

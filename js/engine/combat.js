@@ -13,7 +13,8 @@ import { isShielded } from './enemy-abilities.js';
    firePen... take points off that resistance, also after the cap. */
 export function mitigate(e, type, amount, isHit = true, s = null) {
   if (amount <= 0) return 0;
-  const shock = e.fx && e.fx.shock, purge = e.fx && e.fx.purge, down = (shock ? shock.resDown : 0) + (purge ? purge.resDown : 0);
+  const shock = e.fx && e.fx.shock, purge = e.fx && e.fx.purge, hex = e.fx && e.fx.hex,
+    down = (shock ? shock.resDown : 0) + (purge ? purge.resDown : 0) + (hex && hex.resDown || 0);
   if (type === 'physical') {
     if (!isHit) return amount;
     const armor = Math.max(-1, Math.min(RES_CAP, e.armor || 0) * (s ? Math.max(0, 1 - (s.armorPen || 0)) : 1) - down);
@@ -75,6 +76,9 @@ export function attack(w, hero, e, scale = 1, rate = 1, as = null, stats = null)
     if (w.rng.combat.next() >= Math.min(1, chance) * rate) continue;
     inflict(w, hero, e, id, part / rate);
   }
+  /* Burning creed (the Heretic's Heresy): while it lasts, any hit can burn, whatever its damage type. */
+  const scorch = hero.buffs && hero.buffs.find(b => b.scorch);
+  if (scorch && total > 0 && w.rng.combat.next() < scorch.scorch * rate) inflict(w, hero, e, 'burn', total / rate);
   /* Older on-hit effects from hero data (the archived Frost Mage's slow). */
   const ap = hero.def.applies;
   if (ap) for (const id in ap) applyEffect(e, id, { t: s[ap[id]] }, hero);

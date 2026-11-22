@@ -197,15 +197,16 @@ test('the new quality-of-life clusters: Training, Merchant and Investor change t
   const { createWorld, recalc } = await import('../js/engine/world.js');
   const { apply } = await import('../js/engine/commands.js');
   const all = key => cluster(key).nodes.map(n => n.id);
-  /* Training: +1 start, +2 sides, +1 notable = heroes start at level 5; -1 start, -2 sides, -1 notable = evolve at level 6. */
+  /* Training: +1 start, +2 sides, +1 notable = heroes start at level 5; -1 start, -2 sides, -1 notable = evolve at level 11. */
   const tr = createWorld({ seed: 1, talents: all('training') }); tr.gold = 1e6;
   assert.equal(tr.gs.heroStartLevel, 4); assert.equal(tr.gs.evolveLevel, -4);
   let t; for (let x = 4; !t && x < 12; x++) for (let y = 2; y < 8; y++) if (!tr.pathSet.has(x + ',' + y)) { t = [x, y]; break; }
   const placed = apply(tr, { type: 'place', hero: 'warrior', cx: t[0], cy: t[1] }), h = tr.heroes.find(x => x.id === placed.id);
   assert.equal(h.level, 5); assert.ok(near(h.s.strength, 10 + 12), 'its level bonus too (+3 strength a level)');
-  assert.equal(tr.evolveLevel(h), 6);
+  assert.equal(tr.evolveLevel(h), 11);
   assert.equal(apply(tr, { type: 'evolve', id: h.id, choice: 0 }).reason, 'level');
-  h.level = 6; assert.ok(apply(tr, { type: 'evolve', id: h.id, choice: 0 }).ok, 'evolves at level 6 instead of 10');
+  h.level = 11; assert.ok(apply(tr, { type: 'evolve', id: h.id, choice: 0 }).ok, 'evolves at level 11 instead of 15');
+  assert.equal(tr.evolveLevel(h), 26, 'the upgrade too: 26 instead of 30');
   /* Merchant: relics 15% cheaper (-2%, -3% x3, -8%, multiplied), and 0.1 + 0.25 x 3 + 0.5 = 1.35 more offers: always 4, sometimes 5. */
   const m = createWorld({ seed: 3, talents: all('merchant') }); m.gold = 1e6;
   assert.equal(m.relicCost(), Math.round(48 * 0.98 * 0.97 ** 3 * 0.92));

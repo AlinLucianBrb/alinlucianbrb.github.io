@@ -94,7 +94,7 @@ test('Evolutions tab: paths are locked until act 2; a path saved before is kept 
   byId.hrTabs.children[1].onclick();
   const tree = byId.hrBody.children[0], b = find(tree.children[2].children[2], n => n.className === 'pathbtn');
   assert.equal(b._text, 'Paths unlock in Act 2'); assert.equal(b.disabled, true);
-  assert.equal(tree.children[1]._text, 'Level 10 · 500 gold · choose one in the match');
+  assert.equal(tree.children[1]._text, 'Level 15 · 500 gold · choose one in the match');
   assert.deepEqual(state.profile.paths, { ranger: 'hunter' });
   state.profile.levels_cleared = 5; state.profile.paths = {};
 });
@@ -104,10 +104,10 @@ test('Evolutions tab: the base hero, then its three forms', () => {
   const tree = byId.hrBody.children[0];
   assert.equal(tree.className, 'evotree');
   assert.equal(tree.children[0].children[0]._text, 'Hunter');
-  assert.equal(tree.children[1]._text, 'Level 10 · 500 gold · choose one now (a path) or in the match');
+  assert.equal(tree.children[1]._text, 'Level 15 · 500 gold · choose one now (a path) or in the match');
   assert.deepEqual(tree.children[2].children.map(n => n.children[0]._text), ['Ranger', 'Boomerang', 'Poacher']);
   assert.ok(texts(tree).some(t => /^Ultimate: /.test(t)));
-  assert.ok(texts(tree).some(t => /^Before level 10: Every 5th arrow pierces/.test(t)), 'each form says what its preview does');
+  assert.ok(texts(tree).some(t => /^Before level 15: Every 5th arrow pierces/.test(t)), 'each form says what its preview does');
 });
 
 test('choosing a path on the Evolutions tab saves it; clicking it again clears it', async () => {

@@ -1,5 +1,5 @@
 /* Browser check for evolved forms: node tools/evo-check.mjs <out> <hero,hero,...> <choice>. Serves nothing itself: run
-   python3 -m http.server 8765 from the project folder first. Stubs the Supabase CDN, places the heroes at level 10, evolves
+   python3 -m http.server 8765 from the project folder first. Stubs the Supabase CDN, places the heroes at level 15, evolves
    them (choice 0, 1 or 2), starts a wave and writes <out>.png and <out>-b.png. Prints page errors. */
 import { chromium } from 'playwright';   // needs Playwright in the project: npm i -D playwright && npx playwright install chromium
 const out = process.argv[2], lineup = process.argv[3].split(','), choice = +(process.argv[4] || 0);
@@ -18,7 +18,7 @@ await page.evaluate(async ({ lineup, choice }) => {
   const { _debug } = await import('./js/game/game.js'), { apply } = await import('./js/engine/commands.js');
   const w = _debug().world; w.gold = 99999; const mid = w.path[Math.floor(w.path.length * 0.4)];
   lineup.forEach((id, k) => { for (const [a, b] of [[k * 2 - 2, 1], [k * 2 - 2, -1], [k * 2 - 1, 1], [k * 2 - 1, -1], [k * 2 - 2, 2]]) if (apply(w, { type: 'place', hero: id, cx: mid[0] + a, cy: mid[1] + b }).ok) break; });
-  for (const h of w.heroes) { h.level = 10; h.xp = 0; const r = apply(w, { type: 'evolve', id: h.id, choice }); if (!r.ok) console.log('evolve', h.base.id, r.error || JSON.stringify(r)); }
+  for (const h of w.heroes) { h.level = 15; h.xp = 0; const r = apply(w, { type: 'evolve', id: h.id, choice }); if (!r.ok) console.log('evolve', h.base.id, r.error || JSON.stringify(r)); }
 }, { lineup, choice });
 await page.waitForTimeout(800);
 await page.keyboard.press('1'); await page.waitForTimeout(300);

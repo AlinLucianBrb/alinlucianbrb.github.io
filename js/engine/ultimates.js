@@ -1,10 +1,11 @@
 /* Ultimates: what a hero does when its energy bar is full. The next attack becomes the ultimate.
    Each has damageMult (for the attack that triggers it) and can do something of its own in onFire(world, hero).
    To add one, register it here and set `ultimate` on a hero or an evolution choice in js/content/data.js. */
-import { inflict } from './combat.js';
+import { inflict, execute } from './combat.js';
 import { applyEffect } from './effects.js';
 import { T, COLS, ROWS } from '../content/data.js';
 import { pathPos } from './enemies.js';
+import { upgradeOf } from './upgrades.js';
 export const ULTIMATES = {};
 export const registerUltimate = (id, def) => { ULTIMATES[id] = def; };
 
@@ -12,18 +13,31 @@ registerUltimate('empowered', { name: 'Empowered strike', desc: 'The next attack
 
 /* Fire Mage: sets every enemy on the map on fire, as if each had been hit by the Mage. */
 registerUltimate('inferno', { name: 'Inferno', desc: 'Sets every enemy on the map on fire.', damageMult: 1,
-  onFire(w, h) { for (const e of w.enemies) if (!e.dead) inflict(w, h, e, 'burn', h.s.damage); } });
+  onFire(w, h) {
+    const u = upgradeOf(h, 'firemage_ult');
+    for (const e of w.enemies) {
+      if (e.dead) continue;
+      inflict(w, h, e, 'burn', h.s.damage * (u ? u.burn : 1));
+      if (u) applyEffect(e, 'wildfire', { t: u.seconds, src: h }, h);
+    }
+  } });
 
 /* Cold Mage: freezes every enemy on the map for 1 second. (At 2 seconds it fired about every 4 seconds and kept enemies
    frozen half the time: level 5 took the balance bot over two hours.) */
 export const BLIZZARD_FREEZE = 1;
 registerUltimate('blizzard', { name: 'Blizzard', desc: 'Freezes every enemy on the map for ' + BLIZZARD_FREEZE + ' second.', damageMult: 1,
-  onFire(w, h) { for (const e of w.enemies) if (!e.dead) applyEffect(e, 'freeze', { t: BLIZZARD_FREEZE }, h); } });
+  onFire(w, h) {
+    const u = upgradeOf(h, 'coldmage_ult');
+    for (const e of w.enemies) if (!e.dead) { applyEffect(e, 'freeze', { t: BLIZZARD_FREEZE }, h); if (u) applyEffect(e, 'frostbite', { t: u.seconds }, h); }
+  } });
 
 /* Lightning Mage: a storm over the Mage for 3 seconds, striking everything inside every half second for half a hit
    (each strike shocks, since the Lightning Mage always shocks). */
 registerUltimate('storm', { name: 'Storm', desc: 'A storm around the Mage strikes and shocks every enemy inside for 3 seconds.', damageMult: 1,
-  onFire(w, h) { w.zones.push({ type: 'storm', owner: h, x: h.x, y: h.y, r: h.s.range * 1.3, t: 3, next: 0, every: 0.5, scale: 0.5 }); } });
+  onFire(w, h) {
+    const u = upgradeOf(h, 'lightningmage_ult');
+    w.zones.push({ type: 'storm', owner: h, x: h.x, y: h.y, r: h.s.range * 1.3, t: u ? u.seconds : 3, next: 0, every: 0.5, scale: 0.5, ...(u ? { follow: u.speed } : {}) });
+  } });
 
 /* Called by every behavior just before an attack, with the attack's target: returns the damage multiplier for this attack
    (1, or the ultimate's) and empties the bar when the ultimate fires. An ultimate with replaces: true returns 0: the hero
@@ -62,14 +76,21 @@ export function gainEnergy(h, amount = h.s.energyPerAttack) {
 registerUltimate('piercing', { name: 'Piercing shot', desc: 'Charges a powerful arrow that pierces every enemy in its path for triple damage.', replaces: true,
   onFire(w, h, target) {
     const tx = target ? target.x : h.x + 1, ty = target ? target.y : h.y, len = Math.hypot(tx - h.x, ty - h.y) || 1;
-    w.projs.push({ type: 'pierce', owner: h, x: h.x, y: h.y, dx: (tx - h.x) / len, dy: (ty - h.y) / len, charge: 0.35, dist: 0, max: 1000, hit: new Set(), scale: 3 });
+    const u = upgradeOf(h, 'marksman_ult'), n = u ? u.arrows : 1, a0 = Math.atan2(ty - h.y, tx - h.x);
+    for (let k = 0; k < n; k++) {
+      const turn = u ? (k - (n - 1) / 2) * u.spread : 0;
+      w.projs.push({ type: 'pierce', owner: h, x: h.x, y: h.y, dx: turn ? Math.cos(a0 + turn) : (tx - h.x) / len, dy: turn ? Math.sin(a0 + turn) : (ty - h.y) / len, charge: 0.35, dist: 0, max: 1000, hit: new Set(), scale: 3 });
+    }
   } });
 
 /* Boomerang Ranger: a boomerang spins around the Ranger for 6 seconds, hitting every enemy it touches for 3x (each one at
    most every 0.4 s). Several at once are spread evenly around the circle (see the orbit projectile). */
 export const ORBIT_SCALE = 3;   /* each touch hits for 3x */
 registerUltimate('orbit', { name: 'Spinning blade', desc: 'A boomerang spins around the hero for 6 seconds, hitting everything it touches for {3} each time.', damageMult: 1,
-  onFire(w, h) { w.projs.push({ type: 'orbit', owner: h, x: h.x, y: h.y, t: 6, rot: 0, hitT: new Map(), scale: ORBIT_SCALE }); } });
+  onFire(w, h) {
+    const n = (upgradeOf(h, 'boomeranger_ult') || { blades: 1 }).blades;
+    for (let k = 0; k < n; k++) w.projs.push({ type: 'orbit', owner: h, x: h.x, y: h.y, t: 6, rot: 0, hitT: new Map(), scale: ORBIT_SCALE });
+  } });
 
 /* Where ground effects go (Hunter's traps, Alchemist's puddles): path tiles within the hero's range, first under the
    enemies in range (the ones furthest along first), then the tiles closest to the entrance. Returns up to n of
@@ -91,21 +112,22 @@ export const TRAP = { count: 3, max: 6, scale: 4, radius: 34, trigger: 14, life:
 registerUltimate('traps', { name: 'Toxic traps', desc: 'Lays 3 traps under enemies or toward the entrance that burst with heavy toxic damage when stepped on.', damageMult: 1,
   onFire(w, h) {
     const taken = new Set(w.zones.filter(z => z.type === 'trap').map(z => z.cell));
-    for (const c of groundSpots(w, h, TRAP.count, taken)) w.zones.push({ type: 'trap', owner: h, cell: c.i, x: c.x, y: c.y, r: TRAP.radius, t: TRAP.life, scale: TRAP.scale });
+    const u = upgradeOf(h, 'hunter_ult'), max = u ? u.max : TRAP.max;
+    for (const c of groundSpots(w, h, u ? u.count : TRAP.count, taken)) w.zones.push({ type: 'trap', owner: h, cell: c.i, x: c.x, y: c.y, r: TRAP.radius, t: TRAP.life, scale: TRAP.scale, ...(u ? { pool: { radius: u.radius, seconds: u.seconds } } : {}) });
     const mine = w.zones.filter(z => z.type === 'trap' && z.owner === h);
-    for (let k = 0; k < mine.length - TRAP.max; k++) mine[k].t = 0;
+    for (let k = 0; k < mine.length - max; k++) mine[k].t = 0;
   } });
 
 /* Berserker: Frenzy, +50% damage and attack speed for 5 seconds (more, so it multiplies everything else). */
 export const FRENZY = { seconds: 5, mods: [{ stat: 'damage', type: 'more', value: 0.5 }, { stat: 'speed', type: 'more', value: 0.5 }] };
 registerUltimate('frenzy', { buff: 'frenzy', name: 'Frenzy', desc: '+50% damage and attack speed for 5 seconds.', damageMult: 1,
-  onFire(w, h) { w.addBuff(h, 'frenzy', 'Frenzy', FRENZY.mods, FRENZY.seconds); } });
+  onFire(w, h) { h.frenzyMore = 0; w.addBuff(h, 'frenzy', 'Frenzy', FRENZY.mods, FRENZY.seconds); } });
 
 /* Commander: Rally, doubles the energy every hero within 220 px (the Commander too) gets from attacks, for 5 seconds. */
 export const RALLY = { seconds: 5, radius: 220, mods: [{ stat: 'energyPerAttack', type: 'inc', value: 1 }] };
 registerUltimate('rally', { buff: 'rally', name: 'Rally', desc: 'Doubles energy from attacks for nearby heroes, the Commander included, for 5 seconds.', damageMult: 1,
   onFire(w, h) {
-    for (const o of w.heroes) if ((o.x - h.x) ** 2 + (o.y - h.y) ** 2 <= RALLY.radius ** 2) w.addBuff(o, 'rally', 'Rally', RALLY.mods, RALLY.seconds, h);
+    for (const o of w.heroes) if ((o.x - h.x) ** 2 + (o.y - h.y) ** 2 <= RALLY.radius ** 2) w.addBuff(o, 'rally', 'Rally', [...RALLY.mods, ...(upgradeOf(h, 'commander_ult') || { mods: [] }).mods], RALLY.seconds, h);
     w.fx?.slash(h.x, h.y, 0, Math.PI, RALLY.radius, 0.5, 'rgba(127,179,255,.3)');   /* a soft flash: it covers a big area */
   } });
 
@@ -116,9 +138,9 @@ registerUltimate('barricade', { name: 'Barricade', desc: 'Blocks the path in fro
   onFire(w, h, target) {
     if (!target) return;
     const d = Math.min(target.d + BARRICADE.ahead, (w.path.length - 1.01) * T), i = d / T, k = Math.floor(i), f = i - k;
-    const a = w.path[k], b = w.path[k + 1] || a;
+    const a = w.path[k], b = w.path[k + 1] || a, u = upgradeOf(h, 'sentinel_ult');
     w.zones.push({ type: 'barrier', owner: h, d, x: (a[0] + 0.5 + (b[0] - a[0]) * f) * T, y: (a[1] + 0.5 + (b[1] - a[1]) * f) * T,
-      r: T / 2, t: BARRICADE.seconds });
+      r: T / 2, t: u ? u.seconds : BARRICADE.seconds, ...(u ? { burst: { radius: u.radius, scale: u.scale } } : {}) });
   } });
 
 /* ---- Rogue ---- */
@@ -134,6 +156,7 @@ registerUltimate('clones', { name: 'Shadow clones', desc: 'Clones appear behind 
       if (e.dead) continue;
       w.fx?.slash(e.x, e.y, Math.atan2(e.y - h.y, e.x - h.x) + Math.PI, Math.PI / 3, 24, 0.3, '#c9a6ff');
       w.attack(h, e, 1); if (!e.dead) w.attack(h, e, 1);
+      const u = upgradeOf(h, 'assassin_ult'); if (u) execute(w, h, e, u.execute);
     }
   } });
 
@@ -176,12 +199,12 @@ export const SPIKES = { scale: 4, reach: 1.3, show: 0.45 };
 registerUltimate('spikes', { name: 'Bramble spikes', desc: 'Every thorn patch erupts in spikes: {4} to each enemy standing in one.', damageMult: 1,
   onFire(w, h) { h.erupt = true; } });
 export function erupt(w, h) {
-  const hit = new Set();
+  const hit = new Set(), root = upgradeOf(h, 'naturist_ult');
   for (const z of w.zones) {
     if (z.type !== 'thorns' || z.owner !== h) continue;
     z.spikeT = SPIKES.show;
     const r2 = (z.r * SPIKES.reach) ** 2;
-    for (const e of w.enemies) if (!e.dead && !hit.has(e) && (e.x - z.x) ** 2 + (e.y - z.y) ** 2 <= r2) { hit.add(e); w.attack(h, e, SPIKES.scale); }
+    for (const e of w.enemies) if (!e.dead && !hit.has(e) && (e.x - z.x) ** 2 + (e.y - z.y) ** 2 <= r2) { hit.add(e); w.attack(h, e, SPIKES.scale); if (root && !e.dead) applyEffect(e, 'root', { t: root.seconds }, h); }
   }
 }
 
@@ -194,4 +217,10 @@ registerUltimate('moonfall', { name: 'Moonfall', desc: 'A moon falls on the enem
     if (!target) return;
     pathPos(w.path, Math.min(w.path.length - 1.001, (target.d + target.speed * MOON.fall) / T), landing);
     w.zones.push({ type: 'moonfall', owner: h, x: landing.x, y: landing.y, r: MOON.radius, t: MOON.fall, fall: MOON.fall, scale: MOON.scale });
+    const u = upgradeOf(h, 'lunar_ult');   /* smaller moons after it, where the target will be by then */
+    for (let k = 1; u && k <= u.moons; k++) {
+      const fall = MOON.fall + k * u.gap;
+      pathPos(w.path, Math.min(w.path.length - 1.001, (target.d + target.speed * fall) / T), landing);
+      w.zones.push({ type: 'moonfall', owner: h, x: landing.x, y: landing.y, r: MOON.radius * u.radius, t: fall, fall, scale: MOON.scale * u.scale });
+    }
   } });

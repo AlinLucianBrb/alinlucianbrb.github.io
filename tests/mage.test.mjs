@@ -13,12 +13,12 @@ import { hashWorld } from '../js/engine/hash.js';
 import { richWorld, tilesNearPath, place, enemyAt, dealt, gentleLevel1 } from './helpers.mjs';
 
 const FORMS = ['firemage', 'coldmage', 'lightningmage'];
-/* A level-10 Mage ready to evolve, on a free tile in the middle of the map. */
+/* A level-15 Mage ready to evolve, on a free tile in the middle of the map. */
 function mage(seed = 31) {
   const w = richWorld({ seed });
   let tile; for (let cx = 4; !tile && cx < 12; cx++) for (let cy = 2; cy < 8; cy++) if (!w.pathSet.has(cx + ',' + cy)) { tile = [cx, cy]; break; }
   const h = place(w, 'mage', ...tile);
-  h.level = 10; h.lvlMods = levelMods(10); w.statsFor(h);   /* test only: skip the XP */
+  h.level = 15; h.lvlMods = levelMods(15); w.statsFor(h);   /* test only: skip the XP */
   return { w, h };
 }
 const evolveTo = (w, h, form) => apply(w, { type: 'evolve', id: h.id, choice: FORMS.indexOf(form) });
@@ -35,12 +35,12 @@ test('the Mage offers three evolutions; a choice is required and is recorded', (
   assert.equal(h.def.name, 'Cold Mage'); assert.equal(h.def.form, 'coldmage'); assert.equal(h.def.id, 'mage', 'still the Mage for talents and the lineup');
   assert.deepEqual(h.path, ['coldmage']);
   assert.deepEqual(w.log.commands.at(-1), { type: 'evolve', id: h.id, choice: 1, t: 0 });
-  assert.equal(apply(w, { type: 'evolve', id: h.id, choice: 0 }).reason, 'fully evolved');
+  assert.equal(apply(w, { type: 'evolve', id: h.id, choice: 0 }).reason, 'level', 'next: the level-30 upgrade');
 });
 
 test('every hero now offers three evolutions, so a choice is always needed', () => {
   for (const h of HEROES) assert.equal(h.evolutions[0].choices.length, 3, h.id);
-  const w = richWorld(), war = place(w, 'warrior', ...tilesNearPath(w, 1)[0]); war.level = 10;
+  const w = richWorld(), war = place(w, 'warrior', ...tilesNearPath(w, 1)[0]); war.level = 15;
   assert.equal(apply(w, { type: 'evolve', id: war.id }).reason, 'choose an evolution');
 });
 
@@ -90,11 +90,11 @@ test('Lightning Mage ultimate (Storm): strikes and shocks everything around the 
 });
 
 test('a match where the Mage evolves replays exactly', tc => {
-  gentleLevel1(tc);
+  gentleLevel1(tc, { hpMult: 0.5, waves: 25 });   /* long enough to reach level 15 and to play on as the form */
   const w = createWorld({ seed: 2 }), t = tilesNearPath(w, 6);
   place(w, 'warrior', ...t[1]); place(w, 'ranger', ...t[3]); const m = place(w, 'mage', ...t[5]);
   apply(w, { type: 'auto', on: true });
-  while ((m.level < 10 || w.gold < 150) && w.phase !== 'over') step(w);
+  while ((m.level < 15 || w.gold < 500) && w.phase !== 'over') step(w);
   assert.ok(evolveTo(w, m, 'lightningmage').ok);
   for (let i = 0; i < 4000 && step(w); i++);
   assert.equal(hashWorld(replay(exportLog(w))), hashWorld(w));

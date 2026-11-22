@@ -10,6 +10,7 @@
 import { DAMAGE_TYPES } from '../content/combat.js';
 import { registerBehavior, ready, rearm, strike, charge } from './behaviors.js';
 import { applyEffect } from './effects.js';
+import { upgradeOf, around } from './upgrades.js';
 
 export const AURA = { added: 0.5, bless: 0.6, curse: 1, ripple: 0.35 };
 
@@ -27,13 +28,17 @@ export const auraRadius = t => t.s.range * (t.auraBoost && t.auraBoost.t > 0 ? t
 registerBehavior('aura', {
   update(g, t, dt) {
     const boost = t.auraBoost;
-    if (boost && (boost.t -= dt) <= 0) t.auraBoost = null;
+    if (boost && (boost.t -= dt) <= 0) {
+      const last = upgradeOf(t, 'incantation_ult'), wide = t.s.range * boost.radius;   /* Final note: Crescendo ends in a burst */
+      t.auraBoost = null;
+      if (last) { for (const e of around(g, t.x, t.y, wide)) g.attack(t, e, last.scale, 1, null, auraStats(t)); g.fx?.slash(t.x, t.y, 0, Math.PI, wide, 0.4, 'rgba(255,240,168,.45)'); }
+    }
     if (t.auraCurse && (t.auraCurse.t -= dt) <= 0) t.auraCurse = null;
     if (t.pulse > 0) t.pulse = Math.max(0, t.pulse - dt);
     if (!ready(t, dt)) return;
     rearm(t);
-    const a = t.def.aura || {}, r = auraRadius(t), r2 = r * r;
-    if (a.bless) for (const o of g.heroes) if ((o.x - t.x) ** 2 + (o.y - t.y) ** 2 <= r2) g.addBuff(o, a.bless.id, a.bless.name, a.bless.mods, AURA.bless, t);
+    const a = t.def.aura || {}, r = auraRadius(t), r2 = r * r, hymn = upgradeOf(t, 'incantation_attack'), wither = upgradeOf(t, 'occult_attack');
+    if (a.bless) for (const o of g.heroes) if ((o.x - t.x) ** 2 + (o.y - t.y) ** 2 <= r2) { g.addBuff(o, a.bless.id, a.bless.name, a.bless.mods, AURA.bless, t); if (hymn) g.addBuff(o, 'hymn2', hymn.name, hymn.mods, AURA.bless, t); }
     let first = null;
     for (const e of g.enemies) if (!e.dead && (e.x - t.x) ** 2 + (e.y - t.y) ** 2 <= r2) { first = e; break; }
     t.pulse = AURA.ripple;
@@ -42,7 +47,7 @@ registerBehavior('aura', {
     const r3 = auraRadius(t) ** 2;   /* the ultimate may have just widened it */
     for (const e of g.enemies) {
       if (e.dead || (e.x - t.x) ** 2 + (e.y - t.y) ** 2 > r3) continue;
-      if (a.curse) applyEffect(e, a.curse, { t: AURA.curse }, t);
+      if (a.curse) applyEffect(e, a.curse, wither ? { t: AURA.curse, resDown: wither.resDown } : { t: AURA.curse }, t);
       if (t.auraCurse) applyEffect(e, t.auraCurse.id, { t: AURA.curse, src: t }, t);
       if (s.damage > 0 && !a.harmless) g.attack(t, e, k, 1, null, s);   /* the Occult's aura only curses */
     }

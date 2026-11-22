@@ -2,7 +2,7 @@
    can only move or evolve its own heroes, and spends its own gold. Commands: place, move, evolve, wave, leave, auto, buyRelic, reroll, banish, choose. apply() checks it, changes the world and, if it worked, records it
    in world.log with the tick it happened on. A failed command changes nothing and is not recorded.
    To add an action, add an entry to COMMANDS. */
-import { HEROES, RARITIES, RELICS, rollRarity, COLS, ROWS, T, evolvedDef, HERO_LEVELS, HERO_COST, PAY_FOR_HEROES } from '../content/data.js';
+import { HEROES, RARITIES, RELICS, rollRarity, COLS, ROWS, T, evolvedDef, nextStep, HERO_LEVELS, HERO_COST, PAY_FOR_HEROES } from '../content/data.js';
 import { pathChoice, pathDef, startPreview, endPreview } from './preview.js';
 import { affected } from './stats.js';
 import { levelMods } from './levels.js';
@@ -88,7 +88,7 @@ export const COMMANDS = {
     const b = blocked(w, p); if (b) return b;
     const h = w.heroes.find(x => x.id === c.id);
     if (!h || (h.owner || 0) !== p.i) return fail('no such hero');
-    const step = h.base.evolutions[h.tier], cost = w.evolveCost(h);
+    const step = nextStep(h), cost = w.evolveCost(h);
     if (!step) return fail('fully evolved');
     /* A hero with a path evolves into that form, and only that one. */
     const planned = h.tier === 0 && h.preview ? step.choices.findIndex(x => x.id === h.preview.form) : -1;
@@ -98,9 +98,12 @@ export const COMMANDS = {
     if (h.level < w.evolveLevel(h)) return fail('level');
     if (p.gold < cost) return fail('gold');
     p.gold -= cost;
-    h.mods.push(...choice.mods.map(m => ({ ...m, source: choice.name, ri: -3 })));
-    endPreview(h);
-    h.def = evolvedDef(h.def, choice);
+    if (step.upgrade) h.def = { ...h.def, upgrade: choice };   /* the second evolution: no new form, no stats */
+    else {
+      h.mods.push(...choice.mods.map(m => ({ ...m, source: choice.name, ri: -3 })));
+      endPreview(h);
+      h.def = evolvedDef(h.def, choice);
+    }
     h.path.push(choice.id); h.tier++; h.lock = null;
     statsFor(w, h);
     w.ev.emit('evolve', { hero: h, evolution: choice });

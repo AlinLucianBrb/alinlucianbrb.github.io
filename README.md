@@ -15,9 +15,10 @@ js/screens/                login, menu, levels (level, then heroes), lobby (co-o
 
 js/content/                WHAT the game contains (plain data, no logic)
   rules.js                 the rules the server also uses (XP, rewards, waves, spawn timing, bosses, drops, co-op): ONE place
+  upgrades.js              the level-30 upgrades: two per form, basic attack or ultimate
   unlocks.js               what each act unlocks (the server's copy is generated from it)
   data.js                  heroes (and archived ones for later), energy defaults, attributes, relics, rarities, levels
-  previews.js              what each evolution path shows before level 10 (the form previews)
+  previews.js              what each evolution path shows before level 15 (the form previews)
   items.js                 items that drop after matches (one slot per hero)
   talents.js               the talent tree (clusters and paths) and allocation rules
   format.js                display text for modifiers
@@ -144,7 +145,7 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Inventory screen** (main menu, under Heroes): every item you own as an icon on a grid, framed in the rarity colour. Worn items come first. Hover one for its rarity, slot, archetype, bonuses, who wears it and its price; click one to sell it.
 - **Attributes:** strength, dexterity and intellect. Every hero has all three and one of its own (Warrior, Paladin and Shaman strength; Hunter and Rogue dexterity; Mage, Druid, Priest and Warlock intellect; evolved forms keep it, except a form with its own `attribute`: the Animalic Druid is dexterity, and the two values swap so nothing is lost). Each point of a hero's own attribute is +1% increased damage (`ATTRIBUTE_DAMAGE`). Every point of every attribute also has side effects (`ATTRIBUTE_EFFECTS`): **strength** +0.25% range and 0.1% penetration (a share of armor ignored, and points off every resistance, never below 0), **dexterity** +0.1% crit chance and +0.005 crit damage, **intellect** +0.3% cast speed and +0.5% energy from attacks. Item and relic bonuses Brawn, Finesse and Insight give a named attribute, Prowess the main one (it follows a form that changes attribute). Heroes start with 10 in their own attribute. **Each hero level** gives +3 to its own attribute, +1 to the other two, and +1% range and attack and cast speed (`HERO_LEVELS.perLevel`), so a level 10 hero has 37 in its own attribute (+37% damage).
 - **Energy and ultimates:** every hero has an energy bar (blue under the hero; gold and glowing when full). It fills by `energyPerAttack` per attack and `energyPerSecond` during waves; the defaults are in `ENERGY` in `data.js` (2 per attack, so about 50 attacks to an ultimate; 0 per second), and both are ordinary stats that talents, relics and items can change. When the bar is full, the next attack is the ultimate. An ultimate that puts a buff or a lasting state on the caster (Frenzy, Rally, Heresy, Blessing, Ancestral call, Nature's grasp, Enrage, Crescendo, Doom, Demon gate: `buff` or `active` on the ultimate) is not cast again while that lasts; the bar waits full.
-- **Hero levels:** during a match, every hero on the field gains XP from each kill (Grunt and Runner 1, Brute 3), whoever landed it. Level 2 takes 10 XP and each level after takes 2 more, so level 10 (162 XP) comes around the middle of level 1. Each level adds +3% damage. The rules are `HERO_LEVELS` in `data.js` (set `perLevel` to `[]` for no bonus). Levels show as a badge on the hero, on its card and in the hero panel.
+- **Hero levels:** during a match, every hero on the field gains XP from each kill (Grunt and Runner 1, Brute 3), whoever landed it. Level 2 takes 10 XP and each level after takes 2 more, so level 15 comes near the end of level 1-1 and level 30 (the most) around wave 26. Each level adds +3% damage. The rules are `HERO_LEVELS` in `data.js` (set `perLevel` to `[]` for no bonus). Levels show as a badge on the hero, on its card and in the hero panel.
 - **Hero cards** (bottom bar) are small: the name with the level next to it, and "150 gold · place it" until the hero is on the map (the price turns red while you cannot afford it). A hero with no evolution left has no card any more (select it on the map).
 - **Hero panel** (select a hero on the map): the name and level; under it damage dealt, kills and ultimates this match (with icons); XP, and energy right under it; strength, dexterity and intellect (the hero's own attribute in its colour: strength red, dexterity green, intellect blue; hover one for where it comes from); then **Stats**, one line each with its icon (hover a line for its base value and every bonus: the attribute, Talents and Items each as one line, each relic, the hero level, buffs); then **Items**, the hero's gear as icons (hover one for its item level and bonuses). What the ultimate does is on its icon in the hero's card. The panel fits without scrolling.
 - **Evolution:** once a hero reaches the evolution's level (10 for now), an **▲ Evolve · 500** button pops up above its card, dimmed until you have the gold. Clicking it (or E with the hero selected) opens the evolution picker: like the relic picker, it pauses the game and shows the three forms side by side; Cancel or Esc closes it. Every evolution gives +25% to all the base hero's stats: damage, range, attack and cast speed and the three attributes (`EVOLVE_BONUS`). Every hero chooses one of three forms:
@@ -202,6 +203,22 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Texts:** attack descriptions describe only the attack, ultimate tooltips only the ultimate, and the hero tooltip the hero (its attribute, delivery and source, tags, damage type). Ultimates that deal damage of their own write it as `{N}` in their description; `ultDesc()` shows it as the number it deals with the hero's stats ("about 156 damage"); "x2 damage" is kept for boosts to an attack the hero already makes. "At level 10, choose a path" is gone from the descriptions.
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
+
+## Evolutions at levels 15 and 30 (Nov 22, v0.57.0)
+- **Level 15:** the first evolution (a form) is at level 15 (was 10). Form previews grow until level 14 (was 9).
+- **Level 30:** a second evolution: an upgrade of either the basic attack or the ultimate, two per form, 54 in all
+  (`js/content/upgrades.js`; 500 gold, no stats, the form keeps its art and shows two stars). Each is a new effect. The numbers
+  are data; the effect lives with the attack or ultimate it changes (look for `upgradeOf`), or, for bolts and kills, in
+  `js/engine/kits/upgrades.js`. Training talents lower both levels.
+- The evolution picker, hero cards, tooltips and the hero page show the upgrades. The hero page's Evolutions tab has a new layout
+  that fits the window (it used to run off the bottom).
+- "The strongest, toughest enemy" (Assassin, Archangel, Inquisitor...) now ranks the special enemies: an Ironhide comes before a
+  brute. They used to count as the weakest kind.
+- **Enemy health lowered (the game starts gently and gets harder with progress):** a grunt has 28 life on the first wave of 1-1 (was
+  68) and 230 on its last (was 426), up to 50 and 4500 on 1-5 (was 124 and 27,226); each level after 1-5 ends 8% tougher than the
+  one before (was 12%). Checked with the balance bot at each level's usual player level and gear (42 games a level): the smart
+  bot wins every act 1 level, then 100% at 2-1 down to 76% at 5-5; the simple bot 90 / 100 / 86 / 62 / 52% in act 1 and 19% at 2-1.
+- Rules changed (engine 28: a match saved before the update cannot be resumed). No SQL changes.
 
 ## Line endings (Nov 22, v0.56.1)
 - **.gitattributes** keeps every text file on LF line endings on every computer: Git on Windows turned them into CRLF when

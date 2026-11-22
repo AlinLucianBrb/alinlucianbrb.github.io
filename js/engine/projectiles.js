@@ -1,4 +1,5 @@
 import { POISON_POOL } from './ultimates.js';
+import { upgradeOf, boltHit } from './upgrades.js';
 /* Projectile types. A projectile has update(g, p, dt) -> false when finished, and optional onEnd(g, p). How it looks is decided by the renderer. */
 export const BOLT_SPEED = 380;   /* pixels per second */
 export const PROJECTILES = {
@@ -9,7 +10,12 @@ export const PROJECTILES = {
       if (!e || e.dead) return false;
       const dx = e.x - p.x, dy = e.y - p.y, len = Math.hypot(dx, dy), step = (p.speed || BOLT_SPEED) * dt;
       if (len) { p.dx = dx / len; p.dy = dy / len; }
-      if (len <= step + 6) { g.attack(p.owner, e, p.scale, 1, p.as || null); return false; }
+      if (len <= step + 6) {
+        p.slowed = !!(e.fx && e.fx.chill);   /* before this hit, which may slow it too */
+        g.attack(p.owner, e, p.scale, 1, p.as || null);
+        boltHit(g, p, e);
+        return false;
+      }
       p.x += p.dx * step; p.y += p.dy * step;
       return true;
     }
@@ -24,7 +30,10 @@ export const PROJECTILES = {
         const ex = e.x - p.x, ey = e.y - p.y;
         if (ex * ex + ey * ey <= (e.def.radius + 10) ** 2) { p.hit.add(e); g.attack(p.owner, e, p.scale); }
       }
-      return p.dist < p.max;
+      if (p.dist < p.max) return true;
+      if (p.back || !upgradeOf(p.owner, 'commander_attack')) return false;
+      p.back = true; p.dist = 0; p.dx = -p.dx; p.dy = -p.dy; p.hit.clear();   /* Recall: back the way it came */
+      return true;
     }
   },
   /* Marksman's piercing shot: charges at the Ranger, then flies straight on, hitting every enemy it passes once. */
@@ -80,7 +89,7 @@ export const PROJECTILES = {
       }
       return true;
     },
-    onEnd(g, p) { p.owner.proj = null; p.owner.cd = p.owner.s.cooldown / p.owner.s.speed; }
+    onEnd(g, p) { if (p.extra) return; p.owner.proj = null; p.owner.cd = p.owner.s.cooldown / p.owner.s.speed; }
   }
 };
 /* A thrown bottle (Toxicologist's poison flask): flies in an arc to a spot on the ground (not to an enemy), then leaves a

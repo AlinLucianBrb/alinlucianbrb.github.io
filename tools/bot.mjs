@@ -3,7 +3,7 @@
    best tile it can find, then spends gold on evolutions and relics. With skill 'smart' (the default) it plays like a good
    player (tools/balance/smart.mjs); 'simple' is the first, plainer bot. The experiments and the HTML report built on it are
    in tools/balance/ (npm run balance:report). */
-import { HEROES, RARITIES, STAGES, T, HERO_COST } from '../js/content/data.js';
+import { HEROES, RARITIES, STAGES, T, HERO_COST, nextStep } from '../js/content/data.js';
 import { TREES, TREE_ID, pathTo, pointsFor } from '../js/content/talents.js';
 import { createWorld, step, summary } from '../js/engine/world.js';
 import { apply } from '../js/engine/commands.js';
@@ -90,10 +90,11 @@ export function playRun({ seed = 1, stage = 1, strategy = 'trio', lineup = null,
     placeNext(g);
     if (unplaced(g).length) return;   /* saving for the next hero */
     for (const h of g.heroes) {
-      const st = h.base.evolutions[h.tier];
+      const st = nextStep(h);
       if (!st || h.level < g.evolveLevel(h) || g.gold < g.evolveCost(h)) continue;
       let i = st.choices.findIndex(c => wanted.includes(c.id));
       if (i < 0 && h.preview) i = st.choices.findIndex(c => c.id === h.preview.form);
+      if (i < 0 && st.upgrade) i = 0;
       if (i < 0) i = smart && g === w ? bestForm(w, h, spendSimple) : Math.max(0, st.choices.findIndex(c => !(c.aura && c.aura.harmless)));
       const gold = g.gold;
       if (apply(g, { type: 'evolve', id: h.id, choice: i }).ok && g === w) {
@@ -105,7 +106,7 @@ export function playRun({ seed = 1, stage = 1, strategy = 'trio', lineup = null,
       }
     }
     /* Relics: keep the gold an evolution coming up soon will need. */
-    const soon = g.heroes.find(h => h.base.evolutions[h.tier] && h.level >= g.evolveLevel(h) - (smart ? 2 : 0));
+    const soon = g.heroes.find(h => nextStep(h) && h.level >= g.evolveLevel(h) - (smart ? 2 : 0));
     const reserve = soon ? evolveCost(soon) : 0;
     /* the smart bot buys as long as it can afford one (one a second at most); the simple one stops at 12 */
     if (relics && (smart || g.relicsBought < 12) && g.gold >= g.relicCost() + (smart ? reserve : 0) && !(!smart && soon)) {
@@ -121,7 +122,7 @@ export function playRun({ seed = 1, stage = 1, strategy = 'trio', lineup = null,
   /* What the copies in a look ahead do between waves: the simple rules, so the look ahead stays quick. */
   function spendSimple(g) {
     placeNext(g);
-    for (const h of g.heroes) { const st = h.base.evolutions[h.tier]; if (st && h.level >= g.evolveLevel(h) && g.gold >= g.evolveCost(h)) apply(g, { type: 'evolve', id: h.id, choice: h.preview ? undefined : 0 }); }
+    for (const h of g.heroes) { const st = nextStep(h); if (st && h.level >= g.evolveLevel(h) && g.gold >= g.evolveCost(h)) apply(g, { type: 'evolve', id: h.id, choice: h.preview && !h.tier ? undefined : 0 }); }
   }
   while (w.phase !== 'over' && w.tick < maxTicks) {
     if (w.phase === 'build') { spend(); apply(w, { type: 'wave' }); }

@@ -253,7 +253,7 @@ test('evolving the Mage: an Evolve button with the cost pops up above its card; 
   const [t] = freeTiles(1);
   dom.heroButton(2).onclick(); click(...t); click(...t); dom.frames(1);
   const m = world().heroes[0];
-  m.level = 10; m.lvlMods = levelMods(10); world().statsFor(m); world().gold = 100;   /* test only */
+  m.level = 15; m.lvlMods = levelMods(15); world().statsFor(m); world().gold = 100;   /* test only */
   dom.frames(20);
   const rise = dom.heroButton(2)._up;
   assert.equal(dom.heroButton(0)._up.hidden, true, 'only heroes that reached the level show it');
@@ -277,7 +277,7 @@ test('evolving the Mage: an Evolve button with the cost pops up above its card; 
   choices[2].onclick(); dom.frames(1);
   assert.equal(byId.evoPick.hidden, true, 'choosing closes the picker');
   assert.equal(m.def.name, 'Lightning Mage'); assert.equal(world().gold, 0, '500 gold, all spent on the evolution');
-  assert.ok(dom.made.some(e => e.tag === 'b' && e._text === '★ Lightning Mage · Lv 10'), 'the panel title shows the new form');
+  assert.ok(dom.made.some(e => e.tag === 'b' && e._text === '★ Lightning Mage · Lv 15'), 'the panel title shows the new form');
   assert.equal(rise.hidden, true, 'the Evolve button goes away');
   const mageBtn = dom.heroButton(2);
   assert.equal(mageBtn.hidden, false, 'a fully evolved hero keeps its button: it shows the hero\'s state');
