@@ -48,7 +48,7 @@ export function attackFrame(part, sec, period = Infinity) {
 export function strikeDelay(part, period = Infinity) {
   if (!part || !part.durations) return 0;
   const d = part.durations, total = d.reduce((a, b) => a + b, 0) / 1000, k = Math.min(1, period / total);
-  return d.slice(0, -1).reduce((a, b) => a + b, 0) / 1000 * k;
+  return d.slice(0, part.strike != null ? part.strike : d.length - 1).reduce((a, b) => a + b, 0) / 1000 * k;   /* strike: the frame the blade lands on (default the last) */
 }
 /* A hero's time between attacks, s (its cooldown at its attack or cast speed); Infinity when it has no stats. */
 export const attackPeriod = t => (t && t.s && t.s.cooldown ? t.s.cooldown / ((t.s[(t.def && t.def.rate) || 'speed']) || 1) : Infinity);
@@ -83,10 +83,10 @@ const FORMS = {
   animalic: { focus: 67, base: 'druid', foot: [65, 138], height: 122, idle: 4, attack: 4 },
   archangel: { focus: 63, base: 'priest', foot: [65, 139], height: 126, idle: 4, attack: 4 },
   assassin: { focus: 56, base: 'rogue', foot: [65, 139], height: 123, idle: 4, attack: 4 },
-  berserker: { focus: 56, base: 'warrior', foot: [63, 139], height: 125, idle: 4, attack: 4 },
+  berserker: { focus: 56, base: 'warrior', foot: [63, 139], height: 125, idle: 4, attack: 4, durations: [250, 70, 300, 180], strike: 2 },
   boomeranger: { focus: 63, base: 'ranger', foot: [70, 139], height: 123, idle: 4, attack: 4 },
   coldmage: { focus: 41, base: 'mage', foot: [54, 139], height: 125, idle: 4, attack: 4 },
-  commander: { focus: 53, base: 'warrior', foot: [59, 139], height: 125, idle: 4, attack: 4 },
+  commander: { focus: 53, base: 'warrior', foot: [59, 139], height: 125, idle: 4, attack: 4, durations: [250, 70, 300, 180], strike: 2 },
   crusader: { focus: 55, base: 'paladin', foot: [66, 139], height: 126, idle: 4, attack: 4 },
   earthcaller: { focus: 66, base: 'shaman', foot: [58, 139], height: 123, idle: 4, attack: 3 },
   firemage: { focus: 42, base: 'mage', foot: [52, 139], height: 126, idle: 4, attack: 4 },
@@ -101,7 +101,7 @@ const FORMS = {
   marksman: { focus: 54, base: 'ranger', foot: [69, 139], height: 124, idle: 4, attack: 4 },
   naturist: { focus: 58, base: 'druid', foot: [90, 139], height: 126, idle: 4, attack: 4 },
   occult: { focus: 63, base: 'warlock', foot: [58, 140], height: 126, idle: 4, attack: 4 },
-  sentinel: { focus: 69, base: 'warrior', foot: [87, 139], height: 125, idle: 4, attack: 4 },
+  sentinel: { focus: 69, base: 'warrior', foot: [87, 139], height: 125, idle: 4, attack: 4, durations: [250, 70, 300, 180], strike: 2 },
   summoner: { focus: 59, base: 'warlock', foot: [60, 140], height: 127, idle: 4, attack: 3 },
   totemist: { focus: 62, base: 'shaman', foot: [58, 139], height: 126, idle: 4, attack: 4 },
   toxicologist: { focus: 61, base: 'rogue', foot: [65, 139], height: 122, idle: 4, attack: 4 },
@@ -110,7 +110,11 @@ const FORMS = {
 for (const [id, f] of Object.entries(FORMS)) {
   const b = HERO_ANIM[f.base];
   HERO_ANIM[id] = { frame: 160, focus: f.focus, foot: f.foot, height: f.height, tiles: FORM_TILES, muzzle: b.muzzle, portrait: 'portrait_' + id, form: true,
-    idle: { name: 'anim_' + id + '_idle', frames: f.idle, fps: 5 }, attack: { name: 'anim_' + id + '_attack', frames: f.attack, fps: b.attack.fps || 12, swings: 'left' } };
+    idle: { name: 'anim_' + id + '_idle', frames: f.idle, fps: 5 },
+    /* a hand-timed attack (art/pixellab/build_attacks.py) is drawn on a 256 px frame with the still placed 48 px right and 95 px
+       lower than in the idle frame, so its feet sit where the idle's do */
+    attack: f.durations ? { name: 'anim_' + id + '_attack', frames: f.durations.length, frame: 256, foot: [f.foot[0] + 48, f.foot[1] + 95], durations: f.durations, strike: f.strike, swings: 'left' }
+      : { name: 'anim_' + id + '_attack', frames: f.attack, fps: b.attack.fps || 12, swings: 'left' } };
 }
 /* Animated enemies (Pixel Lab, the same style as the heroes; sources in art/pixellab/): an 8-frame walk loop facing left,
    mirrored when the enemy walks right. foot: where the feet touch the ground; height: the figure's height in frame pixels;

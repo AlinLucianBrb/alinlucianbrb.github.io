@@ -200,6 +200,12 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Warrior evolutions: new attack animation (Nov 22, v0.55.2)
+- The Berserker, Commander and Sentinel share one new 4-frame attack: wind-up (sword raised over the head), swing, strike (held), recover. It is kept light on purpose, so it reads at match zoom and doesn't get tiring at x3 or with high attack speed.
+- Made like the Warrior's, with Pixel Lab's skeleton animation from each form's still, posed by hand, so the face, armour and cape stay the same in every frame and the feet never move. Drawn on a 256 px frame (the idle stays 160) so the swing has room; the feet line up with the idle's.
+- Hand timing: wind-up 0.25 s, swing 0.07 s, strike 0.30 s, recover 0.18 s, squeezed to fit when the hero attacks faster. Since the strike is no longer the last frame, an attack entry can now say which frame is the strike (`strike`), and the slash effect lands on it.
+- Sources in art/pixellab/attacks/ (form_0_stance … form_4_recover), built by build_attacks.py; build_evolutions.py now leaves these forms' attack sheets alone. No rule or SQL changes.
+
 ## The Warrior's swing, redone from a reference (Nov 19, v0.55.1)
 - **Two-handed overhead slash:** both hands raise the sword overhead (blade cocked back over his shoulder) and hold, a steel smear arc sweeps down, and he ends leaning into the cut with the blade down to the ground. Timing: raise 0.34 s, smear 0.06 s, strike 0.45 s.
 - **Made with Pixel Lab's skeleton animation:** a skeleton with sword and cape joints, posed frame by frame. The upper body follows a 3-frame sword-slash reference; the legs stay exactly on his idle stance, so he does not drift or shift his feet. The smear is drawn by hand on the middle frame.

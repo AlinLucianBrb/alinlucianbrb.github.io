@@ -18,7 +18,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, 'attacks')
 A = lambda *p: os.path.join(HERE, '..', '..', 'assets', *p)
 F = 256
-DURATIONS = {'warrior': [340, 60, 450]}
+DURATIONS = {'warrior': [340, 60, 450],
+             # the Warrior's evolutions: wind-up, swing, strike (held), recover. Made with animate_with_skeleton_v3 from each
+             # form's still (padded to 256 at [64,109]): one posed 4-frame overhead slash shared by all three, legs kept planted.
+             'berserker': [250, 70, 300, 180], 'commander': [250, 70, 300, 180], 'sentinel': [250, 70, 300, 180]}
 
 
 def main():

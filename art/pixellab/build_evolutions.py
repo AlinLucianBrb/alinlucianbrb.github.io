@@ -41,10 +41,11 @@ def main():
     entries = {}
     for form in forms:
         idle, atk = frames_of(form, 'idle'), frames_of(form, 'attack')
-        if not idle or not atk: print('missing', form); continue
+        if not idle or (not atk and not os.path.exists(os.path.join(HERE, 'attacks', form + '_0_stance.png'))): print('missing', form); continue
         pick_i = use.get((form, 'idle'), [0, 1, 2, 3])
         pick_a = use.get((form, 'attack'), [1, 2, 3, 4])
-        for kind, fr, pick in (('idle', idle, pick_i), ('attack', atk, pick_a)):
+        hand_timed = os.path.exists(os.path.join(HERE, 'attacks', form + '_0_stance.png'))   # build_attacks.py makes its attack
+        for kind, fr, pick in (('idle', idle, pick_i),) + ((('attack', atk, pick_a),) if not hand_timed else ()):
             sheet = Image.new('RGBA', (F * len(pick), F))
             for j, k in enumerate(pick): sheet.alpha_composite(fr[k], (j * F, 0))
             sheet.save(A('anim_%s_%s.png' % (form, kind)))
