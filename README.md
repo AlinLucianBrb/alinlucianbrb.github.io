@@ -203,6 +203,10 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Line endings (Nov 22, v0.56.1)
+- **.gitattributes** keeps every text file on LF line endings on every computer: Git on Windows turned them into CRLF when
+  switching branches, which made three SQL tests fail there. No game, rule or SQL changes.
+
 ## Acts, special enemies and stun limits (Nov 22, v0.56.0)
 - **Acts:** the five zones are the acts. Act 1 goes 15, 25, 35, 45, 55 waves and every level after it has 55. Enemy health per
   level was not retuned: with more waves, 1-5 ends about 7x tougher than before, and so do the levels after it.

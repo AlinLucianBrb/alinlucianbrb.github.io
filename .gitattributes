@@ -1,0 +1,6 @@
+# Text files keep LF line endings on every computer (Git on Windows would turn them into CRLF, and the SQL tests compare
+# files exactly). Images and fonts are never changed.
+* text=auto eol=lf
+*.png binary
+*.gif binary
+*.woff binary
