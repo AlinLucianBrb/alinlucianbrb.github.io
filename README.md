@@ -212,6 +212,16 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Ranger's ring bigger and at an angle, Crusader's reach (Nov 23, v0.69.1)
+- **Ricochet ring** is 1.5x bigger: 75 px across from the centre, about 1.9 tiles (Wide ring doubles that).
+- Arrows in the ring bounce off at an angle, so each one goes round the ring in a turning star instead of back and forth
+  on one line; every pass still runs 12 px from the centre, so the enemy the ring is on keeps getting hit (`RING.miss`).
+  Every other arrow turns the other way.
+- **Crusader:** his range is 2 tiles (80, was 140), before range bonuses from levels and evolution. *Spear throw* now reaches 4
+  tiles, a fixed distance: the spear flies to the toughest enemy within 4 tiles of him, and every enemy within 4 tiles is
+  pushed (`SPEAR.reach`).
+- Rules changed (engine 37: a match saved before the update cannot be resumed). No SQL change.
+
 ## Hunter, Ranger and Crusader reworks (Nov 23, v0.69.0)
 - **Hunter:** his ultimate is now *Piercing shot* (the Ranger's old one): a charged arrow through every enemy in a line for 3x.
 - **Ranger:** arrows fly straight through every enemy in their way, one hit each, to a little past his range. Ultimate

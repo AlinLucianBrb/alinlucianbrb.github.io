@@ -95,7 +95,7 @@ test('Ranger: each enemy an arrow goes through makes it 15% stronger; the ring i
   assert.ok(a[0] > 0 && Math.abs(a[2] - a[0]) < 1e-6, 'without it: the same for each');
   assert.ok(Math.abs(b[1] / b[0] - 1.15) < 1e-6 && Math.abs(b[2] / b[0] - 1.15 * 1.15) < 1e-6, 'with it: 15% more for each one before');
   const ring = ({ w, h }) => { onPath(w, h); full(h); tick(w, h, 1); const z = w.zones.find(x => x.type === 'ricochet'); return [z.r, Math.round(z.t * 10) / 10]; };
-  assert.deepEqual(both('marksman', 1, ring), [[50, 2.5], [100, 4]].map(([r, t]) => [r, t]));
+  assert.deepEqual(both('marksman', 1, ring), [[75, 2.5], [150, 4]].map(([r, t]) => [r, t]));
 });
 test('Boomerang: a second, weaker boomerang; two blades', () => {
   const thrown = ({ w, h }) => { onPath(w, h); tick(w, h, 1); return w.projs.filter(p => p.type === 'boomerang').map(p => p.scale); };

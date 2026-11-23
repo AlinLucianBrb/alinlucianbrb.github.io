@@ -72,13 +72,14 @@ test('Ranger ultimate (Ricochet ring): a ring on the toughest enemy; his arrows 
   const z = w.zones.find(x => x.type === 'ricochet');
   assert.ok(z && z.x === big.x && z.y === big.y, 'on the toughest enemy in range, not the leading one');
   assert.ok(Math.abs(z.life - RING.seconds * (h.s.duration || 1)) < 1e-6, 'its length, with the duration stat');
-  let fastest = 0;
+  let fastest = 0; const spots = new Set(), first = { dx: null };
   for (let k = 0; k < 60 * RING.seconds; k++) {
     const before = w.projs.length; tick(w, h);
     if (w.projs.length > before) shots++;
-    for (const p of w.projs) if (p.type === 'line' && p.ring) { fastest = Math.max(fastest, p.speed); assert.ok((p.x - z.x) ** 2 + (p.y - z.y) ** 2 <= z.r * z.r + 1e-6, 'it never leaves the ring'); }
+    for (const p of w.projs) if (p.type === 'line' && p.ring) { if (p === w.projs.find(q => q.ring)) { const was = first.dx; first.dx = p.dx; if (Math.abs(was - p.dx) > 1e-9) spots.add(Math.round(Math.atan2(p.y - z.y, p.x - z.x) * 4)); } fastest = Math.max(fastest, p.speed); assert.ok((p.x - z.x) ** 2 + (p.y - z.y) ** 2 <= z.r * z.r + 1e-6, 'it never leaves the ring'); }
   }
   assert.ok(fastest > LINE.speed, 'faster after a bounce');
+  assert.ok(spots.size >= 3, 'it bounces off the edge at different places, not back and forth on one line: ' + spots.size);
   assert.ok(hits > shots + 1, 'the enemy inside is hit again and again: ' + hits + ' hits from ' + (shots + 1) + ' arrows');
   h.cd = 1e9; tick(w, h, 30);
   assert.equal(w.zones.filter(x => x.type === 'ricochet').length, 0, 'the ring ends');

@@ -110,12 +110,13 @@ registerBehavior('lunge', {
     rearm(t); charge(g, t);
   }
 });
-/* Spear throw: a spear flies into the toughest enemy in range; when it lands every enemy in his range is pushed back along
+/* Spear throw: a spear flies into the toughest enemy within SPEAR.reach (4 tiles, twice his range); when it lands every enemy
+   that close to him is pushed back along
    the path SPEAR.push (a boss less, see knockback). The path's corners and the entrance are walls: an enemy that slams into
    one before the push is over is stunned for the part of the push it missed (hits at once: SPEAR.stun, the longest) and
    takes damage only for the part it travelled (at least SPEAR.floor of it); one that hits no wall takes the full damage.
    Pinned (upgrade): those that hit a wall take double damage. */
-export const SPEAR = { push: 2.5 * T, stun: 1.5, scale: 4, floor: 0.2, speed: 700 };
+export const SPEAR = { reach: 4 * T, push: 2.5 * T, stun: 1.5, scale: 4, floor: 0.2, speed: 700 };
 /* How far an enemy can be pushed back before a wall: back along the path to the last corner behind it, or the entrance. */
 export function wallRoom(g, e) {
   const p = g.path;
@@ -134,9 +135,9 @@ export function shove(g, h, e, pinned) {
   if (wall && f < 1) applyEffect(e, 'stun', { t: SPEAR.stun * (1 - f) }, h);
   if (wall) g.ev.emit('slam', { hero: h, enemy: e });
 }
-registerUltimate('spear', { name: 'Spear throw', desc: 'Throws a spear into the enemies, pushing every one in range back 2.5 tiles for up to {4}. One that slams into a corner of the path is stunned instead: the sooner it hits, the longer the stun (up to {t:1.5}) and the less damage.', damageMult: 1,
+registerUltimate('spear', { name: 'Spear throw', desc: 'Throws a spear into the enemies, pushing every one within 4 tiles back 2.5 tiles for up to {4}. One that slams into a corner of the path is stunned instead: the sooner it hits, the longer the stun (up to {t:1.5}) and the less damage.', damageMult: 1,
   onFire(w, h, target) {
-    const tg = pickStrongest(w, h, h.s.range) || target;
+    const tg = pickStrongest(w, h, SPEAR.reach) || target;
     if (!tg) return;
     const d = Math.hypot(tg.x - h.x, tg.y - h.y) || 1;
     w.projs.push({ type: 'spear', owner: h, x: h.x, y: h.y, tx: tg.x, ty: tg.y, dx: (tg.x - h.x) / d, dy: (tg.y - h.y) / d, left: d });
@@ -145,7 +146,7 @@ PROJECTILES.spear = {
   update(g, p, dt) {
     const step = SPEAR.speed * dt;
     if (p.left > step) { p.left -= step; p.x += p.dx * step; p.y += p.dy * step; return true; }
-    const h = p.owner, r2 = h.s.range * h.s.range, pinned = upgradeOf(h, 'crusader_ult');
+    const h = p.owner, r2 = SPEAR.reach * SPEAR.reach, pinned = upgradeOf(h, 'crusader_ult');
     for (const e of [...g.enemies]) if (!e.dead && (e.x - h.x) ** 2 + (e.y - h.y) ** 2 <= r2) shove(g, h, e, pinned);
     g.fx?.slash(p.tx, p.ty, 0, Math.PI, 40, 0.3, 'rgba(255,233,160,.6)');
     return false;

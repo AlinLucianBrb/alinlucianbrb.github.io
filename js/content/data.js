@@ -207,7 +207,7 @@ export const HEROES = [
         short: 'A burning shadow flail (always burns), 3% stronger for every life lost this run.' },
       { id: 'inquisitor', name: 'Inquisitor', color: '#f2e2a0', kind: 'verdict', damageType: 'holy', ultimate: 'purge', stats: { range: 100, cooldown: 0.8 }, mods: evolved,
         short: 'A long chain flail at the toughest enemy in range; each hit adds a stack of Verdict (+5% damage taken from everything, up to 10).' },
-      { id: 'crusader', name: 'Crusader', color: '#d9b25a', kind: 'lunge', onPath: true, ultimate: 'spear', stats: { range: 140, cooldown: 1.8, damage: 44 }, mods: evolved,
+      { id: 'crusader', name: 'Crusader', color: '#d9b25a', kind: 'lunge', onPath: true, ultimate: 'spear', stats: { range: 2 * T, cooldown: 1.8, damage: 44 }, mods: evolved,
         short: 'Lunges his spear through every enemy in a line; the toughest of them takes 20% more for each other one hit. He can stand on the path.' }
     ] }],
     desc: 'Paladin (melee): a heavy hammer, part of it holy, and Consecration. Evolves into a Heretic, Inquisitor or Crusader.',

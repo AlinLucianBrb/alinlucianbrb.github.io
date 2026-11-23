@@ -3,7 +3,8 @@
    - The Ranger's arrows fly straight at the target and on, through every enemy in their way (one hit each), to a little
      past his range. Gathering force (upgrade): each enemy an arrow goes through makes it stronger for the next.
    - Ricochet ring (his ultimate): a ring on the toughest enemy in range for 2.5 seconds. While it is up he shoots into it;
-     an arrow that flies into the ring cannot leave: it bounces off the edge, faster each time, hitting the enemies inside
+     an arrow that flies into the ring cannot leave: it bounces off the edge at an angle (each pass runs RING.miss px from the
+     centre, so it goes round the ring in a star instead of back and forth), faster each time, hitting the enemies inside
      again and again (each one at most every RING.rehit s), until the ring ends. Wide ring (upgrade): twice as big, 4 s. */
 import { registerBehavior, ready, rearm, strike, charge, look, pickTarget, pickTargets, targetCount, pickStrongest } from '../behaviors.js';
 import { registerUltimate } from '../ultimates.js';
@@ -14,7 +15,7 @@ import { upgradeOf } from '../upgrades.js';
 import { ricochet } from '../legend-perks.js';
 
 export const LINE = { speed: 620, past: 60, reach: 8 };   /* px/s; how far past the range it flies; hit width beside the enemy */
-export const RING = { seconds: 2.5, radius: 50, faster: 1.2, maxSpeed: 1800, rehit: 0.2 };
+export const RING = { seconds: 2.5, radius: 75, faster: 1.2, maxSpeed: 1800, rehit: 0.2, miss: 12 };   /* miss: how far (px) each pass runs from the centre: close enough to hit the target standing there */
 const SUB = 10;   /* px per movement sub-step, so a fast arrow neither skips an enemy nor jumps out of the ring */
 
 /* His live ring, if any (the newest). */
@@ -56,16 +57,16 @@ PROJECTILES.line = {
       if (z) {
         if (z.t <= 0) return false;                     /* the ring is gone, and its arrows with it */
         const ox = p.x - z.x, oy = p.y - z.y, d = Math.hypot(ox, oy);
-        if (d > z.r) {                                   /* off the edge: back in, faster */
-          const nx = ox / d, ny = oy / d, dot = p.dx * nx + p.dy * ny;
-          p.dx -= 2 * dot * nx; p.dy -= 2 * dot * ny;
+        if (d > z.r) {                                   /* off the edge: back in at an angle, faster */
+          const nx = ox / d, ny = oy / d, a = Math.asin(Math.min(1, RING.miss / z.r)) * p.spin, c = Math.cos(a), s = Math.sin(a);
+          p.dx = -nx * c + ny * s; p.dy = -nx * s - ny * c;   /* the line to the centre, turned by the angle */
           p.x = z.x + nx * (z.r - 0.5); p.y = z.y + ny * (z.r - 0.5);
           p.speed = Math.min(RING.maxSpeed, p.speed * RING.faster);
         }
       } else {
         p.dist += step;
         if (p.dist > p.max) return false;
-        for (const r of g.zones) if (r.type === 'ricochet' && r.owner === p.owner && r.t > 0 && (p.x - r.x) ** 2 + (p.y - r.y) ** 2 <= r.r * r.r) { p.ring = r; p.hitT = new Map(); break; }
+        for (const r of g.zones) if (r.type === 'ricochet' && r.owner === p.owner && r.t > 0 && (p.x - r.x) ** 2 + (p.y - r.y) ** 2 <= r.r * r.r) { p.ring = r; p.hitT = new Map(); p.spin = (r.caught = (r.caught || 0) + 1) % 2 ? 1 : -1; break; }   /* every other arrow turns the other way */
       }
       for (const e of g.enemies) {
         if (e.dead) continue;
