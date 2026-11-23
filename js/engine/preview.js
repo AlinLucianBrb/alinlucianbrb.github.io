@@ -117,7 +117,6 @@ export function updatePreview(w, h, dt) {
   if (sp.act) { act(w, e, dt, sp.act); return; }
   const before = e.cd;
   BEHAVIORS[e.def.kind].update(w, e, dt);
-  if (sp.every && e.cd > before + 1e-9 && w.gainEnergy) w.gainEnergy(h);   /* the attack it replaced would have filled the bar */
 }
 
 /* Custom echo attacks. pierce: the Marksman's arrow that flies through a line of enemies (one hit each). */
@@ -128,7 +127,6 @@ function act(w, e, dt, kind) {
   const dx = tg.x - e.x, dy = tg.y - e.y, len = Math.hypot(dx, dy) || 1;
   w.projs.push({ type: 'pierce', owner: e, x: e.x, y: e.y, dx: dx / len, dy: dy / len, charge: 0, dist: 0, max: e.s.range * 1.6, hit: new Set(), scale: 1 });
   rearm(e);
-  if (w.gainEnergy) w.gainEnergy(e.echoOf);
 }
 
 /* On every hit of a hero (combat.attack): the Sentinel's push and the Inquisitor's Verdict. */

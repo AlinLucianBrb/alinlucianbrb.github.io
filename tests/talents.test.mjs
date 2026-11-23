@@ -35,7 +35,7 @@ test('clusters: 6 or 8 nodes, two kinds of stats: the beginning and the end (not
   }
   const stats = new Set(tree.nodes.flatMap(n => n.mods.map(m => m.stat)));
   for (const s of ['damage', 'speed', 'critChance', 'critDamage', 'castSpeed', 'fireDamage', 'coldDamage', 'lightningDamage', 'armorPen', 'firePen', 'coldPen', 'lightningPen',
-    'energyPerAttack', 'rerolls', 'banishes', 'startGold', 'waveGold', 'startLives', 'evolveCost', 'heroXp', 'rewardXp', 'rewardGold', 'rewardLoot', 'range',
+    'energyPerSecond', 'rerolls', 'banishes', 'startGold', 'waveGold', 'startLives', 'evolveCost', 'heroXp', 'rewardXp', 'rewardGold', 'rewardLoot', 'range',
     'interest', 'interestCap', 'relicCost', 'relicOffers', 'itemRarity', 'itemBonusChance', 'heroStartLevel', 'evolveLevel'])
     assert.ok(stats.has(s), 'some talent gives ' + s);
 });

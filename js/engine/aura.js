@@ -4,7 +4,7 @@
      or many small pulses would get it many times over), and the form's curse if it has one;
    - allied heroes inside (any player's) get the form's blessing, refreshed every pulse, so it ends just after they leave.
    The aura comes from the form's `aura` field: { bless: { id, name, mods }, curse: 'hex', harmless: true (no damage) }. Energy comes only from pulses that
-   touch an enemy (energyPerAttack, set low on aura forms). The ultimate fires on such a pulse; while it lasts the hero's
+   touch an enemy (energy comes over time, like every hero's). The ultimate fires on such a pulse; while it lasts the hero's
    t.auraBoost = { t, radius, damage } makes the ring wider and the pulses stronger (Crescendo), and t.auraCurse adds a second
    curse (Doom). t.pulse counts down after each pulse, for the ripple the renderer draws. */
 import { DAMAGE_TYPES } from '../content/combat.js';

@@ -48,7 +48,7 @@ test('Blessing: heroes in her range (and herself) deal +30% damage for 5 seconds
   assert.equal(BLESSING.seconds, 5);
 });
 
-test('Incantation: no attack; the aura pulses on every enemy inside at once, blesses heroes inside, and gains energy only with enemies', () => {
+test('Incantation: no attack; the aura pulses on every enemy inside at once, blesses heroes inside; pulses give no energy (it comes over time)', () => {
   const { w, h, free } = setup(['priest', 'warrior']);
   evolveTo(w, h, 'incantation');
   const ally = place(w, 'warrior', ...free.find(([x, y]) => Math.hypot((x + 0.5) * T - h.x, (y + 0.5) * T - h.y) < h.s.range && (x + 0.5) * T !== h.x));
@@ -58,7 +58,7 @@ test('Incantation: no attack; the aura pulses on every enemy inside at once, ble
   const a = enemyAt(w, h.x + 20, h.y, 10), b = enemyAt(w, h.x, h.y + h.s.range - 5, 20), out = enemyAt(w, h.x + h.s.range + 30, h.y, 30);
   tick(w, h, 60);
   assert.ok(dealt(a) > 0 && dealt(b) > 0, 'everything inside'); assert.equal(dealt(out), 0, 'nothing outside');
-  assert.ok(h.energy > 0); assert.equal(w.projs.length, 0, 'no projectiles: it never attacks');
+  assert.equal(h.energy, 0, 'pulses give no energy'); assert.equal(w.projs.length, 0, 'no projectiles: it never attacks');
   /* flat added damage counts at half per pulse */
   h.mods.push({ stat: 'fireDamage', type: 'flat', value: 10, scope: ['all'], source: 'test', ri: -2 }); w.statsFor(h);
   BEHAVIORS.aura.update(w, h, 10);

@@ -51,8 +51,8 @@ test('enemies are 35% slower, and their armor and resistances are the same share
   for (const k of Object.keys(ENEMIES)) { const d = defensesFor(ENEMIES[k], 12, 2); for (const r of Object.values(d.res)) assert.equal(r, d.armor, k); }
 });
 
-test('energy is a tenth of what it was (2 per attack), and a buff ultimate waits until its buff on the caster runs out', () => {
-  assert.equal(H('warrior').stats.energyPerAttack, 2);
+test('energy fills by 2 a second (not per attack), and a buff ultimate waits until its buff on the caster runs out', () => {
+  assert.equal(H('warrior').stats.energyPerSecond, 2); assert.ok(!('energyPerAttack' in H('warrior').stats));
   const { w, h } = evolved('warrior', 'berserker');
   const e = enemyAt(w, h.x + 20, h.y, 10);
   h.energy = h.s.energyMax;
@@ -69,7 +69,7 @@ test('attributes: strength gives range and penetration, dexterity crit chance an
   const s = heroStats(H('mage'), []), b = H('mage').stats;
   assert.ok(near(s.range, b.range * (1 + b.strength * 0.0025)) && near(s.armorPen, b.strength * 0.001) && near(s.resPen, b.strength * 0.001));
   assert.ok(near(s.critChance, b.dexterity * 0.001) && near(s.critDamage, 1.5 + b.dexterity * 0.005));
-  assert.ok(near(s.castSpeed, 1 + b.intellect * 0.003) && near(s.energyPerAttack, 2 * (1 + b.intellect * 0.005)));
+  assert.ok(near(s.castSpeed, 1 + b.intellect * 0.003) && near(s.energyPerSecond, 2 * (1 + b.intellect * 0.005)));
   assert.deepEqual(Object.keys(ATTRIBUTE_EFFECTS), ['strength', 'dexterity', 'intellect']);
   assert.equal('arc' in s, false, 'no swing arc stat'); assert.equal(RELICS.some(r => r.name === 'Wide swing'), false);
 });

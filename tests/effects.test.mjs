@@ -53,7 +53,7 @@ test('co-op: everyone votes, the most win, the match goes on; a tie is drawn by 
 
 test('hero modifiers: Glass cannon, Adrenaline, Overcharge, Long shot, Precision', () => {
   const ratio = (id, k) => { const w = fxWorld(), h = place(w, k === 'castSpeed' ? 'mage' : 'ranger', ...tilesNearPath(w, 1)[0]), b = h.s[k]; start(w, id); return k === 'critChance' ? h.s[k] - b : h.s[k] / b; };
-  for (const [id, k, want] of [['glass', 'damage', 1.4], ['adrenaline', 'speed', 1.25], ['adrenaline', 'castSpeed', 1.25], ['overcharge', 'energyPerAttack', 1.5], ['longshot', 'range', 1.3], ['longshot', 'speed', 0.85], ['precision', 'critChance', 0.25]])
+  for (const [id, k, want] of [['glass', 'damage', 1.4], ['adrenaline', 'speed', 1.25], ['adrenaline', 'castSpeed', 1.25], ['overcharge', 'energyPerSecond', 1.5], ['longshot', 'range', 1.3], ['longshot', 'speed', 0.85], ['precision', 'critChance', 0.25]])
     assert.ok(near(ratio(id, k), want), id + ' ' + k);
 });
 

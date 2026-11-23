@@ -50,9 +50,9 @@ const K = {
     [inc('damage', 0.03, ELEMENTS), flat('poisonChance', 0.02, ALL)], ['Plaguebearer', flat('venom', 0.15, ALL), inc('damage', 0.06, ELEMENTS), flat('poisonChance', 0.05, ALL)]),
   sunder: C('sunder', 'Sunder', '#b0b8c0', side('Sunder', flat('armorPen', 0.04, ALL)), side('Heavy Blows', inc('damage', 0.04, ['physical'])),
     [flat('armorPen', 0.02, ALL), inc('damage', 0.02, ['physical'])], ['Shatter Armor', flat('wither', 0.01, ALL), flat('armorPen', 0.05, ALL), inc('damage', 0.04, ['physical'])]),
-  /* Quality of life (the bottom half). Energy sits here too: it is about getting ultimates sooner. */
-  energy: C('energy', 'Energy', '#5aa9ff', side('Focus', inc('energyPerAttack', 0.05, ALL)), side('Trickle', flat('energyPerSecond', 0.1, ALL)),
-    [inc('energyPerAttack', 0.03, ALL), flat('energyPerSecond', 0.05, ALL)], ['Second Wind', inc('energyPerAttack', 0.12, ALL), flat('energyPerSecond', 0.2, ALL)]),
+  /* Quality of life (the bottom half). Energy sits here too: it is about ultimates, sooner (energy) and longer (duration). */
+  energy: C('energy', 'Energy', '#5aa9ff', side('Focus', inc('energyPerSecond', 0.05, ALL)), side('Linger', inc('duration', 0.05, ALL)),
+    [inc('energyPerSecond', 0.03, ALL), inc('duration', 0.03, ALL)], ['Second Wind', inc('energyPerSecond', 0.12, ALL), inc('duration', 0.1, ALL)]),
   relics: C('relics', 'Relics', '#dcc6ff', side('Second Look', gflat('rerolls', 1)), side('Picky', gflat('banishes', 1)),
     [gflat('rerolls', 1), gflat('banishes', 1)], ['Relic Hunter', gflat('rerolls', 1), gflat('banishes', 1), gflat('relicLuck', 0.25)]),
   wealth: C('wealth', 'Wealth', '#f2b84b', side('Pocket Change', gflat('startGold', 10)), side('Tithe', ginc('waveGold', 0.05)),

@@ -13,14 +13,16 @@ export { ZONES, LEVELS, zoneOf, levelCode };
 /* Energy: every hero has a bar that fills as it attacks (and/or over time). When it is full, the next attack is the hero's
    ultimate (see js/engine/ultimates.js). These are the defaults; a hero can override them, and talents, relics and items
    can change them like any other stat. */
-export const ENERGY = { energyMax: 100, energyPerAttack: 2, energyPerSecond: 0 };   /* 50 attacks to an ultimate */
+/* The energy bar fills over time while a wave is on (energyPerSecond), whatever the hero's attack or cast speed: 50 seconds to an
+   ultimate. Energy bonuses make it fill faster; when it is full, the ultimate fires on the hero's next attack. */
+export const ENERGY = { energyMax: 100, energyPerSecond: 2 };
 /* Attributes: strength, dexterity and intellect. Every hero has all three, and one of them is its own (attribute on the hero:
    Warrior strength, Hunter dexterity, Mage intellect). For now each point of a hero's own attribute gives +1% increased damage
    (ATTRIBUTE_DAMAGE). Hero levels raise all of a hero's stats (HERO_LEVELS). Talents, relics and items can raise any
    attribute like any other stat.
    On top of that, every point of each attribute, the hero's own or not, gives small bonuses (ATTRIBUTE_EFFECTS):
    strength range and penetration (armor and every resistance), dexterity crit chance and crit damage, intellect cast speed
-   and energy from attacks. A form can have its own attribute (the Animalic Druid is a dexterity hero, see evolvedDef). */
+   and energy gain. A form can have its own attribute (the Animalic Druid is a dexterity hero, see evolvedDef). */
 export const ATTRIBUTES = ['strength', 'dexterity', 'intellect'];
 export const ATTRIBUTE_DAMAGE = 0.01;
 /* Per point. type 'inc' multiplies the stat by 1 + points x per; 'flat' adds points x per. */
@@ -28,7 +30,7 @@ export const ATTRIBUTE_EFFECTS = {
   strength:  [{ stat: 'range', type: 'inc', per: 0.0025, label: 'range' }, { stat: 'armorPen', type: 'flat', per: 0.001, label: 'armor penetration' },
               { stat: 'resPen', type: 'flat', per: 0.001, label: 'resistance penetration' }],
   dexterity: [{ stat: 'critChance', type: 'flat', per: 0.001, label: 'crit chance' }, { stat: 'critDamage', type: 'flat', per: 0.005, label: 'crit damage' }],
-  intellect: [{ stat: 'castSpeed', type: 'inc', per: 0.003, label: 'cast speed' }, { stat: 'energyPerAttack', type: 'inc', per: 0.005, label: 'energy from attacks' }]
+  intellect: [{ stat: 'castSpeed', type: 'inc', per: 0.003, label: 'cast speed' }, { stat: 'energyPerSecond', type: 'inc', per: 0.005, label: 'energy gain' }]
 };
 const ATTRS = { strength: 0, dexterity: 0, intellect: 0 };
 /* Critical hits: critChance (0 to 1) is the chance a hit is critical, critDamage what a critical hit is multiplied by.
@@ -164,7 +166,7 @@ export const HEROES = [
     stats: withEnergy({ damage: 22, range: 115, cooldown: 0.9, castSpeed: 1, targets: 1 }, { strength: 2, dexterity: 3, intellect: 10 }), ultimate: 'blessing',
     evolutions: [{ level: EVOLVE_LEVEL, cost: EVOLVE_COST, choices: [
       { id: 'incantation', name: 'Incantation', color: '#ffd76a', kind: 'aura', ultimate: 'crescendo', tags: ['aura'],
-        stats: { damage: 7, range: 70, cooldown: 0.5, energyPerAttack: 0.5 }, mods: evolved,
+        stats: { damage: 7, range: 70, cooldown: 0.5 }, mods: evolved,
         aura: { bless: { id: 'hymn', name: 'Hymn', mods: [{ stat: 'speed', type: 'inc', value: 0.15 }, { stat: 'castSpeed', type: 'inc', value: 0.15 }] } },
         short: 'No attack: a holy aura burns every enemy inside it, and heroes inside attack and cast 15% faster.' },
       { id: 'archangel', name: 'Archangel', color: '#fff6c8', kind: 'lance', ultimate: 'judgement', tags: ['projectile'], stats: { range: 130 }, mods: evolved,
@@ -183,7 +185,7 @@ export const HEROES = [
     stats: withEnergy({ damage: 18, range: 115, cooldown: 0.9, castSpeed: 1, targets: 1 }, { strength: 2, dexterity: 3, intellect: 10, corruptionChance: 0.5 }), ultimate: 'souldrain',
     evolutions: [{ level: EVOLVE_LEVEL, cost: EVOLVE_COST, choices: [
       { id: 'occult', name: 'Occult', color: '#7a4fc0', kind: 'aura', ultimate: 'doom', tags: ['aura', 'curse'],
-        stats: { damage: 4, range: 110, cooldown: 0.5, energyPerAttack: 0.5 }, mods: evolved, aura: { curse: 'hex', harmless: true },
+        stats: { damage: 4, range: 110, cooldown: 0.5 }, mods: evolved, aura: { curse: 'hex', harmless: true },
         short: 'No attack and no damage: a shadow aura Hexes every enemy inside, so they take 25% more damage from everyone and move 15% slower.' },
       { id: 'summoner', name: 'Summoner', color: '#c46aff', kind: 'imps', ultimate: 'demongate', tags: ['minion'], stats: { cooldown: 1.6 }, mods: evolved,
         short: 'Each cast summons an imp (up to 3, {t:10} each) that throws small bolts at the enemies near it.' },
@@ -354,7 +356,7 @@ export const STAT_LABELS = {
   rampRate: 'Beam ramp speed', targets: 'Targets per attack',
   strength: 'Strength', dexterity: 'Dexterity', intellect: 'Intellect', mainAttribute: 'Main attribute',
   castSpeed: 'Casts per second', resPen: 'Resistance penetration', duration: 'Duration (multiplier)', spread: 'Damage spread', critChance: 'Crit chance', critDamage: 'Crit damage (multiplier)',
-  energyMax: 'Energy needed', energyPerAttack: 'Energy per attack', energyPerSecond: 'Energy per second',
+  energyMax: 'Energy needed', energyPerSecond: 'Energy per second',
   ...Object.fromEntries(Object.entries(EFFECT_STATS).map(([k, e]) => [k, e.label])),
   ...COMBAT_LABELS, relicLuck: 'Relic luck',
   minionDamage: 'Minion damage (multiplier)', minionSpeed: 'Minion attack speed (multiplier)', minionCritChance: 'Minion crit chance', minionCritDamage: 'Minion crit damage (added)',
@@ -410,7 +412,7 @@ export const RELICS = [
   { name: 'Long barrels',      desc: m => '+' + f(P(15) * m) + '% range',               mods: m => [hero('range', 'inc', P(0.15) * m, ['all'])] },
   { name: 'Quick hands',       desc: m => '+' + f(P(20) * m) + '% attack speed',        mods: m => [hero('speed', 'inc', P(0.2) * m, ['all'])] },
   { name: 'Four-leaf clover',  desc: m => '+' + f(P(50) * m) + '% relic luck: rarer relics turn up more often', label: 'Relic luck', mods: m => [glob('relicLuck', 'flat', P(0.5) * m)] },
-  { name: 'Battle focus',      desc: m => '+' + f(P(25) * m) + '% energy from attacks, so ultimates come sooner', mods: m => [hero('energyPerAttack', 'inc', P(0.25) * m, ['all'])] },
+  { name: 'Battle focus',      desc: m => '+' + f(P(25) * m) + '% energy gain, so ultimates come sooner', mods: m => [hero('energyPerSecond', 'inc', P(0.25) * m, ['all'])] },
   { name: 'Prospector',        desc: m => prospect(25 * m), label: 'Economy', mods: m => [glob('bountyChance', 'flat', 0.25 * m)] },
   { name: 'Reinforced gate',   desc: m => '+' + lives(m) + ' li' + (lives(m) > 1 ? 'ves' : 'fe'), label: 'Your gate', onPick: (g, m) => { g.lives += lives(m); },
     itemMods: m => [glob('startLives', 'flat', lives(m))] },   /* as an item bonus: starting lives */

@@ -29,16 +29,16 @@ test('the Warrior offers Berserker, Commander and Sentinel', () => {
   assert.deepEqual(HEROES.find(x => x.id === 'warrior').evolutions[0].choices.map(c => c.id), FORMS);
 });
 
-test('Berserker: two swings in quick succession, each hit bleeds; the pair counts as one attack for energy', () => {
+test('Berserker: two swings in quick succession, each hit bleeds; swings give no energy (it comes over time)', () => {
   const { w, h } = warrior(); evolveTo(w, h, 'berserker');
   const e = enemyAt(w, h.x + 30, h.y, 10, 1e6);
   const hit = h.s.damage;
   h.cd = 0; tick(w, h);
   assert.ok(Math.abs(dealt(e) - hit) < 1e-6, 'first swing'); assert.ok(e.fx.bleed, 'bleeding');
-  assert.equal(h.energy, h.s.energyPerAttack);
+  assert.equal(h.energy, 0);
   tick(w, h, Math.round(DOUBLE_SWING_GAP * 60) + 1);
   assert.ok(dealt(e) >= 2 * hit - 1e-6, 'second swing 0.15 s later');
-  assert.equal(h.energy, h.s.energyPerAttack, 'no extra energy for the second swing');
+  assert.equal(h.energy, 0, 'nor the second swing');
 });
 
 test('Berserker ultimate (Frenzy): +50% damage and attack speed for 5 s, then back to normal', () => {
@@ -64,7 +64,7 @@ test('Commander: launches the sword in a straight line to its range, hitting eve
   assert.equal(dealt(past), 0, 'stops at its range'); assert.equal(dealt(off), 0, 'only what is in its way');
 });
 
-test('Commander ultimate (Rally): doubles energy per attack for heroes nearby, himself included, for 5 s', () => {
+test('Commander ultimate (Rally): doubles energy gain for heroes nearby, himself included, for 5 s', () => {
   const { w, h } = warrior(); evolveTo(w, h, 'commander');
   const tiles = tilesNearPath(w, 30);
   const near = tiles.find(c => Math.hypot((c[0] + 0.5) * T - h.x, (c[1] + 0.5) * T - h.y) < RALLY.radius - 10 && !(c[0] === h.cx && c[1] === h.cy));
@@ -72,9 +72,9 @@ test('Commander ultimate (Rally): doubles energy per attack for heroes nearby, h
   const a = place(w, 'ranger', ...near), b = place(w, 'mage', ...far);
   enemyAt(w, h.x + 30, h.y, 10, 1e6);
   h.energy = h.s.energyMax; h.cd = 0; tick(w, h);
-  /* 2 per attack, a little more from intellect (ATTRIBUTE_EFFECTS), doubled by Rally */
+  /* 2 a second, a little more from intellect (ATTRIBUTE_EFFECTS), doubled by Rally */
   const epa = x => 2 * (1 + x.s.intellect * ATTRIBUTE_EFFECTS.intellect[1].per), near1 = (a, b) => Math.abs(a - b) < 1e-9;
-  assert.ok(near1(h.s.energyPerAttack, 2 * epa(h)) && near1(a.s.energyPerAttack, 2 * epa(a))); assert.ok(near1(b.s.energyPerAttack, epa(b)), 'too far away');
+  assert.ok(near1(h.s.energyPerSecond, 2 * epa(h)) && near1(a.s.energyPerSecond, 2 * epa(a))); assert.ok(near1(b.s.energyPerSecond, epa(b)), 'too far away');
 });
 
 test('Sentinel ultimate (Barricade): blocks the path just ahead of its target for 1 s; enemies pile up in front, then move on', () => {

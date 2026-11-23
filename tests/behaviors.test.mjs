@@ -78,27 +78,26 @@ test('a bolt fizzles if its target dies before it arrives', () => {
   assert.equal(w.projs.length, 0);
 });
 
-test('energy fills by about 2 per attack; the 51st attack is the ultimate (2x damage) and empties the bar', () => {
-  const { w, h } = setup('ranger');
-  h.mods.push({ stat: 'dexterity', type: 'more', value: -1, scope: ['all'], source: 'test', ri: -2 }); w.statsFor(h);   /* no crits from dexterity */
-  const e = enemyAt(w, h.x + 30, h.y, 10);
-  const hits = [];
-  const n = Math.ceil(h.s.energyMax / h.s.energyPerAttack);   /* attacks to fill the bar */
-  for (let i = 0; i < n + 2; i++) { const before = dealt(e); h.cd = 0; tickHero(w, h); land(w); hits.push(Math.round((dealt(e) - before) * 1000) / 1000); if (i < n) assert.ok(Math.abs(h.energy - Math.min(h.s.energyMax, h.s.energyPerAttack * (i + 1))) < 1e-9); }
-  assert.ok(n >= 45 && n <= 50, 'about 50 attacks');
-  const x = hits[0];   /* (no dexterity here, so no +% from it either) */
-  assert.deepEqual(hits.slice(-3), [x, 2 * x, x]); assert.ok(hits.slice(0, n).every(y => y === x));
-  assert.equal(h.ults, 1);
-  assert.equal(h.energy, h.s.energyPerAttack, 'the ultimate empties the bar, and the attack after it starts filling again');
-  assert.ok(h.s.energyPerAttack > 2 && h.s.energyPerAttack < 2.05, 'about 2: a little more from intellect');
+test('energy fills by about 2 a second during a wave, whatever the attack speed; then the next attack is the ultimate (2x damage)', () => {
+  for (const fast of [1, 3]) {
+    const { w, h } = setup('ranger');
+    h.mods.push({ stat: 'dexterity', type: 'more', value: -1, scope: ['all'], source: 'test', ri: -2 }, { stat: 'speed', type: 'more', value: fast - 1, scope: ['all'], source: 'test', ri: -2 }); w.statsFor(h);
+    w.phase = 'wave'; w.spawnLeft = 0; const e = enemyAt(w, h.x + 30, h.y, 10, 1e9);
+    for (let i = 0; i < 60 * 10; i++) step(w);
+    assert.ok(Math.abs(h.energy - 10 * h.s.energyPerSecond) < 1e-6, 'ten seconds of energy, attacking ' + fast + 'x as fast');
+    assert.ok(h.s.energyPerSecond > 2 && h.s.energyPerSecond < 2.05, 'about 2: a little more from intellect');
+  }
+  const { w, h } = setup('ranger'); w.phase = 'wave'; const e = enemyAt(w, h.x + 30, h.y, 10, 1e9);
+  h.energy = h.s.energyMax; const before = dealt(e); h.cd = 0; tickHero(w, h); land(w);
+  assert.equal(h.ults, 1); assert.equal(h.energy, 0, 'the ultimate empties the bar'); assert.ok(dealt(e) - before > 0);
 });
 
-test('energy over time: heroes can also fill their bar per second during a wave', () => {
+test('energy over time: more energy per second fills the bar faster', () => {
   const { w, h } = setup('warrior');
   w.mods.push({ stat: 'energyPerSecond', type: 'flat', value: 10, scope: ['warrior'], source: 't', ri: 0 }); recalc(w);
   w.phase = 'wave'; w.spawnLeft = 0; enemyAt(w, 5000, 5000, 0);
   for (let i = 0; i < 120; i++) step(w);
-  assert.ok(Math.abs(h.energy - 20) < 1e-6, 'about 10 per second for 2 seconds');
+  assert.ok(Math.abs(h.energy - 2 * h.s.energyPerSecond) < 1e-6 && h.s.energyPerSecond > 12, 'about 12 a second (2 + 10) for 2 seconds');
 });
 
 test('ultimates hit every enemy in the swing for double damage', () => {

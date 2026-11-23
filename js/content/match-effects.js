@@ -12,7 +12,7 @@ export const MATCH_EFFECTS = {
   adrenaline: { name: 'Adrenaline',   good: 'Heroes attack and cast 25% faster', bad: 'Enemies are 20% faster', mods: [all('speed', 'more', 0.25), all('castSpeed', 'more', 0.25)], flags: { enemySpeed: 1.2 } },
   giants:     { name: 'Giants',       good: 'Double gold and XP per kill', bad: 'Half as many enemies, each with 2.3 times the life', flags: { half: true, life: 2.3, killGold: 2, xp: 2 } },
   bloodmoney: { name: 'Blood money',  good: '+60% gold from kills', bad: 'No gold for clearing waves and no interest', flags: { killGold: 1.6, noWaveGold: true } },
-  overcharge: { name: 'Overcharge',   good: 'Ultimates fill 50% faster', bad: 'Basic attacks deal 20% less', mods: [all('energyPerAttack', 'more', 0.5), all('energyPerSecond', 'more', 0.5)], flags: { basic: 0.8 } },
+  overcharge: { name: 'Overcharge',   good: 'Ultimates fill 50% faster', bad: 'Basic attacks deal 20% less', mods: [all('energyPerSecond', 'more', 0.5)], flags: { basic: 0.8 } },
   longshot:   { name: 'Long shot',    good: '+30% range', bad: 'Attack and cast speed are 15% lower', mods: [all('range', 'more', 0.3), all('speed', 'more', -0.15), all('castSpeed', 'more', -0.15)] },
   precision:  { name: 'Precision',    good: '+25% crit chance', bad: 'Hits that do not crit deal 20% less', mods: [all('critChance', 'flat', 0.25)], flags: { noCrit: 0.8 } },
   slowburn:   { name: 'Slow burn',    good: 'Damage over time +60%', bad: 'Direct hits deal 15% less', flags: { dot: 1.6, hit: 0.85 } }

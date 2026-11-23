@@ -141,7 +141,7 @@ function renderInfo(box, h) {
   row('Range', f(s.range));
   if (s.cooldown) row(h.rate === 'castSpeed' ? 'Casts per second' : 'Attacks per second', f((s[h.rate || 'speed'] || 1) / s.cooldown));
   if (s.critChance > 0) row('Crit chance', f(s.critChance * 100) + '% (×' + f(s.critDamage) + ' damage)');
-  row('Energy per attack', f(s.energyPerAttack) + ' / ' + f(s.energyMax));
+  row('Energy per second', f(s.energyPerSecond) + ' / ' + f(s.energyMax));
   const u = ULTIMATES[h.ultimate];
   if (u) { stats.append(el('h3', '', 'Ultimate')); stats.append(liveLine('p', 'hdesc', u.name + ': ', u.desc, s, heroStats(asPlayed(h), []))); }
   box.append(gear, pic, stats);

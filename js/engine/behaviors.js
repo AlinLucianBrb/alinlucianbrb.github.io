@@ -50,7 +50,7 @@ export const rearm = t => { t.cd = t.s.cooldown / rateOf(t); };
    Worlds without energy (old tests) give 1. */
 export const strike = (g, t, target) => (g.attackMult ? g.attackMult(t, target) : 1);
 /* Fills the energy bar after an attack, unless that attack fired the ultimate. */
-export const charge = (g, t) => { if (g.afterAttack) g.afterAttack(t); if (t.ultNow) { t.ultNow = false; return; } if (g.gainEnergy) g.gainEnergy(t); };
+export const charge = (g, t) => { if (g.afterAttack) g.afterAttack(t); t.ultNow = false; };   /* energy comes over time (world.js), not from attacks */
 /* Ultimates look different: brighter and thicker. */
 export const look = (t, mult) => (mult > 1 ? '#fff6c8' : t.def.color);
 
@@ -166,7 +166,7 @@ registerBehavior('beam', {
     /* A beam has no separate attacks: it gains energy over time while burning, and the ultimate doubles one second of it. */
     if (!t.ultT && g.attackMult && t.energy >= t.s.energyMax) { strike(g, t); t.ultT = 1; }
     const mult = t.ultT > 0 ? 2 : 1;
-    if (t.ultT > 0) t.ultT = Math.max(0, t.ultT - dt); else if (g.gainEnergy) g.gainEnergy(t, t.s.energyPerAttack * dt);
+    if (t.ultT > 0) t.ultT = Math.max(0, t.ultT - dt);
     g.attack(t, tg, (1 + k) * dt * mult, dt);
     g.fx?.beam(t.x, t.y, tg.x, tg.y, 0.12, t.def.color, 2 + k * 1.5);
   }

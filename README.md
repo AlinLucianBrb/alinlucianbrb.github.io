@@ -211,6 +211,17 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Energy over time (Nov 23, v0.68.0)
+- **The energy bar fills over time while a wave is on**: 2 a second for every hero (50 seconds to an ultimate), whatever its
+  attack or cast speed. Attacks give no energy; when the bar is full the ultimate fires on the hero's next attack, as before.
+  So an ultimate build stacks energy gain, duration and damage, and attack speed stays a basic-attack stat.
+- What gave "energy from attacks" now gives energy gain (% faster): intellect, the Battle focus relic and item bonus, Rally
+  ("doubles energy gain"), Overcharge. Gifts of energy stay as they were (Psalm, Soul drain, Overflow, Ancestors' gift).
+- The Incantation and the Occult fill at the normal rate (they had a lower one for their fast pulses); "every Nth" path previews
+  no longer hand out the energy of the attack they replace.
+- The Energy talents: Focus (energy gain) and, instead of Trickle, Linger (+duration); the start node and Second Wind give both.
+- Rules changed (engine 35: a match saved before the update cannot be resumed). No SQL change.
+
 ## Duration for every ultimate; tooltips with the real numbers (Nov 23, v0.67.0)
 - **The Duration stat now lengthens everything an ultimate leaves behind**, with no cap: the Lightning Mage's storm, the spinning
   blade, traps, the barricade, puddles, the poison pool, Enrage, Consecration, Crescendo, Conversion's spirit, Soul drain (the

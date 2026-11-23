@@ -98,7 +98,7 @@ export function initUI(callbacks) {
       return { title: 'Basic attack', color: cur.color, lines: [tipParts(cur.short, info.stats, heroStats(cur, [])), ...upgradeLine(cur, 'attack'), { text: statLine(cur, info.stats), color: '#ab9f8a' }] }; });
     bindTip(ult, () => { const info = cb.heroInfo(i), cur = info.unit ? info.unit.def : d, u = ULTIMATES[cur.ultimate], s = info.stats;
       return { title: 'Ultimate: ' + (u ? u.name : '?'), color: '#ffd84a', lines: [u ? tipParts(u.desc, s, heroStats(cur, [])) : '', ...upgradeLine(cur, 'ultimate'),
-        { text: info.unit ? 'Energy ' + Math.floor(info.unit.energy) + ' / ' + s.energyMax : 'Energy ' + s.energyPerAttack + ' per attack, ' + s.energyMax + ' to fire', color: '#ab9f8a' }] }; });
+        { text: info.unit ? 'Energy ' + Math.floor(info.unit.energy) + ' / ' + s.energyMax : 'Energy ' + f(s.energyPerSecond) + ' a second, ' + s.energyMax + ' to fire', color: '#ab9f8a' }] }; });
     name.append(nmText, lv, status); b.append(key, frame, name, abil); b._status = status; b._key = key; b._nm = nmText; b._lv = lv; b._pic = pic; b._frame = frame; b._picName = cp.name;
     b._abil = abil; b._atk = atk; b._ult = ult; b._form = d.id;
     bindTip(b, () => {
@@ -351,7 +351,7 @@ export function renderInspector(g, v) {
       const r = el('div', 'pbar'), b = el('span', 'ebar wide' + (k === 'xp' ? ' xpbar' : '')), fill = el('i'), lbl = el('span', 'pbtxt');
       b.append(fill); r.append(spriteImg('icon_' + icon, 'pix ico'), b, lbl); box.append(r);
       bindTip(r, () => (k === 'xp' ? { title: 'Experience', lines: ['Level ' + t.level + '. Heroes gain XP from every kill while on the field.'] }
-        : { title: 'Energy', lines: ['Fills with each attack' + (t.s.energyPerSecond ? ' and over time' : '') + '; when full, the ultimate fires.', { text: 'What it does: hover the ultimate icon on the hero\'s card.', color: '#ab9f8a' }] }));
+        : { title: 'Energy', lines: ['Fills by ' + f(t.s.energyPerSecond) + ' a second while a wave is on; when full, the ultimate fires.', { text: 'What it does: hover the ultimate icon on the hero\'s card.', color: '#ab9f8a' }] }));
       return { lbl, b, fill };
     };
     const xp = bar('xp', 'xp'), en = bar('energy', 'energy');
@@ -422,7 +422,7 @@ export function renderInspector(g, v) {
 /* Each stat's icon in the hero window (assets/icon_<name>.png, art/icons.py); added damage of a type and ailment chances
    by their type. A stat without one shows a short abbreviation. */
 const STAT_ICON = { damage: 'damage', range: 'range', speed: 'speed', castSpeed: 'castspeed', critChance: 'crit', critDamage: 'critdmg',
-  energyPerAttack: 'energy', energyPerSecond: 'energy', armorPen: 'armorpen', resPen: 'respen', targets: 'targets', duration: 'duration',
+  energyPerSecond: 'energy', armorPen: 'armorpen', resPen: 'respen', targets: 'targets', duration: 'duration',
   chillTime: 'chill', jumps: 'jumps', firePen: 'respen', coldPen: 'respen', lightningPen: 'respen' };
 /* An effect stat shows its relic's icon, or its talent cluster's. */
 const EFFECT_TALENT = { splash: 'might', stagger: 'fire', wither: 'sunder', venom: 'toxins', lucky: 'precision', vsFrozen: 'cold', arcing: 'lightning', recast: 'sorcery', perTile: 'marksman', fifth: 'martial' };

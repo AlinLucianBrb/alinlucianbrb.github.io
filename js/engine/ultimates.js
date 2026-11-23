@@ -71,7 +71,7 @@ export function buffActive(h, u) {
 }
 
 /* Called by every behavior after an attack. The attack that fired the ultimate does not refill the bar. */
-export function gainEnergy(h, amount = h.s.energyPerAttack) {
+export function gainEnergy(h, amount) {
   h.energy = Math.min(h.s.energyMax, h.energy + amount);
 }
 
@@ -128,8 +128,8 @@ registerUltimate('frenzy', { buff: 'frenzy', name: 'Frenzy', desc: '+50% damage 
   onFire(w, h) { h.frenzyMore = 0; w.addBuff(h, 'frenzy', 'Frenzy', FRENZY.mods, FRENZY.seconds); } });
 
 /* Commander: Rally, doubles the energy every hero within 220 px (the Commander too) gets from attacks, for 5 seconds. */
-export const RALLY = { seconds: 5, radius: 220, mods: [{ stat: 'energyPerAttack', type: 'inc', value: 1 }] };
-registerUltimate('rally', { buff: 'rally', name: 'Rally', desc: 'Doubles energy from attacks for nearby heroes, the Commander included, for {t:5}.', damageMult: 1,
+export const RALLY = { seconds: 5, radius: 220, mods: [{ stat: 'energyPerSecond', type: 'inc', value: 1 }] };
+registerUltimate('rally', { buff: 'rally', name: 'Rally', desc: 'Doubles energy gain for nearby heroes, the Commander included, for {t:5}.', damageMult: 1,
   onFire(w, h) {
     for (const o of w.heroes) if ((o.x - h.x) ** 2 + (o.y - h.y) ** 2 <= RALLY.radius ** 2) w.addBuff(o, 'rally', 'Rally', [...RALLY.mods, ...(upgradeOf(h, 'commander_ult') || { mods: [] }).mods], RALLY.seconds, h);
     w.fx?.slash(h.x, h.y, 0, Math.PI, RALLY.radius, 0.5, 'rgba(127,179,255,.3)');   /* a soft flash: it covers a big area */

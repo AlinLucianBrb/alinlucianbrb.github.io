@@ -12,7 +12,7 @@ export const GEAR_TIERS = ['none', 'common', 'rare', 'epic'];
 
 /* What a bonus is worth to a hero, roughly: the stats it touches, weighted (0 = does nothing for it). */
 const WORTH = { damage: 10, minionDamage: 9, speed: 7, castSpeed: 7, minionSpeed: 6, critChance: 6, critDamage: 4, minionCritChance: 4, minionCritDamage: 3,
-  mainAttribute: 6, strength: 3, dexterity: 3, intellect: 3, range: 4, targets: 5, energyPerAttack: 3, duration: 2, corruptionChance: 2 };
+  mainAttribute: 6, strength: 3, dexterity: 3, intellect: 3, range: 4, targets: 5, energyPerSecond: 3, duration: 2, corruptionChance: 2 };
 function worth(def, relic) {
   let v = 0;
   for (const m of relic.mods ? relic.mods(1) : []) {
