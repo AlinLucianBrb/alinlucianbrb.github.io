@@ -38,7 +38,7 @@ test('the Settings screen: a row of buttons for each setting, the one in use lit
 });
 
 test('the Keys window: the ? button opens it, it lists every key, Close closes it', () => {
-  for (const k of ['Space or R', 'E', 'M', 'B', 'Enter', 'P', 'Esc', 'F', 'H or ?']) assert.ok(KEYS.some(([key]) => key === k), k);
+  for (const k of ['Space or R', 'E', 'M', 'G', 'Enter', 'P', 'Esc', 'F', 'H or ?']) assert.ok(KEYS.some(([key]) => key === k), k);
   assert.ok(html.includes('id="keysBox"') && html.includes('id="keysBtn"'));
   startGame({ stage: 1, talents: [], lineup: ['warrior'], onRunStart() {}, onRunEnd: async () => '', onExit() {}, onNext() {} }); dom.frames(2);
   byId.keysBtn.onclick(); dom.frames(1); assert.equal(byId.keysBox.hidden, false); assert.equal(byId.keysList.children.length, KEYS.length);
@@ -54,7 +54,7 @@ test('settings at the start of a solo match: speed (never above what is unlocked
 });
 
 test('every window over the match is a dialog, and the page has the readability rules', () => {
-  for (const id of ['pick', 'evoPick', 'voteBox', 'shopBox', 'over', 'keysBox']) assert.match(html, new RegExp('id="' + id + '" hidden role="dialog"'), id);
+  for (const id of ['pick', 'evoPick', 'voteBox', 'over', 'keysBox']) assert.match(html, new RegExp('id="' + id + '" hidden role="dialog"'), id);
   assert.ok(html.includes('font-size:calc(clamp(13px,1.7vh,16px) * var(--ts))'));
   assert.ok(html.includes('body.rarmarks .itemicon[data-rar]::after') && html.includes('#screen-heroes{overflow:hidden}'));
   assert.ok(html.includes('.itemicon.art{display:inline-block;line-height:0;vertical-align:middle}'), 'item pictures are not pushed down by their hidden letters');

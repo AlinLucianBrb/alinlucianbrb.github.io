@@ -750,19 +750,9 @@ button:not(.danger):not(.relic):not(.on):not(.herocard):not(.linkbtn):not(.choos
 .votecard .good{color:#8be28b}.votecard .bad{color:#ff9d8a}.votecard .who2{color:#8fd3ff;margin-top:auto}
 .votecard.mine{outline:3px solid #ffe08a;outline-offset:-3px}
 .lvtxt .mapfx{color:#ffe08a}
-/* The match shop. */
+/* The bottom bar's buttons. */
 .buyrow{display:flex;gap:4px}.buyrow #relic{flex:1.5}
-#shopBtn{flex:1;font-size:14px;line-height:15px;padding:2px 6px}
-.shopcols{display:grid;grid-template-columns:1.25fr 1fr .9fr;gap:12px;width:min(1120px,94vw);text-align:left}
-.shopcol{display:flex;flex-direction:column;gap:6px;padding:10px 14px;background:linear-gradient(180deg,#1d1a15,#161310)}
-.shopcol h3,.shopcol p{margin:0}
-.shoprow{--ec:#888;display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;padding:6px 8px;border-left:4px solid var(--ec);background:rgba(255,255,255,.03)}
-.shoprow small{grid-column:1}.shoprow button{grid-column:2;grid-row:1/4}
-.shoprow.own{padding:3px 8px}.shoprow.own>small:last-child{grid-column:2;grid-row:1/3}
-#shopBox .shopbuy{font-size:15px;padding:.25em .6em;white-space:nowrap}
-.odds{display:flex;justify-content:space-between;gap:10px;font-size:.92em}
 .result{padding:4px 8px;border-left:4px solid #8be28b}.result.lose,.result.curse{border-color:#e5645a}.result.nothing{border-color:#888}
-.bossname{color:#e2864a;font-size:1.15em}
 #tileHint{position:absolute;left:50%;top:116px;transform:translateX(-50%);padding:6px 14px}
 /* Inventory: the Items and Crafting tabs. */
 #invItems:not([hidden]){display:flex;flex-direction:column;align-items:center;gap:8px}
@@ -875,6 +865,35 @@ body.rarmarks .relicchip[data-rar]::before{content:attr(data-rar);font:12px/1 va
 .oversum td img{width:28px;height:28px;vertical-align:middle;margin-right:6px;image-rendering:pixelated}
 .oversum .facts{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;color:var(--muted)}
 .oversum .facts b{color:var(--text)}
+/* The left edge: a tab you hover (or tap) for the card with the shop and the relics (game.js toggles .open on a tap). */
+#leftDrawer{left:0;top:64px;bottom:200px;width:30px;display:flex;align-items:flex-start;pointer-events:auto}
+#drawerTab{position:absolute;left:0;top:50%;transform:translateY(-50%);width:30px;min-width:0;height:64px;padding:0;display:grid;place-items:center;border-radius:0 8px 8px 0;opacity:.85}
+#drawerTab img{width:22px;height:22px;image-rendering:pixelated}
+#drawerCard{position:relative;margin-left:8px;display:flex;flex-direction:column;gap:8px;padding:8px 10px;max-height:100%;width:max-content;max-width:min(240px,30vw);overflow:hidden;
+  transform:translateX(calc(-100% - 20px));opacity:0;visibility:hidden;transition:transform .16s ease-out,opacity .16s,visibility 0s .16s}
+#leftDrawer:hover,#leftDrawer:focus-within,#leftDrawer.open{width:auto}
+#leftDrawer:hover #drawerCard,#leftDrawer:focus-within #drawerCard,#leftDrawer.open #drawerCard{transform:none;opacity:1;visibility:visible;transition:transform .16s ease-out,opacity .16s}
+#leftDrawer:hover #drawerTab,#leftDrawer:focus-within #drawerTab,#leftDrawer.open #drawerTab{opacity:0;pointer-events:none}
+body.calm #drawerCard{transition:none}
+#leftDrawer #relics{position:static;transform:none;padding:0;max-height:none;max-width:none;background:none;border:none;box-shadow:none;overflow:hidden}
+#leftDrawer #shopPanel{display:flex;flex-direction:column;gap:4px}
+#leftDrawer #shopPanel[hidden]{display:none}
+.drawtitle{font:calc(14px * var(--ts))/1 var(--pixel);color:#e9d8b4;letter-spacing:.04em}
+.shopicons{display:flex;gap:6px;flex-wrap:wrap}
+#shopPanel button.shopico{position:relative;width:52px;min-width:0;padding:4px 2px 3px;display:flex;flex-direction:column;align-items:center;gap:1px;box-shadow:inset 0 -3px 0 var(--ec,transparent)}
+#shopPanel button.shopico img{width:28px;height:28px;image-rendering:pixelated}
+#shopPanel button.shopico small{font:calc(12px * var(--ts))/1 var(--pixel);color:#ffe9a0}
+#shopPanel .owned button.shopico small{color:#cfe0d2;letter-spacing:-1px}
+#shopPanel .upmark{position:absolute;top:2px;right:2px;width:12px !important;height:12px !important}
+#gambleToast{position:absolute;left:50%;top:116px;transform:translateX(-50%);padding:6px 14px;max-width:min(520px,80vw)}
+#gambleToast.lose,#gambleToast.curse{color:#ffb4a8}
+#gambleToast.relic,#gambleToast.two,#gambleToast.raise,#gambleToast.jackpot{color:#8be28b}
+/* the boss to summon: its own button at the end of the bottom bar */
+@media (max-width:1400px){#hudBottom{gap:6px;padding:6px}.goldbox{min-width:62px;padding:0 6px 0 2px}.actions{padding-left:6px}#hudBottom button.bossbtn{width:52px}}
+#hudBottom button.bossbtn{min-width:0;width:58px;padding:4px 2px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+#hudBottom button.bossbtn[hidden]{display:none}
+#hudBottom button.bossbtn img{width:30px;height:30px;image-rendering:pixelated}
+#hudBottom button.bossbtn small{font:calc(12px * var(--ts))/1 var(--pixel);color:#ffd0c4}
 /* small buttons big enough to hit */
 #inspect .pclose{min-width:28px;min-height:28px;display:inline-grid;place-items:center;font-size:18px}
 #meterToggle{min-height:28px;align-items:center}
@@ -1063,8 +1082,15 @@ body.calm .herocard .ab.ready,body.calm .split .autobtn.on::after,body.calm .evo
     <!-- Co-op: everyone in the match, their colour, gold and whether they are ready. -->
     <div id="coopBar" class="glass" hidden></div>
     <div id="netBanner" class="glass" hidden></div>
-    <!-- Left middle: the relics you own, one under the other. -->
-    <div id="relics" class="glass" hidden></div>
+    <!-- The left edge: hover it (or tap the tab) for the card with the shop and the relics you own. -->
+    <div id="leftDrawer">
+      <div id="drawerCard" class="glass">
+        <div id="shopPanel" hidden></div>
+        <div id="relics" hidden></div>
+      </div>
+      <button id="drawerTab" aria-label="Shop and relics" title="Shop and relics"><img class="pix" src="assets/icon_relics.png" alt=""></button>
+    </div>
+    <div id="gambleToast" class="glass result" hidden></div>
     <!-- Top right: Menu (pause), with the selected hero's details under it. -->
     <div id="hudTopRight">
       <button id="keysBtn" aria-label="Keys" title="Keys (H)">?</button>
@@ -1084,7 +1110,7 @@ body.calm .herocard .ab.ready,body.calm .split .autobtn.on::after,body.calm .evo
       <div class="goldbox"><small><img class="ico pix" src="assets/icon_gold.png" alt="">Gold</small><b id="gold"></b><small id="interest" class="interest" hidden></small></div>
       <div class="heroes" id="tbtns"></div>
       <div class="actions">
-        <div class="buyrow"><button id="relic" class="relic">Relic</button><button id="shopBtn" class="relic shopbtn" hidden>Shop</button></div>
+        <div class="buyrow"><button id="relic" class="relic">Relic</button></div>
         <div class="waverow">
           <div class="split">
             <button id="go" class="go big" title="Start the next wave (Enter)">Start</button>
@@ -1093,6 +1119,7 @@ body.calm .herocard .ab.ready,body.calm .split .autobtn.on::after,body.calm .evo
           <button id="spd" class="spdbtn" aria-label="Game speed">1x</button>
         </div>
       </div>
+      <button id="bossBtn" class="bossbtn" hidden></button>
     </div>
     <div id="tileHint" class="glass" hidden></div>
     <div id="pauseBanner" class="glass" hidden>Paused</div>
@@ -1118,11 +1145,6 @@ body.calm .herocard .ab.ready,body.calm .split .autobtn.on::after,body.calm .evo
     <h2 id="voteTitle"></h2>
     <div class="choices" id="voteCards"></div>
     <div class="muted" id="voteHint"></div>
-  </div>
-  <div class="overlay" id="shopBox" hidden role="dialog">
-    <h2>Shop</h2>
-    <div class="shopcols" id="shopCols"></div>
-    <div class="pickbar"><button id="shopClose">Close</button><span class="pickgold" id="shopGold"></span></div>
   </div>
   <div class="overlay" id="over" hidden role="dialog">
     <h2 id="overTitle">The gate has fallen</h2>

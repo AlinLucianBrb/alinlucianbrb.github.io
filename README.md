@@ -210,6 +210,16 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## The shop and relics in a card at the left edge; a boss button (Nov 23, v0.66.0)
+- No Shop button or window. Hovering the left edge of the match (or tapping its tab) shows a card with the shop and the relics
+  you own; it hides again when the mouse leaves.
+- The shop is a small "Shop" title and icons with their price: the two ground effects (click one, then its tile; a solo match
+  waits until it is placed), the gamble, and a button for each tile you own (its level; click to upgrade). The details are in
+  the tooltips; the last gamble's result shows for 5 seconds under the top bar.
+- Summoning a boss is its own button at the end of the bottom bar, with what it pays or how many waves until it can come.
+- 7 new icons (Pixel Lab, sheet u01). Key G gambles; B is gone. The shop no longer pauses the match.
+- No rules or SQL changed (engine 33).
+
 ## Less text (Nov 23, v0.65.1)
 - Explanations the screens repeated are gone or moved into tooltips: the hero descriptions on the hero cards (on hover now), the
   hints under the Heroes list, the inventory, the talent tree and the evolve window, "No path" lines, the stat breakdowns on a

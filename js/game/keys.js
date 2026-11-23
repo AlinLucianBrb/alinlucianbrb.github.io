@@ -6,7 +6,7 @@ export const KEYS = [
   ['Space or R', 'Buy a relic'],
   ['E', 'Evolve the selected hero'],
   ['M', 'Move the selected hero'],
-  ['B', 'Open or close the shop'],
+  ['G', 'Gamble (the shop)'],
   ['Enter', 'Start the next wave'],
   ['P', 'Pause (solo)'],
   ['Esc', 'Close a window, cancel, or resume'],
