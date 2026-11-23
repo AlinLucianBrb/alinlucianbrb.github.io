@@ -212,6 +212,19 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Hero and evolution cards like in a match, whole-number range, Crusader's reach 1 tile (Nov 23, v0.70.1)
+- **The hero cards on the Heroes screen and the hero choice before a level** now look exactly like the hero cards in a
+  match, only bigger: no gold frame and no picture window. The whole hero stands on the left of the card over a glow in
+  their colour, the name in the outlined pixel font with a fading line under it, the attack and ultimate icons underneath.
+  A picked hero gets the gold glow of the selected hero in a match.
+- **Evolutions look the same way.** On the Evolutions tab, the top of each card (the hero and each form) is such a hero
+  card: the form standing on the left over its colour, the name, its damage type, and its attack and ultimate icons; the
+  description and the level 30 upgrades are under it. The card is tinted by the form's colour, and the chosen path glows
+  gold. The evolution choice during a match shows each form as one of these cards too, with its key in the corner.
+- **Range is a whole number** in the hero window, its tooltip and the Heroes screen.
+- **The Crusader's spear reaches 1 tile** (was 2) before range bonuses; the thrown spear still reaches 4 tiles.
+- Rules changed (engine 39: a match saved before the update cannot be resumed). No SQL change.
+
 ## The shop always on screen, a readable hero window, loot as items (Nov 23, v0.70.0)
 - **The shop is always on screen**, as a card at the left edge (no more hover tab): "Shop", your gold (with interest), the
   shop's icons, the Relic button, and the relics you own. The map is fitted beside it.

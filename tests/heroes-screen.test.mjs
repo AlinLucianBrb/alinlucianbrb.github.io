@@ -50,6 +50,8 @@ test('Heroes: one card per playable hero; clicking opens its page on the Informa
   assert.ok(st.includes('Strength (main)') && st.includes('Dexterity') && st.includes('Intellect'), 'the three attributes');
   assert.ok(st.includes('23.1–38.5'), 'damage 28 +10% from 10 strength, as min–max (±25%)');
   assert.ok(!st.includes('+10% from Strength'), 'what a number is made of is not on the page...');
+  const rangeRow = stats.children.find(r => texts(r).includes('Range'));
+  assert.match(texts(rangeRow).pop(), /^\d+$/, 'the range as a whole number');
   const dmgRow = stats.children.find(r => texts(r).includes('Damage (Physical)'));
   dmgRow.fire('pointerenter', { clientX: 0, clientY: 0 });
   const tip = dom.made.filter(e => e.className === 'tip').pop();
@@ -108,9 +110,11 @@ test('Evolutions tab: the base hero, then its three forms', () => {
   byId.hrTabs.children[1].onclick();
   const tree = byId.hrBody.children[0];
   assert.equal(tree.className, 'evotree');
-  assert.equal(tree.children[0].children[0]._text, 'Hunter');
+  const band = n => n.children[0];   /* each card's top is a hero card: picture, name, damage, icons */
+  assert.equal(band(tree.children[0]).className, 'heroband'); assert.equal(band(tree.children[0]).children[1]._text, 'Hunter');
   assert.equal(tree.children[1]._text, 'Level 15 · 500 gold');
-  assert.deepEqual(tree.children[2].children.map(n => n.children[0]._text), ['Ranger', 'Boomerang', 'Poacher']);
+  assert.deepEqual(tree.children[2].children.map(n => band(n).children[1]._text), ['Ranger', 'Boomerang', 'Poacher']);
+  assert.ok(tree.children[2].children.every(n => band(n).children[3].className === 'habil'), 'with the attack and ultimate icons');
   assert.ok(texts(tree).some(t => /^Ultimate: /.test(t)));
   assert.ok(texts(tree).some(t => /^Before level 15: Every 5th arrow flies through/.test(t)), 'each form says what its preview does');
 });

@@ -11,7 +11,7 @@ import { DAMAGE_LABEL, AILMENTS } from '../content/combat.js';
 import { rateOf } from '../engine/behaviors.js';
 import { explain, affected, attributeDamage } from '../engine/stats.js';
 import { bindTip } from '../core/tooltip.js';
-import { spriteImg, spriteUrl, heroSprite, attackIcon, ultimateIcon, relicIcon, cardPicture, frameHero } from './sprites.js';
+import { spriteImg, spriteUrl, heroSprite, attackIcon, ultimateIcon, relicIcon, cardPicture, frameHero, heroFrame, heroAbilities } from './sprites.js';
 import { isBossWave } from '../engine/enemies.js';
 import { ITEMS, itemName, itemColor, itemBonusLines } from '../content/items.js';
 import { COOP } from '../content/rules.js';
@@ -438,11 +438,12 @@ const SHORT_LABEL = { range: 'Range', speed: 'Attacks/s', castSpeed: 'Casts/s', 
   lightningPen: 'Light. pen', minionDamage: 'Minion dmg', minionSpeed: 'Minion spd', rampRate: 'Ramp' };
 const abbr = label => label.split(/[\s(]+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
 /* A stat's exact value, for its tooltip. */
-const exact = (key, x) => (isChance(key) || /Pen$/.test(key) ? pct(x) : (key === 'speed' || key === 'castSpeed' || key === 'energyPerSecond') ? f(x) + ' per second' : String(f(x)));
+const exact = (key, x) => key === 'range' ? String(Math.round(x)) : (isChance(key) || /Pen$/.test(key) ? pct(x) : (key === 'speed' || key === 'castSpeed' || key === 'energyPerSecond') ? f(x) + ' per second' : String(f(x)));
 /* How a stat's value reads in the compact window: chances in %, added damage as +N, rates per second, multipliers as ×N. */
 function fmtStat(key, x) {
   if (isChance(key) || /Pen$/.test(key)) return pct(x);
   if (/^\w+Damage$/.test(key) && key !== 'minionDamage' && key !== 'critDamage') return '+' + f(x);
+  if (key === 'range') return String(Math.round(x));   /* range in whole pixels */
   const short = v => (Math.abs(v) >= 100 ? String(Math.round(v)) : Math.abs(v) >= 10 ? String(+v.toFixed(1)) : String(f(v)));   /* fits the small cells; the exact value is in the tooltip */
   if (key === 'critDamage' || key === 'duration' || key === 'minionDamage' || key === 'minionSpeed') return '×' + short(x);
   return short(x);
@@ -460,12 +461,14 @@ export function showEvoPick(g, h) {
     if (h.preview && c.id !== h.preview.form) return;   /* a hero with a path evolves only into its form */
     const key = el('small', 'pickkey', 'Key ' + (evoKeys.push(i)));
     if (step.upgrade) { const card = upgradeCard(h, c, i, g.gold < cost); card.children[0].append(key); box.append(card); return; }
-    const d = h.def, u = ULTIMATES[c.ultimate || d.ultimate], color = c.color || d.color, card = el('div', 'card'), b = el('button', 'choose');
-    const nm = el('b', '', c.name); nm.style.color = color; b.style.borderColor = color;
-    const pic = spriteImg(cardPicture(evolvedDef(h.def.core || h.def, c)).name, 'pix evoart');   /* the form's picture */
+    /* each form as a hero card like in a match: the form on the left over a glow in its colour, the name, the attack and
+       ultimate icons */
+    const d = h.def, u = ULTIMATES[c.ultimate || d.ultimate], color = c.color || d.color, card = el('div', 'card'), b = el('button', 'choose evolike');
+    const form = evolvedDef(h.def.core || h.def, c), nm = el('b', '', c.name), pic = heroFrame(form);
+    b.style.setProperty?.('--hc', color);
     const ult = u ? el('small', 'aff', 'Ultimate: ' + u.name) : null;
     if (u) bindTip(b, () => ({ title: c.name, color, lines: [DAMAGE_LABEL[c.damageType || d.damageType] + ' damage · +25% to all its stats', { parts: [{ text: u.name + ': ' }, ...tipParts(u.desc, h.s, heroStats(h.def, [])).parts] }] }));
-    b.append(key, pic, nm, el('small', '', liveText(c.short, h.s)), ...(ult ? [ult] : []));
+    b.append(key, pic, nm, el('small', '', liveText(c.short, h.s)), ...(ult ? [ult] : []), heroAbilities(form));
     b.disabled = g.gold < cost;
     b.onclick = () => cb.onEvolveChoice(i);
     card.append(b); box.append(card);

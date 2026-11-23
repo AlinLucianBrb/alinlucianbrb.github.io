@@ -98,7 +98,7 @@ test('Crusader: on foot, lunges his spear through every enemy in a line; the tou
   evolveTo(w, h, 'crusader');
   assert.equal(h.def.kind, 'lunge'); assert.ok(!('mounted' in h.def)); assert.equal(h.def.onPath, true, 'he can still stand on the path');
   h.s = { ...h.s, critChance: 0, spread: 0 };
-  assert.equal(h.def.stats.range, 2 * T, 'a reach of 2 tiles (before range bonuses)');
+  assert.equal(h.def.stats.range, T, 'a reach of 1 tile (before range bonuses)');
   const a = enemyAt(w, h.x + 20, h.y, 50), b = enemyAt(w, h.x + 45, h.y, 40, 2e6), c = enemyAt(w, h.x + 70, h.y, 30), out = enemyAt(w, h.x + h.s.range + 30, h.y, 20), off = enemyAt(w, h.x + 40, h.y + 50, 10);
   h.cd = 0; tick(w, h, 1);
   assert.ok(dealt(a) > 0 && dealt(c) > 0, 'every enemy on the line'); assert.equal(dealt(off), 0, 'not beside it'); assert.equal(dealt(out), 0, 'not past his range');
@@ -138,7 +138,7 @@ test('Crusader ultimate (Spear throw): pushes enemies back; one that slams into 
   assert.ok(w.projs.some(p => p.type === 'spear'), 'the spear flies');
   for (let k = 0; k < 60 && w.projs.some(p => p.type === 'spear'); k++) tick(w, h, 1);
   assert.ok(e.d < d0 && dealt(e) > 0, 'pushed back and hurt');
-  /* it reaches 4 tiles, twice his range */
+  /* it reaches 4 tiles, four times his range */
   w.enemies.length = 0; w.projs.length = 0; w.wave = 4;
   const far = enemyAt(w, h.x + 3.5 * T, h.y, 30), farther = enemyAt(w, h.x + 4.5 * T, h.y, 20);
   full(h); w.attackMult(h, far); for (let k = 0; k < 90; k++) updateProjectiles(w, 1 / 60);

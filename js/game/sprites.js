@@ -188,6 +188,14 @@ export function heroAbilities(def) {
   for (const icon of [attackIcon(def), ultimateIcon(def)]) { const b = document.createElement('span'); b.className = 'ab'; b.append(spriteImg(icon, 'pix')); box.append(b); }
   return box;
 }
+/* The top of an evolution card, like a hero card in a match: the hero (or form) on the left over a glow in its colour, the
+   name and a line under it, the attack and ultimate icons. */
+export function heroBand(def, name, sub) {
+  const band = document.createElement('div'), b = document.createElement('b'), s = document.createElement('small');
+  band.className = 'heroband'; b.textContent = name; s.className = 'muted'; s.textContent = sub;
+  band.append(heroFrame(def), b, s, heroAbilities(def));
+  return band;
+}
 const heroIds = HEROES.flatMap(h => [h.id, ...(h.evolutions || []).flatMap(s => s.choices.map(c => c.id))]);
 export const SPRITES = [...new Set([
   ...heroIds.flatMap(id => ['hero_' + id, 'hero_' + id + '_2']),            /* _2: the second animation frame */

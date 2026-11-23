@@ -13,7 +13,7 @@ import { DAMAGE_LABEL } from '../content/combat.js';
 import { ULTIMATES, ultDesc } from '../engine/ultimates.js';
 import { liveText, liveParts, CHANGED_COLOR } from '../content/live-text.js';
 import { heroStats, attributeDamage } from '../engine/stats.js';
-import { spriteImg, heroPortrait, heroFrame, heroAbilities } from '../game/sprites.js';
+import { spriteImg, heroPortrait, heroFrame, heroAbilities, heroBand } from '../game/sprites.js';
 import { PREVIEWS } from '../content/previews.js';
 import { pathChoice, pathDef } from '../engine/preview.js';
 import { savePaths } from '../services/api.js';
@@ -139,7 +139,7 @@ function renderInfo(box, h) {
   /* every attribute's side effect, from every point (ATTRIBUTE_EFFECTS) */
   for (const a of ATTRIBUTES) row(STAT_LABELS[a] + (a === h.attribute ? ' (main)' : ''), f(s[a]), ATTRIBUTE_EFFECTS[a].map(fx => '+' + f(s[a] * fx.per * (fx.stat === 'critDamage' ? 100 : 100)) + '% ' + fx.label).join(', '), a === h.attribute ? 'main' : '');
   row('Damage (' + DAMAGE_LABEL[h.damageType] + ')', f(s.damage * (1 - s.spread)) + '–' + f(s.damage * (1 + s.spread)), '+' + f(attributeDamage(h, s) * 100) + '% from ' + STAT_LABELS[h.attribute] + (worn ? ' · gear included' : ''));
-  row('Range', f(s.range));
+  row('Range', String(Math.round(s.range)));
   if (s.cooldown) row(h.rate === 'castSpeed' ? 'Casts per second' : 'Attacks per second', f((s[h.rate || 'speed'] || 1) / s.cooldown));
   if (s.critChance > 0) row('Crit chance', f(s.critChance * 100) + '% (×' + f(s.critDamage) + ' damage)');
   row('Energy per second', f(s.energyPerSecond) + ' / ' + f(s.energyMax));
@@ -152,9 +152,9 @@ function renderInfo(box, h) {
 function renderEvolutions(box, h) {
   const tree = el('div', 'evotree'), root = el('div', 'evonode root'), u = ULTIMATES[h.ultimate];
   root.style.setProperty('--hc', h.color);
-  root.append(el('b', '', h.name), el('small', 'muted', DAMAGE_LABEL[h.damageType] + ' damage'), el('p', '', liveText(h.short, null, heroStats(h, []))));
+  /* each card's top is a hero card like in a match: the hero, the name, the attack and ultimate icons */
+  root.append(heroBand(h, h.name, DAMAGE_LABEL[h.damageType] + ' damage'), el('p', '', liveText(h.short, null, heroStats(h, []))));
   if (u) root.append(el('small', '', 'Ultimate: ' + u.name));
-  root.append(spriteImg(heroPortrait(h.id), 'pix evoart'));   /* last in the DOM; CSS shows it first */
   tree.append(root);
   for (const step of h.evolutions) {
     tree.append(el('div', 'evolink', 'Level ' + step.level + ' · ' + step.cost + ' gold'));
@@ -162,8 +162,7 @@ function renderEvolutions(box, h) {
     for (const c of step.choices) {
       const d = evolvedDef(h, c), cu = ULTIMATES[d.ultimate], n = el('div', 'evonode');
       n.style.setProperty('--hc', d.color);
-      const nm = el('b', '', c.name); nm.style.color = d.color;
-      n.append(nm, el('small', 'muted', DAMAGE_LABEL[d.damageType] + ' damage' + (d.attribute !== h.attribute ? ' · ' + STAT_LABELS[d.attribute] : '')), el('p', '', liveText(d.short, null, heroStats(d, []))));
+      n.append(heroBand(d, c.name, DAMAGE_LABEL[d.damageType] + ' damage' + (d.attribute !== h.attribute ? ' · ' + STAT_LABELS[d.attribute] : '')), el('p', '', liveText(d.short, null, heroStats(d, []))));
       if (cu) n.append(el('small', '', 'Ultimate: ' + cu.name + ': ' + ultDesc(cu, heroStats(d, []))));
       if (PREVIEWS[c.id]) n.append(el('small', 'preview', 'Before level ' + EVOLVE_LEVEL + ': ' + PREVIEWS[c.id].desc));
       /* The second evolution: one of two upgrades. */
@@ -176,7 +175,7 @@ function renderEvolutions(box, h) {
       pb.disabled = !open;
       n.classList.toggle('chosen', chosen);
       pb.onclick = () => setPath(h.id, chosen ? null : c.id);
-      n.append(pb, spriteImg('hero_' + c.id, 'pix evoart'));
+      n.append(pb);
       row.append(n);
     }
     tree.append(row);
