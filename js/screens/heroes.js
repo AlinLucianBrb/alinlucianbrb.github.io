@@ -11,6 +11,7 @@ import { HEROES, STAT_LABELS, ATTRIBUTES, ATTRIBUTE_EFFECTS, EVOLVE_LEVEL, evolv
 import { SLOTS, SLOT_LABEL, itemMods, itemName, itemColor, itemBonusLines } from '../content/items.js';
 import { DAMAGE_LABEL } from '../content/combat.js';
 import { ULTIMATES, ultDesc } from '../engine/ultimates.js';
+import { liveText, liveParts, CHANGED_COLOR } from '../content/live-text.js';
 import { heroStats, attributeDamage } from '../engine/stats.js';
 import { spriteImg, heroPortrait } from '../game/sprites.js';
 import { PREVIEWS } from '../content/previews.js';
@@ -64,7 +65,7 @@ function renderList() {
     head.append(el('b', '', h.name), el('small', 'muted', cap(h.archetype) + ' · ' + STAT_LABELS[h.attribute]));
     const n = gearCount(h.id), c = pathOf(h.id);
     card.append(head, el('small', 'muted', 'Gear ' + n + ' / ' + SLOTS.length), ...(c ? [el('small', 'pathline', 'Path: ' + c.name)] : []), spriteImg(heroPortrait(h.id), 'pix hcardart'));
-    card.title = h.short;
+    card.title = liveText(h.short, null, heroStats(h, []));
     card.onclick = () => { hero = h; tab = 'info'; render(); };
     grid.append(card);
   }
@@ -92,6 +93,12 @@ function slotChooser(h, slot) {
   return pop;
 }
 
+/* A text whose numbers follow the hero's stats (live-text.js), the changed ones in yellow. */
+function liveLine(tag, cls, lead, text, s, base) {
+  const e = el(tag, cls, ''); if (lead) e.append(el('span', '', lead));
+  for (const p of liveParts(text, s, base)) { const sp = el('span', '', p.text); if (p.changed) { sp.style.color = CHANGED_COLOR; sp.classList.add('changed'); } e.append(sp); }
+  return e;
+}
 /* Information tab: gear | picture | stats. */
 function renderInfo(box, h) {
   const gear = el('div', 'hgear'), pic = el('div', 'hpic'), stats = el('div', 'hstatbox');
@@ -116,7 +123,7 @@ function renderInfo(box, h) {
   pic.append(art);
   const c = pathOf(h.id);
   if (c) { const pl = el('p', 'hdesc pathline', 'Path: ' + c.name); bindTip(pl, () => ({ title: c.name, lines: ['Before level ' + EVOLVE_LEVEL + ': ' + PREVIEWS[c.id].desc] })); pic.append(pl); }
-  art.title = h.short;
+  art.title = liveText(h.short, null, heroStats(h, []));
   /* Stats, with the equipped items included (gear that does not fit the hero counts as its general version). */
   const worn = wornItems()[h.id], s = heroStats(asPlayed(h), itemMods(worn ? { [h.id]: worn } : {}, wearer(h)));
   stats.append(el('h3', '', 'Stats' + (worn ? ' (with gear)' : '')));
@@ -136,7 +143,7 @@ function renderInfo(box, h) {
   if (s.critChance > 0) row('Crit chance', f(s.critChance * 100) + '% (×' + f(s.critDamage) + ' damage)');
   row('Energy per attack', f(s.energyPerAttack) + ' / ' + f(s.energyMax));
   const u = ULTIMATES[h.ultimate];
-  if (u) { stats.append(el('h3', '', 'Ultimate')); stats.append(el('p', 'hdesc', u.name + ': ' + ultDesc(u, s))); }
+  if (u) { stats.append(el('h3', '', 'Ultimate')); stats.append(liveLine('p', 'hdesc', u.name + ': ', u.desc, s, heroStats(asPlayed(h), []))); }
   box.append(gear, pic, stats);
 }
 
@@ -144,7 +151,7 @@ function renderInfo(box, h) {
 function renderEvolutions(box, h) {
   const tree = el('div', 'evotree'), root = el('div', 'evonode root'), u = ULTIMATES[h.ultimate];
   root.style.setProperty('--hc', h.color);
-  root.append(el('b', '', h.name), el('small', 'muted', DAMAGE_LABEL[h.damageType] + ' damage'), el('p', '', h.short));
+  root.append(el('b', '', h.name), el('small', 'muted', DAMAGE_LABEL[h.damageType] + ' damage'), el('p', '', liveText(h.short, null, heroStats(h, []))));
   if (u) root.append(el('small', '', 'Ultimate: ' + u.name));
   root.append(spriteImg(heroPortrait(h.id), 'pix evoart'));   /* last in the DOM; CSS shows it first */
   tree.append(root);
@@ -155,7 +162,7 @@ function renderEvolutions(box, h) {
       const d = evolvedDef(h, c), cu = ULTIMATES[d.ultimate], n = el('div', 'evonode');
       n.style.setProperty('--hc', d.color);
       const nm = el('b', '', c.name); nm.style.color = d.color;
-      n.append(nm, el('small', 'muted', DAMAGE_LABEL[d.damageType] + ' damage' + (d.attribute !== h.attribute ? ' · ' + STAT_LABELS[d.attribute] : '')), el('p', '', c.short));
+      n.append(nm, el('small', 'muted', DAMAGE_LABEL[d.damageType] + ' damage' + (d.attribute !== h.attribute ? ' · ' + STAT_LABELS[d.attribute] : '')), el('p', '', liveText(d.short, null, heroStats(d, []))));
       if (cu) n.append(el('small', '', 'Ultimate: ' + cu.name + ': ' + ultDesc(cu, heroStats(d, []))));
       if (PREVIEWS[c.id]) n.append(el('small', 'preview', 'Before level ' + EVOLVE_LEVEL + ': ' + PREVIEWS[c.id].desc));
       /* The second evolution: one of two upgrades. */

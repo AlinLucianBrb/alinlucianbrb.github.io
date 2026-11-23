@@ -11,7 +11,7 @@ import { registerUltimate } from '../ultimates.js';
 import { PROJECTILES } from '../projectiles.js';
 import { ZONES } from '../zones.js';
 import { inflict } from '../combat.js';
-import { applyEffect, EFFECT_HOOKS } from '../effects.js';
+import { applyEffect, EFFECT_HOOKS, lasting } from '../effects.js';
 import { knockback, pathPos } from '../enemies.js';
 import { T, COLS, ROWS } from '../../content/data.js';
 import { upgradeOf, around } from '../upgrades.js';
@@ -20,7 +20,7 @@ const near = (a, b, r) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2 <= r * r;
 
 /* ---- Shaman ---- */
 export const ANCESTRAL = { seconds: 6, mods: [{ stat: 'speed', type: 'inc', value: 0.25 }, { stat: 'castSpeed', type: 'inc', value: 0.25 }] };
-registerUltimate('ancestral', { buff: 'ancestral', name: 'Ancestral call', desc: 'For 6 seconds, heroes within the Shaman\'s range (the Shaman too) attack and cast 25% faster.', damageMult: 1,
+registerUltimate('ancestral', { buff: 'ancestral', name: 'Ancestral call', desc: 'For {t:6}, heroes within the Shaman\'s range (the Shaman too) attack and cast 25% faster.', damageMult: 1,
   onFire(w, h) {
     for (const o of w.heroes) if (near(o, h, h.s.range)) w.addBuff(o, 'ancestral', 'Ancestral call', ANCESTRAL.mods, ANCESTRAL.seconds, h);
     w.fx?.slash(h.x, h.y, 0, Math.PI, h.s.range, 0.5, 'rgba(122,208,224,.3)');
@@ -121,7 +121,7 @@ registerBehavior('totems', {
         const turn = Array.from({ length: n }, (_, i) => TOTEM.kinds[(from + i) % n]);
         const kind = turn.find(k => !mine.some(z => z.kind === k)) || turn[0];
         t.lastTotem = TOTEM.kinds.indexOf(kind);
-        g.zones.push({ type: 'totem', owner: t, kind, cx: spot.cx, cy: spot.cy, x: (spot.cx + 0.5) * T, y: (spot.cy + 0.5) * T, t: TOTEM.life, cd: 0.2, blocks: true, flash: 0 });
+        g.zones.push({ type: 'totem', owner: t, kind, cx: spot.cx, cy: spot.cy, x: (spot.cx + 0.5) * T, y: (spot.cy + 0.5) * T, t: lasting(t, TOTEM.life), cd: 0.2, blocks: true, flash: 0 });
       }
     }
     charge(g, t);
@@ -171,8 +171,8 @@ registerUltimate('surge', { name: 'Totem surge', desc: 'Every totem stands its f
   onFire(w, h) {
     for (const z of w.zones) {
       if (z.type !== 'totem' || z.owner !== h || z.t <= 0) continue;
-      z.t = TOTEM.life; z.surge = SURGE.pulses;
-      const u = upgradeOf(h, 'totemist_ult'); if (u) z.fast = u.seconds;   /* Overcharge */
+      z.t = lasting(h, TOTEM.life); z.surge = SURGE.pulses;
+      const u = upgradeOf(h, 'totemist_ult'); if (u) z.fast = lasting(h, u.seconds);   /* Overcharge */
       surgePulse(w, z);
     }
   } });

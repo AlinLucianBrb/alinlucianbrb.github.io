@@ -2,7 +2,7 @@
    (look for upgradeOf). The numbers are in js/content/upgrades.js. */
 import { BOLT_HOOKS, KILL_HOOKS, around, nearest, upgradeOf } from '../upgrades.js';
 import { inflict } from '../combat.js';
-import { EFFECT_HOOKS } from '../effects.js';
+import { EFFECT_HOOKS, lasting } from '../effects.js';
 
 /* Hits everything near the enemy a bolt struck (not that enemy again) for `scale` of the bolt's hit. */
 const splash = (g, p, e, u) => {
@@ -50,8 +50,9 @@ BOLT_HOOKS.lightningmage_attack = (g, p, e, u) => {
 /* Berserker: kills stretch Frenzy (h.frenzyMore: how much this one was stretched, reset when it is cast). */
 KILL_HOOKS.berserker_ult = (w, h, e, u) => {
   const b = (h.buffs || []).find(x => x.id === 'frenzy' && x.t > 0);
-  if (!b || (h.frenzyMore || 0) >= u.max) return;
-  const more = Math.min(u.per, u.max - (h.frenzyMore || 0));
+  const max = lasting(h, u.max);   /* seconds: longer with the duration stat, like Frenzy itself */
+  if (!b || (h.frenzyMore || 0) >= max) return;
+  const more = Math.min(lasting(h, u.per), max - (h.frenzyMore || 0));
   b.t += more; h.frenzyMore = (h.frenzyMore || 0) + more;
 };
 

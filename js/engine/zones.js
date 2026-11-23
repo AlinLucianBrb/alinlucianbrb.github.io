@@ -2,7 +2,7 @@
    A zone is { type, owner, x, y, r, t (seconds left), ... }; each type has update(g, zone, dt) -> false when it is over.
    To add one: add a type here and push a zone from an ultimate (ultimates.js) or a behavior. */
 import { inflict } from './combat.js';
-import { applyEffect } from './effects.js';
+import { applyEffect, lasting } from './effects.js';
 import { OIL } from './ultimates.js';
 import { upgradeOf, around } from './upgrades.js';
 export const ZONES = {
@@ -40,7 +40,7 @@ ZONES.trap = {
     if (!stepped) return true;
     const r2 = z.r * z.r;
     for (const e of g.enemies) if (!e.dead && (e.x - z.x) ** 2 + (e.y - z.y) ** 2 <= r2) g.attack(z.owner, e, z.scale);
-    if (z.pool) g.zones.push({ type: 'poisonpool', owner: z.owner, x: z.x, y: z.y, r: z.pool.radius, t: z.pool.seconds, next: 0, every: 1, small: true });
+    if (z.pool) g.zones.push({ type: 'poisonpool', owner: z.owner, x: z.x, y: z.y, r: z.pool.radius, t: lasting(z.owner, z.pool.seconds), next: 0, every: 1, small: true });
     g.ev.emit('trap', { zone: z });
     g.fx?.slash(z.x, z.y, 0, Math.PI, z.r, 0.3, '#7ad04b');
     return false;
@@ -63,7 +63,7 @@ ZONES.poisonpool = {
     z.t -= dt; z.next -= dt;
     const spread = !z.small && upgradeOf(z.owner, 'toxicologist_ult');
     if (spread) {   /* Outbreak: whoever was in it and is dead now leaves a smaller puddle (which does not spread further) */
-      for (const e of z.in || []) if (e.dead && !e.escaped) g.zones.push({ type: 'poisonpool', owner: z.owner, x: e.x, y: e.y, r: spread.radius, t: spread.seconds, next: 0, every: z.every, small: true });
+      for (const e of z.in || []) if (e.dead && !e.escaped) g.zones.push({ type: 'poisonpool', owner: z.owner, x: e.x, y: e.y, r: spread.radius, t: lasting(z.owner, spread.seconds), next: 0, every: z.every, small: true });
       z.in = around(g, z.x, z.y, z.r);
     }
     if (z.next <= 0) {
@@ -91,7 +91,7 @@ ZONES.oil = {
     const b2 = OIL.blast * OIL.blast;
     for (const e of g.enemies) if (!e.dead && (e.x - z.x) ** 2 + (e.y - z.y) ** 2 <= b2) g.attack(z.owner, e, OIL.scale, 1, 'fire');
     const scorch = upgradeOf(z.owner, 'alchemist_ult');   /* burning ground */
-    if (scorch) g.zones.push({ type: 'pulse', owner: z.owner, x: z.x, y: z.y, next: 0, r: scorch.radius, t: scorch.seconds, life: scorch.seconds, every: scorch.every, scale: scorch.scale, as: 'fire', look: 'hellfire' });
+    if (scorch) g.zones.push({ type: 'pulse', owner: z.owner, x: z.x, y: z.y, next: 0, r: scorch.radius, t: lasting(z.owner, scorch.seconds), life: lasting(z.owner, scorch.seconds), every: scorch.every, scale: scorch.scale, as: 'fire', look: 'hellfire' });
     g.ev.emit('explode', { zone: z });
     g.fx?.slash(z.x, z.y, 0, Math.PI, OIL.blast, 0.35, '#ff9f43');
     return false;

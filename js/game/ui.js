@@ -4,6 +4,8 @@ import { HEROES, RARITIES, RELICS, STAT_LABELS, rarityOdds, HERO_LEVELS, ATTRIBU
 export const ATTR_SHORT = { strength: 'Str', dexterity: 'Dex', intellect: 'Int' };
 export const ATTR_COLOR = { strength: '#e5645a', dexterity: '#5fd46f', intellect: '#5aa9ff' };
 import { ULTIMATES, ultDesc } from '../engine/ultimates.js';
+import { liveText, tipParts } from '../content/live-text.js';
+import { heroStats } from '../engine/stats.js';
 import '../engine/kits/index.js';
 import { DAMAGE_LABEL, AILMENTS } from '../content/combat.js';
 import { rateOf } from '../engine/behaviors.js';
@@ -93,9 +95,9 @@ export function initUI(callbacks) {
     const abil = el('span', 'abil idle'), atk = abilityIcon(attackIcon(d)), ult = abilityIcon(ultimateIcon(d));
     abil.append(atk, ult);
     bindTip(atk, () => { const info = cb.heroInfo(i), cur = info.unit ? info.unit.def : d;
-      return { title: 'Basic attack', color: cur.color, lines: [cur.short, ...upgradeLine(cur, 'attack'), { text: statLine(cur, info.stats), color: '#ab9f8a' }] }; });
+      return { title: 'Basic attack', color: cur.color, lines: [tipParts(cur.short, info.stats, heroStats(cur, [])), ...upgradeLine(cur, 'attack'), { text: statLine(cur, info.stats), color: '#ab9f8a' }] }; });
     bindTip(ult, () => { const info = cb.heroInfo(i), cur = info.unit ? info.unit.def : d, u = ULTIMATES[cur.ultimate], s = info.stats;
-      return { title: 'Ultimate: ' + (u ? u.name : '?'), color: '#ffd84a', lines: [ultDesc(u, s), ...upgradeLine(cur, 'ultimate'),
+      return { title: 'Ultimate: ' + (u ? u.name : '?'), color: '#ffd84a', lines: [u ? tipParts(u.desc, s, heroStats(cur, [])) : '', ...upgradeLine(cur, 'ultimate'),
         { text: info.unit ? 'Energy ' + Math.floor(info.unit.energy) + ' / ' + s.energyMax : 'Energy ' + s.energyPerAttack + ' per attack, ' + s.energyMax + ' to fire', color: '#ab9f8a' }] }; });
     name.append(nmText, lv, status); b.append(key, frame, name, abil); b._status = status; b._key = key; b._nm = nmText; b._lv = lv; b._pic = pic; b._frame = frame; b._picName = cp.name;
     b._abil = abil; b._atk = atk; b._ult = ult; b._form = d.id;
@@ -460,8 +462,8 @@ export function showEvoPick(g, h) {
     const nm = el('b', '', c.name); nm.style.color = color; b.style.borderColor = color;
     const pic = spriteImg(cardPicture(evolvedDef(h.def.core || h.def, c)).name, 'pix evoart');   /* the form's picture */
     const ult = u ? el('small', 'aff', 'Ultimate: ' + u.name) : null;
-    if (u) bindTip(b, () => ({ title: c.name, color, lines: [DAMAGE_LABEL[c.damageType || d.damageType] + ' damage · +25% to all its stats', u.name + ': ' + ultDesc(u, h.s)] }));
-    b.append(key, pic, nm, el('small', '', c.short), ...(ult ? [ult] : []));
+    if (u) bindTip(b, () => ({ title: c.name, color, lines: [DAMAGE_LABEL[c.damageType || d.damageType] + ' damage · +25% to all its stats', { parts: [{ text: u.name + ': ' }, ...tipParts(u.desc, h.s, heroStats(h.def, [])).parts] }] }));
+    b.append(key, pic, nm, el('small', '', liveText(c.short, h.s)), ...(ult ? [ult] : []));
     b.disabled = g.gold < cost;
     b.onclick = () => cb.onEvolveChoice(i);
     card.append(b); box.append(card);

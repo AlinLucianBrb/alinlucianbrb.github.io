@@ -52,7 +52,7 @@ function momentum(w, h) {
   const n = Math.min(PROC.momentum.stacks, (i >= 0 && list[i].t > 0 ? h.momentumN || 0 : 0) + 1);
   if (i >= 0) list.splice(i, 1);
   h.momentumN = n;
-  w.addBuff(h, 'momentum', 'Momentum ×' + n, ['speed', 'castSpeed'].map(stat => ({ stat, type: 'inc', value: v * n })), PROC.momentum.seconds, { s: { duration: 1 } });
+  w.addBuff(h, 'momentum', 'Momentum ×' + n, ['speed', 'castSpeed'].map(stat => ({ stat, type: 'inc', value: v * n })), PROC.momentum.seconds);   /* longer with the duration stat, like every buff */
 }
 export function attachProcs(w) {
   w.ev.on('kill', ({ hero }) => { const h = hero && (hero.echoOf || hero); if (h && h.s && h.s.momentum > 0) momentum(w, h); });
@@ -65,7 +65,7 @@ export function attachProcs(w) {
 export function afterAilment(w, h, e, id, hit, fresh, inflict) {
   const s = h && h.s;
   if (!s || !s.fxOn) return;
-  if (id === 'burn' && fresh && s.stagger > 0) applyEffect(e, 'stun', { t: s.stagger });
+  if (id === 'burn' && fresh && s.stagger > 0) applyEffect(e, 'stun', { t: s.stagger }, h);
   if (id === 'shock' && s.arcing > 0 && !busy) { const t = nearest(w, e.x, e.y, PROC.jump, new Set([e])); if (t && !(t.fx && t.fx.shock)) extra(() => inflict(w, h, t, 'shock', hit)); }
 }
 /* Sunder: how many points of defenses an enemy's Corruption takes (mitigate, combat.js). */

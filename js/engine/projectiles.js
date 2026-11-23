@@ -1,4 +1,5 @@
 import { POISON_POOL } from './ultimates.js';
+import { lasting } from './effects.js';
 import { upgradeOf, boltHit } from './upgrades.js';
 import { ricochet } from './legend-perks.js';
 /* Projectile types. A projectile has update(g, p, dt) -> false when finished, and optional onEnd(g, p). How it looks is decided by the renderer. */
@@ -107,7 +108,7 @@ PROJECTILES.flask = {
   }
 };
 const newZone = (type, owner, x, y) => (type === 'poisonpool'
-  ? { type, owner, x, y, r: POISON_POOL.radius, t: POISON_POOL.seconds, next: 0, every: POISON_POOL.every }
+  ? { type, owner, x, y, r: POISON_POOL.radius, t: lasting(owner, POISON_POOL.seconds), next: 0, every: POISON_POOL.every }
   : { type, owner, x, y, r: 30, t: 5 });
 
 export function updateProjectiles(g, dt) {

@@ -11,6 +11,8 @@ import { MAP_EFFECTS, MAP_EFFECT_OF } from '../content/map-effects.js';
 import { el, cap, gearCount, ensureItems, saveNow, sqlHint, activePaths, pathsUnlocked } from './loadout.js';
 import { spriteImg, heroPortrait } from '../game/sprites.js';
 import { pathChoice } from '../engine/preview.js';
+import { heroStats } from '../engine/stats.js';
+import { liveText } from '../content/live-text.js';
 
 const $ = id => document.getElementById(id);
 let bound = false, stage = null, lineup = [], zone = null;
@@ -83,7 +85,7 @@ function renderPick() {
     const info = el('small', 'muted', 'Gear ' + gearCount(h.id) + ' / ' + SLOTS.length + (c ? ' · ' : ''));
     if (c) info.append(el('span', 'pathline', 'Path: ' + c.name));
     card.append(spriteImg(heroPortrait(h.id), 'pix hcardart'), head, info, foot);
-    card.title = h.short;
+    card.title = liveText(h.short, null, heroStats(h, []));
     card.onclick = () => toggle(h.id);
     card.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault?.(); toggle(h.id); } };
     grid.append(card);

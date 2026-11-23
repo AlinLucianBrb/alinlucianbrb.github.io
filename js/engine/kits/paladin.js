@@ -10,7 +10,7 @@ import { registerBehavior, ready, rearm, strike, charge, look, pickTarget, pickS
 import { registerUltimate } from '../ultimates.js';
 import { PROJECTILES } from '../projectiles.js';
 import { execute } from '../combat.js';
-import { applyEffect, EFFECTS } from '../effects.js';
+import { applyEffect, EFFECTS, lasting } from '../effects.js';
 import { knockback, pathPos } from '../enemies.js';
 import { T } from '../../content/data.js';
 import { pulseZone } from './common.js';
@@ -18,15 +18,15 @@ import { upgradeOf } from '../upgrades.js';
 
 /* ---- Paladin ---- */
 export const CONSECRATION = { seconds: 5, radius: 70, every: 0.5, scale: 0.6 };
-registerUltimate('consecration', { name: 'Consecration', desc: 'The ground around the Paladin turns holy for 5 seconds, burning the enemies on it.', damageMult: 1,
-  onFire(w, h) { w.zones.push(pulseZone(h, h.x, h.y, { r: CONSECRATION.radius, t: CONSECRATION.seconds, every: CONSECRATION.every, scale: CONSECRATION.scale, as: 'holy', look: 'consecrate' })); } });
+registerUltimate('consecration', { name: 'Consecration', desc: 'The ground around the Paladin turns holy for {t:5}, burning the enemies on it.', damageMult: 1,
+  onFire(w, h) { w.zones.push(pulseZone(h, h.x, h.y, { r: CONSECRATION.radius, t: lasting(h, CONSECRATION.seconds), every: CONSECRATION.every, scale: CONSECRATION.scale, as: 'holy', look: 'consecrate' })); } });
 
 /* ---- Heretic ---- */
 /* Heresy: every hero on the map deals +50% damage for 8 seconds; if the Heretic can pay a life for it, twice that (+100%).
    Ultimates fire by themselves, so the price is limited: each Heretic pays at most HERESY.maxPaid lives a match, and never
    at HERESY.minLives or fewer. In co-op the lives are everyone's. */
 export const HERESY = { seconds: 8, minLives: 5, maxPaid: 3, mods: [{ stat: 'damage', type: 'more', value: 0.5 }], paid: [{ stat: 'damage', type: 'more', value: 1 }] };
-registerUltimate('heresy', { buff: 'heresy', name: 'Heresy', desc: 'Every hero on the map deals +50% damage for 8 seconds, or +100% if he can pay 1 life for it (at most 3 lives a match, never at 5 or fewer).', damageMult: 1,
+registerUltimate('heresy', { buff: 'heresy', name: 'Heresy', desc: 'Every hero on the map deals +50% damage for {t:8}, or +100% if he can pay 1 life for it (at most 3 lives a match, never at 5 or fewer).', damageMult: 1,
   onFire(w, h) {
     const pay = w.lives > HERESY.minLives && (h.heresyPaid || 0) < HERESY.maxPaid;
     if (pay) { w.lives -= 1; h.heresyPaid = (h.heresyPaid || 0) + 1; }
@@ -66,7 +66,7 @@ registerBehavior('verdict', {
 });
 /* Purge: every enemy in range loses 30 points of armor and of every resistance for 6 seconds; a non-boss under 15% life dies. */
 export const PURGE = { seconds: 6, resDown: 0.3, execute: 0.15 };
-registerUltimate('purge', { name: 'Purge', desc: 'Every enemy in range loses 30% armor and 30% resistances for 6 seconds; a non-boss under 15% life dies.', damageMult: 1,
+registerUltimate('purge', { name: 'Purge', desc: 'Every enemy in range loses 30% armor and 30% resistances for {t:6}; a non-boss under 15% life dies.', damageMult: 1,
   onFire(w, h) {
     const r2 = h.s.range * h.s.range, guilty = upgradeOf(h, 'inquisitor_ult');
     for (const e of [...w.enemies]) {

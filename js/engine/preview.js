@@ -7,6 +7,7 @@
      fires an ultimate. An "every Nth" echo attacks once for every N base attacks (the base attack slows to match), and
      gives the hero the energy of the attack it replaced.
    Everything is recomputed with the hero's stats (statsFor), so it grows as the hero levels. The evolution removes it. */
+import { lasting } from './effects.js';
 import { HEROES, evolvedDef } from '../content/data.js';
 import { PREVIEWS, at, everyAt } from '../content/previews.js';
 import { BEHAVIORS, ready, rearm, rateOf, pickTarget } from './behaviors.js';
@@ -137,6 +138,6 @@ export function previewHit(w, h, enemy) {
   if (sp.knock) knockback(w, enemy, at(sp.knock, h.level) * T);
   if (sp.verdict) {                                  /* a stack, up to the preview's cap; at the cap it is only refreshed */
     const v = enemy.fx && enemy.fx.verdict, cap = Math.round(at(sp.verdict, h.level));
-    if (v && v.n >= cap) v.t = VERDICT.seconds; else addVerdict(enemy);
+    if (v && v.n >= cap) v.t = lasting(h, VERDICT.seconds); else addVerdict(enemy, h);
   }
 }

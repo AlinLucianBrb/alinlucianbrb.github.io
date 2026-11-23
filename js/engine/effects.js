@@ -58,6 +58,10 @@ export function tickHold(e, dt, cc) {
   for (const id in e.fx) if (holds(EFFECTS[id])) delete e.fx[id];
 }
 
+/* How long something a hero makes lasts: `seconds`, times its duration stat (the Duration relic). Every timed thing an ultimate
+   or an effect makes uses it: buffs, effects on enemies, ground areas, summons and the hero's own states. */
+export const lasting = (h, seconds) => seconds * (h && h.s && h.s.duration > 0 ? h.s.duration : 1);
+
 /* by: the hero that applies it, whose duration stat (the Duration relic) makes it last longer. */
 export function applyEffect(e, id, eff, by = null) {
   if (typeof eff === 'number') eff = { t: eff };          /* old style: just a duration */

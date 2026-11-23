@@ -5,6 +5,7 @@
    ultimates.js), then charge(g, t) once it has hit something. */
 import { pathPos, knockback } from './enemies.js';
 import { upgradeOf } from './upgrades.js';
+import { lasting } from './effects.js';
 import { T } from '../content/data.js';
 
 export const BEHAVIORS = {};
@@ -349,7 +350,7 @@ registerBehavior('thorns', {
     rearm(t);
     if (mult !== 0) {
       pathPos(g.path, Math.min(g.path.length - 1.001, tg.d / T + THORNS.ahead), spot);
-      g.zones.push({ type: 'thorns', owner: t, x: spot.x, y: spot.y, r: THORNS.radius, t: THORNS.life, life: THORNS.life, next: 0,
+      g.zones.push({ type: 'thorns', owner: t, x: spot.x, y: spot.y, r: THORNS.radius, t: lasting(t, THORNS.life), life: lasting(t, THORNS.life), next: 0,
         every: THORNS.every, scale: THORNS.scale * mult, spikeT: 0 });
       let mine = 0;
       for (let i = g.zones.length - 1; i >= 0; i--) { const z = g.zones[i]; if (z.type === 'thorns' && z.owner === t && ++mine > THORNS.max) z.t = 0; }

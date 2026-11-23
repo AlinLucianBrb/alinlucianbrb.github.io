@@ -1,4 +1,5 @@
-/* One shared tooltip. bindTip(el, () => ({ title, color, lines: [string | { text, color }] })) shows it on hover, focus or touch. */
+/* One shared tooltip. bindTip(el, () => ({ title, color, lines: [string | { text, color } | { parts: [{ text, color }] }] })) shows it on
+   hover, focus or touch. */
 let tip = null;
 const ensure = () => {
   if (!tip) { tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true; document.body.append(tip); }
@@ -9,7 +10,9 @@ function render(c) {
   if (c.title) { const h = document.createElement('b'); h.textContent = c.title; if (c.color) h.style.color = c.color; t.append(h); }
   for (const ln of c.lines || []) {
     const d = document.createElement('div'), o = typeof ln === 'string' ? { text: ln } : ln;
-    d.textContent = o.text; if (o.color) d.style.color = o.color; t.append(d);
+    if (o.parts) for (const p of o.parts) { const sp = document.createElement('span'); sp.textContent = p.text; if (p.color) sp.style.color = p.color; d.append(sp); }   /* numbers in yellow (live-text.js) */
+    else d.textContent = o.text;
+    if (o.color) d.style.color = o.color; t.append(d);
   }
 }
 function place(x, y) {

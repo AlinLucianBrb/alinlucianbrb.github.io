@@ -17,6 +17,7 @@ js/content/                WHAT the game contains (plain data, no logic)
   rules.js                 the rules the server also uses (XP, rewards, waves, spawn timing, bosses, drops, co-op): ONE place
   effect-stats.js          stats that do something in a fight (relics, item bonuses, talent notables); the engine side is procs.js
   (core) prefs.js          the player's settings, kept on this browser; keys.js (game): the list of keys
+  live-text.js             the numbers in ability texts, from a hero's real stats
   legendaries.js           legendary relics; the engine side is legendaries.js and legend-perks.js (what attacks and ultimates ask)
   match-effects.js, map-effects.js   the double-edged match effects (from act 4) and the act 5 maps' effects
   shop.js                  the match shop: ground effects, the gamble, summoned bosses
@@ -209,6 +210,18 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Texts:** attack descriptions describe only the attack, ultimate tooltips only the ultimate, and the hero tooltip the hero (its attribute, delivery and source, tags, damage type). Ultimates that deal damage of their own write it as `{N}` in their description; `ultDesc()` shows it as the number it deals with the hero's stats ("about 156 damage"); "x2 damage" is kept for boosts to an attack the hero already makes. "At level 10, choose a path" is gone from the descriptions.
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
+
+## Duration for every ultimate; tooltips with the real numbers (Nov 23, v0.67.0)
+- **The Duration stat now lengthens everything an ultimate leaves behind**, with no cap: the Lightning Mage's storm, the spinning
+  blade, traps, the barricade, puddles, the poison pool, Enrage, Consecration, Crescendo, Conversion's spirit, Soul drain (the
+  same damage a second, for longer), Doom, the demon and the Infernal's burning ground; and what attacks and relics make: thorn
+  patches, imps, totems, Hellfire's burning ground, the Poacher's pools, Momentum, the burn stagger and the Frenzy extension
+  (`lasting` in `js/engine/effects.js`). Before, it only lengthened buffs, effects on enemies and damage over time. Only
+  animations and travel times (a falling blade or meteor) are not durations.
+- Ability texts use the hero's actual stats (gear, relics, levels, talents, evolution): an ultimate's damage and seconds, the Shaman's jumps, the Druid's root and the Warlock's Corruption chances. A number that differs from the
+  hero's own (level 1, nothing equipped) is yellow. In the match's hero tooltips, the evolve window and a hero's page.
+- The marks are in the texts (`{5}`, `{t:6}`, `{s:jumps}`, `{p:rootChance}`); `js/content/live-text.js` fills them in.
+- Rules changed (engine 34: a match saved before the update cannot be resumed). No SQL change.
 
 ## Act unlocks only from their act on; the keep-playing box is back (Nov 23, v0.66.1)
 - What an act unlocks for matches works on that act's levels and later ones (and Endless), never back on an earlier act's:

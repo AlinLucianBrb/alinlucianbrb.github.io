@@ -13,12 +13,13 @@ import { LEAK_GUARDS, pathPos } from '../enemies.js';
 import { isShielded } from '../enemy-abilities.js';
 import { upgradeOf } from '../upgrades.js';
 import { buffTime } from '../legend-perks.js';
+import { lasting } from '../effects.js';
 import { T } from '../../content/data.js';
 import '../aura.js';
 
 /* ---- Priest ---- */
 export const BLESSING = { seconds: 5, mods: [{ stat: 'damage', type: 'more', value: 0.3 }] };
-registerUltimate('blessing', { buff: 'blessing', name: 'Blessing', desc: 'Heroes within the Priest\'s range, the Priest too, deal +30% damage for 5 seconds.', damageMult: 1,
+registerUltimate('blessing', { buff: 'blessing', name: 'Blessing', desc: 'Heroes within the Priest\'s range, the Priest too, deal +30% damage for {t:5}.', damageMult: 1,
   onFire(w, h) {
     const r2 = h.s.range * h.s.range;
     for (const o of w.heroes) if ((o.x - h.x) ** 2 + (o.y - h.y) ** 2 <= r2) w.addBuff(o, 'blessing', 'Blessing', BLESSING.mods, BLESSING.seconds, h);
@@ -28,8 +29,8 @@ registerUltimate('blessing', { buff: 'blessing', name: 'Blessing', desc: 'Heroes
 /* ---- Incantation ---- */
 /* The aura's blessing (Hymn, +15% attack and cast speed) is set on the form in data.js; Crescendo is the ultimate. */
 export const CRESCENDO = { seconds: 5, radius: 2, damage: 3 };
-registerUltimate('crescendo', { active: h => !!(h.auraBoost && h.auraBoost.t > 0), name: 'Crescendo', desc: 'For 5 seconds the aura is twice as wide and deals triple damage.', damageMult: 1,
-  onFire(w, h) { h.auraBoost = { t: CRESCENDO.seconds * buffTime(w, h), radius: CRESCENDO.radius, damage: CRESCENDO.damage }; } });
+registerUltimate('crescendo', { active: h => !!(h.auraBoost && h.auraBoost.t > 0), name: 'Crescendo', desc: 'For {t:5} the aura is twice as wide and deals triple damage.', damageMult: 1,
+  onFire(w, h) { h.auraBoost = { t: lasting(h, CRESCENDO.seconds) * buffTime(w, h), radius: CRESCENDO.radius, damage: CRESCENDO.damage }; } });
 
 /* ---- Archangel ---- */
 /* A lance of light: flies straight out to the Archangel's range and a little beyond, hitting every enemy it passes once. */
@@ -99,14 +100,14 @@ LEAK_GUARDS.push((g, e) => {
 /* Conversion: the toughest enemy in range that is not a boss is converted: it leaves the fight (it counts as defeated, with
    its gold) and its spirit walks back down the path toward the entrance for 6 seconds, striking every enemy it meets. */
 export const CONVERSION = { seconds: 6, speed: 45, every: 0.4, reach: 24, scale: 1.2 };
-registerUltimate('conversion', { name: 'Conversion', desc: 'The toughest enemy in range (not a boss) turns and walks back down the path for 6 seconds, striking every enemy it meets.', damageMult: 1,
+registerUltimate('conversion', { name: 'Conversion', desc: 'The toughest enemy in range (not a boss) turns and walks back down the path for {t:6}, striking every enemy it meets.', damageMult: 1,
   onFire(w, h) {
     const r2 = h.s.range * h.s.range;
     for (let n = (upgradeOf(h, 'gospel_ult') || { count: 1 }).count; n > 0; n--) {
       let tg = null;
       for (const e of w.enemies) if (!e.dead && !e.def.boss && !isShielded(e) && (e.x - h.x) ** 2 + (e.y - h.y) ** 2 <= r2 && (!tg || e.hp > tg.hp)) tg = e;
       if (!tg) return;
-      w.projs.push({ type: 'spirit', owner: h, enemy: tg.type, d: tg.d, x: tg.x, y: tg.y, t: CONVERSION.seconds, next: 0 });
+      w.projs.push({ type: 'spirit', owner: h, enemy: tg.type, d: tg.d, x: tg.x, y: tg.y, t: lasting(h, CONVERSION.seconds), next: 0 });
       w.hit(h, tg, tg.hp, 'holy');
     }
   } });

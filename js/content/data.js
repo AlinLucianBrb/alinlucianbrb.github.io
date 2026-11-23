@@ -149,13 +149,13 @@ export const HEROES = [
         short: 'A wolf runs after the enemy furthest along the path and bites everything in front of it; its bites bleed.' },
       { id: 'naturist', name: 'Naturist Druid', color: '#5fcf6a', kind: 'thorns', ultimate: 'spikes', tags: ['area'],
         mods: evolved,
-        short: 'Grows thorns on the path ahead of the enemies; they hurt everything standing in them for 1.5 seconds. Cast speed grows them faster.' },
+        short: 'Grows thorns on the path ahead of the enemies; they hurt everything standing in them for {t:1.5}. Cast speed grows them faster.' },
       { id: 'lunar', name: 'Lunar Druid', color: '#b8c8ff', kind: 'moonbeam', damageType: 'cold', ultimate: 'moonfall', tags: ['cold', 'area'],
         applies: { chill: 'chillTime' }, stats: { chillTime: 1 }, mods: evolved,
         short: 'Moonlight beams every enemy in range at once with cold damage, slowing them.' }
     ] }],
     desc: 'Druid (spell): thorny bolts that can root enemies in place. Evolves into an Animalic, Naturist or Lunar Druid.',
-    short: 'Shoots thorny bolts that can root enemies in place (15%).' },
+    short: 'Shoots thorny bolts that can root enemies in place ({p:rootChance}).' },
   /* The Priest: a support caster (holy). Smite, and a Blessing for the heroes around her. Her forms: an aura that burns enemies
      and speeds up allies (Incantation, the first aura hero), a piercing lance from a hero who may stand on the path
      (Archangel), and energy for the heroes around her plus a saved life each wave (Gospel). Kit: js/engine/kits/priest.js. */
@@ -186,13 +186,13 @@ export const HEROES = [
         stats: { damage: 4, range: 110, cooldown: 0.5, energyPerAttack: 0.5 }, mods: evolved, aura: { curse: 'hex', harmless: true },
         short: 'No attack and no damage: a shadow aura Hexes every enemy inside, so they take 25% more damage from everyone and move 15% slower.' },
       { id: 'summoner', name: 'Summoner', color: '#c46aff', kind: 'imps', ultimate: 'demongate', tags: ['minion'], stats: { cooldown: 1.6 }, mods: evolved,
-        short: 'Each cast summons an imp (up to 3, 10 seconds each) that throws small bolts at the enemies near it.' },
+        short: 'Each cast summons an imp (up to 3, {t:10} each) that throws small bolts at the enemies near it.' },
       { id: 'infernalist', name: 'Infernalist', color: '#ff6a3a', kind: 'hellfire', damageType: 'fire', ultimate: 'infernal', tags: ['fire', 'area'],
         convert: { shadow: 0.3 }, contagion: true, mods: [...evolved, always('burnChance')],
         short: 'Hellfire: a fireball that bursts and leaves burning ground, aimed where there is none yet. Always burns; burns jump to the next enemy when one dies.' }
     ] }],
     desc: 'Warlock (spell): shadow bolts that Corrupt enemies, damage over time that grows with each stack. Evolves into an Occult, Summoner or Infernalist.',
-    short: 'Shadow bolts that Corrupt enemies (50%): damage over time that grows with each stack.' },
+    short: 'Shadow bolts that Corrupt enemies ({p:corruptionChance}): damage over time that grows with each stack.' },
   /* The Paladin: a slower, heavier Warrior; 30% of his damage is Holy. His forms: a fallen knight who grows stronger as lives
      are lost and can pay one to empower everyone (Heretic), a hunter of the toughest enemies (Inquisitor), and a mounted
      knight who charges down the path (Crusader). Kit: js/engine/kits/paladin.js. */
@@ -221,13 +221,13 @@ export const HEROES = [
         stats: { damage: 11, cooldown: 0.55 }, mods: [...evolved, always('poisonChance')],
         short: 'Fast poison darts (always poison) at an enemy not linked yet; each Voodoo-links its target with 2 enemies near it: 30% of the damage one takes goes to the others.' },
       { id: 'totemist', name: 'Totemist', color: '#d9a35a', kind: 'totems', ultimate: 'surge', tags: ['minion', 'totem'], stats: { cooldown: 2 }, mods: evolved,
-        short: 'Each cast plants a missing totem near him (up to 3, one of each: Flame, Frost, Storm; 12 seconds each). Totems take up their tile.' },
+        short: 'Each cast plants a missing totem near him (up to 3, one of each: Flame, Frost, Storm; {t:12} each). Totems take up their tile.' },
       { id: 'earthcaller', name: 'Earthcaller', color: '#b08a5a', kind: 'fissure', damageType: 'physical', ultimate: 'tectonic', tags: ['physical', 'area'],
         stats: { range: 120, damage: 20, cooldown: 1.15 }, mods: evolved,   /* slower casts than the Shaman's 0.9 (Nov 12) */
         short: 'Fissure: the path cracks behind the leading enemy, hitting everyone on that stretch and stunning them for a moment.' }
     ] }],
     desc: 'Shaman (spell): chain lightning that jumps to 2 more enemies, and Ancestral call. Evolves into a Witch Doctor, Totemist or Earthcaller.',
-    short: 'Chain lightning that jumps to 2 more enemies.' }
+    short: 'Chain lightning that jumps to {s:jumps} more enemies.' }
 ];
 HEROES.forEach(h => h.tags.push(h.id));
 
@@ -426,7 +426,7 @@ export const RELICS = [
   { name: 'Quick incantation', desc: m => '+' + f(P(20) * m) + '% cast speed (spell heroes)',    mods: m => [hero('castSpeed', 'inc', P(0.2) * m, ['spell'])] },
   /* Attributes: a named one helps any hero (its side effect, see ATTRIBUTE_EFFECTS, and damage if it is the hero's own);
      Prowess raises whichever is the hero's own, and follows a form that changes attribute. */
-  { name: 'Duration',          desc: m => '+' + f(P(50) * m) + '% duration of buffs, debuffs and damage over time',   mods: m => [hero('duration', 'inc', P(0.5) * m, ['all'])] },
+  { name: 'Duration',          desc: m => '+' + f(P(50) * m) + '% duration of everything your heroes make that lasts: buffs, debuffs, damage over time, ground effects, summons',   mods: m => [hero('duration', 'inc', P(0.5) * m, ['all'])] },
   /* Relics that do something in a fight (js/content/effect-stats.js); also item bonuses. Every offer has at least one (fresh). */
   ...[['Executioner', 'vsLow', 0.08], ['First blood', 'vsFull', 0.08], ['Giant slayer', 'vsBoss', 0.1], ['Shatter', 'vsHeld', 0.08], ['Chain reaction', 'chainCrit', 0.1], ['Thunderhead', 'thunder', 0.05],
     ['Momentum', 'momentum', 0.01], ['Overflow', 'overflow', 2], ['Lone wolf', 'lone', 0.06], ['Brotherhood', 'brother', 0.03], ['Last stand', 'lastStand', 0.03], ['Trophy hunter', 'trophy', 0.01], ['Fever', 'fever', 0.01], ['Tempo', 'tempo', 0.6]]

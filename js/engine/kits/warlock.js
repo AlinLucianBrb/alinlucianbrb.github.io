@@ -8,7 +8,7 @@
 import { registerBehavior, ready, rearm, strike, charge, look, pickTarget, pickStrongest } from '../behaviors.js';
 import { registerUltimate, gainEnergy } from '../ultimates.js';
 import { ZONES } from '../zones.js';
-import { EFFECT_HOOKS, applyEffect } from '../effects.js';
+import { EFFECT_HOOKS, applyEffect, lasting } from '../effects.js';
 import { AILMENTS } from '../../content/combat.js';
 import { pathPos, knockback } from '../enemies.js';
 import { T } from '../../content/data.js';
@@ -22,10 +22,10 @@ const near = (a, b, r) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2 <= r * r;
 /* Soul drain: a beam on the toughest enemy in range for 2 seconds, 5x a hit in all; if it dies while drained, every hero
    within 150 px gains 20 energy. */
 export const DRAIN = { seconds: 2, scale: 5, radius: 150, energy: 20 };
-registerUltimate('souldrain', { name: 'Soul drain', desc: 'Drains the toughest enemy in range for 2 seconds, {5} in all; if it dies, heroes nearby gain 20 energy.', damageMult: 1,
+registerUltimate('souldrain', { name: 'Soul drain', desc: 'Drains the toughest enemy in range for {t:2}, {2.5} each second; if it dies, heroes nearby gain 20 energy.', damageMult: 1,
   onFire(w, h) {
     const tg = pickStrongest(w, h, h.s.range);
-    if (tg) w.zones.push({ type: 'drain', owner: h, target: tg, x: tg.x, y: tg.y, t: DRAIN.seconds });
+    if (tg) w.zones.push({ type: 'drain', owner: h, target: tg, x: tg.x, y: tg.y, t: lasting(h, DRAIN.seconds) });   /* the same damage a second, for longer */
   } });
 ZONES.drain = {
   update(g, z, dt) {
@@ -46,8 +46,8 @@ ZONES.drain = {
 /* Doom: for 4 seconds the aura also Dooms the enemies inside (+50% damage taken; an enemy that dies Doomed explodes, dealing
    10% of its max life as shadow damage to the enemies within 50 px). */
 export const DOOM = { seconds: 4, blast: 50, share: 0.1 };
-registerUltimate('doom', { active: h => !!(h.auraCurse && h.auraCurse.t > 0), name: 'Doom', desc: 'For 4 seconds Hexed enemies take +50% more damage; any that die explode in shadow, hitting enemies around them.', damageMult: 1,
-  onFire(w, h) { h.auraCurse = { id: 'doom', t: DOOM.seconds }; } });
+registerUltimate('doom', { active: h => !!(h.auraCurse && h.auraCurse.t > 0), name: 'Doom', desc: 'For {t:4} Hexed enemies take +50% more damage; any that die explode in shadow, hitting enemies around them.', damageMult: 1,
+  onFire(w, h) { h.auraCurse = { id: 'doom', t: lasting(h, DOOM.seconds) }; } });
 EFFECT_HOOKS.death.doom = (w, e, f) => {
   const src = f.src || e.last, u = upgradeOf(src, 'occult_ult');
   for (const o of w.enemies) {
@@ -89,7 +89,7 @@ registerBehavior('imps', {
     if (mult !== 0) {
       if (imps.length >= (t.impMax || (upgradeOf(t, 'summoner_attack') || IMP).max)) imps.shift();   /* a path preview keeps just one */
       const k = g.rng.combat.int(6);   /* where it hovers around the target, on the seeded stream */
-      imps.push({ x: t.x, y: t.y - 20, ox: (k - 2.5) * 12, oy: (k % 3) * 8, t: IMP.life, cd: 0.3, face: 1 });
+      imps.push({ x: t.x, y: t.y - 20, ox: (k - 2.5) * 12, oy: (k % 3) * 8, t: lasting(t, IMP.life), cd: 0.3, face: 1 });
     }
     charge(g, t);
   }
@@ -113,8 +113,8 @@ function updateDemon(g, t, dt, ms) {
   for (const e of g.enemies) if (!e.dead && near(e, d, DEMON.reach)) g.attack(t, e, DEMON.scale, 1, null, ms);
   g.fx?.slash(d.x, d.y, Math.atan2(dy, dx), Math.PI / 2, DEMON.reach, 0.2, '#ff5a3a');
 }
-registerUltimate('demongate', { active: h => !!h.demon, name: 'Demon gate', desc: 'A Greater Demon steps out for 8 seconds and cleaves the enemies around it.', damageMult: 1,
-  onFire(w, h, target) { h.demon = { x: target ? target.x : h.x, y: target ? target.y : h.y, t: DEMON.seconds, cd: 0.4, face: 1, cleave: 0 }; } });
+registerUltimate('demongate', { active: h => !!h.demon, name: 'Demon gate', desc: 'A Greater Demon steps out for {t:8} and cleaves the enemies around it.', damageMult: 1,
+  onFire(w, h, target) { h.demon = { x: target ? target.x : h.x, y: target ? target.y : h.y, t: lasting(h, DEMON.seconds), cd: 0.4, face: 1, cleave: 0 }; } });
 
 /* ---- Infernalist ---- */
 /* Hellfire: a fireball lobbed where the target will be; it bursts (a hit to everything within 40 px) and leaves burning ground
@@ -143,7 +143,7 @@ registerBehavior('hellfire', {
     if (mult !== 0) {
       const dur = Math.max(0.2, Math.hypot(tg.x - t.x, tg.y - t.y) / HELLFIRE.speed);
       pathPos(g.path, Math.min(g.path.length - 1.001, (tg.d + tg.speed * dur) / T), aim);
-      g.projs.push(lob(t, aim.x, aim.y, HELLFIRE.speed, pulseZone(t, 0, 0, { r: HELLFIRE.radius, t: HELLFIRE.seconds * (upgradeOf(t, 'infernalist_attack') || { longer: 1 }).longer, every: HELLFIRE.every,
+      g.projs.push(lob(t, aim.x, aim.y, HELLFIRE.speed, pulseZone(t, 0, 0, { r: HELLFIRE.radius, t: lasting(t, HELLFIRE.seconds) * (upgradeOf(t, 'infernalist_attack') || { longer: 1 }).longer, every: HELLFIRE.every,
         scale: HELLFIRE.scale * mult, burst: HELLFIRE.burst * mult, look: 'hellfire', boom: mult > 1 }), 'hellfire'));
     }
     charge(g, t);
@@ -175,7 +175,7 @@ ZONES.meteor = {
     if ((z.t -= dt) > 0) return true;
     for (const e of g.enemies) if (!e.dead && near(e, z, z.r)) { g.attack(z.owner, e, INFERNAL.scale); if (!e.dead) knockback(g, e, INFERNAL.knock); }
     const u = upgradeOf(z.owner, 'infernalist_ult');   /* Molten crater */
-    if (u) g.zones.push(pulseZone(z.owner, z.x, z.y, { r: z.r, t: u.seconds, every: u.every, scale: u.scale, look: 'hellfire' }));
+    if (u) g.zones.push(pulseZone(z.owner, z.x, z.y, { r: z.r, t: lasting(z.owner, u.seconds), every: u.every, scale: u.scale, look: 'hellfire' }));
     g.ev.emit('explode', { zone: z });
     return false;
   }

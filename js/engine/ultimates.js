@@ -2,10 +2,11 @@
    Each has damageMult (for the attack that triggers it) and can do something of its own in onFire(world, hero).
    To add one, register it here and set `ultimate` on a hero or an evolution choice in js/content/data.js. */
 import { inflict, execute } from './combat.js';
-import { applyEffect } from './effects.js';
+import { applyEffect, lasting } from './effects.js';
 import { T, COLS, ROWS } from '../content/data.js';
 import { pathPos } from './enemies.js';
 import { upgradeOf } from './upgrades.js';
+import { liveText } from '../content/live-text.js';
 import { keepsEnergy, spreadRoots } from './legend-perks.js';
 export const ULTIMATES = {};
 export const registerUltimate = (id, def) => { ULTIMATES[id] = def; };
@@ -26,7 +27,7 @@ registerUltimate('inferno', { name: 'Inferno', desc: 'Sets every enemy on the ma
 /* Cold Mage: freezes every enemy on the map for 1 second. (At 2 seconds it fired about every 4 seconds and kept enemies
    frozen half the time: level 5 took the balance bot over two hours.) */
 export const BLIZZARD_FREEZE = 1;
-registerUltimate('blizzard', { time: true, name: 'Blizzard', desc: 'Freezes every enemy on the map for ' + BLIZZARD_FREEZE + ' second.', damageMult: 1,
+registerUltimate('blizzard', { time: true, name: 'Blizzard', desc: 'Freezes every enemy on the map for {t:' + BLIZZARD_FREEZE + '}.', damageMult: 1,
   onFire(w, h) {
     const u = upgradeOf(h, 'coldmage_ult');
     for (const e of w.enemies) if (!e.dead) { applyEffect(e, 'freeze', { t: BLIZZARD_FREEZE }, h); if (u) applyEffect(e, 'frostbite', { t: u.seconds }, h); }
@@ -34,10 +35,10 @@ registerUltimate('blizzard', { time: true, name: 'Blizzard', desc: 'Freezes ever
 
 /* Lightning Mage: a storm over the Mage for 3 seconds, striking everything inside every half second for half a hit
    (each strike shocks, since the Lightning Mage always shocks). */
-registerUltimate('storm', { name: 'Storm', desc: 'A storm around the Mage strikes and shocks every enemy inside for 3 seconds.', damageMult: 1,
+registerUltimate('storm', { name: 'Storm', desc: 'A storm around the Mage strikes and shocks every enemy inside for {t:3}.', damageMult: 1,
   onFire(w, h) {
     const u = upgradeOf(h, 'lightningmage_ult');
-    w.zones.push({ type: 'storm', owner: h, x: h.x, y: h.y, r: h.s.range * 1.3, t: u ? u.seconds : 3, next: 0, every: 0.5, scale: 0.5, ...(u ? { follow: u.speed } : {}) });
+    w.zones.push({ type: 'storm', owner: h, x: h.x, y: h.y, r: h.s.range * 1.3, t: lasting(h, u ? u.seconds : 3), next: 0, every: 0.5, scale: 0.5, ...(u ? { follow: u.speed } : {}) });
   } });
 
 /* Called by every behavior just before an attack, with the attack's target: returns the damage multiplier for this attack
@@ -59,7 +60,7 @@ export function attackMult(w, h, target) {
    shown as the number it deals with these stats ("about 156 damage"), or without stats as "6 times his damage". */
 export function ultDesc(u, s) {
   if (!u) return '';
-  return u.desc.replace(/\{(\d+(?:\.\d+)?)\}/g, (_, n) => (s && s.damage > 0 ? 'about ' + Math.round(+n * s.damage) + ' damage' : n + ' times his damage'));
+  return liveText(u.desc, s);   /* {N}, {t:N}...: js/content/live-text.js */
 }
 
 /* Ultimates that put something lasting on the caster (a buff, or a state like the wolf's rage) are not cast again while it
@@ -89,10 +90,10 @@ registerUltimate('piercing', { name: 'Piercing shot', desc: 'Charges a powerful 
 /* Boomerang Ranger: a boomerang spins around the Ranger for 6 seconds, hitting every enemy it touches for 3x (each one at
    most every 0.4 s). Several at once are spread evenly around the circle (see the orbit projectile). */
 export const ORBIT_SCALE = 3;   /* each touch hits for 3x */
-registerUltimate('orbit', { name: 'Spinning blade', desc: 'A boomerang spins around the hero for 6 seconds, hitting everything it touches for {3} each time.', damageMult: 1,
+registerUltimate('orbit', { name: 'Spinning blade', desc: 'A boomerang spins around the hero for {t:6}, hitting everything it touches for {3} each time.', damageMult: 1,
   onFire(w, h) {
     const n = (upgradeOf(h, 'boomeranger_ult') || { blades: 1 }).blades;
-    for (let k = 0; k < n; k++) w.projs.push({ type: 'orbit', owner: h, x: h.x, y: h.y, t: 6, rot: 0, hitT: new Map(), scale: ORBIT_SCALE });
+    for (let k = 0; k < n; k++) w.projs.push({ type: 'orbit', owner: h, x: h.x, y: h.y, t: lasting(h, 6), rot: 0, hitT: new Map(), scale: ORBIT_SCALE });
   } });
 
 /* Where ground effects go (Hunter's traps, Alchemist's puddles): path tiles within the hero's range, first under the
@@ -116,19 +117,19 @@ registerUltimate('traps', { name: 'Toxic traps', desc: 'Lays 3 traps under enemi
   onFire(w, h) {
     const taken = new Set(w.zones.filter(z => z.type === 'trap').map(z => z.cell));
     const u = upgradeOf(h, 'hunter_ult'), max = u ? u.max : TRAP.max;
-    for (const c of groundSpots(w, h, u ? u.count : TRAP.count, taken)) w.zones.push({ type: 'trap', owner: h, cell: c.i, x: c.x, y: c.y, r: TRAP.radius, t: TRAP.life, scale: TRAP.scale, ...(u ? { pool: { radius: u.radius, seconds: u.seconds } } : {}) });
+    for (const c of groundSpots(w, h, u ? u.count : TRAP.count, taken)) w.zones.push({ type: 'trap', owner: h, cell: c.i, x: c.x, y: c.y, r: TRAP.radius, t: lasting(h, TRAP.life), scale: TRAP.scale, ...(u ? { pool: { radius: u.radius, seconds: u.seconds } } : {}) });
     const mine = w.zones.filter(z => z.type === 'trap' && z.owner === h);
     for (let k = 0; k < mine.length - max; k++) mine[k].t = 0;
   } });
 
 /* Berserker: Frenzy, +50% damage and attack speed for 5 seconds (more, so it multiplies everything else). */
 export const FRENZY = { seconds: 5, mods: [{ stat: 'damage', type: 'more', value: 0.5 }, { stat: 'speed', type: 'more', value: 0.5 }] };
-registerUltimate('frenzy', { buff: 'frenzy', name: 'Frenzy', desc: '+50% damage and attack speed for 5 seconds.', damageMult: 1,
+registerUltimate('frenzy', { buff: 'frenzy', name: 'Frenzy', desc: '+50% damage and attack speed for {t:5}.', damageMult: 1,
   onFire(w, h) { h.frenzyMore = 0; w.addBuff(h, 'frenzy', 'Frenzy', FRENZY.mods, FRENZY.seconds); } });
 
 /* Commander: Rally, doubles the energy every hero within 220 px (the Commander too) gets from attacks, for 5 seconds. */
 export const RALLY = { seconds: 5, radius: 220, mods: [{ stat: 'energyPerAttack', type: 'inc', value: 1 }] };
-registerUltimate('rally', { buff: 'rally', name: 'Rally', desc: 'Doubles energy from attacks for nearby heroes, the Commander included, for 5 seconds.', damageMult: 1,
+registerUltimate('rally', { buff: 'rally', name: 'Rally', desc: 'Doubles energy from attacks for nearby heroes, the Commander included, for {t:5}.', damageMult: 1,
   onFire(w, h) {
     for (const o of w.heroes) if ((o.x - h.x) ** 2 + (o.y - h.y) ** 2 <= RALLY.radius ** 2) w.addBuff(o, 'rally', 'Rally', [...RALLY.mods, ...(upgradeOf(h, 'commander_ult') || { mods: [] }).mods], RALLY.seconds, h);
     w.fx?.slash(h.x, h.y, 0, Math.PI, RALLY.radius, 0.5, 'rgba(127,179,255,.3)');   /* a soft flash: it covers a big area */
@@ -137,19 +138,19 @@ registerUltimate('rally', { buff: 'rally', name: 'Rally', desc: 'Doubles energy 
 /* Sentinel: Barricade, blocks the path for 1 second right in front of the enemy the Sentinel is attacking, so that enemy
    and everything behind it stop at once. (Placed further ahead it would block nothing: enemies cover about 50 px a second.) */
 export const BARRICADE = { seconds: 1, ahead: 4 };
-registerUltimate('barricade', { name: 'Barricade', desc: 'Blocks the path in front of the enemies, stopping them for 1 second.', damageMult: 1,
+registerUltimate('barricade', { name: 'Barricade', desc: 'Blocks the path in front of the enemies, stopping them for {t:1}.', damageMult: 1,
   onFire(w, h, target) {
     if (!target) return;
     const d = Math.min(target.d + BARRICADE.ahead, (w.path.length - 1.01) * T), i = d / T, k = Math.floor(i), f = i - k;
     const a = w.path[k], b = w.path[k + 1] || a, u = upgradeOf(h, 'sentinel_ult');
     w.zones.push({ type: 'barrier', owner: h, d, x: (a[0] + 0.5 + (b[0] - a[0]) * f) * T, y: (a[1] + 0.5 + (b[1] - a[1]) * f) * T,
-      r: T / 2, t: u ? u.seconds : BARRICADE.seconds, ...(u ? { burst: { radius: u.radius, scale: u.scale } } : {}) });
+      r: T / 2, t: lasting(h, u ? u.seconds : BARRICADE.seconds), ...(u ? { burst: { radius: u.radius, scale: u.scale } } : {}) });
   } });
 
 /* ---- Rogue ---- */
 /* Rogue: marks every enemy on the map for 6 seconds. Hits against a marked enemy have +25% crit chance and +50% crit damage. */
 export const MARK = { seconds: 6, chance: 0.25, dmg: 0.5 };
-registerUltimate('mark', { name: 'Mark', desc: 'Marks every enemy on the map for 6 seconds: +25% crit chance and +50% crit damage against them.', damageMult: 1,
+registerUltimate('mark', { name: 'Mark', desc: 'Marks every enemy on the map for {t:6}: +25% crit chance and +50% crit damage against them.', damageMult: 1,
   onFire(w, h) { for (const e of w.enemies) if (!e.dead) applyEffect(e, 'mark', { t: MARK.seconds, chance: MARK.chance, dmg: MARK.dmg }, h); } });
 
 /* Assassin: clones appear behind every enemy on the map and strike each one twice. It replaces the normal strike. */
@@ -179,13 +180,13 @@ export const OIL = { count: 3, seconds: 8, radius: 28, blast: 64, scale: 3 };
 registerUltimate('oil', { name: 'Flammable puddles', desc: 'Flammable puddles slow enemies; a burning enemy in one makes it explode.', damageMult: 1,
   onFire(w, h) {
     const taken = new Set(w.zones.filter(z => z.type === 'oil').map(z => z.cell));
-    for (const c of groundSpots(w, h, OIL.count, taken)) w.zones.push({ type: 'oil', owner: h, cell: c.i, x: c.x, y: c.y, r: OIL.radius, t: OIL.seconds });
+    for (const c of groundSpots(w, h, OIL.count, taken)) w.zones.push({ type: 'oil', owner: h, cell: c.i, x: c.x, y: c.y, r: OIL.radius, t: lasting(h, OIL.seconds) });
   } });
 
 /* ---- Druid ---- */
 /* Druid: Nature's grasp, for 6 seconds every hero within 180 px (the Druid too) has +10% chance to root the enemies it hits. */
 export const GRASP = { seconds: 6, radius: 180, mods: [{ stat: 'rootChance', type: 'flat', value: 0.1 }] };
-registerUltimate('grasp', { buff: 'grasp', name: "Nature's grasp", desc: 'For 6 seconds, heroes near the Druid (the Druid too) have +10% chance to root the enemies they hit.', damageMult: 1,
+registerUltimate('grasp', { buff: 'grasp', name: "Nature's grasp", desc: 'For {t:6}, heroes near the Druid (the Druid too) have +10% chance to root the enemies they hit.', damageMult: 1,
   onFire(w, h) {
     for (const o of w.heroes) if ((o.x - h.x) ** 2 + (o.y - h.y) ** 2 <= GRASP.radius ** 2) w.addBuff(o, 'grasp', "Nature's grasp", GRASP.mods, GRASP.seconds, h);
     w.fx?.slash(h.x, h.y, 0, Math.PI, GRASP.radius, 0.5, 'rgba(143,191,90,.35)');
@@ -193,8 +194,8 @@ registerUltimate('grasp', { buff: 'grasp', name: "Nature's grasp", desc: 'For 6 
 
 /* Animalic Druid: Enrage, the wolf grows bigger and stronger for 6 seconds: twice the reach and twice the damage. */
 export const ENRAGE = { seconds: 6 };
-registerUltimate('enrage', { active: h => h.rage > 0, name: 'Enrage', desc: 'The wolf grows bigger and stronger for 6 seconds: twice the reach and twice the damage.', damageMult: 1,
-  onFire(w, h) { h.rage = ENRAGE.seconds; } });
+registerUltimate('enrage', { active: h => h.rage > 0, name: 'Enrage', desc: 'The wolf grows bigger and stronger for {t:6}: twice the reach and twice the damage.', damageMult: 1,
+  onFire(w, h) { h.rage = lasting(h, ENRAGE.seconds); } });
 
 /* Naturist Druid: Bramble spikes, every thorn patch of the Druid erupts: each enemy standing in one (or close to it) takes
    4x a hit, once, however many patches it stands in. */
