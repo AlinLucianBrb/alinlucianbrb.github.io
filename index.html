@@ -803,6 +803,81 @@ button:not(.danger):not(.relic):not(.on):not(.herocard):not(.linkbtn):not(.choos
 .evoups{display:flex;flex-direction:column;gap:2px;margin:2px 0 4px;padding-top:4px;border-top:1px solid #4a3a22}
 .evoups .evoup2 b{color:#8be28b}
 @media (max-height:820px){.hbody.evo .evonode{font-size:.84em}.hbody.evo .evonode .evoart{width:64px;height:64px}}
+/* ---- Readability and keyboard (v0.64.0): text size from Settings (--ts), a floor for small text, rarity letters, readable gear
+   slots, a Heroes screen that fits, the Keys window and the Settings screen. ---- */
+:root{--ts:1}
+body{font-size:calc(clamp(13px,1.7vh,16px) * var(--ts))}
+button:not(.herocard):not(.choose):not(.hcard):not(.lvl):not(.iconbtn):not(.linkbtn):not(.evochoice):not(.ph):not(.invcell):not(.evoup){font-size:calc(18px * var(--ts));line-height:calc(20px * var(--ts))}
+h3,.hbody h3{font-size:calc(18px * var(--ts));line-height:calc(22px * var(--ts))}
+small,.muted,.hdesc,.buff,.pbtxt,.relicchip,.aff,.choose small,.tlhint,.slottxt small,.herocard .cost,.interest,.mrow,.srow{font-size:max(calc(12px * var(--ts)),.85em)}
+.stat small,.goldbox small,.herocard .key,.choose .pickkey{font-size:max(calc(12px * var(--ts)),.7em)}
+#inspect .pbar .pbtxt,#inspect .pst,#inspect .tally,.attr{font-size:calc(13px * var(--ts))}
+.herocard .nm small{font-size:calc(12px * var(--ts));line-height:1}
+.evoup{font-size:max(calc(12px * var(--ts)),.82em)}
+#lvPick .hgrid .hcard .hdesc,.hcard.pick .gearpath,.hstatbox .buff{font-size:max(calc(12px * var(--ts)),.85em)}
+/* rarity letters (Settings): items and relic chips */
+.itemicon{position:relative}
+body.rarmarks .itemicon[data-rar]::after{content:attr(data-rar);position:absolute;left:2px;top:1px;font:12px/1 var(--pixel);color:var(--rc);text-shadow:0 0 2px #000,0 0 2px #000,0 0 1px #000;pointer-events:none}
+body.rarmarks .relicchip[data-rar]::before{content:attr(data-rar);font:12px/1 var(--pixel);margin-right:4px}
+/* gear slots: hover stays a slot (not a gold button), the names stay readable, dark items show on a lighter ground */
+.hslot.compact:hover:not(:disabled),.hslot.compact:active:not(:disabled){border-image-source:url(assets/ui_slot.png);padding:4px 8px}
+.hslot.compact:hover,.hslot.compact.open{filter:brightness(1.3)}
+.hslot.compact .itemname.empty{color:#b9ac92}
+/* the picture fills the icon: the hidden letters (GH) must not take a row of the grid and push it down */
+.itemicon.art{display:inline-block;line-height:0;vertical-align:middle}
+.itemicon.art img{display:block}
+.hslot.compact .itemicon.art,.slotgrid .itemicon.art,.invcell .itemicon.art{background:radial-gradient(circle at 50% 45%,#5c5242,#1d1913 80%)}
+/* the Heroes screen fits: picture beside the text, three in a row */
+#screen-heroes{overflow:hidden}
+#hrGrid{grid-template-columns:repeat(3,minmax(0,1fr));width:min(1100px,100%)}
+#hrGrid .hcard{display:grid;grid-template-columns:84px 1fr;column-gap:12px;row-gap:2px;align-content:center;padding:8px 12px}
+#hrGrid .hcard > *{grid-column:2}
+#hrGrid .hcard .hcardart{grid-column:1;grid-row:1 / span 4;width:84px;height:84px;margin:0;align-self:center;order:0}
+#hrGrid .hcard .hdesc{margin:0}
+@media (max-height:820px){
+  #screen-heroes h1,#screen-inventory h1,#screen-leaderboard h1,#screen-settings h1,#lvChoose h1{min-height:76px;margin-bottom:4px}
+  .hart{width:min(220px,100%,34vh)}
+  #hrGrid .hcard .hcardart{width:64px;height:64px}
+  #hrGrid .hcard{grid-template-columns:64px 1fr;padding:6px 10px}
+}
+/* a gear slot in two lines: the slot and how many fit, then the item */
+.hslot.compact .slottxt small:last-child{grid-row:1;grid-column:2}
+.hslot.compact .slottxt .itemname{grid-row:2}
+#setKeys{min-width:0}
+.keylist{gap:4px}
+.keyrow kbd{padding:1px 6px}
+@media (max-height:820px){.setbox{padding:10px 14px;gap:8px}.hgear h3,.hstatbox h3{margin-bottom:2px}}
+/* bigger text in a low window: the banners and pictures make room */
+@media (max-height:820px){
+  body.bigtext #screen-heroes h1,body.bigtext #screen-inventory h1,body.bigtext #screen-leaderboard h1,body.bigtext #screen-settings h1,body.bigtext #lvChoose h1{min-height:0;padding:6px 12px;margin-bottom:2px}
+  body.bigtext .hart{width:min(220px,100%,24vh)}
+  body.bigtext #hrGrid .hcard{row-gap:0;padding:4px 10px}
+  body.bigtext .screen{gap:8px;padding:8px 12px}
+  body.bigtext .setrow small{display:none}
+  body.bigtext #screen-settings{justify-content:flex-start}
+}
+/* small buttons big enough to hit */
+#inspect .pclose{min-width:28px;min-height:28px;display:inline-grid;place-items:center;font-size:18px}
+#meterToggle{min-height:28px;align-items:center}
+/* the talent tree: bigger names, brighter nodes */
+.tbranch{font-size:36px;fill:#cfc4ad}
+.tnode circle{fill:#2a4378;stroke:#6f9a82}
+/* the Keys window and list */
+.keylist{display:grid;gap:6px;min-width:min(620px,92vw);text-align:left}
+.keyrow{display:grid;grid-template-columns:minmax(150px,auto) 1fr;gap:12px;align-items:center}
+.keyrow kbd{font:calc(14px * var(--ts))/1.2 var(--pixel);background:#2a241c;border:2px solid #6b5636;border-bottom-width:4px;padding:2px 8px;text-align:center;color:#ffe9a0;white-space:nowrap}
+#keysBox .keylist{padding:14px 18px}
+#keysBtn{min-width:40px}
+/* Settings */
+.setwrap{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:14px;width:min(1200px,100%);align-items:start}
+.setbox{padding:14px 18px;display:flex;flex-direction:column;gap:12px}
+.setrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center}
+.setlabel{display:flex;flex-direction:column;gap:2px}
+.setopts{margin:0;flex-wrap:nowrap}
+@media (max-width:900px){.setwrap{grid-template-columns:1fr}}
+/* fewer effects (Settings): what the reduce-motion rules turn off, also when chosen here */
+body.calm #screen-menu::before,body.calm #screen-login::before,body.calm #screen-menu::after,body.calm #screen-login::after,body.calm button.go::after,
+body.calm .herocard .ab.ready,body.calm .split .autobtn.on::after,body.calm .evoup{animation:none}
 </style>
 </head>
 <body>
@@ -936,9 +1011,12 @@ button:not(.danger):not(.relic):not(.on):not(.herocard):not(.linkbtn):not(.choos
 </section>
 
 <section id="screen-settings" class="screen scene" hidden>
+  <div class="topbar"><button id="setBack">Back</button><span class="muted">Kept on this browser.</span><span></span></div>
   <h1>Settings</h1>
-  <p class="muted">Nothing here yet.</p>
-  <button id="setBack">Back</button>
+  <div class="setwrap">
+    <div class="glass setbox" id="setRows"></div>
+    <div class="glass setbox"><h3>Keys in a match</h3><div class="keylist" id="setKeys"></div></div>
+  </div>
 </section>
 
 <section id="screen-talents" class="screen scene" hidden>
@@ -971,6 +1049,7 @@ button:not(.danger):not(.relic):not(.on):not(.herocard):not(.linkbtn):not(.choos
     <div id="relics" class="glass" hidden></div>
     <!-- Top right: Menu (pause), with the selected hero's details under it. -->
     <div id="hudTopRight">
+      <button id="keysBtn" aria-label="Keys" title="Keys (H)">?</button>
       <button id="menuBtn">Menu</button>
       <span id="menuConfirm" class="glass" hidden><span class="q" id="quitQ">Quit this match?</span><button id="quitYes" class="danger">Quit</button><button id="resumeBtn" class="go">Resume</button></span>
     </div>
@@ -1000,30 +1079,35 @@ button:not(.danger):not(.relic):not(.on):not(.herocard):not(.linkbtn):not(.choos
     <div id="tileHint" class="glass" hidden></div>
     <div id="pauseBanner" class="glass" hidden>Paused</div>
   </div>
-  <div class="overlay" id="pick" hidden>
+  <div class="overlay" id="keysBox" hidden role="dialog" aria-labelledby="keysTitle">
+    <h2 id="keysTitle">Keys</h2>
+    <div class="keylist glass" id="keysList"></div>
+    <div class="pickbar"><button id="keysClose" class="go">Close</button></div>
+  </div>
+  <div class="overlay" id="pick" hidden role="dialog">
     <h2 id="pickTitle">Choose a relic</h2>
     <div class="choices" id="choices"></div>
     <div class="pickbar" id="pickBar"><button id="reroll">Reroll all</button> <span class="pickgold" id="pickGold"></span></div>
     <div class="muted" id="pickOdds"></div>
     <label class="pickopt" id="playOnPickRow"><input type="checkbox" id="playOnPick"> Keep playing while choosing</label>
   </div>
-  <div class="overlay" id="evoPick" hidden>
+  <div class="overlay" id="evoPick" hidden role="dialog">
     <h2 id="evoTitle">Evolve</h2>
     <div class="choices" id="evoChoices"></div>
     <div class="pickbar"><button id="evoCancel">Cancel</button><span class="muted" id="evoGold"></span></div>
     <div class="muted">The game is paused while you choose.</div>
   </div>
-  <div class="overlay" id="voteBox" hidden>
+  <div class="overlay" id="voteBox" hidden role="dialog">
     <h2 id="voteTitle"></h2>
     <div class="choices" id="voteCards"></div>
     <div class="muted" id="voteHint"></div>
   </div>
-  <div class="overlay" id="shopBox" hidden>
+  <div class="overlay" id="shopBox" hidden role="dialog">
     <h2>Shop</h2>
     <div class="shopcols" id="shopCols"></div>
     <div class="pickbar"><button id="shopClose">Close</button><span class="pickgold" id="shopGold"></span></div>
   </div>
-  <div class="overlay" id="over" hidden>
+  <div class="overlay" id="over" hidden role="dialog">
     <h2 id="overTitle">The gate has fallen</h2>
     <p id="overText"></p>
     <p class="muted" id="subMsg"></p>

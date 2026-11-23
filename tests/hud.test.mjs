@@ -1,5 +1,5 @@
 /* The hero buttons as indicators (ability icons with a cooldown sweep and an energy fill), the hero tooltip's tags and
-   ailments, and the "keep playing while choosing" setting, remembered between matches. */
+   ailments, and the "keep playing while choosing" setting, remembered between matches (an older browser still has it under its own key). */
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { installFakeDom } from './fake-dom.mjs';
@@ -26,7 +26,7 @@ test('the remembered setting turns on "keep playing while choosing" at the start
   const box = byId.playOnPick;
   assert.equal(box.checked, true, 'the box in the relic picker is ticked');
   box.checked = false; box.onchange();
-  assert.equal(store['tbd.playOnPick'], '0', 'remembered'); assert.equal(w.playOnPick, false);
+  assert.equal(JSON.parse(store['tbd.prefs']).playOnPick, false, 'remembered (with the other settings)'); assert.equal(w.playOnPick, false);
   apply(w, { type: 'choose', index: 0 });
   stopGame();
 });

@@ -1,4 +1,5 @@
 import { register, show } from './core/screens.js';
+import { applyPrefs } from './core/prefs.js';
 import { bus } from './core/bus.js';
 import { state } from './core/state.js';
 import { isConfigured, currentSession, getProfile } from './services/api.js';
@@ -16,6 +17,7 @@ import lobby from './screens/lobby.js';
 register('login', login); register('menu', menu); register('leaderboard', leaderboard);
 register('settings', settings); register('play', play); register('talents', talents); register('levels', levels); register('heroes', heroes); register('inventory', inventory); register('lobby', lobby);
 bus.on('nav', ({ to, params }) => show(to, params));
+applyPrefs();   /* text size, effects and rarity letters from Settings */
 
 (async () => {
   if (isConfigured) {

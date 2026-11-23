@@ -1,5 +1,5 @@
 /* All DOM work for the game screen. Values are only written when they change, to avoid needless page updates. */
-import { HEROES, RARITIES, RELICS, STAT_LABELS, rarityOdds, HERO_LEVELS, ATTRIBUTES, ATTRIBUTE_EFFECTS, HERO_COST, nextStep } from '../content/data.js';
+import { HEROES, RARITIES, RELICS, STAT_LABELS, rarityOdds, HERO_LEVELS, ATTRIBUTES, ATTRIBUTE_EFFECTS, HERO_COST, nextStep, evolvedDef } from '../content/data.js';
 /* Attribute short names and colours: strength red, dexterity green, intellect blue. */
 export const ATTR_SHORT = { strength: 'Str', dexterity: 'Dex', intellect: 'Int' };
 export const ATTR_COLOR = { strength: '#e5645a', dexterity: '#5fd46f', intellect: '#5aa9ff' };
@@ -220,7 +220,7 @@ export function renderHUD(g, v) {
         const top = RARITIES[Math.max(...rs.map(r => r.r))], def = RELICS.find(x => x.name === name), n = rs.length;
         const total = rs.reduce((a, r) => a + relicMult(r), 0);   /* relic effects scale with the multiplier, so copies add up */
         const sp = el('span', 'relicchip'); sp.append(spriteImg(relicIcon(name), 'pix relicico'), el('span', '', name + (n > 1 ? ' ×' + n : '')));
-        sp.style.color = top.color; sp.style.borderColor = top.color; sp.tabIndex = 0;
+        sp.style.color = top.color; sp.style.borderColor = top.color; sp.tabIndex = 0; sp.setAttribute('data-rar', top.name[0]);
         bindTip(sp, () => {
           const parts = RARITIES.map((r, i) => [r, rs.filter(x => x.r === i).length]).filter(([, c]) => c).map(([r, c]) => (c > 1 ? c + '× ' : '') + r.name);
           return { title: name + (n > 1 ? ' ×' + n : ''), color: top.color, lines: [{ text: parts.join(' + '), color: '#ab9f8a' }, (n > 1 ? 'Together: ' : '') + def.desc(total)] };
@@ -446,17 +446,22 @@ function fmtStat(key, x) {
   return short(x);
 }
 
+/* Which choice a number key picks in the evolution picker (the cards in order), or null. */
+let evoKeys = [];
+export const evoKeyChoice = k => (k >= 0 && k < evoKeys.length ? evoKeys[k] : null);
 /* The evolution picker: like the relic picker, it covers the game (which pauses) and offers the hero's forms side by side. */
 export function showEvoPick(g, h) {
   const step = nextStep(h); if (!step) return;
-  const cost = g.evolveCost(h), box = $('evoChoices'); box.textContent = '';
+  const cost = g.evolveCost(h), box = $('evoChoices'); box.textContent = ''; evoKeys = [];
   setText($('evoTitle'), (step.upgrade ? 'Upgrade the ' : 'Evolve the ') + h.def.name + ' · ' + cost + ' gold');
   step.choices.forEach((c, i) => {
     if (h.preview && c.id !== h.preview.form) return;   /* a hero with a path evolves only into its form */
-    if (step.upgrade) { box.append(upgradeCard(h, c, i, g.gold < cost)); return; }
+    const key = el('small', 'pickkey', 'Key ' + (evoKeys.push(i)));
+    if (step.upgrade) { const card = upgradeCard(h, c, i, g.gold < cost); card.children[0].append(key); box.append(card); return; }
     const d = h.def, u = ULTIMATES[c.ultimate || d.ultimate], color = c.color || d.color, card = el('div', 'card'), b = el('button', 'choose');
     const nm = el('b', '', c.name); nm.style.color = color; b.style.borderColor = color;
-    b.append(nm, el('small', 'rar', DAMAGE_LABEL[c.damageType || d.damageType] + ' damage'), el('small', '', c.short),
+    const pic = spriteImg(cardPicture(evolvedDef(h.def.core || h.def, c)).name, 'pix evoart');   /* the form's picture */
+    b.append(key, pic, nm, el('small', 'rar', DAMAGE_LABEL[c.damageType || d.damageType] + ' damage'), el('small', '', c.short),
       ...(u ? [el('small', 'aff', 'Ultimate: ' + u.name + ': ' + ultDesc(u, h.s))] : []), el('small', 'aff', '+25% to all its stats'));
     b.disabled = g.gold < cost;
     b.onclick = () => cb.onEvolveChoice(i);

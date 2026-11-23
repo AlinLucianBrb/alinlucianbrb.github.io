@@ -16,6 +16,7 @@ js/screens/                login, menu, levels (level, then heroes), lobby (co-o
 js/content/                WHAT the game contains (plain data, no logic)
   rules.js                 the rules the server also uses (XP, rewards, waves, spawn timing, bosses, drops, co-op): ONE place
   effect-stats.js          stats that do something in a fight (relics, item bonuses, talent notables); the engine side is procs.js
+  (core) prefs.js          the player's settings, kept on this browser; keys.js (game): the list of keys
   legendaries.js           legendary relics; the engine side is legendaries.js and legend-perks.js (what attacks and ultimates ask)
   match-effects.js, map-effects.js   the double-edged match effects (from act 4) and the act 5 maps' effects
   shop.js                  the match shop: ground effects, the gamble, summoned bosses
@@ -208,6 +209,19 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Texts:** attack descriptions describe only the attack, ultimate tooltips only the ultimate, and the hero tooltip the hero (its attribute, delivery and source, tags, damage type). Ultimates that deal damage of their own write it as `{N}` in their description; `ultDesc()` shows it as the number it deals with the hero's stats ("about 156 damage"); "x2 damage" is kept for boosts to an attack the hero already makes. "At level 10, choose a path" is gone from the descriptions.
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
+
+## Easier to read and to use by keyboard; Settings (Nov 23, v0.64.0)
+- **Fixes:** the Heroes screen and a hero's page fit the window (no scrolling); item pictures in the gear slots were pushed down
+  and showed only their top edge; a highlighted gear slot turned gold and its text could not be read; "Empty" is readable.
+- **Keyboard:** a window over the match (relic, evolution, effect vote, shop, keys, the end) takes the focus, and the controls
+  behind it cannot be reached; tooltips close when one opens. The evolution window answers 1, 2, 3 and shows each form.
+- **Text:** never below 12 px (at 1280x720 some was 9 px); the talent tree's names are bigger and its nodes brighter; the hero
+  panel's close button and the damage meter's button are bigger.
+- **Keys window:** H, ? or the ? button in a match lists every key (`js/game/keys.js`).
+- **Settings** (kept on this browser, `js/core/prefs.js`): text size (Normal, Large, Larger), fewer effects (no hit and kill
+  flashes, nothing pulses; the default when the computer asks for reduced motion), rarity letters on items and relics (C, U, R,
+  E; on by default), the game speed and Auto-start a solo match begins with, and "keep playing while choosing".
+- No rules or SQL changed (engine 33).
 
 ## Everything open for testing (Nov 22, v0.63.1)
 - **All levels, Endless and everything the acts unlock are open**, for every player: `UNLOCK_ALL` in `js/content/rules.js` (false, `npm run

@@ -100,7 +100,7 @@ function renderInfo(box, h) {
   for (const slot of SLOTS) {
     const row = itemById(gearOf(h.id)[slot]), free = freeFor(slot), b = el('button', 'hslot compact' + (openSlot === slot ? ' open' : ''));
     if (row) b.append(itemIcon(row)); else b.append(el('span', 'itemicon emptyslot'));
-    const txt = el('span', 'slottxt'), name = el('span', 'itemname', row ? itemName(row) : 'Empty');
+    const txt = el('span', 'slottxt'), name = el('span', 'itemname' + (row ? '' : ' empty'), row ? itemName(row) : 'Empty');
     if (row) name.style.color = itemColor(row);
     txt.append(el('small', 'muted', SLOT_LABEL[slot]), name, el('small', 'muted', free.length ? free.length + ' to choose from' : row ? '' : items().length ? 'None free' : 'Drops after matches'));
     b.append(txt);

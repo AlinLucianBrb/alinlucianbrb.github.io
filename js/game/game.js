@@ -6,6 +6,9 @@ import { apply } from '../engine/commands.js';
 import { exportLog, resume } from '../engine/replay.js';
 import { heroStats } from '../engine/stats.js';
 import { draw, addBeam, tickBeams, addSlash, tickSlashes, addAnim, tickAnims, addImpact, boltImpacts } from './render.js';
+import { getPrefs, setPref, calm } from '../core/prefs.js';
+import { hideTip } from '../core/tooltip.js';
+import { renderKeys } from './keys.js';
 import { preload as preloadArt, get as sprite, heroAnim, strikeDelay, attackPeriod } from './sprites.js';
 import { createCamera, fitCamera, clampCamera, zoomAt, panBy, toWorld, toScreen, scaleAt } from './camera.js';
 import * as ui from './ui.js';
@@ -39,10 +42,9 @@ v.fx = { beam: (...a) => addBeam(v.vfx, ...a), slash: (...a) => { addSlash(v.vfx
   strike: (x, y) => { if (sprite('fx_strike')) addAnim(v.vfx, 'fx_strike', x, y - 34, 72, 0.28, 3); else addBeam(v.vfx, x + 6, y - 70, x, y, 0.12, '#ffe45c', 3); } };
 
 /* Player setting: keep the game running while the relic choice is open (off by default, remembered on this browser). */
-const PLAY_ON_PICK = 'tbd.playOnPick';
-const playOnPickSaved = () => { try { return localStorage.getItem(PLAY_ON_PICK) === '1'; } catch (e) { return false; } };
+const playOnPickSaved = () => getPrefs().playOnPick;   /* js/core/prefs.js (also on the Settings screen) */
 function setPlayOnPick(on) {
-  try { localStorage.setItem(PLAY_ON_PICK, on ? '1' : '0'); } catch (e) { /* private mode: it just is not remembered */ }
+  setPref('playOnPick', !!on);
   act({ type: 'playOnPick', on: !!on });
 }
 
@@ -61,12 +63,14 @@ function newRun(resumeLog = null) {
     : createGuest({ world, transport: c.transport, me, onDesync: () => netBanner('Out of step with the host: what you see may differ a little.') });
   coopInfo = c ? { names: c.config.players.map(p => p.name), me } : null; netDead = false; netBanner('');
   w.ev.on('end', ({ won }) => finish(current, won));
-  w.ev.on('crit', ({ enemy }) => { if (w.fx) addImpact(v.vfx, 'fx_crit', enemy, 0.75, 0.45); });   /* a burst of hot streaks on critical hits */
-  w.ev.on('kill', ({ enemy }) => { if (w.fx && !enemy.escaped) addImpact(v.vfx, 'fx_impact_physical', enemy, 0.9, 0.35); });
+  w.ev.on('crit', ({ enemy }) => { if (w.fx && !calm()) addImpact(v.vfx, 'fx_crit', enemy, 0.75, 0.45); });   /* a burst of hot streaks on critical hits */
+  w.ev.on('kill', ({ enemy }) => { if (w.fx && !enemy.escaped && !calm()) addImpact(v.vfx, 'fx_impact_physical', enemy, 0.9, 0.35); });
   w.ev.on('explode', ({ zone }) => { if (w.fx) addAnim(v.vfx, 'fx_explosion', zone.x, zone.y, 96, 0.45, 5); });
   w.ev.on('moonfall', ({ zone }) => { if (w.fx) addAnim(v.vfx, 'fx_moonburst', zone.x, zone.y, zone.r * 2.3, 0.45, 5); });
   pend.length = 0; v.selected = v.moving = v.evo = null; ui.hideEvoPick(); closeShop(); pickTile(null); resetVote(); if (v.speed > topSpeed()) v.speed = 1; v.vfx.beams.length = 0; v.vfx.slashes.length = 0; v.vfx.anims.length = 0; v.swings.clear(); v.needFit = true;
-  if (!c && !resumeLog && playOnPickSaved()) apply(world, { type: 'playOnPick', on: true });   /* logged, so the replay plays the same way */
+  if (!c && !resumeLog && playOnPickSaved()) apply(world, { type: 'playOnPick', on: true });
+  if (!c && !resumeLog && getPrefs().auto) apply(world, { type: 'auto', on: true });   /* Settings: Auto-start on */
+  if (!c) v.speed = Math.min(topSpeed(), getPrefs().speed);   /* Settings: the speed to start at */   /* logged, so the replay plays the same way */
   v.sel = -1;   /* no hero picked until the player picks one (its card, a key, or a hero on the map) */
   ui.setLineup(w);
   ui.setCoop(coopInfo);
@@ -152,6 +156,24 @@ function syncPick() {
   if (p) ui.showPick(w); else ui.hidePick();
 }
 
+/* A window that covers the match (a choice, the shop, the keys, the end) takes the keyboard: the controls behind it are out of
+   reach (inert) and its first button gets the focus. Tooltips close when one opens. */
+const MODALS = ['keysBox', 'pick', 'evoPick', 'voteBox', 'shopBox', 'over'];
+let modalOpen = null;
+function syncModal() {
+  const open = MODALS.find(id => !$(id).hidden) || null;
+  if (open === modalOpen) return;
+  modalOpen = open; hideTip();
+  const hud = document.querySelector && document.querySelector('#screen-play .hud-layer');
+  if (hud) hud.inert = !!open;
+  const first = open && $(open).querySelector && $(open).querySelector('button:not(:disabled), input');
+  if (first && first.focus) first.focus({ preventScroll: true });
+}
+/* The Keys window (H, ? or the ? button). It does not pause the match. */
+function toggleKeys(on = $('keysBox').hidden) { if (on) renderKeys($('keysList')); $('keysBox').hidden = !on; }
+$('keysBtn').onclick = () => toggleKeys(true);
+$('keysClose').onclick = () => toggleKeys(false);
+
 /* ---- Pause: the Menu button pauses and asks before quitting; P pauses, Esc resumes ---- */
 function setPaused(on) {
   v.paused = on;
@@ -204,6 +226,7 @@ function render(dt) {
   tickBeams(v.vfx, dt); tickSlashes(v.vfx, dt); tickAnims(v.vfx, dt); if (w.fx) boltImpacts(w, v);
   draw(ctx, w, v);
   ui.renderHUD(w, v);
+  syncModal();
   if (v.needFit) { v.needFit = false; fitToScreen(); }
   syncPick();
   if (w.picking) ui.updatePick(w);
@@ -457,6 +480,9 @@ const PAN_KEYS = { arrowleft: [1, 0], a: [1, 0], arrowright: [-1, 0], d: [-1, 0]
 addEventListener('keydown', e => {
   if (!active || e.target.tagName === 'INPUT') return;
   const k = e.key.toLowerCase();
+  if (k === 'h' || k === '?') { toggleKeys(); return; }
+  if (!$('keysBox').hidden) { if (k === 'escape') toggleKeys(false); return; }   /* the Keys window: only it answers */
+  if (v.evo && /^[1-9]$/.test(k)) { const i = ui.evoKeyChoice(+k - 1); if (i !== null) chooseEvolution(i); return; }   /* the evolution picker's cards */
   /* While choosing a relic, 1, 2 and 3 pick one; otherwise the number keys choose heroes. */
   if (w.vote && !w.picking && /^[0-9]$/.test(k) && +k <= w.vote.offers.length) act({ type: 'vote', index: +k - 1 });   /* 1, 2, 3: that effect; 0: none */
   else if (w.picking && w.pick && +e.key >= 1 && +e.key <= w.pick.offers.length) act({ type: 'choose', index: +e.key - 1 });

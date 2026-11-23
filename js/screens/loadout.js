@@ -84,6 +84,7 @@ export function itemIcon(row) {
   const known = ITEMS[row.item_type], t = known || { name: row.item_type, color: '#ab9f8a' };
   const i = el('span', 'itemicon', t.name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase());
   i.style.setProperty('--ic', t.color); i.style.setProperty('--rc', itemColor(row));
+  i.setAttribute('data-rar', 'CURE'[asItem(row).rarity] || '');   /* the rarity letter (Settings) */
   if (known) {
     const img = spriteImg('item_' + row.item_type + '_' + asItem(row).rarity);
     img.onerror = () => { img.remove(); i.classList.remove('art'); };
