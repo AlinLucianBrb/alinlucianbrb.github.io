@@ -210,6 +210,15 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Less text (Nov 23, v0.65.1)
+- Explanations the screens repeated are gone or moved into tooltips: the hero descriptions on the hero cards (on hover now), the
+  hints under the Heroes list, the inventory, the talent tree and the evolve window, "No path" lines, the stat breakdowns on a
+  hero's page (hover a stat), the notes on Settings (hover a row), "+25% to all its stats" and the ultimate's text on evolve
+  cards (hover a card), the relic odds (on the Reroll button) and "Affects" when a relic helps every hero on the map.
+- Shorter: gear slots say "9 free", locked acts just "Locked" (what they unlock on hover), the shop's and the vote's notes.
+- "Keep playing while choosing" is only on the Settings screen now.
+- No rules or SQL changed (engine 33).
+
 ## Inventory sorting and pages, a match summary (Nov 23, v0.65.0)
 - **Inventory:** sort (best first, newest, item level, rarity, slot) and filter by slot and rarity; 40 items a page with page
   buttons, so all 200 fit; items that came since the last visit say New (remembered on this browser, per account).

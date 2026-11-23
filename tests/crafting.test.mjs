@@ -116,7 +116,7 @@ test('Crafting tab: convert, choose, craft, and see what came out', async () => 
   conv()[1].onclick(); await tick();
   assert.deepEqual(calls.at(-1), ['convert', 0, 2]); assert.deepEqual(state.profile.materials, [1, 2, 0, 0]);
   state.profile.materials = [9, 0, 0, 0]; await inventory.mount(null, { tab: 'craft' });
-  btns(box, /^Melee$/)[0].onclick(); assert.match(texts(box), /Common Great Helm/); assert.match(texts(box), /Item level 15/); assert.match(texts(box), /leaning toward melee/);
+  btns(box, /^Melee$/)[0].onclick(); assert.match(texts(box), /Common Great Helm/); assert.match(texts(box), /Item level 15 · 1\+ bonuses/);
   btns(box, /^Rare$/)[0].onclick(); assert.equal(btns(box, /^Craft$/)[0].disabled, true); assert.match(texts(box), /Needs 9 Essence \(you have 0\)/);
   btns(box, /^Common$/)[0].onclick(); fail = 'not enough gold'; btns(box, /^Craft$/)[0].onclick(); await tick();
   assert.match(byId.invMsg._text, /Could not craft: not enough gold/); assert.equal(state.items.length, 0);
@@ -141,10 +141,10 @@ test('Inventory: sort and filter, a page of 40 at a time, and New on items that 
   await inventory.mount(null, {}); await tick();
   const grid = () => byId.invGrid.children, full = () => grid().filter(c => c.className.includes('full')).length;
   assert.equal(grid().length, PAGE); assert.equal(full(), 40);
-  const pager = () => byId.invPager.children; assert.equal(pager()[2]._text, 'Page 1 / 3');
-  pager()[3].onclick(); assert.equal(pager()[2]._text, 'Page 2 / 3'); pager()[3].onclick(); assert.equal(full(), 15, 'the last page'); assert.equal(pager()[3].disabled, true);
+  const pager = () => byId.invPager.children; assert.equal(pager()[1]._text, 'Page 1 / 3');
+  pager()[2].onclick(); assert.equal(pager()[1]._text, 'Page 2 / 3'); pager()[2].onclick(); assert.equal(full(), 15, 'the last page'); assert.equal(pager()[2].disabled, true);
   const slotPick = byId.invTools.children[1].children[1]; slotPick.value = 'boots'; slotPick.onchange();
-  assert.equal(pager()[2]._text, 'Page 1 / 2', 'a filter goes back to page 1'); assert.match(pager()[0]._text, /^47 of 95 shown/);
+  assert.equal(pager()[2]._text, 'Page 1 / 2', 'a filter goes back to page 1'); assert.equal(pager()[0]._text, '47 of 95', 'filtered: how many'); 
   assert.ok(grid().every(c => !c.children.some(x => x.className === 'newmark')), 'first visit: nothing new');
   inventory.unmount(); assert.equal(store['tbd.invSeen.u9'], at(20));
   state.items.push({ id: 'fresh', item_type: 'boots', rarity: 3, bonuses: [], bonus_ranks: [], ilvl: 99, created_at: at(25) });

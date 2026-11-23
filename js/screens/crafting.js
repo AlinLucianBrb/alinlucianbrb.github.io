@@ -31,7 +31,7 @@ export function renderCrafting(box, ctx) {
       one.disabled = busy || times < 1; one.onclick = () => convert(i, 1, ctx);
       all.disabled = busy || times < 2; all.onclick = () => convert(i, times, ctx);
       row.append(one, all); tile.append(row);
-    } else tile.append(el('small', 'muted', 'From Epic items, or 5 ' + MATERIALS[i - 1].name));
+    }
     bindTip(tile, () => ({ title: m.name, color: RARITIES[i].color, lines: ['From disenchanting ' + RARITIES[i].name + ' items: ' + CRAFT.yields + ' each.', CRAFT.cost + ' of them make one ' + RARITIES[i].name + ' item.'] }));
     mats.append(tile);
   });
@@ -52,8 +52,7 @@ export function renderCrafting(box, ctx) {
   row('Slot', SLOTS, 'slot', s => SLOT_LABEL[s]);
   row('Kind', KINDS, 'kind', kindName);
   const g = ROLL.guaranteed(want.rarity);
-  pick.append(el('p', 'muted craftnote', 'Item level ' + craftLevel(p.levels_cleared) + ' · ' + (g >= ROLL.maxBonuses ? g : g + ' or more') + ' random bonuses' +
-    (want.kind ? ', leaning toward ' + kindName(want.kind).toLowerCase() : '') + '.'));
+  pick.append(el('p', 'muted craftnote', 'Item level ' + craftLevel(p.levels_cleared) + ' · ' + (g >= ROLL.maxBonuses ? g : g + '+') + ' bonuses'));
   form.append(pick);
 
   const card = el('div', 'craftcard'), preview = { item_type: craftType(want.slot, want.kind), rarity: want.rarity, bonuses: [], bonus_ranks: [] };
@@ -70,7 +69,7 @@ export function renderCrafting(box, ctx) {
     const t = itemTip(made), nm = el('b', '', itemName(made)); nm.style.color = itemColor(made);
     last.append(el('small', 'muted', 'You made'), itemIcon(made), nm);
     for (const l of t.lines.slice(1, -1)) { const s = el('small', '', typeof l === 'string' ? l : l.text); if (l.color) s.style.color = l.color; last.append(s); }
-  } else last.append(el('small', 'muted', 'The item you make appears here. Gold: ' + (p.gold || 0).toLocaleString()));
+  } else last.append(el('small', 'muted', 'Gold: ' + (p.gold || 0).toLocaleString()));
   form.append(last);
   box.append(form);
 }

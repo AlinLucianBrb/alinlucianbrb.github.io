@@ -17,9 +17,9 @@ const ROWS = [
 function render() {
   const box = $('setRows'), p = getPrefs(); box.textContent = '';
   for (const r of ROWS) {
-    const row = document.createElement('div'), label = document.createElement('div'), name = document.createElement('b'), note = document.createElement('small'), opts = document.createElement('div');
+    const row = document.createElement('div'), label = document.createElement('div'), name = document.createElement('b'), opts = document.createElement('div');
     row.className = 'setrow'; label.className = 'setlabel'; opts.className = 'tabs setopts';
-    name.textContent = r.name; note.textContent = r.note; note.className = 'muted';
+    name.textContent = r.name; row.title = r.note;
     opts.setAttribute('role', 'group'); opts.setAttribute('aria-label', r.name);
     for (const [value, text] of r.options) {
       const b = document.createElement('button'), on = p[r.key] === value;
@@ -27,7 +27,7 @@ function render() {
       b.onclick = () => { setPref(r.key, value); render(); };
       opts.append(b);
     }
-    label.append(name, note); row.append(label, opts); box.append(row);
+    label.append(name); row.append(label, opts); box.append(row);
   }
 }
 

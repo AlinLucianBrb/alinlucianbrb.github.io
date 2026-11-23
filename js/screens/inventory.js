@@ -102,7 +102,7 @@ function renderTools() {
 function renderPager(count, pages) {
   const box = $('invPager'); box.textContent = '';
   const filtered = count !== items().length;
-  box.append(el('span', 'muted', filtered ? count + ' of ' + items().length + ' shown' : count + ' item' + (count === 1 ? '' : 's')));
+  if (filtered) box.append(el('span', 'muted', count + ' of ' + items().length));
   if (pages < 2) return;
   const prev = el('button', '', '‹'), next = el('button', '', '›');
   prev.setAttribute('aria-label', 'Previous page'); next.setAttribute('aria-label', 'Next page');

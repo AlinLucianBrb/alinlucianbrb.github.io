@@ -134,7 +134,7 @@ export function initUI(callbacks) {
     cb.onLayoutChange && cb.onLayoutChange();
   };
   const m = $('meter'); m.textContent = '';
-  meterEmpty = el('p', 'muted', 'No damage dealt yet.'); m.append(meterEmpty);
+  meterEmpty = el('p', 'muted', ''); m.append(meterEmpty);
   for (let k = 0; k < HEROES.length * COOP.maxPlayers; k++) {
     const root = el('div', 'mrow'), name = el('span'), bar = el('span', 'mbar'), fill = el('i'), val = el('span', '', '0');
     root.hidden = true; bar.append(fill); root.append(name, bar, val); m.append(root); rows.push({ root, name, fill, val, type: -1 });
@@ -250,7 +250,7 @@ let coop = null;
 export function setCoop(info) {
   coop = info; const bar = $('coopBar');
   bar.hidden = !info; bar.textContent = ''; bar._k = '';
-  $('playOnPickRow').hidden = !!info;   /* co-op matches never wait for a relic choice */
+  $('playOnPickRow').hidden = true;   /* "keep playing while choosing" is on the Settings screen */
   $('spd').title = info && info.me !== undefined ? 'Game speed (the host sets it)' : 'Game speed';
 }
 function renderCoopBar(g) {
@@ -461,8 +461,9 @@ export function showEvoPick(g, h) {
     const d = h.def, u = ULTIMATES[c.ultimate || d.ultimate], color = c.color || d.color, card = el('div', 'card'), b = el('button', 'choose');
     const nm = el('b', '', c.name); nm.style.color = color; b.style.borderColor = color;
     const pic = spriteImg(cardPicture(evolvedDef(h.def.core || h.def, c)).name, 'pix evoart');   /* the form's picture */
-    b.append(key, pic, nm, el('small', 'rar', DAMAGE_LABEL[c.damageType || d.damageType] + ' damage'), el('small', '', c.short),
-      ...(u ? [el('small', 'aff', 'Ultimate: ' + u.name + ': ' + ultDesc(u, h.s))] : []), el('small', 'aff', '+25% to all its stats'));
+    const ult = u ? el('small', 'aff', 'Ultimate: ' + u.name) : null;
+    if (u) bindTip(b, () => ({ title: c.name, color, lines: [DAMAGE_LABEL[c.damageType || d.damageType] + ' damage · +25% to all its stats', u.name + ': ' + ultDesc(u, h.s)] }));
+    b.append(key, pic, nm, el('small', '', c.short), ...(ult ? [ult] : []));
     b.disabled = g.gold < cost;
     b.onclick = () => cb.onEvolveChoice(i);
     card.append(b); box.append(card);
@@ -483,12 +484,12 @@ export const hideEvoPick = () => { $('evoPick').hidden = true; };
 
 
 
+/* Who a relic offer helps: nothing when it helps every hero on the map (or everyone), otherwise the ones it helps, or a warning. */
 function indicator(g, r, m) {
-  const a = affected(r, m, g.heroes), d = el('small', 'aff');
-  if (a.global) { d.textContent = 'Affects: ' + a.label; return d; }
-  if (!a.types.size) { d.textContent = 'No matching heroes on the map yet'; d.classList.add('warn'); return d; }
-  d.append('Affects: ');
-  for (const [type, n] of a.types) { const chip = el('span', 'chip'); chip.style.background = HEROES[type].color; d.append(chip, HEROES[type].name + ' ×' + n + ' '); }
+  const a = affected(r, m, g.heroes), d = el('small', 'aff'), mine = new Set(g.heroes.filter(h => !g.mine || g.mine(h)).map(h => h.type));
+  if (a.global || (mine.size && [...mine].every(t => a.types.has(t)))) return d;
+  if (!a.types.size) { d.textContent = 'No hero on the map uses it'; d.classList.add('warn'); return d; }
+  for (const [type] of a.types) { const chip = el('span', 'chip'); chip.style.background = HEROES[type].color; d.append(chip, HEROES[type].name + ' '); }
   return d;
 }
 /* A legendary relic's card: for a class, its colour shows on the line under the name. */
@@ -496,7 +497,7 @@ function legendCard(o, i) {
   const l = LEGENDARIES[o.id], card = el('div', 'card'), b = el('button', 'choose relicard'), tag = el('small', 'rar', 'Legendary'), who = el('small', 'aff');
   b.style.setProperty?.('--rc', LEGENDARY.color);
   const hero = l.hero && HEROES.find(h => h.id === l.hero);
-  if (hero) { const chip = el('span', 'chip'); chip.style.background = hero.color; who.append('For: ', chip, hero.name + ', every form'); } else who.textContent = 'For: all your heroes';
+  if (hero) { const chip = el('span', 'chip'); chip.style.background = hero.color; who.append(chip, hero.name); } else who.textContent = 'All heroes';
   b.append(el('small', 'pickkey', 'Key ' + (i + 1)), spriteImg(relicIcon(l.name), 'pix relicico top'), el('b', 'relicname', l.name), tag, el('small', '', l.desc), who);
   b.onclick = () => cb.onChoose(i);
   card.append(b);
@@ -528,6 +529,7 @@ export function updatePick(g) {
   $('pick').classList.toggle('live', !!g.playOnPick || !!coop);   /* lighter backdrop, so the match shows through */
   if (g.pick && g.pick.legendary) return;
   const odds = rarityOdds(g.gs.relicLuck), box = $('pickOdds');
+  box.hidden = true;   /* the odds: on the Reroll button's tooltip */
   if (box._luck !== g.gs.relicLuck) {
     box._luck = g.gs.relicLuck; box.textContent = '';
     box.append('Odds: ');
@@ -538,7 +540,7 @@ export function updatePick(g) {
   const rc = g.rerolls > 0 ? 0 : g.rerollCost(), poorR = rc > g.gold;
   setText($('reroll'), g.rerolls > 0 ? 'Reroll all · ' + g.rerolls + ' free' : 'Reroll all · ' + rc + ' gold');
   $('reroll').hidden = false; $('reroll').disabled = poorR; $('reroll').classList.toggle('poor', poorR);
-  $('reroll').title = g.rerolls > 0 ? 'Draw three new offers (free)' : 'Draw three new offers for ' + rc + ' gold';
+  $('reroll').title = (g.rerolls > 0 ? 'New offers (free)' : 'New offers for ' + rc + ' gold') + '. Odds: ' + RARITIES.map((r, i) => r.name + ' ' + odd(odds[i])).join(', ');
   setText($('pickGold'), 'Gold ' + g.gold);
   banishBtns.forEach(b => { setText(b, 'Banish · ' + g.banishes + ' left'); b.disabled = !(g.banishes > 0); b.hidden = !(g.banishes > 0); });
 }

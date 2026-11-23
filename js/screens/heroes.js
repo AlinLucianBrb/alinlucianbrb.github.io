@@ -63,8 +63,8 @@ function renderList() {
     card.style.setProperty('--hc', h.color);
     head.append(el('b', '', h.name), el('small', 'muted', cap(h.archetype) + ' · ' + STAT_LABELS[h.attribute]));
     const n = gearCount(h.id), c = pathOf(h.id);
-    card.append(head, el('p', 'hdesc', h.short), el('small', 'muted', 'Gear ' + n + ' / ' + SLOTS.length),
-      el('small', c ? 'pathline' : 'muted', c ? 'Path: ' + c.name : 'No path: choose in the match'), spriteImg(heroPortrait(h.id), 'pix hcardart'));
+    card.append(head, el('small', 'muted', 'Gear ' + n + ' / ' + SLOTS.length), ...(c ? [el('small', 'pathline', 'Path: ' + c.name)] : []), spriteImg(heroPortrait(h.id), 'pix hcardart'));
+    card.title = h.short;
     card.onclick = () => { hero = h; tab = 'info'; render(); };
     grid.append(card);
   }
@@ -102,7 +102,7 @@ function renderInfo(box, h) {
     if (row) b.append(itemIcon(row)); else b.append(el('span', 'itemicon emptyslot'));
     const txt = el('span', 'slottxt'), name = el('span', 'itemname' + (row ? '' : ' empty'), row ? itemName(row) : 'Empty');
     if (row) name.style.color = itemColor(row);
-    txt.append(el('small', 'muted', SLOT_LABEL[slot]), name, el('small', 'muted', free.length ? free.length + ' to choose from' : row ? '' : items().length ? 'None free' : 'Drops after matches'));
+    txt.append(el('small', 'muted', SLOT_LABEL[slot]), name, el('small', 'muted', free.length ? free.length + ' free' : row ? '' : 'none'));
     b.append(txt);
     if (row) bindTip(b, () => { const t = itemTip(row); t.lines.push({ text: 'Click to change or remove', color: '#f2b84b' }); return t; });
     b.onclick = () => { openSlot = openSlot === slot ? null : slot; render(); };
@@ -113,9 +113,10 @@ function renderInfo(box, h) {
   const art = el('div', 'hart art'), img = spriteImg(heroPortrait(h.id), 'pix');
   art.style.setProperty('--hc', h.color); art.append(el('span', '', h.name[0]), img);
   img.onerror = () => { img.remove(); art.classList.remove('art'); };
-  pic.append(art, el('p', 'hdesc', h.short));
+  pic.append(art);
   const c = pathOf(h.id);
-  pic.append(el('p', 'hdesc pathline', c ? 'Path: ' + c.name + '. Before level ' + EVOLVE_LEVEL + ': ' + PREVIEWS[c.id].desc : 'No path yet: pick one on the Evolutions tab, or choose in the match.'));
+  if (c) { const pl = el('p', 'hdesc pathline', 'Path: ' + c.name); bindTip(pl, () => ({ title: c.name, lines: ['Before level ' + EVOLVE_LEVEL + ': ' + PREVIEWS[c.id].desc] })); pic.append(pl); }
+  art.title = h.short;
   /* Stats, with the equipped items included (gear that does not fit the hero counts as its general version). */
   const worn = wornItems()[h.id], s = heroStats(asPlayed(h), itemMods(worn ? { [h.id]: worn } : {}, wearer(h)));
   stats.append(el('h3', '', 'Stats' + (worn ? ' (with gear)' : '')));
@@ -124,7 +125,8 @@ function renderInfo(box, h) {
   const row = (label, value, note, cls) => {
     const r = el('div', 'srow' + (cls ? ' ' + cls : '')), name = el('span', ''), ic = ROW_ICON[label.split(' ')[0]];
     if (ic) name.append(spriteImg('icon_' + ic, 'ico pix'));
-    name.append(el('span', '', label)); r.append(name, el('b', '', value)); stats.append(r); if (note) stats.append(el('div', 'buff', note));
+    name.append(el('span', '', label)); r.append(name, el('b', '', value)); stats.append(r);
+    if (note) { r.tabIndex = 0; bindTip(r, () => ({ title: label, lines: [note] })); }   /* what the number is made of: on hover */
   };
   /* every attribute's side effect, from every point (ATTRIBUTE_EFFECTS) */
   for (const a of ATTRIBUTES) row(STAT_LABELS[a] + (a === h.attribute ? ' (main)' : ''), f(s[a]), ATTRIBUTE_EFFECTS[a].map(fx => '+' + f(s[a] * fx.per * (fx.stat === 'critDamage' ? 100 : 100)) + '% ' + fx.label).join(', '), a === h.attribute ? 'main' : '');
@@ -142,23 +144,23 @@ function renderInfo(box, h) {
 function renderEvolutions(box, h) {
   const tree = el('div', 'evotree'), root = el('div', 'evonode root'), u = ULTIMATES[h.ultimate];
   root.style.setProperty('--hc', h.color);
-  root.append(el('b', '', h.name), el('small', 'muted', 'Level 1 · ' + DAMAGE_LABEL[h.damageType] + ' damage'), el('p', '', h.short));
+  root.append(el('b', '', h.name), el('small', 'muted', DAMAGE_LABEL[h.damageType] + ' damage'), el('p', '', h.short));
   if (u) root.append(el('small', '', 'Ultimate: ' + u.name));
   root.append(spriteImg(heroPortrait(h.id), 'pix evoart'));   /* last in the DOM; CSS shows it first */
   tree.append(root);
   for (const step of h.evolutions) {
-    tree.append(el('div', 'evolink', 'Level ' + step.level + ' · ' + step.cost + ' gold · choose one ' + (pathsUnlocked() ? 'now (a path) or ' : '') + 'in the match'));
+    tree.append(el('div', 'evolink', 'Level ' + step.level + ' · ' + step.cost + ' gold'));
     const row = el('div', 'evorow');
     for (const c of step.choices) {
       const d = evolvedDef(h, c), cu = ULTIMATES[d.ultimate], n = el('div', 'evonode');
       n.style.setProperty('--hc', d.color);
       const nm = el('b', '', c.name); nm.style.color = d.color;
-      n.append(nm, el('small', 'muted', DAMAGE_LABEL[d.damageType] + ' damage · +25% to all its stats' + (d.attribute !== h.attribute ? ' · becomes a ' + STAT_LABELS[d.attribute].toLowerCase() + ' hero' : '')), el('p', '', c.short));
+      n.append(nm, el('small', 'muted', DAMAGE_LABEL[d.damageType] + ' damage' + (d.attribute !== h.attribute ? ' · ' + STAT_LABELS[d.attribute] : '')), el('p', '', c.short));
       if (cu) n.append(el('small', '', 'Ultimate: ' + cu.name + ': ' + ultDesc(cu, heroStats(d, []))));
       if (PREVIEWS[c.id]) n.append(el('small', 'preview', 'Before level ' + EVOLVE_LEVEL + ': ' + PREVIEWS[c.id].desc));
       /* The second evolution: one of two upgrades. */
       const ups = el('div', 'evoups');
-      ups.append(el('small', 'muted', 'Level ' + UPGRADE_LEVEL + ' · ' + step.cost + ' gold · choose one in the match'));
+      ups.append(el('small', 'muted', 'Level ' + UPGRADE_LEVEL + ' · ' + step.cost + ' gold'));
       for (const up of UPGRADES[c.id]) { const line = el('small', 'evoup2'); line.append(el('b', '', up.name + ' '), el('span', 'muted', '(' + SLOT_NAME[up.slot].toLowerCase() + ') '), el('span', '', up.short)); ups.append(line); }
       n.append(ups);
       const open = pathsUnlocked(), chosen = activePaths()[h.id] === c.id;

@@ -49,7 +49,11 @@ test('Heroes: one card per playable hero; clicking opens its page on the Informa
   const st = texts(stats);
   assert.ok(st.includes('Strength (main)') && st.includes('Dexterity') && st.includes('Intellect'), 'the three attributes');
   assert.ok(st.includes('23.1–38.5'), 'damage 28 +10% from 10 strength, as min–max (±25%)');
-  assert.ok(st.includes('+10% from Strength'));
+  assert.ok(!st.includes('+10% from Strength'), 'what a number is made of is not on the page...');
+  const dmgRow = stats.children.find(r => texts(r).includes('Damage (Physical)'));
+  dmgRow.fire('pointerenter', { clientX: 0, clientY: 0 });
+  const tip = dom.made.filter(e => e.className === 'tip').pop();
+  assert.ok(texts(tip).includes('+10% from Strength'), '...but on hover');
 });
 
 /* The gear column: one compact line per slot, in SLOTS order; clicking one opens its item chooser over the page. */
@@ -62,8 +66,8 @@ const tipOf = node => { node.fire('pointerenter', { clientX: 5, clientY: 5 }); r
 test('Information: five gear slots, one line each; clicking a slot lists the items that fit (best first); hover for stats', async () => {
   assert.deepEqual(byId.hrBody.children[0].children.slice(1).map(b => b.children[1].children[0]._text), ['Helm', 'Body armour', 'Legs', 'Boots', 'Trinket']);
   assert.equal(chooser(), undefined, 'no chooser until a slot is clicked');
-  assert.ok(texts(slotBox('helm')).includes('2 to choose from'));
-  assert.ok(texts(slotBox('body')).includes('None free'));
+  assert.ok(texts(slotBox('helm')).includes('2 free'));
+  assert.ok(texts(slotBox('body')).includes('none'));
   assert.equal(iconBtns(open('helm')).length, 2, 'two helms to choose from');
   iconBtns(chooser())[0].onclick();                       /* the Rare helm comes first */
   assert.deepEqual(state.profile.equipment, { warrior: { helm: 'i2' } });
@@ -95,7 +99,7 @@ test('Evolutions tab: paths are locked until act 2; a path saved before is kept 
   byId.hrTabs.children[1].onclick();
   const tree = byId.hrBody.children[0], b = find(tree.children[2].children[2], n => n.className === 'pathbtn');
   assert.equal(b._text, 'Paths unlock in Act 2'); assert.equal(b.disabled, true);
-  assert.equal(tree.children[1]._text, 'Level 15 · 500 gold · choose one in the match');
+  assert.equal(tree.children[1]._text, 'Level 15 · 500 gold');
   assert.deepEqual(state.profile.paths, { ranger: 'hunter' });
   state.profile.levels_cleared = 5; state.profile.paths = {};
 });
@@ -105,7 +109,7 @@ test('Evolutions tab: the base hero, then its three forms', () => {
   const tree = byId.hrBody.children[0];
   assert.equal(tree.className, 'evotree');
   assert.equal(tree.children[0].children[0]._text, 'Hunter');
-  assert.equal(tree.children[1]._text, 'Level 15 · 500 gold · choose one now (a path) or in the match');
+  assert.equal(tree.children[1]._text, 'Level 15 · 500 gold');
   assert.deepEqual(tree.children[2].children.map(n => n.children[0]._text), ['Ranger', 'Boomerang', 'Poacher']);
   assert.ok(texts(tree).some(t => /^Ultimate: /.test(t)));
   assert.ok(texts(tree).some(t => /^Before level 15: Every 5th arrow pierces/.test(t)), 'each form says what its preview does');

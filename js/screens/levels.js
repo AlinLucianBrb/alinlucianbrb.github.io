@@ -37,7 +37,8 @@ function renderLevels() {
       const b = el('button', 'zone' + (z.n === zone ? ' on' : ''));
       const art = el('img', 'pix'); art.src = 'assets/level_' + z.n + '.png'; art.alt = ''; art.onerror = () => art.remove?.();
       const gives = unlocksOf(z.n);   /* what reaching this act unlocks */
-      b.append(art, el('b', '', 'Act ' + z.n + ' · ' + z.name), el('small', '', open ? done + ' / ' + lv.length + ' cleared' : 'Locked' + (gives.length ? ' · unlocks ' + gives.join(', ').toLowerCase() : '')));
+      b.append(art, el('b', '', 'Act ' + z.n + ' · ' + z.name), el('small', '', open ? done + ' / ' + lv.length : 'Locked'));
+      if (!open && gives.length) b.title = 'Unlocks ' + gives.join(', ').toLowerCase();
       b.disabled = !open; b.onclick = () => { zone = z.n; renderLevels(); };
       zones.append(b);
     }
@@ -79,9 +80,10 @@ function renderPick() {
     gear.title = pathsUnlocked() ? 'Change this hero\'s gear and evolution path' : 'Change this hero\'s gear';
     gear.onclick = e => { e.stopPropagation?.(); bus.emit('nav', { to: 'heroes', params: { hero: h.id, back: { to: 'levels', params: { stage, lineup: [...lineup] } } } }); };
     const foot = el('div', 'pickfoot'); foot.append(gear, el('span', 'pickmark', on ? '✓ ' + (lineup.indexOf(h.id) + 1) : 'Add'));
-    const info = el('small', 'muted', 'Gear ' + gearCount(h.id) + ' / ' + SLOTS.length + ' · ');
-    info.append(el('span', c ? 'pathline' : '', c ? 'Path: ' + c.name : pathsUnlocked() ? 'No path' : 'Paths: Act ' + UNLOCKS.paths.act));
-    card.append(spriteImg(heroPortrait(h.id), 'pix hcardart'), head, el('p', 'hdesc', h.short), info, foot);
+    const info = el('small', 'muted', 'Gear ' + gearCount(h.id) + ' / ' + SLOTS.length + (c ? ' · ' : ''));
+    if (c) info.append(el('span', 'pathline', 'Path: ' + c.name));
+    card.append(spriteImg(heroPortrait(h.id), 'pix hcardart'), head, info, foot);
+    card.title = h.short;
     card.onclick = () => toggle(h.id);
     card.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault?.(); toggle(h.id); } };
     grid.append(card);

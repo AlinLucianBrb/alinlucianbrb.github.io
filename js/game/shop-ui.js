@@ -37,10 +37,10 @@ export function updateShop(w) {
   $('shopGold').textContent = 'Gold ' + p.gold;
   const box = $('shopCols'); box.textContent = '';
 
-  const tiles = el('div', 'shopcol'); tiles.append(el('h3', '', 'Ground effects'), el('p', 'muted', 'For one tile, until the match ends. ' + mine.length + ' / ' + TILES.max + ' tiles.'));
+  const tiles = el('div', 'shopcol'); tiles.append(el('h3', '', 'Ground effects'), el('p', 'muted', mine.length + ' / ' + TILES.max + ' tiles'));
   for (const [id, e] of Object.entries(TILE_EFFECTS)) {
     const row = el('div', 'shoprow'), name = el('b', '', e.name); row.style.setProperty?.('--ec', e.color); name.style.color = e.color;
-    row.append(name, el('small', '', e.text(e.values[0])), el('small', 'muted', 'Levels: ' + e.values.map(v => (v < 1 ? Math.round(v * 100) + '%' : '×' + v)).join(' / ')),
+    row.append(name, el('small', '', e.text(e.values[0])),
       buy('Buy', tileCost(w, p), p.gold, () => cb.onTile(id), mine.length >= TILES.max ? 'You have ' + TILES.max + ' tiles' : ''));
     tiles.append(row);
   }
@@ -56,12 +56,12 @@ export function updateShop(w) {
 
   const g = el('div', 'shopcol'); g.append(el('h3', '', 'Gamble'));
   for (const o of OUTCOMES) { const r = el('div', 'odds'); r.append(el('span', '', o.text), el('b', '', o.chance + '%')); g.append(r); }
-  g.append(buy('Gamble', gambleCost(p), p.gold, () => cb.onAct({ type: 'gamble' }), left <= 0 ? 'At most ' + GAMBLE.perWave + ' times a wave' : ''), el('small', 'muted', left + ' of ' + GAMBLE.perWave + ' left this wave'));
+  g.append(buy('Gamble', gambleCost(p), p.gold, () => cb.onAct({ type: 'gamble' }), left <= 0 ? 'At most ' + GAMBLE.perWave + ' times a wave' : ''), el('small', 'muted', left + ' / ' + GAMBLE.perWave + ' this wave'));
   if (p.lastGamble) g.append(el('p', 'result ' + p.lastGamble.id, gambleText(p.lastGamble)));
 
   const b = el('div', 'shopcol'), k = SUMMON_BOSS.kinds[w.bossKind];
   b.append(el('h3', '', 'Summon a boss'), el('b', 'bossname', k.name), el('small', '', k.text), el('p', '', 'Pays ' + bossPay(w) + ' gold. Costs 5 lives if it gets through.'));
   const why = w.phase !== 'wave' ? 'Only while a wave is coming' : wait > 0 ? 'Ready in ' + wait + (wait > 1 ? ' waves' : ' wave') : '';
-  b.append(buy('Summon', 0, p.gold, () => cb.onAct({ type: 'summonBoss' }), why), el('small', 'muted', why || 'Then ' + SUMMON_BOSS.cooldown + ' waves until the next'));
+  b.append(buy('Summon', 0, p.gold, () => cb.onAct({ type: 'summonBoss' }), why), ...(why ? [el('small', 'muted', why)] : []));
   box.append(tiles, g, b);
 }

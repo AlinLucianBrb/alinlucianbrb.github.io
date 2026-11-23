@@ -26,13 +26,13 @@ export function updateVote(w, names = null) {
   const card = (i, id) => {
     const e = id && (map ? MAP_EFFECTS : MATCH_EFFECTS)[id], b = el('button', 'choose votecard' + (mine === i ? ' mine' : ''));
     b.append(el('small', 'pickkey', e ? 'Key ' + (i + 1) : 'Key 0'), el('b', '', e ? e.name : 'None'));
-    if (map) b.append(el('small', '', e.text)); else if (e) b.append(el('small', 'good', '+ ' + e.good), el('small', 'bad', '− ' + e.bad)); else b.append(el('small', 'muted', 'Play on without one'));
+    if (map) b.append(el('small', '', e.text)); else if (e) b.append(el('small', 'good', '+ ' + e.good), el('small', 'bad', '− ' + e.bad)); 
     const who = voters(i); if (who.length) b.append(el('small', 'who2', '✓ ' + who.join(', ')));
     b.onclick = () => onVote(i);
     box.append(b);
   };
   v.offers.forEach((id, i) => card(i, id)); if (!map) card(-1, null);
-  $('voteHint').textContent = w.coop ? 'The most votes win; a tie is drawn by lot. ' + Math.ceil(v.t) + ' s left.' : 'It lasts for the rest of the match. The game is paused while you choose.';
+  $('voteHint').textContent = w.coop ? Math.ceil(v.t) + ' s' : '';
 }
 
 function drawBar(w) {
