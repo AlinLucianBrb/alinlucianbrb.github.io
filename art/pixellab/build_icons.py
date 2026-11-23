@@ -44,6 +44,7 @@ S = {
     'r05': ['r_lone_wolf', 'r_brotherhood', 'r_last_stand', 'r_trophy_hunter', 'r_fever', 'r_tempo'],
     'l01': ['L_plague', 'L_overload', 'L_perpetual_motion', 'L_iron_gate', 'L_collector', 'L_bladestorm', 'L_ricochet', 'L_arcane_echo'],
     'l02': ['L_death_mark', 'L_overgrowth', 'L_lasting_light', 'L_soul_harvest', 'L_day_of_wrath', 'L_ancestors_gift'],
+    'a10': ['ult_ricochet', 'ult_spear', 'atk_spear', 'atk_line', None, None, None, None],
     'u01': ['icon_shop_greed', 'icon_shop_conduit', 'icon_shop_gamble', 'icon_shop_boss', 'icon_shop_up', 'icon_shop_bag', 'icon_relics', None],
     'm01': ['icon_mat_scrap', 'icon_mat_dust', 'icon_mat_essence', 'icon_mat_core'],
     'i01': ['i_arcane_amulet', 'i_beast_mask', 'i_bloodstone_ring', 'i_body_armour', 'i_boots', 'i_circlet', 'i_fang_necklace', 'i_feather_charm'],

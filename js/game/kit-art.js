@@ -53,15 +53,16 @@ export const KIT_PROJ = {
     }
     ctx.beginPath(); ctx.arc(p.x, p.y - 6, 26, 0, 7); ctx.fillStyle = 'rgba(138,208,75,.12)'; ctx.fill();
   },
-  /* Cavalry: three phantom riders in a row, pale gold and see-through, galloping toward the entrance. */
-  cavalry(ctx, p) {
-    for (let k = 0; k < (p.riders || 3); k++) {
-      const back = k * 26, a = 0.6 - k * 0.15;
-      ctx.globalAlpha = a;
-      const x = p.x + (p.dx || 0) * back, y = p.y + (p.dy || 0) * back;
-      if (!flip(ctx, frameOf('minion_horse', ((p.d / 14) | 0) % 2 === 1), x, y, 52, p.face || -1)) { ctx.beginPath(); ctx.arc(x, y, 12, 0, 7); ctx.fillStyle = '#fff0a8'; ctx.fill(); }
-    }
-    ctx.globalAlpha = 1;
+  /* The Crusader's thrown spear: a long shaft with a bright tip and a pale-gold glow, pointing where it flies. */
+  spear(ctx, p) {
+    const L = 30, bx = p.x - p.dx * L, by = p.y - p.dy * L;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(255,233,160,.4)'; ctx.lineWidth = 9;
+    ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(p.x, p.y); ctx.stroke();
+    ctx.strokeStyle = '#8a6b3a'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(p.x - p.dx * 7, p.y - p.dy * 7); ctx.stroke();
+    ctx.strokeStyle = '#f4f1e6'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(p.x - p.dx * 8, p.y - p.dy * 8); ctx.lineTo(p.x + p.dx * 3, p.y + p.dy * 3); ctx.stroke();
   },
   /* Gospel's converted enemy: its own sprite, faded and golden, walking back. */
   spirit(ctx, p) {
@@ -99,15 +100,6 @@ export function drawMinions(ctx, g) {
     });
   }
 }
-/* The Crusader on his horse: at his post, or wherever he is riding (t.ride), facing where he goes; the horse gallops while he
-   rides. Returns false while the art is loading (render.js then draws the plain shape). */
-export function drawMounted(ctx, g, t, size, dy) {
-  const r = t.ride, x = r ? r.x : t.x, y = r ? r.y : t.y, face = r ? r.face : 1, gallop = r ? ((g.tick / 5) | 0) % 2 === 1 : false;
-  ctx.beginPath(); ctx.ellipse?.(x, y + 16, 20, 5, 0, 0, 7); ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.fill();
-  if (!flip(ctx, frameOf('minion_horse', gallop), x, y + 4, 56, face)) return false;
-  flip(ctx, frameOf('hero_' + (t.def.form || t.def.id), false), x + 2 * face, y + dy - 14, size * 0.82, face);
-  return true;
-}
 /* A sprite facing left (face -1) or right. */
 function flip(ctx, name, x, y, s, face) {
   if (face >= 0) return drawSprite(ctx, name, x, y, s);
@@ -117,6 +109,16 @@ function flip(ctx, name, x, y, s, face) {
 }
 
 export const KIT_ZONE = {
+  /* The Ranger's Ricochet ring: a golden ring on the ground, brightest when new, fading in its last half second. */
+  ricochet(ctx, z) {
+    const fade = Math.min(1, z.t * 2), pulse = 0.8 + 0.2 * Math.sin(z.t * 18);
+    ctx.globalAlpha = 0.14 * fade; ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, 7); ctx.fillStyle = '#ffd76a'; ctx.fill();
+    ctx.globalAlpha = 0.9 * fade * pulse; ctx.strokeStyle = '#ffd76a'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, 7); ctx.stroke();
+    ctx.globalAlpha = 0.5 * fade; ctx.strokeStyle = '#fff6c8'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(z.x, z.y, z.r - 4, 0, 7); ctx.stroke();
+    ctx.globalAlpha = 1;
+  },
   /* Pulse zones, by look: Hellfire's burning ground, the Infernal golem, the Paladin's Consecration. */
   pulse(ctx, z) {
     const fade = Math.min(1, z.t * 2), flick = 0.85 + 0.15 * Math.sin(z.t * 30);

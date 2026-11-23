@@ -15,8 +15,8 @@ export const UPGRADES = Object.fromEntries([
   pair('sentinel', { name: 'Heavy blows', short: 'Swings push enemies back a little.', knock: 0.3 },
     { name: 'Shattering wall', short: 'Barricade lasts 2 seconds, then bursts for 3 times a hit.', seconds: 2, scale: 3, radius: 60 }),
   /* Hunter */
-  pair('marksman', { name: 'Broadheads', short: 'Arrows go through their target to one more enemy behind it.', reach: 80 },
-    { name: 'Triple shot', short: 'Piercing shot looses 3 arrows in a fan.', arrows: 3, spread: 0.2 }),
+  pair('marksman', { name: 'Gathering force', short: 'Each enemy an arrow goes through makes it 15% stronger for the next.', more: 0.15 },
+    { name: 'Wide ring', short: 'Ricochet ring is twice as big and lasts 4 seconds.', radius: 2, seconds: 4 }),
   pair('boomeranger', { name: 'Twin throw', short: 'Throws a second boomerang at 60% damage.', scale: 0.6, spread: 0.4 },
     { name: 'Twin blades', short: 'Two blades spin around him instead of one.', blades: 2 }),
   pair('hunter', { name: 'Bursting arrows', short: 'Arrows splash, hurting and poisoning the enemies near the target.', radius: 40, scale: 0.3, poison: 0.5 },
@@ -61,8 +61,8 @@ export const UPGRADES = Object.fromEntries([
     { name: 'Burning creed', short: "During Heresy every hero's hits have a 30% chance to burn.", chance: 0.3 }),
   pair('inquisitor', { name: 'Forked chain', short: 'The chain strikes a second enemy.' },
     { name: 'Guilty verdict', short: 'Purge also adds 5 stacks of Verdict to every enemy in range.', stacks: 5 }),
-  pair('crusader', { name: 'Return charge', short: 'He tramples enemies on the way back too.' },
-    { name: 'Second wave', short: 'Two more riders follow the first three, hitting and pushing everyone again.', riders: 2, behind: 2 }),
+  pair('crusader', { name: 'Long spear', short: 'The lunge reaches 50% further.', reach: 1.5 },
+    { name: 'Pinned', short: 'Enemies that Spear throw slams into a wall take double damage.', times: 2 }),
   /* Shaman */
   pair('witchdoctor', { name: 'Tight knots', short: 'Darts link 3 enemies to the target instead of 2, sharing 40% of the damage.', others: 3, share: 0.4 },
     { name: 'Returning swarm', short: 'The swarm flies the path back again.' }),

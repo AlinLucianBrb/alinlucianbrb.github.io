@@ -75,16 +75,12 @@ export function gainEnergy(h, amount) {
   h.energy = Math.min(h.s.energyMax, h.energy + amount);
 }
 
-/* Marksman: charges for a moment, then looses an arrow that flies through every enemy in a straight line (aimed at the
+/* The Hunter: charges for a moment, then looses an arrow that flies through every enemy in a straight line (aimed at the
    attack's target) for 3x a hit each. It replaces the normal arrow. */
 registerUltimate('piercing', { name: 'Piercing shot', desc: 'Charges a powerful arrow that pierces every enemy in its path for triple damage.', replaces: true,
   onFire(w, h, target) {
     const tx = target ? target.x : h.x + 1, ty = target ? target.y : h.y, len = Math.hypot(tx - h.x, ty - h.y) || 1;
-    const u = upgradeOf(h, 'marksman_ult'), n = u ? u.arrows : 1, a0 = Math.atan2(ty - h.y, tx - h.x);
-    for (let k = 0; k < n; k++) {
-      const turn = u ? (k - (n - 1) / 2) * u.spread : 0;
-      w.projs.push({ type: 'pierce', owner: h, x: h.x, y: h.y, dx: turn ? Math.cos(a0 + turn) : (tx - h.x) / len, dy: turn ? Math.sin(a0 + turn) : (ty - h.y) / len, charge: 0.35, dist: 0, max: 1000, hit: new Set(), scale: 3 });
-    }
+    w.projs.push({ type: 'pierce', owner: h, x: h.x, y: h.y, dx: (tx - h.x) / len, dy: (ty - h.y) / len, charge: 0.35, dist: 0, max: 1000, hit: new Set(), scale: 3 });
   } });
 
 /* Boomerang Ranger: a boomerang spins around the Ranger for 6 seconds, hitting every enemy it touches for 3x (each one at

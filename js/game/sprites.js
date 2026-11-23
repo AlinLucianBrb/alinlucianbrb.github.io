@@ -19,13 +19,13 @@ export const spriteUrl = name => new URL(name + '.png', BASE).href;
 /* Ability icons on the hero buttons: the basic attack icon for each hero and evolution (ultimates use ability_ult_<id>). */
 export const ATTACK_ICON = {
   warrior: 'atk_sword', berserker: 'atk_twin', commander: 'atk_launch', sentinel: 'atk_sword',
-  ranger: 'atk_arrow', marksman: 'atk_arrow_gold', boomeranger: 'atk_boomerang', hunter: 'atk_arrow_toxic',
+  ranger: 'atk_arrow', marksman: 'atk_line', boomeranger: 'atk_boomerang', hunter: 'atk_arrow_toxic',
   mage: 'atk_arcane', firemage: 'atk_fire', coldmage: 'atk_cold', lightningmage: 'atk_lightning',
   rogue: 'atk_twin', assassin: 'atk_blink', toxicologist: 'atk_daggers', alchemist: 'atk_flask',
   druid: 'atk_seed', animalic: 'atk_wolf', naturist: 'atk_thorns', lunar: 'atk_moonbeam',
   priest: 'atk_smite', incantation: 'atk_aura_holy', archangel: 'atk_lance', gospel: 'atk_psalm',
   warlock: 'atk_shadow', occult: 'atk_aura_shadow', summoner: 'atk_imp', infernalist: 'atk_hellfire',
-  paladin: 'atk_hammer', heretic: 'atk_flail', inquisitor: 'atk_chain', crusader: 'atk_charge',
+  paladin: 'atk_hammer', heretic: 'atk_flail', inquisitor: 'atk_chain', crusader: 'atk_spear',
   shaman: 'atk_lightning', witchdoctor: 'atk_dart', totemist: 'atk_totem', earthcaller: 'atk_fissure'
 };
 export const attackIcon = def => 'ability_' + (ATTACK_ICON[def.form || def.id] || 'atk_sword');
@@ -154,7 +154,7 @@ export function drawEnemyArt(ctx, type, d, x, y, face = -1, T = 40) {
 }
 /* How tall an enemy is drawn, in px (0 without animated art). */
 export const enemyHeight = (type, T = 40) => (ENEMY_ANIM[type] ? ENEMY_ANIM[type].tiles * T : 0);
-export const heroAnim = def => (def.mounted ? null : HERO_ANIM[def.form || def.id] || null);   /* every hero and form is animated; the Crusader on his horse is drawn by kit-art */
+export const heroAnim = def => HERO_ANIM[def.form || def.id] || null;   /* every hero and form is animated */
 /* The image of a hero for the menus: its portrait when it has one, otherwise its sprite. */
 export const heroPortrait = id => (HERO_ANIM[id] ? HERO_ANIM[id].portrait : 'hero_' + id);
 /* The in-match hero card shows the hero from the head to about the waist: the picture to use, how far across it the figure
@@ -178,7 +178,7 @@ export const SPRITES = [...new Set([
   ...['arrow', 'arrow_gold', 'arrow_toxic', 'bolt_arcane', 'fireball', 'ice_shard', 'spark', 'dagger_toxic', 'flask_fire', 'flask_toxic',
     'boomerang', 'sword', 'piercing', 'seed', 'holy', 'shadow', 'hellfire', 'dart'].map(n => 'proj_' + n),
   ...['flame', 'frost', 'storm'].map(n => 'minion_totem_' + n),
-  ...['imp', 'demon', 'golem', 'horse'].flatMap(n => ['minion_' + n, 'minion_' + n + '_2']),
+  ...['imp', 'demon', 'golem'].flatMap(n => ['minion_' + n, 'minion_' + n + '_2']),
   ...MATERIALS.map(m => m.icon),
   'fx_judgement', ...RELICS.map(r => relicIcon(r.name)), ...Object.values(LEGENDARIES).map(l => relicIcon(l.name)),
   'proj_orb_arcane', 'proj_orb_holy', 'proj_orb_shadow', 'proj_orb_nature', 'proj_shard', 'proj_lightbolt', 'proj_skullflame', 'proj_leaf', 'fx_swing', 'fx_slash2', 'fx_crit',

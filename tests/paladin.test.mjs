@@ -1,5 +1,5 @@
 /* The Paladin and his forms: holy conversion and Consecration; Heretic (blood price, Heresy); Inquisitor (Verdict, Purge);
-   Crusader (the mounted charge with knockback, Cavalry). */
+   Crusader (the spear lunge, Spear throw). */
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { step, createWorld } from '../js/engine/world.js';
@@ -12,11 +12,12 @@ import { ULTIMATES } from '../js/engine/ultimates.js';
 import { damageTaken } from '../js/engine/effects.js';
 import { mitigate } from '../js/engine/combat.js';
 import { pathPos, KNOCKBACK } from '../js/engine/enemies.js';
-import { CONSECRATION, HERESY, PURGE, CHARGE, CAVALRY, nearestPathD } from '../js/engine/kits/paladin.js';
+import { CONSECRATION, HERESY, PURGE, LUNGE, SPEAR, wallRoom, shove } from '../js/engine/kits/paladin.js';
+const shoveOne = (w, h, e) => shove(w, h, e, null);
 import { HEROES, T } from '../js/content/data.js';
 import { exportLog, replay } from '../js/engine/replay.js';
 import { hashWorld } from '../js/engine/hash.js';
-import { richWorld, place, enemyAt, dealt } from './helpers.mjs';
+import { richWorld, place, enemyAt, dealt, nearestPathD } from './helpers.mjs';
 
 const FORMS = ['heretic', 'inquisitor', 'crusader'];
 /* A Paladin at level 10 next to the path. */
@@ -92,36 +93,50 @@ test('Inquisitor: hits the toughest enemy in range, stacking Verdict up to 10; P
   assert.equal(PURGE.seconds, 6);
 });
 
-test('Crusader: rides onto the path and along it to the last enemy in range, hitting and knocking back each one once, then rides back', () => {
+test('Crusader: on foot, lunges his spear through every enemy in a line; the toughest takes 20% more for each other one', () => {
   const { w, h } = setup(['paladin']);
   evolveTo(w, h, 'crusader');
-  w.wave = 2;
-  const near = onPath(w, h, -T), far = onPath(w, h, -2.5 * T), behind = onPath(w, h, 2 * T);
-  const d0 = [near.d, far.d, behind.d];
+  assert.equal(h.def.kind, 'lunge'); assert.ok(!('mounted' in h.def)); assert.equal(h.def.onPath, true, 'he can still stand on the path');
+  h.s = { ...h.s, critChance: 0, spread: 0 };
+  const a = enemyAt(w, h.x + 40, h.y, 50), b = enemyAt(w, h.x + 80, h.y, 40, 2e6), c = enemyAt(w, h.x + 120, h.y, 30), off = enemyAt(w, h.x + 60, h.y + 60, 10);
   h.cd = 0; tick(w, h, 1);
-  assert.ok(h.ride && h.ride.phase === 'out', 'off he goes');
-  assert.ok(Math.abs(h.ride.to - d0[1]) < 1e-6, 'to the last enemy in range: the one furthest from the gate');
-  for (let i = 0; i < 240 && h.ride; i++) tick(w, h, 1);
-  assert.equal(h.ride, null, 'back at his post');
-  assert.ok(dealt(near) > 0 && dealt(far) > 0, 'trampled on the way down');
-  assert.ok(near.d < d0[0] && far.d < d0[1], 'knocked back');
-  assert.ok(d0[0] - near.d <= CHARGE.knock + 1e-9, 'CHARGE.knock each');
-  assert.equal(dealt(behind), 0, 'enemies already past his stretch are not hit');
-  /* the only enemy in range is closer to the gate: he rides that way, and back */
-  w.enemies.length = 0; w.wave = 4;
-  const ahead = onPath(w, h, 1.5 * T), dA = ahead.d;
-  h.cd = 0; tick(w, h, 1);
-  assert.ok(h.ride && h.ride.to > h.ride.home, 'toward the gate this time');
-  for (let i = 0; i < 240 && h.ride; i++) tick(w, h, 1);
-  assert.equal(h.ride, null, 'back at his post'); assert.ok(dealt(ahead) > 0 && ahead.d < dA, 'trampled and knocked back');
-  /* Cavalry: the whole path, every enemy once */
+  assert.ok(dealt(a) > 0 && dealt(c) > 0, 'every enemy on the line'); assert.equal(dealt(off), 0, 'not beside it');
+  assert.ok(Math.abs(dealt(c) - dealt(a)) < 1e-6);
+  assert.ok(Math.abs(dealt(b) / dealt(a) - (1 + LUNGE.per * 2)) < 1e-6, 'the toughest (most life): +20% for each of the other two');
+  assert.equal(h.ride, undefined, 'no riding out');
+});
+
+/* Two grunts on the path: one just past a corner (half a tile from the wall), one on a straight stretch with room. */
+function corner(w) {
+  for (let i = 1; i < w.path.length - 1; i++) {
+    const [p, q, r] = [w.path[i - 1], w.path[i], w.path[i + 1]];
+    if (q[0] - p[0] !== r[0] - q[0] || q[1] - p[1] !== r[1] - q[1]) return i;
+  }
+}
+const atD = (w, d, hp = 1e6) => { const p = { x: 0, y: 0 }; pathPos(w.path, d / T, p); return enemyAt(w, p.x, p.y, d, hp); };
+test('Crusader ultimate (Spear throw): pushes enemies back; one that slams into a corner is stunned for the push it missed and takes less', () => {
+  const { w, h } = setup(['paladin']);
+  evolveTo(w, h, 'crusader'); w.wave = 2;
+  assert.equal(h.def.ultimate, 'spear');
+  h.s = { ...h.s, critChance: 0, spread: 0, duration: 1 };
+  const i = corner(w), A = atD(w, (i + 0.5) * T);
+  let dB = 0; for (let d = T; d < (w.path.length - 2) * T; d += T / 4) { const e = { d }; if (wallRoom(w, e) > SPEAR.push + T) { dB = d; break; } }
+  const B = atD(w, dB);
+  assert.ok(Math.abs(wallRoom(w, A) - T / 2) < 1e-6, 'half a tile from the corner');
+  const dA = A.d, dB0 = B.d;
+  for (const e of [A, B]) shoveOne(w, h, e);
+  assert.ok(Math.abs(dA - A.d - T / 2) < 1e-6, 'A stops at the wall'); assert.ok(Math.abs(dB0 - B.d - SPEAR.push) < 1e-6, 'B goes the whole way');
+  const f = (T / 2) / SPEAR.push;
+  assert.ok(A.fx && A.fx.stun && Math.abs(A.fx.stun.t - SPEAR.stun * (1 - f)) < 1e-6, 'stunned for the part of the push it missed');
+  assert.ok(!(B.fx && B.fx.stun), 'no wall, no stun');
+  assert.ok(Math.abs(dealt(B) / dealt(A) - 1 / f) < 1e-6, 'B takes the full damage, A only the part it travelled');
+  /* the ultimate: a spear flies to the toughest enemy in range, then every enemy in range is pushed */
   w.enemies.length = 0; w.wave = 3;
-  const a = onPath(w, h, -4 * T), b = onPath(w, h, 3 * T);
+  const e = onPath(w, h, 0), d0 = e.d;
   full(h); h.cd = 0; tick(w, h, 1);
-  assert.ok(w.projs.some(p => p.type === 'cavalry'));
-  for (let i = 0; i < 60 * 8; i++) updateProjectiles(w, 1 / 60);
-  assert.ok(dealt(a) > 0 && dealt(b) > 0, 'everyone on the path');
-  assert.ok(KNOCKBACK.perWave >= CAVALRY.knock);
+  assert.ok(w.projs.some(p => p.type === 'spear'), 'the spear flies');
+  for (let k = 0; k < 60 && w.projs.some(p => p.type === 'spear'); k++) tick(w, h, 1);
+  assert.ok(e.d < d0 && dealt(e) > 0, 'pushed back and hurt');
 });
 
 test('a match with each Paladin form replays exactly, and every form uses its ultimate', () => {

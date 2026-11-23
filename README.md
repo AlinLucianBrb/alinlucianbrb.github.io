@@ -46,7 +46,7 @@ js/game/                   the browser shell around the engine
   render.js                canvas drawing: the painted board, sprites, effects (shapes while the art loads)
   sprites.js               loads the pixel art from assets/; the list of every sprite the game uses
   ui.js                    HUD, damage meter, hero panel, relic picker
-  kit-art.js               how the newer heroes' things look: auras, minions, the horse, totems, their projectiles and zones
+  kit-art.js               how the newer heroes' things look: auras, minions, totems, their projectiles and zones
   saved-run.js             keeps the run on this browser, so a refresh does not lose it
 js/net/                    co-op
   lockstep.js              keeps every player's game in step (host and guests)
@@ -159,7 +159,8 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
   - **Berserker** (Warrior): swings twice in quick succession (0.15 s apart, counting as one attack for energy), and every hit makes the enemy bleed. Ultimate *Frenzy*: +50% damage and attack speed for 5 seconds.
   - **Commander** (Warrior): throws the sword in a straight line out to its range (base 110), hitting every enemy in the way once. Ultimate *Rally*: for 5 seconds, every hero within 220 px (the Commander too) gets double energy per attack (shown as a soft blue flash and ring).
   - **Sentinel** (Warrior): the normal swing. Ultimate *Barricade*: puts a wall on the path just ahead of the enemy it attacked; for 1 second, enemies pile up against it (a zone of type `barrier`).
-  - **Ranger** (Hunter): same arrows. Ultimate *Piercing shot*: charges for a moment, then an arrow flies straight through every enemy in line for 3x a hit; it replaces the normal arrow (an ultimate with `replaces: true`).
+  - The **Hunter**'s own ultimate is *Piercing shot*: charges for a moment, then an arrow flies straight through every enemy in line for 3x a hit; it replaces the normal arrow (an ultimate with `replaces: true`).
+  - **Ranger** (Hunter): arrows fly straight at the target and on, through every enemy in their way, to a little past his range (`js/engine/kits/hunter.js`). Ultimate *Ricochet ring*: a ring on the toughest enemy in range for 2.5 seconds; he shoots into it, and an arrow that flies in cannot leave: it bounces off the edge, 20% faster each time, hitting the enemies inside again and again (each at most every 0.2 s) until the ring ends.
   - **Boomerang** (Hunter): throws the old Thief's boomerang (it flies faster with attack speed). Ultimate *Spinning blade*: a boomerang circles him for 6 seconds, hitting everything it touches for 3x a hit (`ORBIT_SCALE`); several at once are spaced evenly around the circle.
   - **Poacher** (Hunter): arrows deal toxic damage. Ultimate *Toxic traps*: lays 3 traps on path tiles in range: under the enemies in range first, then toward the entrance (`groundSpots` in `ultimates.js`); an enemy stepping on one makes it burst for 4x a hit of toxic damage to everything close by (at most 6 traps at once, see `TRAP` in `ultimates.js`).
   - **Fire Mage:** fire bolts that always burn. Ultimate *Inferno*: sets every enemy on the map on fire.
@@ -210,6 +211,24 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Texts:** attack descriptions describe only the attack, ultimate tooltips only the ultimate, and the hero tooltip the hero (its attribute, delivery and source, tags, damage type). Ultimates that deal damage of their own write it as `{N}` in their description; `ultDesc()` shows it as the number it deals with the hero's stats ("about 156 damage"); "x2 damage" is kept for boosts to an attack the hero already makes. "At level 10, choose a path" is gone from the descriptions.
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
+
+## Hunter, Ranger and Crusader reworks (Nov 23, v0.69.0)
+- **Hunter:** his ultimate is now *Piercing shot* (the Ranger's old one): a charged arrow through every enemy in a line for 3x.
+- **Ranger:** arrows fly straight through every enemy in their way, one hit each, to a little past his range. Ultimate
+  *Ricochet ring*: a golden ring on the toughest enemy in range for 2.5 seconds (longer with Duration). While it is up he shoots
+  into it; his arrows cannot leave the ring, they bounce off its edge 20% faster each time and keep hitting the enemies inside
+  until the ring ends. Second evolution: *Gathering force* (each enemy an arrow goes through makes it 15% stronger for the
+  next) or *Wide ring* (twice as big, 4 seconds). They replace Broadheads and Triple shot.
+- **Crusader:** on foot, no more horse; he keeps his art (spear and shield) and can still stand on the path. His attack is a
+  spear lunge through every enemy in a line as far as his range; the toughest of them takes 20% more for each other enemy hit.
+  Ultimate *Spear throw* (instead of Cavalry): a spear flies into the toughest enemy in range, then every enemy in range is
+  pushed back 2.5 tiles along the path. The path's corners and the entrance are walls: an enemy that slams into one is stunned
+  for the part of the push it missed (up to 1.5 s if it hits at once) and takes damage only for the part it travelled (at
+  least 20%); one that hits no wall takes the full 4x. Second evolution: *Long spear* (the lunge reaches 50% further) or
+  *Pinned* (a wall slam deals double damage). They replace Return charge and Second wave.
+- Path previews: the Ranger's every 5th arrow and the Crusader's every 6th attack are the new attacks.
+- New icons for Ricochet ring, Spear throw, the lunge and the Ranger's arrows (`a10` sheet, `build_icons.py`).
+- Rules changed (engine 36: a match saved before the update cannot be resumed). No SQL change.
 
 ## Energy over time (Nov 23, v0.68.0)
 - **The energy bar fills over time while a wave is on**: 2 a second for every hero (50 seconds to an ultimate), whatever its

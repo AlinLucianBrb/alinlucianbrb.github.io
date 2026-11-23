@@ -31,7 +31,7 @@ export function cleanPaths(paths, lineup) {
 /* The base hero as it plays with a path: its own kind, attack and ultimate, plus the form's tags. */
 export function pathDef(base, choice) {
   const spec = PREVIEWS[choice.id] || {};
-  return { ...base, core: base, preview: choice.id, tags: [...new Set([...base.tags, ...(choice.tags || [])])], ...(spec.mounted ? { mounted: true } : {}) };
+  return { ...base, core: base, preview: choice.id, tags: [...new Set([...base.tags, ...(choice.tags || [])])] };
 }
 
 /* Sets up a freshly placed hero for its path. */
@@ -114,19 +114,8 @@ export function updatePreview(w, h, dt) {
   h._pvCd = h.cd;
   const e = h.echo;
   if (!e) return;
-  if (sp.act) { act(w, e, dt, sp.act); return; }
   const before = e.cd;
   BEHAVIORS[e.def.kind].update(w, e, dt);
-}
-
-/* Custom echo attacks. pierce: the Marksman's arrow that flies through a line of enemies (one hit each). */
-function act(w, e, dt, kind) {
-  if (kind !== 'pierce' || !ready(e, dt)) return;
-  const tg = pickTarget(w, e, e.s.range);
-  if (!tg) return;
-  const dx = tg.x - e.x, dy = tg.y - e.y, len = Math.hypot(dx, dy) || 1;
-  w.projs.push({ type: 'pierce', owner: e, x: e.x, y: e.y, dx: dx / len, dy: dy / len, charge: 0, dist: 0, max: e.s.range * 1.6, hit: new Set(), scale: 1 });
-  rearm(e);
 }
 
 /* On every hit of a hero (combat.attack): the Sentinel's push and the Inquisitor's Verdict. */

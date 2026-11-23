@@ -8,6 +8,7 @@ import { updateProjectiles } from '../js/engine/projectiles.js';
 import { updateZones } from '../js/engine/zones.js';
 import { levelMods } from '../js/engine/levels.js';
 import { TRAP } from '../js/engine/ultimates.js';
+import { LINE, RING } from '../js/engine/kits/hunter.js';
 import { HEROES, T } from '../js/content/data.js';
 import { exportLog, replay } from '../js/engine/replay.js';
 import { hashWorld } from '../js/engine/hash.js';
@@ -33,20 +34,55 @@ test('the Ranger offers three evolutions and needs a choice', () => {
   assert.equal(h.def.name, 'Poacher'); assert.equal(h.def.id, 'ranger');
 });
 
-test('Marksman: same arrows; the ultimate replaces the arrow with a charged shot that pierces everything in a line for 3x', () => {
-  const { w, h } = ranger(); evolveTo(w, h, 'marksman');
-  assert.equal(h.def.kind, 'bolt'); assert.equal(h.def.damageType, 'physical');
+test('the Hunter: his ultimate replaces the arrow with a charged shot that pierces everything in a line for 3x', () => {
+  const { w, h } = ranger();
+  assert.equal(h.def.kind, 'bolt'); assert.equal(h.def.ultimate, 'piercing');
+  h.s = { ...h.s, critChance: 0, spread: 0 };
   const lead = enemyAt(w, h.x + 60, h.y, 50), behind = enemyAt(w, h.x + 300, h.y, 1), off = enemyAt(w, h.x + 60, h.y + 120, 2);
   h.energy = h.s.energyMax; h.cd = 0;
   tick(w, h);
   assert.equal(w.projs.length, 1); assert.equal(w.projs[0].type, 'pierce', 'no normal arrow: the shot replaces it');
-  assert.equal(h.energy, 0, 'firing the ultimate does not refill the bar');
+  assert.equal(h.energy, 0);
   tick(w, h, 10);
   assert.equal(dealt(lead), 0, 'still charging');
-  flush(w);
+  h.cd = 1e9; flush(w);
   assert.ok(Math.abs(dealt(lead) - 3 * h.s.damage) < 1e-6, 'the target');
   assert.ok(Math.abs(dealt(behind) - 3 * h.s.damage) < 1e-6, 'and the enemy behind it, out of range');
   assert.equal(dealt(off), 0, 'not enemies off the line');
+});
+
+test('Ranger: arrows fly straight through every enemy in their way, once each, to a little past his range', () => {
+  const { w, h } = ranger(); evolveTo(w, h, 'marksman');
+  assert.equal(h.def.kind, 'line'); assert.equal(h.def.ultimate, 'ricochet');
+  h.s = { ...h.s, critChance: 0, spread: 0 };
+  const a = enemyAt(w, h.x + 40, h.y, 50), b = enemyAt(w, h.x + 90, h.y, 40), past = enemyAt(w, h.x + h.s.range + 40, h.y, 1), far = enemyAt(w, h.x + h.s.range + LINE.past + 60, h.y, 0), off = enemyAt(w, h.x + 60, h.y + 60, 2);
+  h.cd = 0; tick(w, h); h.cd = 1e9; flush(w);
+  assert.ok(dealt(a) > 0 && Math.abs(dealt(b) - dealt(a)) < 1e-6 && Math.abs(dealt(past) - dealt(a)) < 1e-6, 'each one once');
+  assert.equal(dealt(far), 0, 'not beyond'); assert.equal(dealt(off), 0, 'not beside the line');
+  assert.equal(w.projs.length, 0);
+});
+
+test('Ranger ultimate (Ricochet ring): a ring on the toughest enemy; his arrows fly into it and bounce inside, faster each time, until it ends', () => {
+  const { w, h } = ranger(); evolveTo(w, h, 'marksman');
+  h.s = { ...h.s, critChance: 0, spread: 0 };
+  const lead = enemyAt(w, h.x + 50, h.y, 50), big = enemyAt(w, h.x, h.y + 80, 10, 1e6, 'brute');
+  h.energy = h.s.energyMax; h.cd = 0;
+  let hits = 0, shots = 0; const hit = w.attack; w.attack = (o, e, ...x) => { if (e === big) hits++; return hit(o, e, ...x); };
+  tick(w, h);
+  const z = w.zones.find(x => x.type === 'ricochet');
+  assert.ok(z && z.x === big.x && z.y === big.y, 'on the toughest enemy in range, not the leading one');
+  assert.ok(Math.abs(z.life - RING.seconds * (h.s.duration || 1)) < 1e-6, 'its length, with the duration stat');
+  let fastest = 0;
+  for (let k = 0; k < 60 * RING.seconds; k++) {
+    const before = w.projs.length; tick(w, h);
+    if (w.projs.length > before) shots++;
+    for (const p of w.projs) if (p.type === 'line' && p.ring) { fastest = Math.max(fastest, p.speed); assert.ok((p.x - z.x) ** 2 + (p.y - z.y) ** 2 <= z.r * z.r + 1e-6, 'it never leaves the ring'); }
+  }
+  assert.ok(fastest > LINE.speed, 'faster after a bounce');
+  assert.ok(hits > shots + 1, 'the enemy inside is hit again and again: ' + hits + ' hits from ' + (shots + 1) + ' arrows');
+  h.cd = 1e9; tick(w, h, 30);
+  assert.equal(w.zones.filter(x => x.type === 'ricochet').length, 0, 'the ring ends');
+  assert.equal(w.projs.filter(p => p.ring).length, 0, 'and its arrows with it');
 });
 
 test('Boomerang Ranger: throws the boomerang; the ultimate spins one around it, and several are spaced evenly', () => {

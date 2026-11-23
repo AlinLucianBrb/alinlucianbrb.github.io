@@ -1,5 +1,4 @@
-/* Animated heroes (sprites.js HERO_ANIM): each sheet is its frames side by side; base heroes and every evolved form animate
-   (the mounted Crusader is drawn on his horse instead). */
+/* Animated heroes (sprites.js HERO_ANIM): each sheet is its frames side by side; base heroes and every evolved form animate */
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -26,7 +25,6 @@ test('the heroes and every evolved form animate; forms are drawn taller than the
   assert.equal(heroAnim(evolvedDef(w, w.evolutions[0].choices[0])), HERO_ANIM.berserker);
   for (const h of HEROES) for (const step of h.evolutions || []) for (const c of step.choices) {
     const d = evolvedDef(h, c), A = heroAnim(d);
-    if (d.mounted) { assert.equal(A, null, c.id + ' rides'); continue; }
     assert.ok(A && A.form, c.id + ' animates'); assert.ok(A.tiles > HERO_ANIM[h.id].tiles, c.id + ' is grander');
   }
   const r = HEROES.find(h => h.id === 'ranger');

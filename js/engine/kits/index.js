@@ -7,4 +7,5 @@ import './priest.js';
 import './warlock.js';
 import './paladin.js';
 import './shaman.js';
+import './hunter.js';
 import './upgrades.js';

@@ -5,13 +5,12 @@ import { createWorld, step } from '../js/engine/world.js';
 import { apply } from '../js/engine/commands.js';
 import { levelMods } from '../js/engine/levels.js';
 import { pathPos } from '../js/engine/enemies.js';
-import { nearestPathD } from '../js/engine/kits/paladin.js';
 import { cleanPaths } from '../js/engine/preview.js';
 import { PREVIEWS, everyAt, at } from '../js/content/previews.js';
 import { HEROES, T } from '../js/content/data.js';
 import { exportLog, replay } from '../js/engine/replay.js';
 import { hashWorld } from '../js/engine/hash.js';
-import { enemyAt } from './helpers.mjs';
+import { enemyAt, nearestPathD } from './helpers.mjs';
 
 const FORMS = HEROES.flatMap(h => h.evolutions[0].choices.map(c => [h.id, c.id]));
 
@@ -125,7 +124,7 @@ test('aura previews: the form\'s aura, smaller and weaker', () => {
   }
 });
 
-test('the Sentinel pushes, the Inquisitor stacks Verdict up to the cap, the Gospel gives energy, the Crusader rides', () => {
+test('the Sentinel pushes, the Inquisitor stacks Verdict up to the cap, the Gospel gives energy, the Crusader lunges', () => {
   { const { w, h } = withPath('warrior', 'sentinel', 1); w.wave = 2; const e = onPath(w, h, 0); const d0 = e.d; h.cd = 0; step(w); assert.ok(e.d < d0, 'pushed back'); }
   { const { w, h } = withPath('paladin', 'inquisitor', 1); const e = onPath(w, h, 0); run(w, 6); assert.equal(e.fx.verdict.n, 1, 'one stack at level 1'); }
   { const { w, h } = withPath('paladin', 'inquisitor', 14); const e = onPath(w, h, 0); run(w, 8); assert.equal(e.fx.verdict.n, 3, 'three by level 14'); }
@@ -137,7 +136,7 @@ test('the Sentinel pushes, the Inquisitor stacks Verdict up to the cap, the Gosp
     onPath(w, h, 0); const before = ally.energy; h.cd = 0; step(w); step(w);
     assert.ok(ally.energy >= before + at(PREVIEWS.gospel.energy, 1) - 1e-9, 'energy for the hero nearby');
   }
-  { const { h } = withPath('paladin', 'crusader', 1); assert.equal(h.def.mounted, true); assert.equal(h.echo.def.kind, 'charge'); }
+  { const { h } = withPath('paladin', 'crusader', 1); assert.ok(!h.def.mounted); assert.equal(h.echo.def.kind, 'lunge'); }
 });
 
 test('a match with a path replays exactly, and the evolution happens in the planned form', () => {

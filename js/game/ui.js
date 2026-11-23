@@ -45,7 +45,7 @@ let meterEmpty, cb = {}, banishBtns = [];
 /* Tags in words, for tooltips: relics, talents and items that name a tag work on heroes that have it. */
 const TAG_LABEL = { attack: 'Attack', trap: 'Trap', melee: 'Melee', range: 'Ranged', projectile: 'Projectile', spell: 'Spell', arcane: 'Arcane', thrown: 'Thrown',
   physical: 'Physical', fire: 'Fire', cold: 'Cold', lightning: 'Lightning', toxic: 'Toxic', nature: 'Nature', minion: 'Minion', area: 'Area',
-  holy: 'Holy', shadow: 'Shadow', aura: 'Aura', curse: 'Curse', chain: 'Chain', totem: 'Totem', mounted: 'Mounted' };
+  holy: 'Holy', shadow: 'Shadow', aura: 'Aura', curse: 'Curse', chain: 'Chain', totem: 'Totem' };
 export const tagLine = d => d.tags.filter(t => TAG_LABEL[t]).map(t => TAG_LABEL[t]).join(' · ');
 /* What a hero is, in one line (its attack and ultimate are described on their own icons): its attribute, delivery and
    source, and for a form, the hero it came from. */

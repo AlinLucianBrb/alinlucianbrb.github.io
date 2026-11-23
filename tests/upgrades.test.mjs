@@ -13,10 +13,11 @@ import { updateZones } from '../js/engine/zones.js';
 import { tickEffects } from '../js/engine/effects.js';
 import { mitigate } from '../js/engine/combat.js';
 import { pathPos } from '../js/engine/enemies.js';
-import { nearestPathD } from '../js/engine/kits/paladin.js';
 import { exportLog, replay } from '../js/engine/replay.js';
+import { shove } from '../js/engine/kits/paladin.js';
+import { upgradeOf } from '../js/engine/upgrades.js';
 import { hashWorld } from '../js/engine/hash.js';
-import { richWorld, enemyAt, dealt, withTemp } from './helpers.mjs';
+import { richWorld, enemyAt, dealt, withTemp, nearestPathD } from './helpers.mjs';
 
 const STEP = 1 / 60;
 const baseOf = form => HEROES.find(h => h.evolutions[0].choices.some(c => c.id === form));
@@ -88,13 +89,13 @@ test('Sentinel: swings push; the Barricade lasts 2 s and bursts', () => {
 });
 
 /* ---- Hunter ---- */
-test('Ranger: arrows go through to one more enemy; three piercing arrows', () => {
-  const hits = ({ w, h }) => { const l = [10, 2, -6].map(k => onPath(w, h, k)); once(w, h, 60); return l.filter(e => dealt(e) > 0).length; };
-  const { w, h } = hero('marksman', 0), first = enemyAt(w, h.x + 30, h.y, 100), behind = enemyAt(w, h.x + 70, h.y, 90), back = enemyAt(w, h.x - 20, h.y, 50);
-  once(w, h, 60); assert.ok(dealt(first) > 0 && dealt(behind) > 0 && dealt(back) === 0, 'forward only'); assert.equal(dealt(first), dealt(behind));
-  assert.equal(both('marksman', 0, hits)[0], 1);
-  const arrows = ({ w, h }) => { onPath(w, h); full(h); tick(w, h, 1); return w.projs.filter(p => p.type === 'pierce').length; };
-  assert.deepEqual(both('marksman', 1, arrows), [1, 3]);
+test('Ranger: each enemy an arrow goes through makes it 15% stronger; the ring is twice as big and lasts 4 s', () => {
+  const line = ({ w, h }) => { h.s = { ...h.s, critChance: 0, spread: 0 }; const l = [30, 60, 90].map(x => enemyAt(w, h.x + x, h.y, 100 - x)); once(w, h, 60); return l.map(dealt); };
+  const [a, b] = both('marksman', 0, line);
+  assert.ok(a[0] > 0 && Math.abs(a[2] - a[0]) < 1e-6, 'without it: the same for each');
+  assert.ok(Math.abs(b[1] / b[0] - 1.15) < 1e-6 && Math.abs(b[2] / b[0] - 1.15 * 1.15) < 1e-6, 'with it: 15% more for each one before');
+  const ring = ({ w, h }) => { onPath(w, h); full(h); tick(w, h, 1); const z = w.zones.find(x => x.type === 'ricochet'); return [z.r, Math.round(z.t * 10) / 10]; };
+  assert.deepEqual(both('marksman', 1, ring), [[50, 2.5], [100, 4]].map(([r, t]) => [r, t]));
 });
 test('Boomerang: a second, weaker boomerang; two blades', () => {
   const thrown = ({ w, h }) => { onPath(w, h); tick(w, h, 1); return w.projs.filter(p => p.type === 'boomerang').map(p => p.scale); };
@@ -231,11 +232,11 @@ test('Inquisitor: the chain strikes a second enemy; Purge adds 5 Verdict', () =>
   const p = ({ w, h }) => { onPath(w, h, 0); const o = onPath(w, h, 8, 5e5); full(h); tick(w, h, 1); return o.fx.verdict ? o.fx.verdict.n : 0; };
   assert.deepEqual(both('inquisitor', 1, p), [0, 5]);
 });
-test('Crusader: tramples on the way back; a second wave of riders', () => {
-  const r = ({ w, h }) => { onPath(w, h, -60); let n = 0; const hit = w.attack; w.attack = (...x) => { n++; return hit(...x); }; h.cd = 0; tick(w, h, 1); for (let k = 0; k < 600 && h.ride; k++) tick(w, h, 1); return n; };   /* one charge, out and back */
-  const [a, b] = both('crusader', 0, r); assert.equal(a, 1); assert.equal(b, 2);
-  const c = ({ w, h }) => { onPath(w, h, 0); let n = 0; full(h); BEHAVIORS.charge.update(w, h, STEP); h.ride = null; h.cd = 1e9; const hit = w.attack; w.attack = (...x) => { n++; return hit(...x); }; for (let k = 0; k < 600; k++) updateProjectiles(w, STEP); return n; };
-  assert.deepEqual(both('crusader', 1, c), [1, 2]);
+test('Crusader: the lunge reaches 50% further; Pinned doubles the damage of a wall slam', () => {
+  const reach = ({ w, h }) => { const far = enemyAt(w, h.x + h.s.range * 1.3, h.y, 5), first = enemyAt(w, h.x + 20, h.y, 50); h.cd = 0; tick(w, h, 1); return dealt(far) > 0; };
+  assert.deepEqual(both('crusader', 0, reach), [false, true]);
+  const slam = ({ w, h }) => { h.s = { ...h.s, critChance: 0, spread: 0 }; w.wave = 2; const e = onPath(w, h, 0); e.d = 0; shove(w, h, e, upgradeOf(h, 'crusader_ult')); return dealt(e); };
+  const [a, b] = both('crusader', 1, slam); assert.ok(a > 0 && Math.abs(b / a - 2) < 1e-6, 'at the entrance: a wall at once');
 });
 
 /* ---- Shaman ---- */

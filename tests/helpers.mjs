@@ -1,7 +1,7 @@
 /* Shared helpers for the tests. Not a test file itself. */
 import { createWorld } from '../js/engine/world.js';
 import { apply } from '../js/engine/commands.js';
-import { ENEMIES } from '../js/engine/enemies.js';
+import { ENEMIES, pathPos } from '../js/engine/enemies.js';
 import { HEROES, HERO_ARCHIVE, T, STAGES } from '../js/content/data.js';
 import { heroStats } from '../js/engine/stats.js';
 
@@ -56,4 +56,12 @@ export function gentleLevel1(t, changes = {}) {
 export function withTemp(obj, changes, fn) {
   const old = {}; for (const k in changes) { old[k] = obj[k]; obj[k] = changes[k]; }
   try { return fn(); } finally { for (const k in old) obj[k] = old[k]; }
+}
+
+/* The path point nearest a spot, as progress d in pixels, and how far away it is. */
+export function nearestPathD(g, x, y) {
+  let best = 0, bd = Infinity;
+  const p = { x: 0, y: 0 }, end = (g.path.length - 1.001) * T;
+  for (let d = 0; d <= end; d += 4) { pathPos(g.path, d / T, p); const q = (p.x - x) ** 2 + (p.y - y) ** 2; if (q < bd) { bd = q; best = d; } }
+  return { d: best, dist: Math.sqrt(bd) };
 }

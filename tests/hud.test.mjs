@@ -49,7 +49,7 @@ test('hero buttons stay as indicators: the basic attack sweeps through its coold
   assert.ok(!card._ult._cls.has('ready'));
   h.energy = h.s.energyMax; h.cd = 0; dom.frame();
   assert.ok(card._ult._cls.has('ready'), 'gold when the ultimate is ready'); assert.equal(card._atk._sw.style['--p'], '0');
-  assert.ok(/ability_atk_arrow\.png$/.test(card._atk._img.src) && /ability_ult_empowered\.png$/.test(card._ult._img.src));
+  assert.ok(/ability_atk_arrow\.png$/.test(card._atk._img.src) && /ability_ult_piercing\.png$/.test(card._ult._img.src));
   stopGame();
 });
 

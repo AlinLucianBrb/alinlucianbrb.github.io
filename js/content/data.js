@@ -94,10 +94,10 @@ export const HEROES = [
     short: 'Swings a blade at close range, hitting every enemy in front of him.' },
   { id: 'ranger', name: 'Hunter', archetype: 'range', attribute: 'dexterity', kind: 'bolt', projLook: 'arrow', projSpeed: 620, damageType: 'physical', color: '#f2b84b', shape: [0, 0],
     tags: ['range', 'projectile', 'attack', 'physical'],
-    stats: withEnergy({ damage: 16, range: 120, cooldown: 0.5, speed: 1 }, { strength: 4, dexterity: 10, intellect: 3 }), ultimate: 'empowered',
+    stats: withEnergy({ damage: 16, range: 120, cooldown: 0.5, speed: 1 }, { strength: 4, dexterity: 10, intellect: 3 }), ultimate: 'piercing',
     evolutions: [{ level: EVOLVE_LEVEL, cost: EVOLVE_COST, choices: [
-      { id: 'marksman', name: 'Ranger', color: '#ffd76a', ultimate: 'piercing', mods: evolved,
-        short: 'The same arrows, stronger.' },
+      { id: 'marksman', name: 'Ranger', color: '#ffd76a', kind: 'line', ultimate: 'ricochet', mods: evolved,
+        short: 'Arrows fly straight through every enemy in their way.' },
       { id: 'boomeranger', name: 'Boomerang', color: '#8be28b', kind: 'boom', ultimate: 'orbit', tags: ['thrown'], mods: evolved,
         short: 'Throws a boomerang that hits every enemy on the way out and back.' },
       { id: 'hunter', name: 'Poacher', color: '#7ad04b', damageType: 'toxic', ultimate: 'traps', tags: ['toxic'], mods: evolved,
@@ -196,8 +196,8 @@ export const HEROES = [
     desc: 'Warlock (spell): shadow bolts that Corrupt enemies, damage over time that grows with each stack. Evolves into an Occult, Summoner or Infernalist.',
     short: 'Shadow bolts that Corrupt enemies ({p:corruptionChance}): damage over time that grows with each stack.' },
   /* The Paladin: a slower, heavier Warrior; 30% of his damage is Holy. His forms: a fallen knight who grows stronger as lives
-     are lost and can pay one to empower everyone (Heretic), a hunter of the toughest enemies (Inquisitor), and a mounted
-     knight who charges down the path (Crusader). Kit: js/engine/kits/paladin.js. */
+     are lost and can pay one to empower everyone (Heretic), a hunter of the toughest enemies (Inquisitor), and a spearman
+     whose throw pins enemies against the path's corners (Crusader). Kit: js/engine/kits/paladin.js. */
   { id: 'paladin', name: 'Paladin', archetype: 'melee', attribute: 'strength', kind: 'swing', damageType: 'physical', convert: { holy: 0.3 }, color: '#e8d27a',
     shape: [6, Math.PI / 6], tags: ['melee', 'attack', 'physical', 'holy'],
     arc: 120, stats: withEnergy({ damage: 36, range: 60, cooldown: 0.95, speed: 1 }, { strength: 10, dexterity: 3, intellect: 4 }), ultimate: 'consecration',
@@ -207,8 +207,8 @@ export const HEROES = [
         short: 'A burning shadow flail (always burns), 3% stronger for every life lost this run.' },
       { id: 'inquisitor', name: 'Inquisitor', color: '#f2e2a0', kind: 'verdict', damageType: 'holy', ultimate: 'purge', stats: { range: 100, cooldown: 0.8 }, mods: evolved,
         short: 'A long chain flail at the toughest enemy in range; each hit adds a stack of Verdict (+5% damage taken from everything, up to 10).' },
-      { id: 'crusader', name: 'Crusader', color: '#d9b25a', kind: 'charge', mounted: true, onPath: true, ultimate: 'cavalry', tags: ['mounted'], stats: { range: 140, cooldown: 1.8, damage: 44 }, mods: evolved,
-        short: 'Charges on his horse along the path to the last enemy in range (the one furthest from the gate), trampling and knocking back each one, then rides back. He can stand on the path, and then rides only along it.' }
+      { id: 'crusader', name: 'Crusader', color: '#d9b25a', kind: 'lunge', onPath: true, ultimate: 'spear', stats: { range: 140, cooldown: 1.8, damage: 44 }, mods: evolved,
+        short: 'Lunges his spear through every enemy in a line; the toughest of them takes 20% more for each other one hit. He can stand on the path.' }
     ] }],
     desc: 'Paladin (melee): a heavy hammer, part of it holy, and Consecration. Evolves into a Heretic, Inquisitor or Crusader.',
     short: 'A heavy hammer swing at close range, 30% of it holy.' },
@@ -247,7 +247,7 @@ export const nextStep = h => evolutionStep(h.base || h.def, h.tier || 0, h.def.f
 /* Traits a form can add or change (read by the engine on hero.def): flying (may stand on the path), onPath (the Crusader: may
    stand on the path too, and then rides only along it), sanctuary, aura,
    convert (a share of the damage as another type), bloodPrice, contagion, projLook, projSpeed. */
-const TRAITS = ['flying', 'onPath', 'mounted', 'sanctuary', 'aura', 'convert', 'bloodPrice', 'contagion', 'projLook', 'projSpeed'];
+const TRAITS = ['flying', 'onPath', 'sanctuary', 'aura', 'convert', 'bloodPrice', 'contagion', 'projLook', 'projSpeed'];
 /* The taxonomy (see README): delivery tags (melee, projectile, trap, aura, area), source tags (attack, spell, minion) and the
    damage type's tag. A form with its own attribute (attribute on the choice) swaps the two values, so the hero keeps what it had: the Druid's
    10 intellect and 4 dexterity become the Animalic Druid's 10 dexterity and 4 intellect. Hero levels raise the main attribute,

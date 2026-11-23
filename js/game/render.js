@@ -6,7 +6,7 @@ import { project, unproject, scaleAt, setView } from './camera.js';
 import { isShielded } from '../engine/enemy-abilities.js';
 import { TILE_EFFECTS, TILES } from '../content/shop.js';
 import { MAP_EFFECTS } from '../content/map-effects.js';
-import { drawAuras, drawMinions, drawMounted, KIT_PROJ, KIT_ZONE, KIT_AIL_ICON, BUFF_COLOR } from './kit-art.js';
+import { drawAuras, drawMinions, KIT_PROJ, KIT_ZONE, KIT_AIL_ICON, BUFF_COLOR } from './kit-art.js';
 
 const MAP_W = COLS * T, MAP_H = ROWS * T;
 /* Sprite sizes on the map (the art is 64 pixels a tile; the map uses T). Heroes stand on their tile, feet near its bottom. */
@@ -129,6 +129,7 @@ const PROJ_DRAW = {
     ctx.beginPath(); ctx.moveTo(p.x - p.dx * 30, p.y - p.dy * 30); ctx.lineTo(p.x, p.y); ctx.stroke();
   },
   orbit(ctx, p) { PROJ_DRAW.boomerang(ctx, p); },
+  line(ctx, p) { PROJ_DRAW.bolt(ctx, p); },   /* the Ranger's arrows: drawn like his homing ones */
   /* Commander's sword: a blade with a crossguard, pointing where it flies. */
   sword(ctx, p) {
     if (drawSprite(ctx, 'proj_sword', p.x - p.dx * 12, p.y - p.dy * 12, 48, Math.atan2(p.dy, p.dx))) return;
@@ -927,8 +928,7 @@ function drawHeroHere(ctx, g, v, t) {
   const anim = heroAnim(d);
   let art = false;
   const figure = () => {
-    if (d.mounted) { const r = t.ride; at(ctx, r ? r.x : t.x, r ? r.y : t.y, () => { art = drawMounted(ctx, g, t, HERO_S, HERO_DY); }); }   /* the Crusader: on his horse, wherever he rides */
-    else upright(ctx, t.x, t.y + HERO_FOOT, () => {                /* standing on its tile, smaller further back */
+    upright(ctx, t.x, t.y + HERO_FOOT, () => {                     /* standing on its tile, smaller further back */
       art = anim ? drawAnimated(ctx, g, v, t, anim)
         : drawSprite(ctx, frameOf(heroSprite(d), ((g.tick + t.id * 17) / 30 | 0) % 2 === 1), t.x, t.y + HERO_FOOT - HERO_S * 0.44, HERO_S);
     });
@@ -998,7 +998,6 @@ function drawHeroStill(ctx, def, x, y) {
 /* What a path preview's echo shows of the form: the wolf pup, a ghost rider charging down the path, the Assassin's blink. */
 function drawEcho(ctx, g, e) {
   if (e.wolf && e.def.kind === 'wolf') at(ctx, e.wolf.x, e.wolf.y, () => drawWolf(ctx, e, 0.7));
-  if (e.ride) at(ctx, e.ride.x, e.ride.y, () => { ctx.globalAlpha = 0.7; drawMounted(ctx, g, e, HERO_S, HERO_DY); ctx.globalAlpha = 1; });
   if (e.blink && e.blink.t > 0) at(ctx, e.blink.x, e.blink.y, () => {
     ctx.globalAlpha = 0.7 * Math.min(1, e.blink.t * 5);
     if (!drawSprite(ctx, heroSprite(e.def), e.blink.x, e.blink.y + HERO_DY, HERO_S)) { ctx.beginPath(); ctx.arc(e.blink.x, e.blink.y, 11, 0, 7); ctx.fillStyle = e.def.color; ctx.fill(); }

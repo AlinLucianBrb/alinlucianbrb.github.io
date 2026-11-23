@@ -3,15 +3,14 @@
      empower every hero on the map;
    - Inquisitor: a long chain flail at the toughest enemy in range, stacking Verdict (+5% damage taken per stack, up to 10);
      Purge strips armor and resistances in range and executes the weak;
-   - Crusader: mounted. His attack is a charge: he rides from his post onto the nearest stretch of path and down it toward
-     the oncoming enemies, trampling and knocking back each one he passes, then rides back. Cavalry sends phantom riders
-     down the whole path. */
-import { registerBehavior, ready, rearm, strike, charge, look, pickTarget, pickStrongest } from '../behaviors.js';
+   - Crusader: a spear lunge through every enemy in a line, the toughest hit harder for each one; Spear throw pushes every
+     enemy in range back along the path, and the ones that slam into a corner are stunned. */
+import { registerBehavior, ready, rearm, strike, charge, look, pickTarget, pickStrongest, tough } from '../behaviors.js';
 import { registerUltimate } from '../ultimates.js';
 import { PROJECTILES } from '../projectiles.js';
 import { execute } from '../combat.js';
 import { applyEffect, EFFECTS, lasting } from '../effects.js';
-import { knockback, pathPos } from '../enemies.js';
+import { knockback, KNOCKBACK } from '../enemies.js';
 import { T } from '../../content/data.js';
 import { pulseZone } from './common.js';
 import { upgradeOf } from '../upgrades.js';
@@ -79,100 +78,76 @@ registerUltimate('purge', { name: 'Purge', desc: 'Every enemy in range loses 30%
   } });
 
 /* ---- Crusader ---- */
-/* The charge: ride from the post to the nearest point of the path within range, then along the path to the LAST enemy in
-   range (the one furthest from the gate, so he tramples the whole group on the way; at most CHARGE.length), then back to
-   his post. Every enemy within CHARGE.reach of the rider during the ride is hit once and knocked back.
-   t.ride = { phase: 'out' | 'ride' | 'back', x, y, d, to, hit } while away. */
-export const CHARGE = { speed: 260, length: 6 * T, reach: 24, knock: 0.75 * T };
-/* The path point nearest a spot, as progress d in pixels (cached per hero tile). */
-export function nearestPathD(g, x, y) {
-  let best = 0, bd = Infinity;
-  const p = { x: 0, y: 0 }, end = (g.path.length - 1.001) * T;
-  for (let d = 0; d <= end; d += 4) { pathPos(g.path, d / T, p); const q = (p.x - x) ** 2 + (p.y - y) ** 2; if (q < bd) { bd = q; best = d; } }
-  return { d: best, dist: Math.sqrt(bd) };
+/* The lunge: he thrusts his spear in a straight line at the target, as far as his range (Long spear: further), hitting every
+   enemy along it. The toughest of them takes LUNGE.per more damage for each other enemy the spear went through. */
+export const LUNGE = { width: 14, per: 0.2 };
+/* The enemies on the line from (x, y), direction (dx, dy), length len, nearest first. */
+export function onLine(g, x, y, dx, dy, len, width) {
+  const out = [];
+  for (const e of g.enemies) {
+    if (e.dead) continue;
+    const ex = e.x - x, ey = e.y - y, along = ex * dx + ey * dy;
+    if (along < -e.def.radius || along > len + e.def.radius) continue;
+    if (Math.abs(ex * dy - ey * dx) <= width + e.def.radius) out.push(e);
+  }
+  return out;
 }
-const rp = { x: 0, y: 0 };
-registerBehavior('charge', {
+registerBehavior('lunge', {
   update(g, t, dt) {
-    const r = t.ride;
-    if (r) { ride(g, t, r, dt); return; }
     if (!ready(t, dt)) return;
     const tg = pickTarget(g, t, t.s.range);
     if (!tg) return;
-    if (t._pdAt !== t.cx + ',' + t.cy) { t._pdAt = t.cx + ',' + t.cy; t._pd = nearestPathD(g, t.x, t.y); }
-    if (t._pd.dist > t.s.range) return;
-    /* the last enemy in range: the furthest from the gate (smallest progress d) */
-    let last = tg; const R2 = t.s.range * t.s.range;
-    for (const e of g.enemies) if (!e.dead && !e.escaped && (e.x - t.x) ** 2 + (e.y - t.y) ** 2 <= R2 && e.d < last.d) last = e;
-    const mult = strike(g, t, last);
+    const mult = strike(g, t, tg);
     if (mult === 0) { rearm(t); charge(g, t); return; }
-    pathPos(g.path, t._pd.d / T, rp);
-    const end = (g.path.length - 1.001) * T, home = t._pd.d;
-    const to = Math.max(0, Math.min(end, Math.max(home - CHARGE.length, Math.min(home + CHARGE.length, last.d))));   /* at most CHARGE.length either way */
-    /* Standing on the path, he only ever rides along it: straight into the charge, and back the same way. */
-    const onPath = !!g.pathSet && g.pathSet.has(t.cx + ',' + t.cy);
-    t.ride = { phase: onPath ? 'ride' : 'out', onPath, home, x: onPath ? rp.x : t.x, y: onPath ? rp.y : t.y, d: home, to, tx: rp.x, ty: rp.y, hit: new Set(), mult, face: rp.x < t.x ? -1 : 1 };
-    charge(g, t);
+    const long = upgradeOf(t, 'crusader_attack'), len = t.s.range * (long ? long.reach : 1);
+    const d = Math.hypot(tg.x - t.x, tg.y - t.y) || 1, dx = (tg.x - t.x) / d, dy = (tg.y - t.y) / d;
+    const hit = onLine(g, t.x, t.y, dx, dy, len, LUNGE.width);
+    let top = null;
+    for (const e of hit) if (!top || tough(e) > tough(top) || (tough(e) === tough(top) && e.hp > top.hp)) top = e;
+    for (const e of hit) g.attack(t, e, e === top ? mult * (1 + LUNGE.per * (hit.length - 1)) : mult);
+    g.fx?.beam(t.x, t.y - 4, t.x + dx * len, t.y + dy * len - 4, 0.14, mult > 1 ? '#fff6c8' : 'rgba(255,233,160,.8)', mult > 1 ? 6 : 3);   /* the thrust */
+    g.fx?.shot?.(t, Math.atan2(dy, dx));
+    rearm(t); charge(g, t);
   }
 });
-function moveTo(r, x, y, step) {
-  const dx = x - r.x, dy = y - r.y, d = Math.hypot(dx, dy);
-  if (Math.abs(dx) > 1) r.face = dx < 0 ? -1 : 1;
-  if (d <= step) { r.x = x; r.y = y; return true; }
-  r.x += dx / d * step; r.y += dy / d * step; return false;
-}
-function trample(g, t, r, hit) {
-  const r2 = CHARGE.reach * CHARGE.reach;
-  for (const e of g.enemies) {
-    if (e.dead || hit.has(e) || (e.x - r.x) ** 2 + (e.y - r.y) ** 2 > r2) continue;
-    hit.add(e);
-    g.attack(t, e, r.mult);
-    knockback(g, e, CHARGE.knock);
+/* Spear throw: a spear flies into the toughest enemy in range; when it lands every enemy in his range is pushed back along
+   the path SPEAR.push (a boss less, see knockback). The path's corners and the entrance are walls: an enemy that slams into
+   one before the push is over is stunned for the part of the push it missed (hits at once: SPEAR.stun, the longest) and
+   takes damage only for the part it travelled (at least SPEAR.floor of it); one that hits no wall takes the full damage.
+   Pinned (upgrade): those that hit a wall take double damage. */
+export const SPEAR = { push: 2.5 * T, stun: 1.5, scale: 4, floor: 0.2, speed: 700 };
+/* How far an enemy can be pushed back before a wall: back along the path to the last corner behind it, or the entrance. */
+export function wallRoom(g, e) {
+  const p = g.path;
+  for (let i = Math.min(p.length - 2, Math.floor(e.d / T + 1e-9)); i >= 1; i--) {
+    const ax = p[i][0] - p[i - 1][0], ay = p[i][1] - p[i - 1][1], bx = p[i + 1][0] - p[i][0], by = p[i + 1][1] - p[i][1];
+    if (ax !== bx || ay !== by) return Math.max(0, e.d - i * T);
   }
+  return Math.max(0, e.d);
 }
-function ride(g, t, r, dt) {
-  const step = CHARGE.speed * dt;
-  if (r.phase === 'out') { if (moveTo(r, r.tx, r.ty, step)) r.phase = 'ride'; return; }
-  if (r.phase === 'back') {
-    if (upgradeOf(t, 'crusader_attack')) trample(g, t, r, (r.hitBack ||= new Set()));   /* Return charge */
-    if (r.onPath) {                       /* back along the path to his tile */
-      const before = r.x; r.d = r.d < r.home ? Math.min(r.home, r.d + step) : Math.max(r.home, r.d - step); pathPos(g.path, r.d / T, r);
-      if (Math.abs(r.x - before) > 0.5) r.face = r.x < before ? -1 : 1;
-      if (r.d === r.home) { t.ride = null; rearm(t); }
-      return;
-    }
-    if (moveTo(r, t.x, t.y, step)) { t.ride = null; rearm(t); }
-    return;
-  }
-  const before = r.x;
-  r.d = r.to < r.d ? Math.max(r.to, r.d - step) : Math.min(r.to, r.d + step);   /* toward the last enemy, either way along the path */
-  pathPos(g.path, r.d / T, r);
-  if (Math.abs(r.x - before) > 0.5) r.face = r.x < before ? -1 : 1;
-  trample(g, t, r, r.hit);
-  if (r.d === r.to) r.phase = 'back';
+export function shove(g, h, e, pinned) {
+  const boss = e.def.boss ? KNOCKBACK.boss : 1, want = SPEAR.push * boss, room = wallRoom(g, e);
+  const wall = room < want, f = wall ? room / want : 1;
+  g.attack(h, e, SPEAR.scale * Math.max(SPEAR.floor, f) * (wall && pinned ? pinned.times : 1));
+  if (e.dead) return;
+  knockback(g, e, (wall ? room : want) / boss);
+  if (wall && f < 1) applyEffect(e, 'stun', { t: SPEAR.stun * (1 - f) }, h);
+  if (wall) g.ev.emit('slam', { hero: h, enemy: e });
 }
-/* Cavalry: three phantom riders gallop the whole path from the gate back to the entrance, hitting every enemy once for 2x a
-   hit and pushing it back 1.5 tiles. */
-export const CAVALRY = { speed: 320, reach: 26, scale: 2, knock: 1.5 * T, riders: 3 };
-registerUltimate('cavalry', { name: 'Cavalry', desc: 'Three phantom riders gallop the whole path from the gate to the entrance, hitting every enemy once and pushing it back.', damageMult: 1,
-  onFire(w, h) {
-    const end = (w.path.length - 1.001) * T, u = upgradeOf(h, 'crusader_ult');
-    w.projs.push({ type: 'cavalry', owner: h, d: end, x: 0, y: 0, hit: new Set() });
-    if (u) w.projs.push({ type: 'cavalry', owner: h, d: end + u.behind * T, x: 0, y: 0, hit: new Set(), riders: u.riders });   /* Second wave: rides in behind them */
+registerUltimate('spear', { name: 'Spear throw', desc: 'Throws a spear into the enemies, pushing every one in range back 2.5 tiles for up to {4}. One that slams into a corner of the path is stunned instead: the sooner it hits, the longer the stun (up to {t:1.5}) and the less damage.', damageMult: 1,
+  onFire(w, h, target) {
+    const tg = pickStrongest(w, h, h.s.range) || target;
+    if (!tg) return;
+    const d = Math.hypot(tg.x - h.x, tg.y - h.y) || 1;
+    w.projs.push({ type: 'spear', owner: h, x: h.x, y: h.y, tx: tg.x, ty: tg.y, dx: (tg.x - h.x) / d, dy: (tg.y - h.y) / d, left: d });
   } });
-PROJECTILES.cavalry = {
+PROJECTILES.spear = {
   update(g, p, dt) {
-    p.d -= CAVALRY.speed * dt;
-    if (p.d <= 0) return false;
-    const px = p.x, py = p.y;
-    pathPos(g.path, p.d / T, p);
-    const len = Math.hypot(p.x - px, p.y - py);   /* the way it is going, for the riders behind (drawing only) */
-    if (len > 0.01) { p.dx = (px - p.x) / len; p.dy = (py - p.y) / len; p.face = p.x < px ? -1 : 1; }
-    const r2 = CAVALRY.reach * CAVALRY.reach;
-    for (const e of g.enemies) {
-      if (e.dead || p.hit.has(e) || (e.x - p.x) ** 2 + (e.y - p.y) ** 2 > r2) continue;
-      p.hit.add(e); g.attack(p.owner, e, CAVALRY.scale, 1, 'holy'); knockback(g, e, CAVALRY.knock);
-    }
-    return true;
+    const step = SPEAR.speed * dt;
+    if (p.left > step) { p.left -= step; p.x += p.dx * step; p.y += p.dy * step; return true; }
+    const h = p.owner, r2 = h.s.range * h.s.range, pinned = upgradeOf(h, 'crusader_ult');
+    for (const e of [...g.enemies]) if (!e.dead && (e.x - h.x) ** 2 + (e.y - h.y) ** 2 <= r2) shove(g, h, e, pinned);
+    g.fx?.slash(p.tx, p.ty, 0, Math.PI, 40, 0.3, 'rgba(255,233,160,.6)');
+    return false;
   }
 };

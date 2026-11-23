@@ -112,7 +112,7 @@ test('Evolutions tab: the base hero, then its three forms', () => {
   assert.equal(tree.children[1]._text, 'Level 15 · 500 gold');
   assert.deepEqual(tree.children[2].children.map(n => n.children[0]._text), ['Ranger', 'Boomerang', 'Poacher']);
   assert.ok(texts(tree).some(t => /^Ultimate: /.test(t)));
-  assert.ok(texts(tree).some(t => /^Before level 15: Every 5th arrow pierces/.test(t)), 'each form says what its preview does');
+  assert.ok(texts(tree).some(t => /^Before level 15: Every 5th arrow flies through/.test(t)), 'each form says what its preview does');
 });
 
 test('choosing a path on the Evolutions tab saves it; clicking it again clears it', async () => {

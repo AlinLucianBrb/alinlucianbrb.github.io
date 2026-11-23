@@ -12,11 +12,10 @@ import { levelMods } from '../js/engine/levels.js';
 import { ULTIMATES } from '../js/engine/ultimates.js';
 import { pathPos, KNOCKBACK } from '../js/engine/enemies.js';
 import { ANCESTRAL, LINK, LOCUSTS, TOTEM, SURGE, FISSURE, TECTONIC, voodoo } from '../js/engine/kits/shaman.js';
-import { nearestPathD } from '../js/engine/kits/paladin.js';
 import { HEROES, T } from '../js/content/data.js';
 import { exportLog, replay } from '../js/engine/replay.js';
 import { hashWorld } from '../js/engine/hash.js';
-import { richWorld, place, enemyAt, dealt } from './helpers.mjs';
+import { richWorld, place, enemyAt, dealt, nearestPathD } from './helpers.mjs';
 
 const FORMS = ['witchdoctor', 'totemist', 'earthcaller'];
 function setup(lineup = ['shaman', 'warrior'], seed = 5) {

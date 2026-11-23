@@ -12,11 +12,10 @@ import { ENEMIES, ENEMY_SPEED, spawnEnemy, defensesFor, pathPos } from '../js/en
 import { ULTIMATES, ultDesc, attackMult } from '../js/engine/ultimates.js';
 import { heroStats } from '../js/engine/stats.js';
 import { levelMods } from '../js/engine/levels.js';
-import { nearestPathD } from '../js/engine/kits/paladin.js';
 import { TOTEM, SURGE } from '../js/engine/kits/shaman.js';
 import { HEROES, RELICS, DAMAGE_ROLL, ATTRIBUTE_EFFECTS, EVOLVE_BONUS, T } from '../js/content/data.js';
 import { relicIcon } from '../js/game/sprites.js';
-import { richWorld, place, enemyAt, dealt, tilesNearPath } from './helpers.mjs';
+import { richWorld, place, enemyAt, dealt, tilesNearPath, nearestPathD } from './helpers.mjs';
 
 const H = id => HEROES.find(h => h.id === id);
 const near = (a, b, e = 1e-9) => Math.abs(a - b) < e;
@@ -147,7 +146,7 @@ test('Hellfire spreads its burning ground; the Witch Doctor darts an enemy that 
   assert.ok(a && b);
 });
 
-test('the Crusader can stand on the path, and then rides only along it', () => {
+test('the Crusader can stand on the path, and lunges along it from there', () => {
   const { w, h } = evolved('paladin', 'crusader');
   const [cx, cy] = w.path[6];
   assert.ok(apply(w, { type: 'move', id: h.id, cx, cy }).ok, 'onto the path');
@@ -155,10 +154,7 @@ test('the Crusader can stand on the path, and then rides only along it', () => {
   w.wave = 2; w.phase = 'wave'; w.spawnLeft = 0;
   const e = onPath(w, h, -T);
   h.cd = 0; tick(w, h, 1);
-  assert.equal(h.ride.phase, 'ride', 'straight into the charge');
-  const off = [];
-  for (let i = 0; i < 300 && h.ride; i++) { tick(w, h, 1); if (h.ride) { const { dist } = nearestPathD(w, h.ride.x, h.ride.y); off.push(dist); } }
-  assert.equal(h.ride, null); assert.ok(Math.max(...off) < 3, 'never off the path'); assert.ok(dealt(e) > 0);
+  assert.ok(dealt(e) > 0);
   assert.equal(apply(w, { type: 'place', hero: 'paladin', cx, cy }).reason !== undefined, true);
 });
 

@@ -9,16 +9,6 @@ const splash = (g, p, e, u) => {
   for (const o of around(g, e.x, e.y, u.radius, e)) g.attack(p.owner, o, p.scale * u.scale, 1, p.as || null);
 };
 
-/* Ranger: the arrow flies on to the nearest enemy ahead of it. */
-BOLT_HOOKS.marksman_attack = (g, p, e, u) => {
-  let best = null, bd = u.reach * u.reach;
-  for (const o of g.enemies) {
-    if (o.dead || o === e) continue;
-    const dx = o.x - e.x, dy = o.y - e.y, d = dx * dx + dy * dy;
-    if (d <= bd && dx * p.dx + dy * p.dy >= 0) { bd = d; best = o; }
-  }
-  if (best) g.projs.push({ ...p, target: best, x: e.x, y: e.y, child: true });
-};
 /* Poacher: a splash that also poisons. */
 BOLT_HOOKS.hunter_attack = (g, p, e, u) => {
   for (const o of around(g, e.x, e.y, u.radius, e)) {

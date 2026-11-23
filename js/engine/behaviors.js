@@ -214,7 +214,7 @@ registerBehavior('chain', {
 /* ---- Rogue forms. "The strongest, toughest enemy" is the toughest KIND in range first (boss, then brute, grunt, runner:
    TOUGHNESS), even at 1 life left; among the same kind, the one with the most life left. ---- */
 export const TOUGHNESS = { boss: 4, tough: 3.5, brute: 3, summoner: 3, regener: 3, stunner: 2.5, immune: 2.5, grunt: 2, runner: 1, minion: 0 };
-const tough = e => (e.def && e.def.boss ? TOUGHNESS.boss : TOUGHNESS[e.type] || 0);
+export const tough = e => (e.def && e.def.boss ? TOUGHNESS.boss : TOUGHNESS[e.type] || 0);
 export function pickStrongest(g, t, range, except = null) {
   const r2 = range * range; let best = null;
   for (const e of g.enemies) {
