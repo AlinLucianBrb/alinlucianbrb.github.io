@@ -125,3 +125,31 @@ test('Crafting tab: convert, choose, craft, and see what came out', async () => 
   assert.deepEqual(state.items.map(i => i.id), ['new']); assert.equal(state.profile.gold, 75); assert.match(texts(box), /You made/); assert.match(byId.invMsg._text, /Made: Common Great Helm/);
   assert.equal(btns(box, /^Craft$/)[0].disabled, true, 'nothing left to craft with');
 });
+
+test('Inventory: sort and filter, a page of 40 at a time, and New on items that came since the last visit', async () => {
+  const { shownItems, PAGE, isNew } = await import('../js/screens/inventory.js');
+  const at = d => '2026-11-' + String(d).padStart(2, '0') + 'T00:00:00Z';
+  const list = [{ id: 'a', item_type: 'boots', rarity: 0, ilvl: 50, created_at: at(1) }, { id: 'b', item_type: 'great_helm', rarity: 3, ilvl: 5, created_at: at(2) }, { id: 'c', item_type: 'boots', rarity: 2, ilvl: 20, created_at: at(3) }];
+  const ids = how => shownItems([...list], { sort: 'best', slot: 'all', rarity: 'all', ...how }).map(i => i.id).join('');
+  assert.equal(ids({}), 'bca'); assert.equal(ids({ sort: 'newest' }), 'cba'); assert.equal(ids({ sort: 'level' }), 'acb'); assert.equal(ids({ sort: 'slot' }), 'bca');
+  assert.equal(ids({ slot: 'boots' }), 'ca'); assert.equal(ids({ rarity: '2' }), 'c'); assert.equal(ids({ slot: 'legs' }), '');
+  assert.equal(isNew(list[2], at(2)), true); assert.equal(isNew(list[1], at(2)), false); assert.equal(isNew(list[2], ''), false, 'a first visit: nothing new');
+  const store = {}; globalThis.localStorage = { getItem: k => store[k] ?? null, setItem: (k, v) => { store[k] = String(v); } };
+  state.profile = { id: 'u9', levels_cleared: 0, gold: 0, materials: [0, 0, 0, 0], equipment: {} };
+  state.items = Array.from({ length: 95 }, (_, k) => ({ id: 'i' + k, item_type: k % 2 ? 'boots' : 'helm', rarity: k % 4, bonuses: [], bonus_ranks: [], ilvl: k, created_at: at(1 + (k % 20)) }));
+  byId.invTabs.children = [tabBtn('items'), tabBtn('craft')];
+  await inventory.mount(null, {}); await tick();
+  const grid = () => byId.invGrid.children, full = () => grid().filter(c => c.className.includes('full')).length;
+  assert.equal(grid().length, PAGE); assert.equal(full(), 40);
+  const pager = () => byId.invPager.children; assert.equal(pager()[2]._text, 'Page 1 / 3');
+  pager()[3].onclick(); assert.equal(pager()[2]._text, 'Page 2 / 3'); pager()[3].onclick(); assert.equal(full(), 15, 'the last page'); assert.equal(pager()[3].disabled, true);
+  const slotPick = byId.invTools.children[1].children[1]; slotPick.value = 'boots'; slotPick.onchange();
+  assert.equal(pager()[2]._text, 'Page 1 / 2', 'a filter goes back to page 1'); assert.match(pager()[0]._text, /^47 of 95 shown/);
+  assert.ok(grid().every(c => !c.children.some(x => x.className === 'newmark')), 'first visit: nothing new');
+  inventory.unmount(); assert.equal(store['tbd.invSeen.u9'], at(20));
+  state.items.push({ id: 'fresh', item_type: 'boots', rarity: 3, bonuses: [], bonus_ranks: [], ilvl: 99, created_at: at(25) });
+  await inventory.mount(null, {}); await tick();
+  const marked = grid().filter(c => c.children.some(x => x.className === 'newmark'));
+  assert.equal(marked.length, 1); assert.match(marked[0].attrs['aria-label'], /, new$/);
+  inventory.unmount(); delete globalThis.localStorage;
+});

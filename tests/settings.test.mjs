@@ -59,3 +59,14 @@ test('every window over the match is a dialog, and the page has the readability 
   assert.ok(html.includes('body.rarmarks .itemicon[data-rar]::after') && html.includes('#screen-heroes{overflow:hidden}'));
   assert.ok(html.includes('.itemicon.art{display:inline-block;line-height:0;vertical-align:middle}'), 'item pictures are not pushed down by their hidden letters');
 });
+
+test('the end of a match: each of your heroes with its damage, share and kills, then the match in numbers', async () => {
+  const { renderSummary } = await import('../js/game/ui.js');
+  const hero = (name, dealt, kills, mine = true) => ({ def: { name, color: '#fff', id: 'warrior' }, level: 7, dealt, kills, mine });
+  const g = { heroes: [hero('Warrior', 300, 4), hero('Mage', 700, 9), hero('Ally', 999, 50, false)], mine: h => h.mine, kills: 13, bossKills: 1, lives: 18, relics: [{}, {}], legendary: 'plague', gold: 420, tick: 60 * 125 };
+  renderSummary(g);
+  const [table, facts] = byId.overSummary.children, rows = table.children.slice(1);
+  assert.deepEqual(rows.map(r => r.children.slice(1).map(c => c._text)), [['7', '700', '70%', '9'], ['7', '300', '30%', '4']], 'only your heroes, most damage first');
+  assert.deepEqual(rows.map(r => r.children[0].children[1]._text), ['Mage', 'Warrior']);
+  assert.deepEqual(facts.children.map(s => s._text + s.children[0]._text), ['Kills 13', 'Bosses 1', 'Lives left 18', 'Relics 2', 'Legendary Plague', 'Gold left 420', 'Time 2:05']);
+});

@@ -571,8 +571,33 @@ function updateAbilities(b, unit, def) {
 
 export const hidePick = () => { $('pick').hidden = true; };
 export function showOver(title, text, msg, canNext) {
+  $('overSummary').textContent = '';
   setText($('overTitle'), title); setText($('overText'), text); setText($('subMsg'), msg || '');
   $('overNext').hidden = !canNext; $('over').hidden = false;
 }
 export const setOverMsg = msg => { setText($('subMsg'), msg); };
+/* The summary under the result: each of the player's heroes (its form, level, damage and share of it, kills), then the match. */
+export function renderSummary(g) {
+  const box = $('overSummary'); box.textContent = '';
+  const mine = g.heroes.filter(h => g.mine(h)), total = mine.reduce((a, h) => a + h.dealt, 0);
+  if (mine.length) {
+    const table = el('table'), head = el('tr');
+    for (const t of ['Hero', 'Level', 'Damage', 'Share', 'Kills']) head.append(el('th', '', t));
+    table.append(head);
+    for (const h of [...mine].sort((a, b) => b.dealt - a.dealt)) {
+      const row = el('tr'), name = el('td');
+      name.append(spriteImg(cardPicture(h.def).name, 'pix'), el('span', '', h.def.name));
+      name.style.color = h.def.color;
+      row.append(name, el('td', '', String(h.level)), el('td', '', Math.round(h.dealt).toLocaleString()), el('td', '', total ? Math.round(h.dealt / total * 100) + '%' : '0%'), el('td', '', String(h.kills)));
+      table.append(row);
+    }
+    box.append(table);
+  }
+  const facts = el('div', 'facts'), fact = (label, value) => { const s = el('span', '', label + ' '); s.append(el('b', '', String(value))); facts.append(s); };
+  const secs = Math.round(g.tick / 60);
+  fact('Kills', g.kills); fact('Bosses', g.bossKills); fact('Lives left', g.lives); fact('Relics', g.relics.length);
+  if (g.legendary) fact('Legendary', LEGENDARIES[g.legendary].name);
+  fact('Gold left', g.gold); fact('Time', Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0'));
+  box.append(facts);
+}
 export const hideOver = () => { $('over').hidden = true; };

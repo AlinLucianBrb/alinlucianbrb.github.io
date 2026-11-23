@@ -856,6 +856,25 @@ body.rarmarks .relicchip[data-rar]::before{content:attr(data-rar);font:12px/1 va
   body.bigtext .setrow small{display:none}
   body.bigtext #screen-settings{justify-content:flex-start}
 }
+/* inventory: sort and filters over the grid, pages under it, a New mark on items that came since the last visit */
+.invhead{display:flex;gap:18px;align-items:center;flex-wrap:wrap;justify-content:center}
+.invtools{display:flex;gap:14px;align-items:center;flex-wrap:wrap;justify-content:center}
+@media (max-height:760px){.invgrid{grid-template-columns:repeat(8,minmax(0,52px));gap:5px}#invItems:not([hidden]){gap:6px}}
+.invpick{display:flex;gap:6px;align-items:center}
+.invpick select{min-width:9em}
+.invpager{display:flex;gap:10px;align-items:center;min-height:30px}
+.invpager button{min-width:40px}
+.invcell .newmark{position:absolute;right:1px;bottom:3px;font:10px/1 var(--pixel);color:#101813;background:#ffd84a;padding:1px 3px;pointer-events:none}
+#invEmpty:empty{display:none}
+/* the summary at the end of a match */
+.oversum{display:flex;flex-direction:column;gap:8px;align-items:center}
+.oversum table{border-collapse:collapse;min-width:min(520px,92vw)}
+.oversum th,.oversum td{padding:3px 10px;text-align:right;font-variant-numeric:tabular-nums}
+.oversum th:first-child,.oversum td:first-child{text-align:left}
+.oversum th{color:var(--muted);font-weight:400;border-bottom:1px solid var(--line)}
+.oversum td img{width:28px;height:28px;vertical-align:middle;margin-right:6px;image-rendering:pixelated}
+.oversum .facts{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;color:var(--muted)}
+.oversum .facts b{color:var(--text)}
 /* small buttons big enough to hit */
 #inspect .pclose{min-width:28px;min-height:28px;display:inline-grid;place-items:center;font-size:18px}
 #meterToggle{min-height:28px;align-items:center}
@@ -994,7 +1013,8 @@ body.calm .herocard .ab.ready,body.calm .split .autobtn.on::after,body.calm .evo
   <h1>Inventory</h1>
   <div class="tabs" id="invTabs"><button data-tab="items">Items</button><button data-tab="craft">Crafting</button></div>
   <div id="invItems">
-    <p class="muted" id="invEmpty">No items yet. Every win drops one, every boss you defeat drops one, and losses can too.</p>
+    <div class="invhead"><div class="invtools" id="invTools"></div><div class="invpager" id="invPager"></div></div>
+    <p class="muted" id="invEmpty"></p>
     <div class="invgrid" id="invGrid"></div>
     <div class="invsell" id="invSell"></div>
     <small class="muted">Hover an item to see what it does. Equip items on each hero's page (Heroes). Click one to sell or disenchant it.</small>
@@ -1110,6 +1130,7 @@ body.calm .herocard .ab.ready,body.calm .split .autobtn.on::after,body.calm .evo
   <div class="overlay" id="over" hidden role="dialog">
     <h2 id="overTitle">The gate has fallen</h2>
     <p id="overText"></p>
+    <div class="oversum" id="overSummary"></div>
     <p class="muted" id="subMsg"></p>
     <button class="go" id="overNext" hidden>Next level</button>
     <button id="newRun">Retry level</button>

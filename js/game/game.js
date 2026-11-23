@@ -98,6 +98,7 @@ function peerGone(uid) {
     netDead = true; v.moving = null;
     ui.hidePick(); closeEvolve();
     ui.showOver('The host left', 'The match ended at wave ' + world.wave + (world.stage.endless ? '' : ' of ' + world.maxWave) + '.', 'Saving your run…', false);
+    ui.renderSummary(w);
     const mine = world;
     Promise.resolve(hooks.onRunEnd({ waves: Math.max(1, world.wave), kills: world.kills, bosses: world.bossKills, stage: stageN, won: false, log: exportLog(world) }))
       .catch(() => 'Could not save your run.').then(msg => { if (mine === world) ui.setOverMsg(msg || ''); });
@@ -110,6 +111,7 @@ async function finish(done, won) {
   v.moving = null; setPaused(false);
   ui.showOver(won ? 'Level cleared!' : world.stage.endless && world.lives > 0 ? 'Run ended' : 'The gate has fallen',
     won ? 'You beat all ' + world.maxWave + ' waves.' : world.lives > 0 && world.wave >= world.maxWave && !world.stage.endless ? 'The final boss got through.' : 'You reached wave ' + world.wave + (world.stage.endless ? '.' : ' of ' + world.maxWave + '.'), 'Saving your run…', won && stageN < STAGES.length && !hooks.coop);
+  ui.renderSummary(w);
   let msg = '';
   try { msg = await hooks.onRunEnd({ waves: world.wave, kills: world.kills, bosses: world.bossKills, stage: stageN, won, log: exportLog(world) }); } catch (e) { msg = 'Could not save your run.'; }
   if (done === currentWorld()) ui.setOverMsg(msg || '');

@@ -210,6 +210,14 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Inventory sorting and pages, a match summary (Nov 23, v0.65.0)
+- **Inventory:** sort (best first, newest, item level, rarity, slot) and filter by slot and rarity; 40 items a page with page
+  buttons, so all 200 fit; items that came since the last visit say New (remembered on this browser, per account).
+- **End of a match:** a summary under the result: each of your heroes with its level, damage, share and kills, then kills,
+  bosses, lives left, relics, the legendary, gold left and the match time.
+- Tab to move through the heroes was left out: 1, 2 and 3 already select them, and Tab moves between buttons.
+- No rules or SQL changed (engine 33).
+
 ## Easier to read and to use by keyboard; Settings (Nov 23, v0.64.0)
 - **Fixes:** the Heroes screen and a hero's page fit the window (no scrolling); item pictures in the gear slots were pushed down
   and showed only their top edge; a highlighted gear slot turned gold and its text could not be read; "Empty" is readable.
