@@ -9,7 +9,7 @@ import { SLOTS } from '../content/items.js';
 import { UNLOCKS, unlocksOf } from '../content/unlocks.js';
 import { MAP_EFFECTS, MAP_EFFECT_OF } from '../content/map-effects.js';
 import { el, cap, gearCount, ensureItems, saveNow, sqlHint, activePaths, pathsUnlocked } from './loadout.js';
-import { spriteImg, heroPortrait } from '../game/sprites.js';
+import { heroFrame, heroAbilities } from '../game/sprites.js';
 import { pathChoice } from '../engine/preview.js';
 import { heroStats } from '../engine/stats.js';
 import { liveText } from '../content/live-text.js';
@@ -74,7 +74,7 @@ function renderPick() {
   const grid = $('lvHeroes'); grid.textContent = '';
   const paths = activePaths(stage);   /* a path counts only on levels of Act 2 or later */
   for (const h of HEROES) {
-    const on = lineup.includes(h.id), card = el('div', 'hcard pick' + (on ? ' picked' : '')), head = el('div', 'hhead');
+    const on = lineup.includes(h.id), card = el('div', 'hcard herolike pick' + (on ? ' picked' : '')), head = el('div', 'hhead');
     card.style.setProperty('--hc', h.color); card.tabIndex = 0; card.setAttribute?.('role', 'button');
     head.append(el('b', '', h.name), el('small', 'muted', cap(h.archetype) + ' · ' + STAT_LABELS[h.attribute]));
     const c = paths[h.id] && pathChoice(h.id, paths[h.id]);
@@ -84,7 +84,7 @@ function renderPick() {
     const foot = el('div', 'pickfoot'); foot.append(gear, el('span', 'pickmark', on ? '✓ ' + (lineup.indexOf(h.id) + 1) : 'Add'));
     const info = el('small', 'muted', 'Gear ' + gearCount(h.id) + ' / ' + SLOTS.length + (c ? ' · ' : ''));
     if (c) info.append(el('span', 'pathline', 'Path: ' + c.name));
-    card.append(spriteImg(heroPortrait(h.id), 'pix hcardart'), head, info, foot);
+    card.append(heroFrame(h), head, info, foot, heroAbilities(h));   /* like the hero cards in a match */
     card.title = liveText(h.short, null, heroStats(h, []));
     card.onclick = () => toggle(h.id);
     card.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault?.(); toggle(h.id); } };

@@ -168,6 +168,26 @@ export function cardPicture(def) {
   if (def.form && HERO_ANIM[def.form]) return { name: HERO_ANIM[def.form].portrait, focus: HERO_ANIM[def.form].focus || 64, size: 128, flip: PORTRAIT_FACES_LEFT.has(def.id) };   /* a form: its own still, framed like its base hero */
   return { name: heroSprite(def), focus: 32, size: 64 };
 }
+/* Sizes a hero card's picture so the figure from the head to the waist (about 62 of a portrait's 128 px) fills the frame,
+   centred on the figure (--s: the scale, --f: the figure's middle in picture px, --z: the picture's size). */
+export function frameHero(frame, cp) {
+  /* mirrored pictures: the figure's middle is measured from the other side */
+  frame.className = 'pframe' + (cp.flip ? ' flip' : '');
+  frame.style.setProperty?.('--z', String(cp.size)); frame.style.setProperty?.('--f', String(cp.flip ? cp.size - cp.focus : cp.focus));
+  frame.style.setProperty?.('--s', String(cp.size === 128 ? 1.3 : 1.9));
+}
+/* The pieces of the in-match hero card, for the hero cards on other screens (Heroes, choosing heroes for a level): the
+   picture in its frame, and the basic attack and ultimate icons. */
+export function heroFrame(def) {
+  const frame = document.createElement('span'), cp = cardPicture(def);
+  frame.append(spriteImg(cp.name, 'pix')); frameHero(frame, cp);
+  return frame;
+}
+export function heroAbilities(def) {
+  const box = document.createElement('span'); box.className = 'habil';
+  for (const icon of [attackIcon(def), ultimateIcon(def)]) { const b = document.createElement('span'); b.className = 'ab'; b.append(spriteImg(icon, 'pix')); box.append(b); }
+  return box;
+}
 const heroIds = HEROES.flatMap(h => [h.id, ...(h.evolutions || []).flatMap(s => s.choices.map(c => c.id))]);
 export const SPRITES = [...new Set([
   ...heroIds.flatMap(id => ['hero_' + id, 'hero_' + id + '_2']),            /* _2: the second animation frame */

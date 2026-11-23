@@ -29,7 +29,7 @@ export const CURSE = { life: 0.3, gold: 1 };          /* per curse on the same w
 
 /* Summoned bosses: one at a time joins the wave, then `cooldown` waves must pass. Each one after the first has `life` more
    life and pays `pay` more. No items, not a kill. kinds: enemy types (enemies.js), what each does is in boss-gimmicks.js. */
-export const SUMMON_BOSS = { cooldown: 5, gold: 150, perWave: 15, life: 0.15, pay: 0.25,
+export const SUMMON_BOSS = { cooldown: 5, gold: 300, perWave: 30, life: 0.15, pay: 0.25,   /* Nov 23: twice the prize (was 150 + 15 a wave) */
   kinds: {
     bossSplitter: { name: 'Splitter', text: 'Splits into two halves at half its life.' },
     bossCharger:  { name: 'Charger',  text: 'Speeds up as it loses life.' },

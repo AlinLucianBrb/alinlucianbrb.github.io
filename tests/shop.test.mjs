@@ -146,15 +146,15 @@ test('summoning: only during a wave, a cooldown of 5 waves, tougher and richer e
   const w = shopWorld(); assert.equal(apply(w, { type: 'summonBoss' }).reason, 'not in a wave');
   const { w: x, e } = withBoss('bossCharger');
   assert.equal(x.wave, 10); assert.equal(apply(x, { type: 'summonBoss' }).reason, 'cooldown'); assert.equal(bossWait(x), SUMMON_BOSS.cooldown);
-  assert.equal(e.prize.gold, 150 + 15 * 10); const boss = spawnEnemy(x, 'boss'); assert.ok(Math.abs(e.max / boss.max - 0.6) < 0.01, '60% of a boss');
-  x.wave = 15; assert.equal(bossWait(x), 0); assert.equal(bossPay(x), Math.floor((150 + 225) * 1.25)); x.bossKind = 'bossThief'; assert.ok(apply(x, { type: 'summonBoss' }).ok);
+  assert.equal(e.prize.gold, 300 + 30 * 10); const boss = spawnEnemy(x, 'boss'); assert.ok(Math.abs(e.max / boss.max - 3) < 0.01, 'three times a boss (5x the old 60%)');
+  x.wave = 15; assert.equal(bossWait(x), 0); assert.equal(bossPay(x), Math.floor((300 + 450) * 1.25)); x.bossKind = 'bossThief'; assert.ok(apply(x, { type: 'summonBoss' }).ok);
   const second = x.enemies.at(-1), plain = spawnEnemy(x, 'bossThief'); assert.ok(Math.abs(second.max / plain.max - 1.15) < 0.01);
   assert.ok(Object.keys(SUMMON_BOSS.kinds).includes(x.bossKind), 'the next one is already known');
 });
 
 test('a summoned boss: its gold instead of a kill or an item; 5 lives if it gets through, never the match', () => {
   const { w, e } = withBoss('bossCharger'), p = w.players[0], g = p.gold, k = w.kills;
-  w.hit(null, e, 1e9); assert.equal(p.gold - g, 300); assert.deepEqual([w.kills, w.bossKills], [k, 0]);
+  w.hit(null, e, 1e9); assert.equal(p.gold - g, 600); assert.deepEqual([w.kills, w.bossKills], [k, 0]);
   const { w: x, e: f } = withBoss('bossCharger'); x.wave = x.maxWave; const lives = x.lives, gold = x.gold;
   f.d = (x.path.length - 1.01) * T; updateEnemies(x, 0.1);
   assert.equal(x.lives, lives - 5); assert.notEqual(x.phase, 'over', 'it is not the final boss'); assert.equal(x.gold, gold);
@@ -169,7 +169,7 @@ test('Splitter: two halves at half its life; paid once, when both are dead; noth
     if (escape) { halves[1].d = (w.path.length - 1.01) * T; updateEnemies(w, 0.1); } else w.hit(null, halves[1], 1e9);
     return w.gold - g;
   };
-  assert.equal(run(false), 300); assert.equal(run(true), 0);
+  assert.equal(run(false), 600); assert.equal(run(true), 0);
 });
 test('Charger, Blinker, Warded and Thief do what they say', () => {
   { const { w, e } = withBoss('bossCharger'); updateAbilities(w, 0.1); const v = e.speed; e.hp = e.max * 0.2; updateAbilities(w, 0.1); assert.ok(near(e.speed, v * (1 + 1.5 * 0.8))); }
@@ -178,7 +178,7 @@ test('Charger, Blinker, Warded and Thief do what they say', () => {
   { const { w, e } = withBoss('bossWarded'); const hurt = (type, n) => { const h = e.hp; w.hit(null, e, n, type); return h - e.hp; };
     updateAbilities(w, 0.1); assert.equal(hurt('fire', 10), 10); hurt('cold', 2); updateAbilities(w, 5); assert.ok(near(hurt('fire', 10), 2.5)); assert.equal(hurt('cold', 10), 10);
     updateAbilities(w, 5.1); assert.equal(hurt('fire', 4) , 1, 'fire was still tried hardest'); hurt('cold', 50); updateAbilities(w, 5.1); assert.equal(hurt('fire', 4), 4, 'now it wards cold'); }
-  { const { w, e } = withBoss('bossThief'), g = w.gold; updateAbilities(w, 3); updateAbilities(w, 3); assert.equal(g - w.gold, 20); w.hit(null, e, 1e9); assert.equal(w.gold - g, 300 + 20, 'its gold, and the 20 back twice'); }
+  { const { w, e } = withBoss('bossThief'), g = w.gold; updateAbilities(w, 3); updateAbilities(w, 3); assert.equal(g - w.gold, 20); w.hit(null, e, 1e9); assert.equal(w.gold - g, 600 + 20, 'its gold, and the 20 back twice'); }
   { const { w, e } = withBoss('bossThief'), g = w.gold; updateAbilities(w, 3); e.d = (w.path.length - 1.01) * T; updateEnemies(w, 0.1); assert.equal(g - w.gold, 10, 'gone if it gets away'); }
 });
 

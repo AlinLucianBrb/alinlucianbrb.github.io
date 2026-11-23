@@ -276,13 +276,11 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
 #inspect .srow .ebar.wide{flex:1;width:auto;min-width:50px;margin-left:12px}
 .actions{display:flex;flex-direction:column;gap:6px;justify-content:center;padding-left:10px;border-left:1px solid var(--line)}
 .waverow{display:flex;gap:6px;align-items:stretch}
-/* Start wave and Auto-start are one button: about 80% start, 20% auto. */
-.split{display:flex;flex:1;min-width:150px}
-.split #go{flex:4;border-radius:4px 0 0 4px;font-size:1.05em;padding:.5em .8em;white-space:nowrap}
-.split .autobtn{flex:1;min-width:46px;border-radius:0 4px 4px 0;border-left:1px solid rgba(0,0,0,.35);padding:.2em .3em;font-size:.68em;font-weight:700;letter-spacing:.05em;background:#5a1f1c;color:#ffb4a8;border-color:#e5645a}   /* red while off, so it is clear Auto-start is not on */
+.actions #go{white-space:nowrap}
+.actions .autobtn{flex:1;min-width:0;border-left:1px solid rgba(0,0,0,.35);padding:.2em .3em;font-size:.68em;font-weight:700;letter-spacing:.05em;background:#5a1f1c;color:#ffb4a8;border-color:#e5645a}   /* red while off, so it is clear Auto-start is not on */
 .choose .pickkey{position:absolute;top:6px;right:8px;font-size:.75em;color:var(--muted)}
 .choose{position:relative}
-.split .autobtn.on{background:#8be28b;color:#10200f;border-color:#8be28b}
+.actions .autobtn.on{background:#8be28b;color:#10200f;border-color:#8be28b}
 .spdbtn{min-width:46px;font-weight:700}
 .spdbtn.on{border-color:var(--accent);color:var(--accent)}
 #pauseBanner{top:42%;left:50%;transform:translate(-50%,-50%);font-size:2em;font-weight:700;letter-spacing:.12em;padding:.25em 1em;pointer-events:none}
@@ -316,7 +314,6 @@ button.danger{border-color:#e5645a;color:#ffb4a8}
   #relics{max-width:150px;font-size:.85em}
   #heroPanel{width:min(250px,44vw)}
   .hud-layer{--meterW:min(190px,30vw)}
-  .split{min-width:120px}
 }
 @media (max-width:640px){
   #hudTopRight button{padding:.35em .5em;font-size:.85em}
@@ -404,18 +401,18 @@ input:not([type=checkbox]),select,.field input,.joinrow input{border:6px solid t
 .herocard{border-image-source:url(assets/ui_button.png);box-shadow:inset 0 3px 0 var(--hc);padding:.2em 1.3em .25em .5em}
 .herocard.on{border-image-source:url(assets/ui_button_on.png);background:none}
 .herocard:has(.hico){padding-left:40px}
-.split #go,.split .autobtn{border-radius:0}
-.split .autobtn{border-image-source:url(assets/ui_button_bad.png);background:none;color:#ffe0dc;font-family:var(--pixel);font-size:18px;min-width:70px;padding:2px 4px 4px;letter-spacing:0}
-.split .autobtn.on{border-image-source:url(assets/ui_button_on.png);background:none;color:#e0ffd8}
+.actions #go,.actions .autobtn{border-radius:0}
+.actions .autobtn{border-image-source:url(assets/ui_button_bad.png);background:none;color:#ffe0dc;font-family:var(--pixel);font-size:18px;padding:2px 4px 4px;letter-spacing:0}
+.actions .autobtn.on{border-image-source:url(assets/ui_button_on.png);background:none;color:#e0ffd8}
 /* Auto-start on: a bright green border that glows and pulses around the button, so it catches the eye. With reduced
    motion (an OS setting) the glow stays, it just does not pulse. */
-.split .autobtn{position:relative;white-space:nowrap;overflow:visible}
-.split .autobtn.on{z-index:1}
-.split .autobtn.on::after{content:'';position:absolute;inset:-3px;border:2px solid #b8ff8a;pointer-events:none;
+.actions .autobtn{position:relative;white-space:nowrap;overflow:visible}
+.actions .autobtn.on{z-index:1}
+.actions .autobtn.on::after{content:'';position:absolute;inset:-3px;border:2px solid #b8ff8a;pointer-events:none;
   box-shadow:0 0 8px 2px rgba(139,226,139,.85),inset 0 0 6px rgba(184,255,138,.6);animation:autoGlow 1.2s ease-in-out infinite}
 @keyframes autoGlow{0%,100%{box-shadow:0 0 4px 1px rgba(139,226,139,.55),inset 0 0 3px rgba(184,255,138,.35);border-color:#8be28b}
   50%{box-shadow:0 0 14px 4px rgba(160,255,140,.95),inset 0 0 8px rgba(184,255,138,.75);border-color:#e6ffd2}}
-@media (prefers-reduced-motion:reduce){.split .autobtn.on::after{animation:none}}
+@media (prefers-reduced-motion:reduce){.actions .autobtn.on::after{animation:none}}
 .pickgold{color:#ffd84a;font-family:var(--pixel);margin-left:8px}
 #reroll.poor{color:#e5645a}
 .spdbtn.on{color:#ffe08a}
@@ -513,11 +510,13 @@ input:not([type=checkbox]),select,.field input,.joinrow input{border:6px solid t
 .herocard .ab{width:34px;height:34px}
 .herocard .key{top:2px;right:5px}
 /* The wave buttons, smaller */
-#relic{font-size:15px;line-height:16px;padding:4px 8px}
-.split #go{font-size:15px;line-height:16px;padding:5px 10px}
-.split .autobtn{font-size:15px;min-width:60px;flex:none;padding:2px 8px 3px}
-.spdbtn{font-size:15px;line-height:16px;min-width:40px;padding:4px 6px}
-.actions{gap:4px}
+#relic{font-size:15px;line-height:16px;padding:6px 8px}
+/* Start, Auto and Speed: a small block, Start on top and the two under it */
+.actions{gap:4px;width:104px;padding-left:8px}
+.actions #go{font-size:15px;line-height:16px;padding:6px 4px;width:100%}
+.actions .waverow{gap:4px}
+.actions .autobtn{font-size:13px;line-height:14px;flex:1;min-width:0;padding:3px 2px}
+.spdbtn{font-size:13px;line-height:14px;min-width:0;width:38px;flex:none;padding:3px 2px}
 
 /* Hero cards v2: as tall as the bar, the portrait (looking right) from the card's top to its bottom, big skill icons. */
 #hudBottom{align-items:stretch}
@@ -530,13 +529,10 @@ input:not([type=checkbox]),select,.field input,.joinrow input{border:6px solid t
 .herocard .nm{font-size:14px;line-height:16px}
 .herocard .abil{flex:1;align-items:flex-end;gap:5px;margin-top:3px}
 .herocard .ab{width:42px;height:42px}
-/* narrower Relic / Start / Auto / Speed */
-.split{flex:none;min-width:0}
-.split #go{flex:none;font-size:15px;padding:5px 10px}
-.split .autobtn{min-width:0;padding:2px 7px 3px;font-size:14px}
-.spdbtn{min-width:0;padding:4px 6px;font-size:14px}
-#relic{font-size:14px;line-height:15px;padding:2px 6px}
-.split #go,.split .autobtn,.spdbtn{line-height:15px;padding-top:3px;padding-bottom:4px}
+/* the Start / Auto / Speed block, compact (it sits beside the hero cards) */
+.actions #go{font-size:15px;line-height:16px;padding:6px 4px}
+.actions .autobtn,.actions .spdbtn{font-size:13px;line-height:14px;padding:4px 2px}
+#shopCard #relic{font-size:15px;line-height:16px;padding:6px 8px}
 
 /* Hero cards, styled: a dark card tinted by the hero's colour, the portrait in a framed window lit from behind in that
    colour, the name in the pixel font with an outline, Lv as a small badge, the price with a coin, skill icons in slots. */
@@ -750,8 +746,6 @@ button:not(.danger):not(.relic):not(.on):not(.herocard):not(.linkbtn):not(.choos
 .votecard .good{color:#8be28b}.votecard .bad{color:#ff9d8a}.votecard .who2{color:#8fd3ff;margin-top:auto}
 .votecard.mine{outline:3px solid #ffe08a;outline-offset:-3px}
 .lvtxt .mapfx{color:#ffe08a}
-/* The bottom bar's buttons. */
-.buyrow{display:flex;gap:4px}.buyrow #relic{flex:1.5}
 .result{padding:4px 8px;border-left:4px solid #8be28b}.result.lose,.result.curse{border-color:#e5645a}.result.nothing{border-color:#888}
 #tileHint{position:absolute;left:50%;top:116px;transform:translateX(-50%);padding:6px 14px}
 /* Inventory: the Items and Crafting tabs. */
@@ -865,19 +859,22 @@ body.rarmarks .relicchip[data-rar]::before{content:attr(data-rar);font:12px/1 va
 .oversum td img{width:28px;height:28px;vertical-align:middle;margin-right:6px;image-rendering:pixelated}
 .oversum .facts{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;color:var(--muted)}
 .oversum .facts b{color:var(--text)}
-/* The left edge: a tab you hover (or tap) for the card with the shop and the relics (game.js toggles .open on a tap). */
-#leftDrawer{left:0;top:64px;bottom:200px;width:30px;display:flex;align-items:flex-start;pointer-events:auto}
-#drawerTab{position:absolute;left:0;top:50%;transform:translateY(-50%);width:30px;min-width:0;height:64px;padding:0;display:grid;place-items:center;border-radius:0 8px 8px 0;opacity:.85}
-#drawerTab img{width:22px;height:22px;image-rendering:pixelated}
-#drawerCard{position:relative;margin-left:8px;display:flex;flex-direction:column;gap:8px;padding:8px 10px;max-height:100%;width:max-content;max-width:min(240px,30vw);overflow:hidden;
-  transform:translateX(calc(-100% - 20px));opacity:0;visibility:hidden;transition:transform .16s ease-out,opacity .16s,visibility 0s .16s}
-#leftDrawer:hover,#leftDrawer:focus-within,#leftDrawer.open{width:auto}
-#leftDrawer:hover #drawerCard,#leftDrawer:focus-within #drawerCard,#leftDrawer.open #drawerCard{transform:none;opacity:1;visibility:visible;transition:transform .16s ease-out,opacity .16s}
-#leftDrawer:hover #drawerTab,#leftDrawer:focus-within #drawerTab,#leftDrawer.open #drawerTab{opacity:0;pointer-events:none}
-body.calm #drawerCard{transition:none}
-#leftDrawer #relics{position:static;transform:none;padding:0;max-height:none;max-width:none;background:none;border:none;box-shadow:none;overflow:hidden}
-#leftDrawer #shopPanel{display:flex;flex-direction:column;gap:4px}
-#leftDrawer #shopPanel[hidden]{display:none}
+/* The shop card at the left edge, always on screen (the map is fitted beside it, game.js freeRect). */
+#shopCard{position:absolute;left:10px;top:64px;width:196px;display:flex;flex-direction:column;gap:8px;padding:10px;pointer-events:auto}
+#shopCard .goldbox{flex-direction:row;align-items:baseline;flex-wrap:wrap;justify-content:flex-start;gap:6px;min-width:0;padding:0;border:none}
+#shopCard .goldbox .ico{width:20px;height:20px;align-self:center}
+#shopCard .goldbox small.gl{color:var(--muted)}
+#shopCard .goldbox .interest{flex-basis:100%;margin:0}
+#shopCard #relic{width:100%}
+#shopCard #shopPanel{display:flex;flex-direction:column;gap:6px}
+#shopCard #shopPanel[hidden]{display:none}
+/* the relics you own: icons, 4 a row; the name, rarities and what they do in the tooltip, the copies as a number */
+#shopCard #relics{position:static;transform:none;padding:0;max-height:none;max-width:none;background:none;border:none;box-shadow:none;overflow:visible;
+  display:grid;grid-template-columns:repeat(4,40px);gap:6px}
+#shopCard #relics[hidden]{display:none}
+#shopCard #relics .relicchip{position:relative;width:40px;height:40px;padding:0;margin:0;display:grid;place-items:center}
+#shopCard #relics .relicico{width:30px;height:30px;margin:0;vertical-align:0}
+#shopCard #relics .relicn{position:absolute;right:1px;bottom:0;font:12px/1 var(--pixel);color:#fff;text-shadow:0 0 2px #000,0 0 2px #000}
 .drawtitle{font:calc(14px * var(--ts))/1 var(--pixel);color:#e9d8b4;letter-spacing:.04em}
 .shopicons{display:flex;gap:6px;flex-wrap:wrap}
 #shopPanel button.shopico{position:relative;width:52px;min-width:0;padding:4px 2px 3px;display:flex;flex-direction:column;align-items:center;gap:1px;box-shadow:inset 0 -3px 0 var(--ec,transparent)}
@@ -915,7 +912,56 @@ body.calm #drawerCard{transition:none}
 @media (max-width:900px){.setwrap{grid-template-columns:1fr}}
 /* fewer effects (Settings): what the reduce-motion rules turn off, also when chosen here */
 body.calm #screen-menu::before,body.calm #screen-login::before,body.calm #screen-menu::after,body.calm #screen-login::after,body.calm button.go::after,
-body.calm .herocard .ab.ready,body.calm .split .autobtn.on::after,body.calm .evoup{animation:none}
+body.calm .herocard .ab.ready,body.calm .actions .autobtn.on::after,body.calm .evoup{animation:none}
+/* The hero window (Nov 23): a fixed width so it never jumps as numbers change; every value has its word beside it. */
+#heroPanel{width:300px}
+#inspect .tally{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;font-size:calc(12px * var(--ts))}
+#inspect .tally .tv{gap:3px;min-width:0}
+#inspect .tally small,#inspect .pbname,#inspect .attr small,#inspect .pname{color:#b9ab8e;font-family:var(--pixel);font-size:calc(12px * var(--ts))}
+#inspect .tally b{margin-left:auto}
+#inspect .pbname{flex:none;width:52px}
+#inspect .pbar .pbtxt{min-width:70px}
+#inspect .attrs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+#inspect .attr{justify-content:flex-start;gap:4px}
+#inspect .attr b{margin-left:auto}
+#inspect .pstats{grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 10px}
+#inspect .pst{gap:5px;padding:2px 3px}
+#inspect .pst .pname{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#inspect .pst b{flex:none;overflow:visible}
+/* The items a match dropped, on the result screen: the same cells as the inventory, the name and bonuses on hover. */
+.lootrow{max-width:min(640px,92vw)}
+.lootrow .loot{display:flex;flex-wrap:wrap;justify-content:center;gap:6px}
+.lootrow[hidden]{display:none}
+.lootrow .invcell{width:56px;height:56px;cursor:help}
+.lootrow .itemicon.art img{width:44px;height:44px}
+/* Hero cards on the Heroes screen and when choosing heroes for a level: the same look as the hero cards in a match (a gold
+   button frame, the hero's colour along the top, the hero in a framed window on the left, the attack and ultimate icons). */
+.hcard.herolike,#hrGrid .hcard.herolike,#lvPick .hgrid .hcard.herolike{position:relative;display:grid;grid-template-columns:76px minmax(0,1fr) auto;grid-auto-rows:min-content;column-gap:10px;row-gap:3px;align-content:center;
+  min-height:104px;padding:6px 8px 6px 6px;border-width:8px;border-style:solid;border-color:transparent;border-image:url(assets/ui_button.png) 8 / 8px stretch;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--hc) 30%,#22302a) 0%,#18211c 100%) padding-box;box-shadow:inset 0 3px 0 var(--hc);filter:none;outline:none}
+.hcard.herolike:hover,.hcard.herolike:focus-visible{border-image-source:url(assets/ui_button_hover.png)}
+.hcard.herolike.picked,#lvPick .hgrid .hcard.herolike.picked{border-image-source:url(assets/ui_button_on.png);background:linear-gradient(180deg,color-mix(in srgb,var(--hc) 45%,#2b3d33) 0%,#1f2c25 100%) padding-box;box-shadow:inset 0 3px 0 var(--hc),0 0 0 1px #ffd84a,0 0 10px 1px rgba(255,216,74,.45)}
+.hcard.herolike > *,#hrGrid .hcard.herolike > *,#lvPick .hgrid .hcard.herolike > *{grid-column:2}
+.hcard.herolike .pframe,#hrGrid .hcard.herolike .pframe,#lvPick .hgrid .hcard.herolike .pframe{grid-column:1;grid-row:1 / span 4;position:relative;align-self:stretch;width:76px;min-height:88px;overflow:hidden;background:rgba(0,0,0,.28);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.hcard.herolike .pframe img{position:absolute;max-width:none;image-rendering:auto;width:calc(var(--z,128) * var(--s,0.84) * 1.45px);left:calc(38px - var(--f,64) * var(--s,0.84) * 1.45px);top:calc(-1.45px * var(--s,0.84))}
+.hcard.herolike .pframe.flip img{transform:scaleX(-1)}
+.hcard.herolike .hhead{flex-direction:column;align-items:flex-start;gap:2px}
+.hcard.herolike .hhead b{font-family:var(--pixel);font-weight:400;font-size:18px;line-height:20px}
+.hcard.herolike .habil,#hrGrid .hcard.herolike .habil,#lvPick .hgrid .hcard.herolike .habil{grid-column:3;grid-row:1 / span 4;align-self:center;display:flex;flex-direction:column;gap:5px}
+.hcard.herolike .habil .ab{display:block;width:38px;height:38px}
+.hcard.herolike .habil .ab img{display:block;width:100%;height:100%;image-rendering:pixelated}
+/* Nov 23 fixes: the shop card a little wider (three shop icons a row, four relics a row inside it), the rarity letter
+   inside a relic's square, and the hero window's stats in one column so no name is cut. */
+#shopCard{width:224px}
+#shopPanel button.shopico{width:56px}
+#shopCard #relics{grid-template-columns:repeat(4,42px);gap:6px}
+#shopCard #relics .relicchip{width:42px;height:42px}
+body.rarmarks #shopCard .relicchip[data-rar]::before{position:absolute;left:2px;top:1px;margin:0;text-shadow:0 0 2px #000,0 0 2px #000}
+#heroPanel{width:290px}
+#inspect .pstats{grid-template-columns:1fr;gap:1px}
+#inspect .pst .pname{overflow:hidden;text-overflow:ellipsis}   /* only a very long name (an effect) is cut; the tooltip has it whole */
+#inspect .attrs{grid-template-columns:repeat(3,minmax(0,1fr))}
+#inspect .attr{min-width:0;padding:0 4px 0 2px}
 </style>
 </head>
 <body>
@@ -1082,13 +1128,13 @@ body.calm .herocard .ab.ready,body.calm .split .autobtn.on::after,body.calm .evo
     <!-- Co-op: everyone in the match, their colour, gold and whether they are ready. -->
     <div id="coopBar" class="glass" hidden></div>
     <div id="netBanner" class="glass" hidden></div>
-    <!-- The left edge: hover it (or tap the tab) for the card with the shop and the relics you own. -->
-    <div id="leftDrawer">
-      <div id="drawerCard" class="glass">
-        <div id="shopPanel" hidden></div>
-        <div id="relics" hidden></div>
-      </div>
-      <button id="drawerTab" aria-label="Shop and relics" title="Shop and relics"><img class="pix" src="assets/icon_relics.png" alt=""></button>
+    <!-- The left edge: the shop, always on screen: gold, the shop's buttons, buying a relic, and the relics you own. -->
+    <div id="shopCard" class="glass">
+      <small class="drawtitle">Shop</small>
+      <div class="goldbox"><img class="ico pix" src="assets/icon_gold.png" alt=""><b id="gold"></b><small class="gl">Gold</small><small id="interest" class="interest" hidden></small></div>
+      <div id="shopPanel" hidden></div>
+      <button id="relic" class="relic">Relic</button>
+      <div id="relics" hidden></div>
     </div>
     <div id="gambleToast" class="glass result" hidden></div>
     <!-- Top right: Menu (pause), with the selected hero's details under it. -->
@@ -1105,17 +1151,13 @@ body.calm .herocard .ab.ready,body.calm .split .autobtn.on::after,body.calm .evo
       <button id="camOut" aria-label="Zoom out" title="Zoom out (−)">−</button>
       <button id="camFit" title="Fit the map to the screen (F)">Fit</button>
     </div>
-    <!-- Bottom: gold, heroes, Relic, then Start with Auto-start built in, and Speed beside it. -->
+    <!-- Bottom: the heroes, then a small block: Start on top, Auto-start and Speed under it. -->
     <div id="hudBottom" class="glass">
-      <div class="goldbox"><small><img class="ico pix" src="assets/icon_gold.png" alt="">Gold</small><b id="gold"></b><small id="interest" class="interest" hidden></small></div>
       <div class="heroes" id="tbtns"></div>
       <div class="actions">
-        <div class="buyrow"><button id="relic" class="relic">Relic</button></div>
+        <button id="go" class="go big" title="Start the next wave (Enter)">Start</button>
         <div class="waverow">
-          <div class="split">
-            <button id="go" class="go big" title="Start the next wave (Enter)">Start</button>
-            <button id="auto" class="autobtn" aria-pressed="false" aria-label="Auto-start">AUTO</button>
-          </div>
+          <button id="auto" class="autobtn" aria-pressed="false" aria-label="Auto-start">AUTO</button>
           <button id="spd" class="spdbtn" aria-label="Game speed">1x</button>
         </div>
       </div>
@@ -1151,6 +1193,7 @@ body.calm .herocard .ab.ready,body.calm .split .autobtn.on::after,body.calm .evo
     <p id="overText"></p>
     <div class="oversum" id="overSummary"></div>
     <p class="muted" id="subMsg"></p>
+    <div class="lootrow" id="lootRow" hidden></div>
     <button class="go" id="overNext" hidden>Next level</button>
     <button id="newRun">Retry level</button>
     <button id="overMenu">Back to menu</button>

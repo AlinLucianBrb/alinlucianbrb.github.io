@@ -12,7 +12,7 @@ import { tickEffects, tickHold } from './effects.js';
    A minion is summoned: it gives no gold or XP and does not count as a kill.
    ENEMY_SPEED scales every enemy's speed (0.65: 35% slower than the first versions).
    Add a type here, then return it from waveEnemyType. */
-const SUMMONED = { radius: 20, hp: 7.2, speed: 0.45, bounty: 0, leak: 5, xp: 25, def: 0.006, cc: 0.3, boss: true, summoned: true };
+const SUMMONED = { radius: 20, hp: 36, speed: 0.45, bounty: 0, leak: 5, xp: 25, def: 0.006, cc: 0.3, boss: true, summoned: true };
 export const ENEMIES = {
   grunt:  { name: 'Grunt',  color: '#d1564d', radius: 10, hp: 1,   speed: 1,    bounty: 1,   leak: 1,  xp: 1,  def: 0.004 },
   brute:  { name: 'Brute',  color: '#8c3b8f', radius: 14, hp: 3,   speed: 0.6,  bounty: 2.5, leak: 2,  xp: 3,  def: 0.006 },
@@ -26,7 +26,8 @@ export const ENEMIES = {
   summoner: { name: 'Summoner', color: '#a45bd6', radius: 13, hp: 3,   speed: 0.6,  bounty: 4,   leak: 2, xp: 4, def: 0.004,
     ability: { id: 'summon', minion: 'minion', count: 3, casts: 3, cooldown: 8, first: 1 } },
   tough:    { name: 'Ironhide', color: '#7c8794', radius: 14, hp: 4,   speed: 1,    bounty: 3,   leak: 2, xp: 4, def: 0.009 },
-  /* Bosses summoned from the match shop (js/content/shop.js; boss-gimmicks.js): 60% of a boss's life, paid by their prize. */
+  /* Bosses summoned from the match shop (js/content/shop.js; boss-gimmicks.js): three times a wave boss's life (Nov 23: 5x
+     tougher than the 60% they had), paid by their prize. */
   bossSplitter: { ...SUMMONED, name: 'Splitter', color: '#5f8f4a', ability: { id: 'split', at: 0.5, into: 'bossHalf' } },
   bossHalf:     { ...SUMMONED, name: 'Half',     color: '#5f8f4a', radius: 16, leak: 3, xp: 10 },
   bossCharger:  { ...SUMMONED, name: 'Charger',  color: '#c9622e', ability: { id: 'enrage', more: 1.5 } },

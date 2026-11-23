@@ -268,7 +268,7 @@ function freeRect() {
   for (const id of ['hud', 'hudTopRight']) { const b = box(id); if (b && b.b < H / 3) top = Math.max(top, b.b + pad); }
   const bar = box('hudBottom'); if (bar && bar.t > H / 2) bottom = Math.min(bottom, bar.t - pad);
   const meter = box('meterPanel'); if (meter && meter.l > W * 0.55) right = Math.min(right, meter.l - pad);
-  const relics = box('relics'); if (relics && relics.r < W * 0.3) left = Math.max(left, relics.r + pad);
+  const shop = box('shopCard'); if (shop && shop.r < W * 0.3) left = Math.max(left, shop.r + pad);
   const cam = box('hudCam'); if (cam && cam.r < W * 0.2 && cam.t < bottom) left = Math.max(left, cam.r + pad);
   if (right - left < W * 0.4) { left = pad; right = W - pad; }
   if (bottom - top < H * 0.35) { top = pad; bottom = H - pad; }
@@ -429,10 +429,7 @@ function pickTile(effect) {
   tileHint(effect ? TILE_EFFECTS[effect].name + ' · ' + tileCost(w, w.me) + ' gold: click a tile. Esc or right-click cancels.' : '');
 }
 initVote(i => act({ type: 'vote', index: i }));
-initShop({ onAct: c => { act(c); updateShop(w); }, onTile: id => { v.moving = null; $('leftDrawer').classList.remove('open'); pickTile(v.tile === id ? null : id); } });
-/* The left edge's card: hovering shows it (CSS); a tap on its tab keeps it open until a tap elsewhere (touch screens). */
-$('drawerTab').onclick = () => $('leftDrawer').classList.toggle('open');
-document.addEventListener('pointerdown', e => { const d = $('leftDrawer'); if (d.classList.contains('open') && !(e.target && e.target.closest && e.target.closest('#leftDrawer'))) d.classList.remove('open'); });
+initShop({ onAct: c => { act(c); updateShop(w); }, onTile: id => { v.moving = null; pickTile(v.tile === id ? null : id); } });
 const closeEvolve = () => { v.evo = null; ui.hideEvoPick(); };
 const evolveSelected = () => openEvolve(v.selected);
 const chooseEvolution = i => { const h = v.evo; if (h && act({ type: 'evolve', id: h.id, choice: i }).ok) { closeEvolve(); ui.renderInspector(w, v); } };

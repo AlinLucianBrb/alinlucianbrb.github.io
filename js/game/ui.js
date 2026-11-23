@@ -11,7 +11,7 @@ import { DAMAGE_LABEL, AILMENTS } from '../content/combat.js';
 import { rateOf } from '../engine/behaviors.js';
 import { explain, affected, attributeDamage } from '../engine/stats.js';
 import { bindTip } from '../core/tooltip.js';
-import { spriteImg, spriteUrl, heroSprite, attackIcon, ultimateIcon, relicIcon, cardPicture } from './sprites.js';
+import { spriteImg, spriteUrl, heroSprite, attackIcon, ultimateIcon, relicIcon, cardPicture, frameHero } from './sprites.js';
 import { isBossWave } from '../engine/enemies.js';
 import { ITEMS, itemName, itemColor, itemBonusLines } from '../content/items.js';
 import { COOP } from '../content/rules.js';
@@ -32,14 +32,6 @@ const odd = x => (Math.round(x * 1000) / 10) + '%';   /* odds with one decimal *
 const cap = s => s[0].toUpperCase() + s.slice(1);
 const btns = [], rows = [];
 export const heroButton = i => btns[i];
-/* Sizes the hero card's picture so the figure from the head to the waist (about 62 of a portrait's 128 px) fills the frame,
-   centred on the figure (--s: the scale, --f: the figure's middle in picture px, --z: the picture's size). */
-function setPicture(frame, cp) {
-  /* mirrored pictures: the figure's middle is measured from the other side */
-  frame.className = 'pframe' + (cp.flip ? ' flip' : '');
-  frame.style.setProperty?.('--z', String(cp.size)); frame.style.setProperty?.('--f', String(cp.flip ? cp.size - cp.focus : cp.focus));
-  frame.style.setProperty?.('--s', String(cp.size === 128 ? 1.3 : 1.9));
-}
 let meterEmpty, cb = {}, banishBtns = [];
 
 /* Tags in words, for tooltips: relics, talents and items that name a tag work on heroes that have it. */
@@ -89,7 +81,7 @@ export function initUI(callbacks) {
     const key = el('span', 'key'), name = el('span', 'nm'), nmText = el('span', '', d.name), lv = el('small'), status = el('span', 'cost');
     /* the hero from the head to the waist, in a frame on the card's left (cardPicture: which picture, where the figure is) */
     const frame = el('span', 'pframe'), cp = cardPicture(d), pic = spriteImg(cp.name, 'pix');
-    frame.append(pic); setPicture(frame, cp);
+    frame.append(pic); frameHero(frame, cp);
     /* The hero's two abilities, like action-bar icons: the basic attack darkens and clears clockwise as its cooldown runs;
        the ultimate clears as the energy bar fills and glows gold when it is ready. */
     const abil = el('span', 'abil idle'), atk = abilityIcon(attackIcon(d)), ult = abilityIcon(ultimateIcon(d));
@@ -200,7 +192,7 @@ export function renderHUD(g, v) {
     setText(b._status, unit ? '' : String(HERO_COST));   /* shown with a coin icon */
     b.classList.toggle('poor', !unit && g.gold < HERO_COST);   /* not enough gold yet: the price shows red */
     const hc = unit ? unit.def.color : d.color, pn = cardPicture(unit ? unit.def : d).name;
-    if (b._picName !== pn) { b._picName = pn; b._pic.src = spriteUrl(pn); setPicture(b._frame, cardPicture(unit ? unit.def : d)); }   /* evolved: its new form */
+    if (b._picName !== pn) { b._picName = pn; b._pic.src = spriteUrl(pn); frameHero(b._frame, cardPicture(unit ? unit.def : d)); }   /* evolved: its new form */
     if (b._hc !== hc) { b._hc = hc; b.style.setProperty?.('--hc', hc); }
     updateAbilities(b, unit, unit ? unit.def : d);
     b.classList.toggle('on', sel === i && (!unit || v.selected === unit)); b.classList.toggle('placed', !!unit);
@@ -219,7 +211,9 @@ export function renderHUD(g, v) {
       for (const [name, rs] of byName) {
         const top = RARITIES[Math.max(...rs.map(r => r.r))], def = RELICS.find(x => x.name === name), n = rs.length;
         const total = rs.reduce((a, r) => a + relicMult(r), 0);   /* relic effects scale with the multiplier, so copies add up */
-        const sp = el('span', 'relicchip'); sp.append(spriteImg(relicIcon(name), 'pix relicico'), el('span', '', name + (n > 1 ? ' ×' + n : '')));
+        const sp = el('span', 'relicchip'); sp.append(spriteImg(relicIcon(name), 'pix relicico'));   /* an icon; the name is in the tooltip */
+        if (n > 1) sp.append(el('span', 'relicn', String(n)));
+        sp.setAttribute('aria-label', name + (n > 1 ? ' ×' + n : ''));
         sp.style.color = top.color; sp.style.borderColor = top.color; sp.tabIndex = 0; sp.setAttribute('data-rar', top.name[0]);
         bindTip(sp, () => {
           const parts = RARITIES.map((r, i) => [r, rs.filter(x => x.r === i).length]).filter(([, c]) => c).map(([r, c]) => (c > 1 ? c + '× ' : '') + r.name);
@@ -234,7 +228,7 @@ export function renderHUD(g, v) {
 /* The legendary relic, first in the list of relics. */
 function legendChip(g) {
   const l = LEGENDARIES[g.legendary], sp = el('span', 'relicchip');
-  sp.append(spriteImg(relicIcon(l.name), 'pix relicico'), el('span', '', l.name));
+  sp.append(spriteImg(relicIcon(l.name), 'pix relicico')); sp.setAttribute('aria-label', l.name);
   sp.style.color = sp.style.borderColor = LEGENDARY.color; sp.tabIndex = 0;
   bindTip(sp, () => {
     const p = g.me, more = l.id === 'souls' ? 'Kills so far: ' + (p.souls || 0) + ' of ' + l.max : l.id === 'collector' ? 'Relics until the next double: ' + (l.every - (p.taken || 0) % l.every) : '';
@@ -341,15 +335,15 @@ export function renderInspector(g, v) {
     const d = t.def, head = el('div', 'phead'), title = el('b', '', stars(t) + d.name + ' · Lv ' + t.level + (coop && (t.owner || 0) !== coop.me ? ' · ' + coop.names[t.owner || 0] + "'s" : '')), close = el('button', 'linkbtn pclose', '✕');
     title.style.color = d.color; $('heroPanel').style.setProperty?.('--hc', d.color);   /* the window takes the hero's colour */
     close.onclick = cb.onCloseInspector; close.title = 'Close (Esc)'; head.append(title, close); box.append(head);
-    /* Right under the name: what the hero has done this match (icons; hover for the words). */
-    const tally = el('div', 'tally'), tv = k => { const sp = el('span', 'tv'), b = el('b'); sp.append(spriteImg('icon_' + k, 'pix ico'), b); tally.append(sp); return b; };
-    box._tDealt = tv('damage'); box._tKills = tv('kills'); box._tUlts = tv('ultimate');
+    /* Right under the name: what the hero has done this match, each with its word. */
+    const tally = el('div', 'tally'), tv = (k, word) => { const sp = el('span', 'tv'), b = el('b'); sp.append(spriteImg('icon_' + k, 'pix ico'), el('small', '', word), b); tally.append(sp); return b; };
+    box._tDealt = tv('damage', 'Dealt'); box._tKills = tv('kills', 'Kills'); box._tUlts = tv('ultimate', 'Ults');
     bindTip(tally, () => ({ title: 'This match', lines: ['Damage dealt: ' + num(t.dealt), 'Kills: ' + t.kills, 'Ultimates: ' + t.ults] }));
     box.append(tally);
     /* XP, then energy: thin bars with the numbers on them (what the ultimate does is on its icon in the hero's card). */
     const bar = (icon, k) => {
       const r = el('div', 'pbar'), b = el('span', 'ebar wide' + (k === 'xp' ? ' xpbar' : '')), fill = el('i'), lbl = el('span', 'pbtxt');
-      b.append(fill); r.append(spriteImg('icon_' + icon, 'pix ico'), b, lbl); box.append(r);
+      b.append(fill); r.append(spriteImg('icon_' + icon, 'pix ico'), el('small', 'pbname', k === 'xp' ? 'XP' : 'Energy'), b, lbl); box.append(r);
       bindTip(r, () => (k === 'xp' ? { title: 'Experience', lines: ['Level ' + t.level + '. Heroes gain XP from every kill while on the field.'] }
         : { title: 'Energy', lines: ['Fills by ' + f(t.s.energyPerSecond) + ' a second while a wave is on; when full, the ultimate fires.', { text: 'What it does: hover the ultimate icon on the hero\'s card.', color: '#ab9f8a' }] }));
       return { lbl, b, fill };
@@ -361,7 +355,7 @@ export function renderInspector(g, v) {
     const ar = el('div', 'attrs');
     for (const a of ATTRIBUTES) {
       const own = a === d.attribute, sp = el('span', 'attr' + (own ? ' main' : ''));
-      sp.append(spriteImg('icon_' + a, 'pix ico'), el('b', '', f(t.s[a])));
+      sp.append(spriteImg('icon_' + a, 'pix ico'), el('small', '', ATTR_SHORT[a]), el('b', '', String(whole(t.s[a]))));   /* whole numbers, rounded up */
       if (own) sp.style.color = ATTR_COLOR[a];
       bindTip(sp, () => ({ title: STAT_LABELS[a] + (own ? ' (main attribute)' : ''), color: own ? ATTR_COLOR[a] : undefined,
         lines: [...(own ? ['+' + pct(attributeDamage(d, t.s)) + ' damage (+1% per point)'] : []),
@@ -386,7 +380,9 @@ export function renderInspector(g, v) {
       const show = x => fmtStat(key, x);
       const cell = el('span', 'pst' + (key === 'damage' ? ' wide' : '')), icon = statIcon(key);
       if (EFFECT_STATS[key]) cell.append(spriteImg(effectIcon(key), 'pix ico')); else if (icon) cell.append(spriteImg('icon_' + icon, 'pix ico')); else cell.append(el('small', 'pabbr', abbr(label)));
-      const val = el('b', '', show(value) + (key === 'damage' && t.s.spread > 0 ? ' (' + f(value * (1 - t.s.spread)) + '–' + f(value * (1 + t.s.spread)) + ')' : ''));
+      cell.append(el('small', 'pname', key === 'damage' ? 'Damage · ' + DAMAGE_LABEL[d.damageType || 'physical'] : SHORT_LABEL[key] || STAT_LABELS[key] || key));
+      /* damage as whole numbers, rounded up: the average, then the lowest and highest hit */
+      const val = el('b', '', key === 'damage' ? whole(value) + (t.s.spread > 0 ? '  (' + whole(value * (1 - t.s.spread)) + '–' + whole(value * (1 + t.s.spread)) + ')' : '') : show(value));
       if (f(value) !== f(base)) val.classList.add('up');
       cell.append(val); grid.append(cell);
       const mods = stackMods(explain(d, key, all));
@@ -434,6 +430,12 @@ function statIcon(key) {
   m = /^(\w+)Chance$/.exec(key); if (m && AILMENTS[m[1]]) return 'ail_' + m[1] + '_s';
   return null;
 }
+/* Whole numbers for attributes and damage, rounded up (a tiny float error never adds one). */
+export const whole = x => Math.ceil(x - 1e-9);
+/* Short names for the stats in the hero window, so each fits beside its value; the full name is in the tooltip. */
+const SHORT_LABEL = { range: 'Range', speed: 'Attacks/s', castSpeed: 'Casts/s', critChance: 'Crit', critDamage: 'Crit dmg', energyPerSecond: 'Energy/s',
+  targets: 'Targets', duration: 'Duration', armorPen: 'Armor pen', resPen: 'Res pen', jumps: 'Jumps', chillTime: 'Chill', firePen: 'Fire pen', coldPen: 'Cold pen',
+  lightningPen: 'Light. pen', minionDamage: 'Minion dmg', minionSpeed: 'Minion spd', rampRate: 'Ramp' };
 const abbr = label => label.split(/[\s(]+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
 /* A stat's exact value, for its tooltip. */
 const exact = (key, x) => (isChance(key) || /Pen$/.test(key) ? pct(x) : (key === 'speed' || key === 'castSpeed' || key === 'energyPerSecond') ? f(x) + ' per second' : String(f(x)));
@@ -574,10 +576,15 @@ function updateAbilities(b, unit, def) {
 export const hidePick = () => { $('pick').hidden = true; };
 export function showOver(title, text, msg, canNext) {
   $('overSummary').textContent = '';
-  setText($('overTitle'), title); setText($('overText'), text); setText($('subMsg'), msg || '');
+  setText($('overTitle'), title); setText($('overText'), text); setOverMsg(msg);
   $('overNext').hidden = !canNext; $('over').hidden = false;
 }
-export const setOverMsg = msg => { setText($('subMsg'), msg); };
+/* The line under the summary: a text, or { text, node } with something to show under it (the items the match dropped). */
+export function setOverMsg(msg) {
+  const m = msg && typeof msg === 'object' ? msg : { text: msg || '', node: null }, loot = $('lootRow');
+  setText($('subMsg'), m.text || '');
+  if (loot) { loot.textContent = ''; if (m.node) loot.append(m.node); loot.hidden = !m.node; }
+}
 /* The summary under the result: each of the player's heroes (its form, level, damage and share of it, kills), then the match. */
 export function renderSummary(g) {
   const box = $('overSummary'); box.textContent = '';

@@ -185,11 +185,11 @@ test('hero panel: a hint on moving comes first, bonuses from the same source are
   /* Compact: title; under it damage dealt, kills and ultimates (icons); then the XP bar, the energy bar right under it, then
      the attributes as icon + value. No move or evolve text; the words are in the tooltips. */
   assert.equal(kids[1].className, 'tally');
-  assert.deepEqual(kids[1].children.map(c => c.children[1]._v), ['0', '0', '0'], 'damage dealt, kills, ultimates');
-  assert.equal(kids[2].className, 'pbar'); assert.match(kids[2].children[2]._v, /^\d+ \/ 10$/, 'XP as x / next beside its bar');
-  assert.match(kids[3].children[2]._v, /^\d+ \/ 100$/, 'energy as x / max, right under XP');
+  assert.deepEqual(kids[1].children.map(c => [c.children[1]._text, c.children[2]._v]), [['Dealt', '0'], ['Kills', '0'], ['Ults', '0']], 'damage dealt, kills, ultimates, each with its word');
+  assert.equal(kids[2].className, 'pbar'); assert.equal(kids[2].children[1]._text, 'XP'); assert.match(kids[2].children[3]._v, /^\d+ \/ 10$/, 'XP as x / next beside its bar');
+  assert.match(kids[3].children[3]._v, /^\d+ \/ 100$/, 'energy as x / max, right under XP');
   assert.equal(kids[4].className, 'attrs');
-  assert.deepEqual(kids[4].children.map(a => a.children[1]._text), ['10', '4', '2'], 'icon and value only');
+  assert.deepEqual(kids[4].children.map(a => [a.children[1]._text, a.children[2]._text]), [['Str', '10'], ['Dex', '4'], ['Int', '2']], 'icon, short name and a whole number');
   assert.equal(kids[4].children[0].className, 'attr main', 'strength is the main one'); assert.equal(kids[4].children[0].style.color, '#e5645a', 'in red');
   assert.equal(kids[4].children[1].className, 'attr');
   assert.equal(dom.made.some(e => /click and hold|Evolves at level/.test(e._text || '') && byId.inspect.children.includes(e)), false, 'no move or evolve text');
@@ -200,7 +200,7 @@ test('hero panel: a hint on moving comes first, bonuses from the same source are
   assert.ok(lines.includes('+15% · Sharpened rounds ×2 (Relic)'), 'stacked across rarities (3.75% + 11.25%), on hover: ' + lines.join(' | '));
   const chips = byId.relics.children;
   assert.equal(chips.length, 1, 'one relic chip, whatever the rarities');
-  assert.equal(chips[0].children[1]._text, 'Sharpened rounds ×2'); assert.match(chips[0].children[0].src, /relic_sharpened_rounds\.png$/, 'its icon');
+  assert.equal(chips[0].children[1]._text, '2', 'an icon with the number of copies'); assert.equal(chips[0].getAttribute ? chips[0].getAttribute('aria-label') : chips[0].attrs?.['aria-label'], 'Sharpened rounds ×2', 'the name for screen readers'); assert.match(chips[0].children[0].src, /relic_sharpened_rounds\.png$/, 'its icon');
   chips[0].fire('pointerenter', { clientX: 10, clientY: 10 });
   const tip = dom.made.filter(e => e.className === 'tip').at(-1);
   assert.deepEqual(tip.children.map(c => c._text), ['Sharpened rounds ×2', 'Common + Rare', 'Together: +15% damage']);
@@ -226,7 +226,7 @@ test('talent bonuses are stacked into one "Talents" line per stat', async () => 
   const { gainXp } = await import('../js/engine/levels.js');
   gainXp(world(), world().heroes[0], 22); dom.frames(20);
   const str = byId.inspect.children[4].children[0];
-  assert.equal(str.children[1]._text, '18');
+  assert.equal(str.children[2]._text, '18');
   str.fire('pointerenter', { clientX: 5, clientY: 5 });
   const tip = dom.made.filter(e => e.className === 'tip').at(-1).children.map(c => c._text);
   assert.deepEqual(tip, ['Strength (main attribute)', '+18% damage (+1% per point)', '+4.5% range', '+1.8% armor penetration', '+1.8% resistance penetration', '+2 · Talents ×2', '+6 · Hero level']);
@@ -336,4 +336,14 @@ test('catches up after the browser pauses, and keeps running in a hidden tab', a
   stopGame();
   assert.deepEqual(drawErrors, [], 'no drawing errors during any run');
   console.error = realError;
+});
+
+test('the result screen: a text, or a text with the dropped items under it; whole numbers round up', async () => {
+  const { setOverMsg, whole } = await import('../js/game/ui.js');
+  setOverMsg('Saved.'); assert.equal(byId.subMsg._text ?? byId.subMsg._v, 'Saved.'); assert.equal(byId.lootRow.hidden, true, 'no items: no row');
+  const row = document.createElement('div'); row.className = 'loot';
+  setOverMsg({ text: '+10 XP. You found an item:', node: row });
+  assert.equal(byId.lootRow.hidden, false); assert.ok(byId.lootRow.children.includes(row), 'the items as icons, under the text');
+  setOverMsg(''); assert.equal(byId.lootRow.hidden, true, 'cleared for the next match');
+  assert.deepEqual([whole(30.8), whole(10), whole(10.0000000001), whole(23.1)], [31, 10, 10, 24]);
 });

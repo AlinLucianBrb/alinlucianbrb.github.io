@@ -13,7 +13,7 @@ import { DAMAGE_LABEL } from '../content/combat.js';
 import { ULTIMATES, ultDesc } from '../engine/ultimates.js';
 import { liveText, liveParts, CHANGED_COLOR } from '../content/live-text.js';
 import { heroStats, attributeDamage } from '../engine/stats.js';
-import { spriteImg, heroPortrait } from '../game/sprites.js';
+import { spriteImg, heroPortrait, heroFrame, heroAbilities } from '../game/sprites.js';
 import { PREVIEWS } from '../content/previews.js';
 import { pathChoice, pathDef } from '../engine/preview.js';
 import { savePaths } from '../services/api.js';
@@ -60,11 +60,12 @@ async function flush() {
 function renderList() {
   const grid = $('hrGrid'); grid.textContent = '';
   for (const h of HEROES) {
-    const card = el('button', 'hcard'), head = el('div', 'hhead');
+    /* like the hero cards in a match: the hero in a frame, the name, and the attack and ultimate icons */
+    const card = el('button', 'hcard herolike'), head = el('div', 'hhead');
     card.style.setProperty('--hc', h.color);
     head.append(el('b', '', h.name), el('small', 'muted', cap(h.archetype) + ' · ' + STAT_LABELS[h.attribute]));
     const n = gearCount(h.id), c = pathOf(h.id);
-    card.append(head, el('small', 'muted', 'Gear ' + n + ' / ' + SLOTS.length), ...(c ? [el('small', 'pathline', 'Path: ' + c.name)] : []), spriteImg(heroPortrait(h.id), 'pix hcardart'));
+    card.append(heroFrame(h), head, el('small', 'muted', 'Gear ' + n + ' / ' + SLOTS.length), ...(c ? [el('small', 'pathline', 'Path: ' + c.name)] : []), heroAbilities(h));
     card.title = liveText(h.short, null, heroStats(h, []));
     card.onclick = () => { hero = h; tab = 'info'; render(); };
     grid.append(card);

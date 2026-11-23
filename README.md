@@ -212,6 +212,24 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## The shop always on screen, a readable hero window, loot as items (Nov 23, v0.70.0)
+- **The shop is always on screen**, as a card at the left edge (no more hover tab): "Shop", your gold (with interest), the
+  shop's icons, the Relic button, and the relics you own. The map is fitted beside it.
+- **Relics** show as small icons, 4 a row; a number on the icon is how many copies you have, and the name, rarities and what
+  they do are in the tooltip.
+- **Start, Auto and Speed** are a small block beside the hero cards: Start on top, Auto and Speed under it. Gold and the
+  Relic button moved to the shop card.
+- **Summoned bosses** have 5 times the life (three times a wave boss's) and pay twice the gold (300 + 30 a wave, was 150 + 15).
+- **The hero window** (click a hero) has a fixed width, so it no longer jumps as numbers change, and every value has its word:
+  Dealt / Kills / Ults, XP and Energy bars, Str / Dex / Int, and one stat per line with its name (the full name and where it
+  comes from stay in the tooltip).
+- **Attributes and damage are whole numbers**, rounded up (damage 35 (27–44) instead of 34.6 (26.5–43.3)).
+- **The items a match drops** show on the result screen as icons, like in the inventory (rarity colour and letter); hover one
+  for its name and bonuses.
+- **The Heroes screen and the hero choice before a level** use the same cards as the heroes in a match: the gold button frame,
+  the hero's colour along the top, the hero in a framed window, and the attack and ultimate icons.
+- Rules changed (engine 38: a match saved before the update cannot be resumed). No SQL change.
+
 ## Ranger's ring bigger and at an angle, Crusader's reach (Nov 23, v0.69.1)
 - **Ricochet ring** is 1.5x bigger: 75 px across from the centre, about 1.9 tiles (Wide ring doubles that).
 - Arrows in the ring bounce off at an angle, so each one goes round the ring in a turning star instead of back and forth

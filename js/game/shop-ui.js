@@ -47,7 +47,6 @@ export function updateShop(w, dt = 0) {
   const now = [p.gold, w.wave, busy, p.gambles, left, mine.map(t => t.effect + t.level + t.cx + ',' + t.cy).join()].join('|');
   if (now === key) return;
   key = now; panel.hidden = false; panel.textContent = '';
-  panel.append(el('small', 'drawtitle', 'Shop'));
 
   const row = el('div', 'shopicons'), full = mine.length >= TILES.max;
   for (const [id, e] of Object.entries(TILE_EFFECTS)) {

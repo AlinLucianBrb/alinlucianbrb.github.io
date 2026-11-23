@@ -28,11 +28,11 @@ test('no shop: no shop icons and no boss button', () => {
   stopGame();
 });
 
-test('the shop: icons with their price in the left card, the boss in the bottom bar; tiles, upgrades, gambles (result for a few seconds)', () => {
+test('the shop: always on screen at the left, icons with their price, the boss in the bottom bar; tiles, upgrades, gambles (result for a few seconds)', () => {
   const errors = [], real = console.error; console.error = (...a) => errors.push(a.map(String).join(' '));
   try {
     startGame({ ...hooks, shop: true }); dom.frames(2); const w = world(); w.gold = 5000; dom.frames(1);
-    assert.equal(byId.shopPanel.hidden, false); assert.equal(byId.shopPanel.children[0]._text, 'Shop', 'a little title, then icons');
+    assert.equal(byId.shopPanel.hidden, false); assert.ok(!byId.shopCard.hidden, 'the card is always there'); assert.equal(byId.shopPanel.children[0].className, 'shopicons', 'icons (the title belongs to the card)');
     const greed = btn(/^Greed, 300 gold$/)[0]; assert.ok(greed && btn(/^Conduit, 300 gold$/).length === 1);
     assert.ok(greed.children.some(c => c.tag === 'img') && greed.children.some(c => c._text === '300'), 'an icon, the price under it');
     assert.equal(byId.bossBtn.hidden, false); assert.equal(byId.bossBtn.disabled, true, 'only while a wave is coming');
@@ -51,7 +51,6 @@ test('the shop: icons with their price in the left card, the boss in the bottom 
     byId.go.onclick(); dom.frames(3);
     assert.equal(byId.bossBtn.disabled, false); byId.bossBtn.onclick(); dom.frames(2);
     assert.equal(w.enemies.filter(e => e.def.summoned).length, 1); assert.ok(byId.bossBtn.children.some(c => c._text === '5w'), 'then it waits 5 waves');
-    byId.drawerTab.onclick(); assert.ok(byId.leftDrawer._cls.has('open'), 'a tap on the tab opens the card'); byId.drawerTab.onclick(); assert.ok(!byId.leftDrawer._cls.has('open'));
     assert.deepEqual(errors, []);
   } finally { console.error = real; stopGame(); }
 });
