@@ -5,7 +5,7 @@ import { itemName } from '../content/items.js';
 import { STAGES, stageDef, stageOpen } from '../content/data.js';
 import { endlessBracket } from '../content/rules.js';
 import { wornItems, activePaths } from './loadout.js';
-import { actMessage, maxSpeed, isUnlocked } from '../content/unlocks.js';
+import { actMessage, maxSpeed, inMatch } from '../content/unlocks.js';
 import { runRewards } from '../core/rules.js';
 import { rewardBonus } from '../content/talents.js';
 import { bus } from '../core/bus.js';
@@ -70,7 +70,7 @@ export default {
     }
     const seat = config && seatOf(config, uid);
     startGame({
-      stage, talents: state.profile.talents || [], lineup: state.profile.lineup, items: equipped, paths: activePaths(), shop: isUnlocked('shop', state.profile.levels_cleared), matchEffects: isUnlocked('effects', state.profile.levels_cleared), maxSpeed: maxSpeed(state.profile.levels_cleared, endless), onRunEnd, resume: saved ? saved.log : null,
+      stage, talents: state.profile.talents || [], lineup: state.profile.lineup, items: equipped, paths: activePaths(stage), shop: inMatch('shop', state.profile.levels_cleared, stage), matchEffects: inMatch('effects', state.profile.levels_cleared, stage), maxSpeed: maxSpeed(state.profile.levels_cleared, endless, stage), onRunEnd, resume: saved ? saved.log : null,
       coop: config ? { config, ...seat, transport: coop.channel || offlineChannel() } : null,
       onRunStart: () => { runId = null; if (!config) clearRun(uid); starting = register(); },
       onExit: () => { if (!config) clearRun(uid); bus.emit('nav', { to: 'menu' }); },   /* quitting gives the run up (co-op: leaves the match) */

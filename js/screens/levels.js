@@ -70,14 +70,14 @@ function renderPick() {
   $('lvCount').textContent = lineup.length + ' / ' + LINEUP_SIZE;
   $('lvStart').disabled = !lineup.length; $('lvStart').title = lineup.length ? '' : 'Choose at least one hero';
   const grid = $('lvHeroes'); grid.textContent = '';
-  const paths = activePaths();
+  const paths = activePaths(stage);   /* a path counts only on levels of Act 2 or later */
   for (const h of HEROES) {
     const on = lineup.includes(h.id), card = el('div', 'hcard pick' + (on ? ' picked' : '')), head = el('div', 'hhead');
     card.style.setProperty('--hc', h.color); card.tabIndex = 0; card.setAttribute?.('role', 'button');
     head.append(el('b', '', h.name), el('small', 'muted', cap(h.archetype) + ' · ' + STAT_LABELS[h.attribute]));
     const c = paths[h.id] && pathChoice(h.id, paths[h.id]);
-    const gear = el('button', 'linkbtn gearpath', pathsUnlocked() ? 'Gear & path' : 'Gear');   /* the hero's page (Heroes), then back here */
-    gear.title = pathsUnlocked() ? 'Change this hero\'s gear and evolution path' : 'Change this hero\'s gear';
+    const gear = el('button', 'linkbtn gearpath', pathsUnlocked(stage) ? 'Gear & path' : 'Gear');   /* the hero's page (Heroes), then back here */
+    gear.title = pathsUnlocked(stage) ? 'Change this hero\'s gear and evolution path' : 'Change this hero\'s gear';
     gear.onclick = e => { e.stopPropagation?.(); bus.emit('nav', { to: 'heroes', params: { hero: h.id, back: { to: 'levels', params: { stage, lineup: [...lineup] } } } }); };
     const foot = el('div', 'pickfoot'); foot.append(gear, el('span', 'pickmark', on ? '✓ ' + (lineup.indexOf(h.id) + 1) : 'Add'));
     const info = el('small', 'muted', 'Gear ' + gearCount(h.id) + ' / ' + SLOTS.length + (c ? ' · ' : ''));

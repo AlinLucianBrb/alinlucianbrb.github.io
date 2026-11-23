@@ -210,6 +210,13 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Act unlocks only from their act on; the keep-playing box is back (Nov 23, v0.66.1)
+- What an act unlocks for matches works on that act's levels and later ones (and Endless), never back on an earlier act's:
+  evolution paths from Act 2 levels, the shop and 2x speed from Act 3, match effects from Act 4 (also in co-op, by the level
+  being played). Crafting is outside matches and stays open once Act 2 is reached (`inMatch` in `js/content/unlocks.js`).
+- "Keep playing while choosing" is back in the relic choice (solo), as well as on the Settings screen.
+- No rules or SQL changed (engine 33).
+
 ## The shop and relics in a card at the left edge; a boss button (Nov 23, v0.66.0)
 - No Shop button or window. Hovering the left edge of the match (or tapping its tab) shows a card with the shop and the relics
   you own; it hides again when the mouse leaves.

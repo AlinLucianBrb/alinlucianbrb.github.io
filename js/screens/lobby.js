@@ -10,7 +10,7 @@ import { coop, enterLobby, closeLobby } from '../net/session.js';
 import { PLAYER_COLORS } from '../game/render.js';
 import { pathChoice } from '../engine/preview.js';
 import { el, cap, currentLineup, wornItems, ensureItems, saveNow, sqlHint, activePaths } from './loadout.js';
-import { isUnlocked } from '../content/unlocks.js';
+import { isUnlocked, inMatch, actOfStage, UNLOCKS } from '../content/unlocks.js';
 
 const $ = id => document.getElementById(id);
 const PING_MS = 4000, LIST_MS = 6000;
@@ -174,9 +174,11 @@ async function startMatch() {
   const missing = l.members.filter(m => !here[m.user_id]);
   if (missing.length) return say('Waiting for ' + missing.map(m => m.username).join(', ') + ' to connect.');
   const seed = globalThis.crypto && crypto.getRandomValues ? crypto.getRandomValues(new Uint32Array(1))[0] : Math.floor(Math.random() * 4294967296);
-  const config = { seed, stage: l.stage, host: uid(), matchEffects: isUnlocked('effects', state.profile.levels_cleared), players: l.members.map(m => {
+  /* what each player has unlocked, and only what works on this level's act (inMatch) */
+  const act = actOfStage(l.stage), onLevel = id => act >= UNLOCKS[id].act;
+  const config = { seed, stage: l.stage, host: uid(), matchEffects: inMatch('effects', state.profile.levels_cleared, l.stage), players: l.members.map(m => {
     const meta = m.user_id === uid() ? { talents: state.profile.talents || [], lineup, paths: activePaths(), shop: hasShop(), items: wornItems() } : here[m.user_id];
-    return { uid: m.user_id, name: m.username, talents: meta.talents || [], lineup: meta.lineup, paths: meta.paths || {}, shop: !!meta.shop, items: meta.items || {} };
+    return { uid: m.user_id, name: m.username, talents: meta.talents || [], lineup: meta.lineup, paths: onLevel('paths') ? meta.paths || {} : {}, shop: !!meta.shop && onLevel('shop'), items: meta.items || {} };
   }) };
   $('lbyStart').disabled = true; say('Starting…', false);
   const { error } = await startLobby(l.id, config);

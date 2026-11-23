@@ -248,7 +248,7 @@ let coop = null;
 export function setCoop(info) {
   coop = info; const bar = $('coopBar');
   bar.hidden = !info; bar.textContent = ''; bar._k = '';
-  $('playOnPickRow').hidden = true;   /* "keep playing while choosing" is on the Settings screen */
+  $('playOnPickRow').hidden = !!info;   /* co-op matches never wait for a relic choice (also on the Settings screen) */
   $('spd').title = info && info.me !== undefined ? 'Game speed (the host sets it)' : 'Game speed';
 }
 function renderCoopBar(g) {

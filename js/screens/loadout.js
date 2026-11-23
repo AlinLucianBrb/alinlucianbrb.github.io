@@ -4,7 +4,7 @@
 import { state } from '../core/state.js';
 import { getItems, saveLoadout } from '../services/api.js';
 import { HEROES, LINEUP_SIZE } from '../content/data.js';
-import { isUnlocked } from '../content/unlocks.js';
+import { isUnlocked, inMatch } from '../content/unlocks.js';
 import { ITEMS, SLOT_LABEL, AFFINITY_LABEL, asItem, itemName, itemColor, itemLines, itemBonusLines } from '../content/items.js';
 import { spriteImg } from '../game/sprites.js';
 
@@ -50,8 +50,9 @@ export const gearCount = heroId => Object.values(gearOf(heroId)).filter(itemById
 
 /* The evolution paths the player brings into a match: none until they are unlocked (js/content/unlocks.js); paths saved
    before that are kept for later. */
-export const pathsUnlocked = () => isUnlocked('paths', state.profile.levels_cleared);
-export const activePaths = () => (pathsUnlocked() ? state.profile.paths || {} : {});
+/* Paths: chosen on the Heroes screen once Act 2 is reached; used in a match only on a level of Act 2 or later (stage given). */
+export const pathsUnlocked = (stage = null) => (stage === null ? isUnlocked('paths', state.profile.levels_cleared) : inMatch('paths', state.profile.levels_cleared, stage));
+export const activePaths = (stage = null) => (pathsUnlocked(stage) ? state.profile.paths || {} : {});
 
 /* A clean lineup from the profile: known heroes, no repeats, at most LINEUP_SIZE, never empty. */
 export function currentLineup() {

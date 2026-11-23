@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { STAGES, ENDLESS, stageOpen } from '../js/content/data.js';
 import { TESTING, UNLOCK_ALL } from '../js/content/rules.js';
-import { UNLOCKS, actReached, clearedFor, isUnlocked, unlocksOf, actMessage, maxSpeed } from '../js/content/unlocks.js';
+import { UNLOCKS, actReached, clearedFor, isUnlocked, unlocksOf, actMessage, maxSpeed, inMatch, actOfStage } from '../js/content/unlocks.js';
 
 test('the first act goes up to wave 55, and every level after it has 55', () => {
   assert.deepEqual(STAGES.slice(0, 5).map(s => s.waves), [15, 25, 35, 45, 55]);
@@ -44,4 +44,16 @@ test('the server uses the same unlocks', async () => {
   for (const [id, u] of Object.entries(UNLOCKS)) assert.ok(rulesSql(false).includes("when '" + id + "' then " + clearedFor(u.act)));
   for (const f of ['supabase-setup.sql', 'supabase-update.sql'])
     assert.ok(readFileSync(new URL('../' + f, import.meta.url), 'utf8').includes("levels_cleared >= public.rule_unlock('paths')"), f);
+});
+
+test('a feature unlocked in an act works on that act\'s levels and later ones, never back on an earlier act\'s', () => {
+  assert.deepEqual([1, 5, 6, 10, 11, 25, 26, 30].map(actOfStage), [1, 1, 2, 2, 3, 5, Infinity, Infinity], 'the act of a level; Endless comes after all');
+  /* a player who reached Act 5 (20 levels cleared) */
+  assert.deepEqual(['paths', 'shop', 'effects', 'speed2'].map(id => inMatch(id, 20, 3)), [false, false, false, false], 'all of them unlocked, but 1-3 is Act 1');
+  assert.deepEqual(['paths', 'shop', 'effects', 'speed2'].map(id => inMatch(id, 20, 7)), [true, false, false, false], 'Act 2: paths only');
+  assert.deepEqual(['paths', 'shop', 'effects', 'speed2'].map(id => inMatch(id, 20, 12)), [true, true, false, true], 'Act 3');
+  assert.deepEqual(['paths', 'shop', 'effects', 'speed2'].map(id => inMatch(id, 20, 18)), [true, true, true, true], 'Act 4');
+  assert.ok(['paths', 'shop', 'effects'].every(id => inMatch(id, 25, 27)), 'Endless has them all');
+  assert.equal(inMatch('shop', 5, 12), false, 'not reached yet: not even on a later level');
+  assert.deepEqual([maxSpeed(20, false, 3), maxSpeed(20, false, 12), maxSpeed(20, true, 27), maxSpeed(20)], [1, 2, 3, 2]);
 });
