@@ -13,6 +13,7 @@ import { heroFrame, heroAbilities } from '../game/sprites.js';
 import { pathChoice } from '../engine/preview.js';
 import { heroStats } from '../engine/stats.js';
 import { liveText } from '../content/live-text.js';
+import { zoneItemLevels, levelDropText, endlessDropText, ENDLESS_ITEMS } from '../content/level-drops.js';
 
 const $ = id => document.getElementById(id);
 let bound = false, stage = null, lineup = [], zone = null;
@@ -27,7 +28,7 @@ function renderLevels() {
   const endless = $('lvEndless'), e = ENDLESS.find(x => x.zone === zone);
   if (endless) {
     endless.hidden = !stageOpen(e.n, cleared);
-    endless.textContent = 'Endless · ' + e.name + (p.endless_wave ? ' · your best wave: ' + p.endless_wave : '');
+    endless.textContent = 'Endless · ' + e.name + (p.endless_wave ? ' · your best wave: ' + p.endless_wave : '') + ' · items level ' + ENDLESS_ITEMS.from + '+';
     endless.onclick = () => { stage = e.n; lineup = []; say(''); render(); };
   }
   if (document.body?.dataset) document.body.dataset.zone = String(zone);   /* the chosen zone's colour */
@@ -39,7 +40,10 @@ function renderLevels() {
       const b = el('button', 'zone' + (z.n === zone ? ' on' : ''));
       const art = el('img', 'pix'); art.src = 'assets/level_' + z.n + '.png'; art.alt = ''; art.onerror = () => art.remove?.();
       const gives = unlocksOf(z.n);   /* what reaching this act unlocks */
-      b.append(art, el('b', '', 'Act ' + z.n + ' · ' + z.name), el('small', '', open ? done + ' / ' + lv.length : 'Locked'));
+      /* what the zone is worth farming for: the item levels its levels drop */
+      const [lo, hi] = zoneItemLevels(lv.map(s => s.n)), row = el('span', 'zrow');
+      row.append(el('small', '', open ? done + ' / ' + lv.length : 'Locked'), el('small', 'zdrop', 'Items ' + lo + '–' + hi));
+      b.append(art, el('b', '', 'Act ' + z.n + ' · ' + z.name), row);
       if (!open && gives.length) b.title = 'Unlocks ' + gives.join(', ').toLowerCase();
       b.disabled = !open; b.onclick = () => { zone = z.n; renderLevels(); };
       zones.append(b);
@@ -50,7 +54,7 @@ function renderLevels() {
     const b = el('button', 'lvl' + (s.n <= cleared ? ' done' : ''));
     const c = s.n <= cleared ? 'Cleared ✓' : s.n === cleared + 1 ? (p.frontier_wave ? 'Furthest: wave ' + p.frontier_wave : 'Ready') : stageOpen(s.n, cleared) ? 'Open (testing)' : 'Locked';
     const art = el('img', 'lvart pix'); art.src = 'assets/level_' + s.zone + '.png'; art.alt = ''; art.onerror = () => art.remove?.();
-    const txt = el('span', 'lvtxt'); txt.append(el('b', '', 'Level ' + s.code), el('span', '', s.waves + ' waves'), el('small', '', c));
+    const txt = el('span', 'lvtxt'); txt.append(el('b', '', 'Level ' + s.code), el('span', '', s.waves + ' waves'), el('small', 'lvdrop', levelDropText(s.n)), el('small', '', c));
     const fx = MAP_EFFECTS[MAP_EFFECT_OF[s.n]];
     if (fx) { txt.append(el('small', 'mapfx', fx.name)); b.title = fx.name + ': ' + fx.text; }   /* the zone's name is on its tab above */
     b.disabled = !stageOpen(s.n, cleared); b.append(art, txt);
@@ -68,6 +72,7 @@ function toggle(id) {
 function renderPick() {
   const fx = MAP_EFFECTS[MAP_EFFECT_OF[stage]], end = stageDef(stage) && stageDef(stage).endless;
   $('lvPickTitle').textContent = 'Pick your 3 heroes';
+  if ($('lvDrops')) $('lvDrops').textContent = end ? endlessDropText() : levelDropText(stage);   /* what this level is worth farming for */
   if ($('lvMapFx')) { $('lvMapFx').textContent = end ? 'Endless: you choose the map\'s effect when the match begins. Quitting saves the run.' : fx ? fx.name + ': ' + fx.text : ''; $('lvMapFx').hidden = !fx && !end; }
   $('lvCount').textContent = lineup.length + ' / ' + LINEUP_SIZE;
   $('lvStart').disabled = !lineup.length; $('lvStart').title = lineup.length ? '' : 'Choose at least one hero';

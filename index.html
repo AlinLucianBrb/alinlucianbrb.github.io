@@ -991,6 +991,49 @@ body.calm .herocard .ab.ready,body.calm .actions .autobtn.on::after,body.calm .e
 #evoChoices .choose.evolike .habil{margin-top:auto;padding-top:4px}
 #evoChoices{gap:14px}
 #evoChoices .card:has(.evolike){width:300px}
+/* What each zone and level drops (the item level), so the player knows where to farm. */
+.zone .zrow{display:flex;justify-content:space-between;align-items:baseline;gap:6px;width:100%}
+.zone .zdrop,.lvl .lvdrop,.lvdrops{color:#d9b25a;font-family:var(--pixel);font-weight:400}
+.lvdrops{margin:2px 0 6px;font-size:calc(14px * var(--ts));text-align:center}
+/* Milestones (Nov 24). A new act or the end of the campaign: its own screen over the result, with the zone's picture and what
+   it unlocks. */
+.overlay.milestone{z-index:7;background:rgba(10,14,12,.94);gap:8px}
+.milestone .msart{width:min(520px,80vw);height:auto;max-height:28vh;object-fit:cover;image-rendering:pixelated;box-shadow:0 0 0 2px #0b100d,0 0 0 4px color-mix(in srgb,var(--zc,#d9b25a) 70%,#000),0 0 24px color-mix(in srgb,var(--zc,#d9b25a) 35%,transparent)}
+.milestone .msart[hidden]{display:none}
+.milestone h2{margin:6px 0 0;font-size:calc(34px * var(--ts));line-height:1.1;color:#ffe7a8;text-shadow:0 2px 0 #0b100d}
+.milestone .mssub{margin:0;font-family:var(--pixel);font-size:calc(18px * var(--ts));color:#d9b25a}
+.milestone .mstext{margin:0;max-width:520px;color:#e8dcc0}
+.msunlocks{display:flex;flex-direction:column;gap:6px;width:min(520px,90vw);margin:4px 0}
+.msunlocks[hidden]{display:none}
+.msunlocks .msuhead{font-family:var(--pixel);font-size:calc(14px * var(--ts));color:#b9ab8e;text-align:left}
+.msunlocks .msu{display:flex;align-items:center;gap:10px;padding:6px 10px;text-align:left;background:rgba(0,0,0,.3);box-shadow:inset 0 0 0 1px rgba(255,236,190,.1)}
+.msunlocks .msu img{width:36px;height:36px;flex:none;image-rendering:pixelated}
+.msunlocks .msuw{display:flex;flex-direction:column;gap:1px}
+.msunlocks .msuw b{font-family:var(--pixel);font-weight:400;font-size:calc(17px * var(--ts));color:#fff3d6}
+.msunlocks .msuw small{color:#cfc3a8}
+/* The best items of a match, big on the result screen: the icon, "Epic item!", the name in its colour and the bonuses. */
+.lootrow .loot{display:flex;flex-wrap:wrap;justify-content:center;gap:6px}
+.lootrow .bigdrop{flex-basis:100%;display:flex;align-items:center;justify-content:center;gap:12px;padding:6px 10px;margin-bottom:4px;
+  background:radial-gradient(ellipse at 30% 50%,rgba(192,132,252,.22),transparent 70%);text-align:left}
+.lootrow .bigdrop .invcell{width:76px;height:76px;flex:none;box-shadow:0 0 14px 2px rgba(192,132,252,.55)}
+.lootrow .bigdrop .itemicon.art img{width:62px;height:62px}
+.lootrow .bigdrop .bdw{display:flex;flex-direction:column;gap:1px;min-width:0}
+.lootrow .bigdrop .bdtag{font-family:var(--pixel);color:#c084fc;font-size:calc(13px * var(--ts))}
+.lootrow .bigdrop .bdw b{font-family:var(--pixel);font-weight:400;font-size:calc(20px * var(--ts));line-height:1.1}
+/* A hero's first evolution into a form: the form big over the board for a few seconds (it does not pause the game). */
+.formmoment{position:absolute;left:50%;top:18%;z-index:4;transform:translateX(-50%);display:flex;align-items:flex-end;gap:12px;padding:10px 22px 12px 12px;cursor:pointer;
+  padding:24px 70px 28px 40px;
+  background:radial-gradient(ellipse 30% 45% at 30% 55%,color-mix(in srgb,var(--hc) 45%,transparent),transparent 100%),radial-gradient(closest-side,rgba(10,15,12,.88) 0%,rgba(10,15,12,.7) 55%,transparent 100%)}
+.formmoment[hidden]{display:none}
+.formmoment .fmart{height:180px;width:auto;image-rendering:auto;filter:drop-shadow(0 0 10px color-mix(in srgb,var(--hc) 60%,transparent))}
+.formmoment .fmart.flip{transform:scaleX(-1)}
+.formmoment .fmw{display:flex;flex-direction:column;gap:2px;padding-bottom:16px}
+.formmoment .fmw small{font-family:var(--pixel);font-size:calc(15px * var(--ts));color:#d9cba8}
+.formmoment .fmw b{font-family:var(--pixel);font-weight:400;font-size:calc(34px * var(--ts));line-height:1.05;color:#fff3d6;text-shadow:0 2px 0 #0b100d,0 0 12px color-mix(in srgb,var(--hc) 70%,transparent)}
+.formmoment.show{animation:formIn 3.6s ease both}
+@keyframes formIn{0%{opacity:0;transform:translate(-50%,10px) scale(.96)}10%{opacity:1;transform:translate(-50%,0) scale(1)}82%{opacity:1}100%{opacity:0}}
+body.calm .formmoment.show{animation:none}
+@media (prefers-reduced-motion:reduce){.formmoment.show{animation:none}}
 /* Nov 23 fixes: the shop card a little wider (three shop icons a row, four relics a row inside it), the rarity letter
    inside a relic's square, and the hero window's stats in one column so no name is cut. */
 #shopCard{width:224px}
@@ -1055,7 +1098,7 @@ body.rarmarks #shopCard .relicchip[data-rar]::before{position:absolute;left:2px;
     <button id="lvEndless" class="endlessbtn" hidden></button>
   </div>
   <div id="lvPick" class="lvstep" hidden>
-    <h1 id="lvPickTitle">Choose your heroes</h1><p class="muted" id="lvMapFx" hidden></p>
+    <h1 id="lvPickTitle">Choose your heroes</h1><p class="lvdrops" id="lvDrops"></p><p class="muted" id="lvMapFx" hidden></p>
     <p class="muted" hidden>(<b id="lvCount"></b>)</p>
     <div class="hgrid" id="lvHeroes"></div>
     <button class="go big" id="lvStart">Start</button>
@@ -1239,6 +1282,15 @@ body.rarmarks #shopCard .relicchip[data-rar]::before{position:absolute;left:2px;
     <button id="newRun">Retry level</button>
     <button id="overMenu">Back to menu</button>
   </div>
+  <div class="overlay milestone" id="milestone" hidden role="dialog">
+    <img class="msart pix" id="msArt" alt="">
+    <h2 id="msTitle"></h2>
+    <p class="mssub" id="msSub"></p>
+    <p class="mstext" id="msText"></p>
+    <div class="msunlocks" id="msUnlocks" hidden></div>
+    <button class="go" id="msOk">Continue</button>
+  </div>
+  <div class="formmoment" id="formMoment" hidden></div>
 </section>
 
 <script type="module" src="js/main.js"></script>

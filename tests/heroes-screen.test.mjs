@@ -212,3 +212,12 @@ test('an older profile ({ hero: itemId }) still works: the item becomes that her
   assert.deepEqual(equipment(), { mage: { trinket: 'i1' } });
   assert.deepEqual(wornItems(), { mage: [{ type: 'power_charm', rarity: 0, bonuses: [], ranks: [] }] });
 });
+
+test('the items on the result screen: Epic ones first and big, with the name and bonuses written out; the others as icons', async () => {
+  const { lootRow } = await import('../js/screens/loadout.js');
+  const row = lootRow([{ id: 'a', item_type: 'helm', rarity: 0, bonuses: [] }, { id: 'b', item_type: 'helm', rarity: 3, bonuses: ['Whetstone'], ilvl: 30 }]);
+  const [big, small] = row.children;
+  assert.equal(big.className, 'bigdrop'); assert.ok(texts(big).includes('Epic item!'));
+  assert.ok(texts(big).some(t => /^Item level 30/.test(t)), 'its bonuses written out');
+  assert.equal(small.className, 'invcell full'); assert.equal(row.children.length, 2);
+});

@@ -3,7 +3,8 @@
    Equipment is { heroId: { slot: itemId } }; an item row is { id, item_type, rarity, bonuses }. */
 import { state } from '../core/state.js';
 import { getItems, saveLoadout } from '../services/api.js';
-import { HEROES, LINEUP_SIZE } from '../content/data.js';
+import { HEROES, LINEUP_SIZE, RARITIES } from '../content/data.js';
+import { bindTip } from '../core/tooltip.js';
 import { isUnlocked, inMatch } from '../content/unlocks.js';
 import { ITEMS, SLOT_LABEL, AFFINITY_LABEL, asItem, itemName, itemColor, itemLines, itemBonusLines } from '../content/items.js';
 import { spriteImg } from '../game/sprites.js';
@@ -101,4 +102,22 @@ export function itemTip(row) {
   if (!bl.length) lines.push({ text: 'No bonuses', color: '#ab9f8a' });
   lines.push(who ? { text: 'Equipped on the ' + (hero ? hero.name : who.hero), color: '#8be28b' } : { text: 'Not equipped', color: '#ab9f8a' });
   return { title: itemName(row), color: itemColor(row), lines };
+}
+
+/* The items a match dropped (the result screen), as they look in the inventory: hover one for its name and bonuses. The
+   best ones (Epic) come first and big, with their name and bonuses written out. */
+export function lootRow(drops) {
+  const row = el('div', 'loot'), best = RARITIES.length - 1, big = drops.filter(d => (asItem(d).rarity | 0) >= best);
+  for (const d of big) {
+    const card = el('div', 'bigdrop'), cell = el('div', 'invcell full'), words = el('div', 'bdw'), name = el('b', '', itemName(d));
+    cell.append(itemIcon(d)); name.style.color = itemColor(d);
+    words.append(el('small', 'bdtag', RARITIES[asItem(d).rarity | 0].name + ' item!'), name);
+    for (const l of itemBonusLines(d)) { const t = el('small', '', l.text); t.style.color = l.color; words.append(t); }
+    card.append(cell, words); row.append(card);
+  }
+  for (const d of drops.filter(d => !big.includes(d))) {
+    const cell = el('div', 'invcell full'); cell.append(itemIcon(d)); cell.tabIndex = 0; cell.setAttribute('aria-label', itemName(d));
+    bindTip(cell, () => itemTip(d)); row.append(cell);
+  }
+  return row;
 }

@@ -9,7 +9,7 @@ const ROWS = [
   { key: 'textSize', name: 'Text size', note: 'Makes every text in the game bigger.', options: TEXT_SIZES },
   { key: 'effects', name: 'Effects', note: 'Fewer: no flashes on hits and kills, and nothing on the screen pulses or bobs.', options: [['full', 'Full'], ['fewer', 'Fewer']] },
   { key: 'rarityMarks', name: 'Rarity letters', note: 'A letter on items and relics (C, U, R, E), so rarity does not depend on colour alone.', options: [[true, 'On'], [false, 'Off']] },
-  { key: 'speed', name: 'Game speed at the start', note: 'For solo matches. 2x unlocks in Act 3; 3x is for Endless.', options: SPEEDS.map(s => [s, s + 'x']) },
+  { key: 'speed', name: 'Game speed at the start', note: 'For solo matches. 2x unlocks in Act 2; 3x is for Endless.', options: SPEEDS.map(s => [s, s + 'x']) },
   { key: 'auto', name: 'Auto-start', note: 'Solo matches begin with Auto-start on.', options: [[false, 'Off'], [true, 'On']] },
   { key: 'playOnPick', name: 'Keep playing while choosing', note: 'A solo match goes on while the relic choice is open.', options: [[false, 'Off'], [true, 'On']] }
 ];

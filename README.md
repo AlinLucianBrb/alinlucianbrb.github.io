@@ -212,6 +212,24 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Where to farm, 2x speed in Act 2, milestone screens (Nov 24, v0.71.0)
+- **What each place drops, on the level screen.** Each zone shows the item levels its levels drop (Green Meadow 3–15, Deep
+  Forest 18–30 ... Ashlands 63–75); each level shows its item level and how many items a win gives (one, plus one per boss:
+  "Items: level 24 · 3 on a win"); the Endless button says its items start at item level 75; and the hero choice before a
+  level repeats the line for that level. Nothing about the drops changed, only what the game tells you.
+- **2x speed unlocks in Act 2** (was Act 3), so the 55-wave levels of Act 2 can be played faster. It works on levels of
+  Act 2 or later; 3x is still for Endless.
+- **A new act gets its own screen** after the win that opens it, over the result screen: the zone's picture, "Act 2 · Deep
+  Forest", the item levels its levels drop, and each thing the act unlocks with its icon and one line on what it does.
+  Continue shows the result screen. **Finishing the campaign** (beating 5-5) gets one too: Endless is open in every zone.
+- **Epic items** on the result screen come first and big: the icon with a glow, "Epic item!", the name in its colour, and
+  every bonus written out. The other items stay small icons as before.
+- **A hero's first evolution into a form** shows the form big over the board for a few seconds: its picture over a glow in
+  its colour, "Your Hunter evolved", and the form's name. Once per form, remembered on this browser; it does not pause the
+  game, and a click hides it.
+- No rules or SQL change for now: while UNLOCK_ALL is on, the server opens everything anyway. When it is switched off, the
+  rebuilt SQL (`npm run sql`) carries the new act for 2x speed.
+
 ## Hero and evolution cards like in a match, whole-number range, Crusader's reach 1 tile (Nov 23, v0.70.1)
 - **The hero cards on the Heroes screen and the hero choice before a level** now look exactly like the hero cards in a
   match, only bigger: no gold frame and no picture window. The whole hero stands on the left of the card over a glow in

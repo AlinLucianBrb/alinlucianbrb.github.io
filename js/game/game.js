@@ -1,6 +1,7 @@
 /* The browser shell around the engine: it turns input into commands, runs the loop, moves the camera, draws and updates the HUD.
    All game rules live in js/engine; nothing in here decides what happens in a game. */
-import { HEROES, COLS, ROWS, T, STAGES, stageDef, heroIndex, nextStep, evolutionStep } from '../content/data.js';
+import { HEROES, COLS, ROWS, T, STAGES, stageDef, heroIndex, nextStep, evolutionStep, evolvedDef } from '../content/data.js';
+import { firstTime } from '../core/seen.js';
 import { createWorld, step, STEP, playerView } from '../engine/world.js';
 import { apply } from '../engine/commands.js';
 import { exportLog, resume } from '../engine/replay.js';
@@ -432,7 +433,14 @@ initVote(i => act({ type: 'vote', index: i }));
 initShop({ onAct: c => { act(c); updateShop(w); }, onTile: id => { v.moving = null; pickTile(v.tile === id ? null : id); } });
 const closeEvolve = () => { v.evo = null; ui.hideEvoPick(); };
 const evolveSelected = () => openEvolve(v.selected);
-const chooseEvolution = i => { const h = v.evo; if (h && act({ type: 'evolve', id: h.id, choice: i }).ok) { closeEvolve(); ui.renderInspector(w, v); } };
+const chooseEvolution = i => {
+  const h = v.evo, st = h && nextStep(h), c = st && !st.upgrade && st.choices[i], base = h && (h.def.core || h.def);   /* before it evolves */
+  if (h && act({ type: 'evolve', id: h.id, choice: i }).ok) {
+    closeEvolve(); ui.renderInspector(w, v);
+    /* the first time this form is reached (on this browser): its picture big over the board for a moment */
+    if (c && firstTime('form:' + c.id)) ui.showFormMoment(evolvedDef(base, c), base.name);
+  }
+};
 const toggleMove = () => { if (v.selected && w.mine(v.selected) && w.phase !== 'over') { v.moving = v.moving === v.selected ? null : v.selected; ui.renderInspector(w, v); } };
 ui.initUI({
   onSelectType: selectType, onEvolveHero: i => openEvolve(unitOf(i)), onCloseInspector: closeInspector, onEvolveChoice: chooseEvolution, maxSpeed: () => topSpeed(),

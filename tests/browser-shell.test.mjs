@@ -280,6 +280,9 @@ test('evolving the Mage: an Evolve button with the cost pops up above its card; 
   choices[2].onclick(); dom.frames(1);
   assert.equal(byId.evoPick.hidden, true, 'choosing closes the picker');
   assert.equal(m.def.name, 'Lightning Mage'); assert.equal(world().gold, 0, '500 gold, all spent on the evolution');
+  const fm = byId.formMoment;
+  assert.equal(fm.hidden, false, 'the first time a form is reached, its picture shows big over the board');
+  assert.deepEqual(texts(fm), ['Your Mage evolved', 'Lightning Mage']);
   assert.ok(dom.made.some(e => e.tag === 'b' && e._text === '★ Lightning Mage · Lv 15'), 'the panel title shows the new form');
   assert.equal(rise.hidden, true, 'the Evolve button goes away');
   const mageBtn = dom.heroButton(2);
@@ -348,3 +351,19 @@ test('the result screen: a text, or a text with the dropped items under it; whol
   setOverMsg(''); assert.equal(byId.lootRow.hidden, true, 'cleared for the next match');
   assert.deepEqual([whole(30.8), whole(10), whole(10.0000000001), whole(23.1)], [31, 10, 10, 24]);
 });
+
+test('a new act gets its own screen over the result: the zone, what it unlocks, Continue', async () => {
+  const { setOverMsg, hideOver } = await import('../js/game/ui.js'), { actMilestone } = await import('../js/content/unlocks.js');
+  setOverMsg({ text: 'Level 1-5 cleared!', node: null, milestone: actMilestone(4, 5) });
+  assert.equal(byId.milestone.hidden, false); assert.equal(byId.msTitle._text ?? byId.msTitle._v, 'Act 2 · Deep Forest');
+  assert.equal(byId.msArt.src, 'assets/level_2.png');
+  const rows = byId.msUnlocks.children.filter(c => c.className === 'msu');
+  assert.equal(rows.length, 3); assert.ok(texts(byId.msUnlocks).includes('2x game speed'));
+  byId.msOk.onclick(); assert.equal(byId.milestone.hidden, true, 'Continue shows the result under it');
+  setOverMsg({ text: '', milestone: actMilestone(24, 25) }); assert.equal(byId.msUnlocks.hidden, true, 'the campaign end unlocks nothing new');
+  hideOver(); assert.equal(byId.milestone.hidden, true, 'a new match hides it');
+  setOverMsg('Saved.'); assert.equal(byId.milestone.hidden, true, 'no milestone: no screen');
+});
+
+/* Every text under a fake element. */
+function texts(root, out = []) { if (root._text) out.push(root._text); if (root._v) out.push(root._v); (root.children || []).forEach(c => texts(c, out)); return out; }

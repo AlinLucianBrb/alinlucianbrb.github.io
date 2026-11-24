@@ -1,12 +1,10 @@
 import { startGame, stopGame, snapshot } from '../game/game.js';
 import { saveRun, loadRun, clearRun } from '../game/saved-run.js';
 import { startRun, finishRun, getItems } from '../services/api.js';
-import { itemName } from '../content/items.js';
 import { STAGES, stageDef, stageOpen } from '../content/data.js';
 import { endlessBracket } from '../content/rules.js';
-import { wornItems, activePaths, el, itemIcon, itemTip } from './loadout.js';
-import { bindTip } from '../core/tooltip.js';
-import { actMessage, maxSpeed, inMatch } from '../content/unlocks.js';
+import { wornItems, activePaths, lootRow } from './loadout.js';
+import { actMessage, actMilestone, maxSpeed, inMatch } from '../content/unlocks.js';
 import { runRewards } from '../core/rules.js';
 import { rewardBonus } from '../content/talents.js';
 import { bus } from '../core/bus.js';
@@ -68,16 +66,7 @@ export default {
         (n ? ' You found ' + (n > 1 ? n + ' items' : 'an item') + (endless && n > 5 ? ' of item level ' + [...new Set(endlessBracket(waves))].join(' to ') : '') + ':' : '') +
         (profile.level > before.level ? ' Level up! You are now level ' + profile.level + '.' : '') +
         (actMessage(before.levels_cleared, profile.levels_cleared) ? ' ' + actMessage(before.levels_cleared, profile.levels_cleared) : '');
-      return { text, node: n ? lootRow(drops) : null };
-    }
-    /* The items the match dropped, as they look in the inventory: hover one for its name and bonuses. */
-    function lootRow(drops) {
-      const row = el('div', 'loot');
-      for (const d of drops) {
-        const cell = el('div', 'invcell full'); cell.append(itemIcon(d)); cell.tabIndex = 0; cell.setAttribute('aria-label', itemName(d));
-        bindTip(cell, () => itemTip(d)); row.append(cell);
-      }
-      return row;
+      return { text, node: n ? lootRow(drops) : null, milestone: actMilestone(before.levels_cleared, profile.levels_cleared) };
     }
     const seat = config && seatOf(config, uid);
     startGame({

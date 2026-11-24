@@ -578,6 +578,7 @@ function updateAbilities(b, unit, def) {
 
 export const hidePick = () => { $('pick').hidden = true; };
 export function showOver(title, text, msg, canNext) {
+  { const fm = $('formMoment'); if (fm) fm.hidden = true; }   /* the evolution moment never shows through the result */
   $('overSummary').textContent = '';
   setText($('overTitle'), title); setText($('overText'), text); setOverMsg(msg);
   $('overNext').hidden = !canNext; $('over').hidden = false;
@@ -587,6 +588,39 @@ export function setOverMsg(msg) {
   const m = msg && typeof msg === 'object' ? msg : { text: msg || '', node: null }, loot = $('lootRow');
   setText($('subMsg'), m.text || '');
   if (loot) { loot.textContent = ''; if (m.node) loot.append(m.node); loot.hidden = !m.node; }
+  if (m.milestone) showMilestone(m.milestone);   /* a new act, or the campaign finished: its own screen over the result */
+}
+/* A milestone's screen (actMilestone in unlocks.js): the zone's picture, the title, what it means, and each thing it
+   unlocks with its icon and what it does. Continue shows the result screen under it. */
+export function showMilestone(m) {
+  const box = $('milestone'); if (!box) return;
+  box.dataset && (box.dataset.kind = m.kind);
+  const art = $('msArt'); if (art) { art.src = m.art; art.hidden = !m.art; }
+  setText($('msTitle'), m.title); setText($('msSub'), m.sub || ''); setText($('msText'), m.text || '');
+  const list = $('msUnlocks'); list.textContent = '';
+  for (const u of m.unlocks || []) {
+    const row = el('div', 'msu'), words = el('span', 'msuw');
+    words.append(el('b', '', u.name), el('small', '', u.desc));
+    if (!list.children.length) list.append(el('div', 'msuhead', 'Unlocked'));
+    row.append(spriteImg(u.icon, 'pix'), words); list.append(row);
+  }
+  list.hidden = !(m.unlocks && m.unlocks.length);
+  box.hidden = false;
+  const ok = $('msOk'); if (ok) { ok.onclick = () => { box.hidden = true; }; ok.focus?.(); }
+}
+export const hideMilestone = () => { const box = $('milestone'); if (box) box.hidden = true; };
+/* A hero's first evolution into a form (once per form, on this browser): the form's picture big over the board for a few
+   seconds, its name, and what it was. It does not pause the game; a click hides it. */
+let formTimer = null;
+export function showFormMoment(form, from) {
+  const box = $('formMoment'); if (!box) return;
+  box.textContent = ''; box.style.setProperty?.('--hc', form.color || '#d9b25a');
+  const cp = cardPicture(form), words = el('div', 'fmw');
+  words.append(el('small', '', 'Your ' + from + ' evolved'), el('b', '', form.name));
+  box.append(spriteImg(cp.name, 'pix fmart' + (cp.flip ? ' flip' : '')), words);
+  box.hidden = false; box.classList.remove('show'); void box.offsetWidth; box.classList.add('show');
+  box.onclick = () => { box.hidden = true; };
+  clearTimeout(formTimer); formTimer = setTimeout(() => { box.hidden = true; }, 3600);
 }
 /* The summary under the result: each of the player's heroes (its form, level, damage and share of it, kills), then the match. */
 export function renderSummary(g) {
@@ -612,4 +646,4 @@ export function renderSummary(g) {
   fact('Gold left', g.gold); fact('Time', Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0'));
   box.append(facts);
 }
-export const hideOver = () => { $('over').hidden = true; };
+export const hideOver = () => { $('over').hidden = true; hideMilestone(); const fm = $('formMoment'); if (fm) fm.hidden = true; };
