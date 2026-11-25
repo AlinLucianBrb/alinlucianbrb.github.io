@@ -211,6 +211,16 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Act 2 has its painted map (Nov 25, v0.73.1)
+- Act 2, the Deep Forest, now has its own painted map with its own layout: the road comes in on the left between
+  dark trees with faces, dips past a fairy garden and a ring of white birches, crosses a glowing stream on stepping
+  stones and climbs through a runed arch to the shrine of the deer forest spirit (the boss). The Endless portal stands
+  by the stream.
+- The level card is narrower and goes to the side away from the flag you clicked, so it never covers it.
+- `build_worldmap.py` fills see-through edge rows and columns that Pixel Lab sometimes leaves (they showed as a light
+  line at the edge); Act 1's map was rebuilt with the fix.
+- No SQL or rules change.
+
 ## Act 1 has its painted map (Nov 25, v0.73.0)
 - Inside Act 1 the level screen shows a painted map of the Green Meadow over the whole window: a hamlet, a stone bridge
   over a river, a great oak with a shrine, a ruined watchtower and a goblin camp, with the road painted between them.

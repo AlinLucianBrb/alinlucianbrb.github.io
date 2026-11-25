@@ -21,6 +21,22 @@ SRC = lambda *p: os.path.join(HERE, 'worldmap', *p)
 A = lambda *p: os.path.join(HERE, '..', '..', 'assets', *p)
 
 
+def fill_edges(im):
+    """Pixel Lab sometimes leaves an edge row or column see-through (a light line in the game): copy the next one in."""
+    im = im.convert('RGBA')
+    px = im.load()
+    W, H = im.size
+    for x in list(range(3)) + list(range(W - 3, W)):
+        inner = x + 1 if x < W // 2 else x - 1
+        for y in range(H):
+            if px[x, y][3] < 255: px[x, y] = px[inner, y]
+    for y in list(range(3)) + list(range(H - 3, H)):
+        inner = y + 1 if y < H // 2 else y - 1
+        for x in range(W):
+            if px[x, y][3] < 255: px[x, y] = px[x, inner]
+    return im
+
+
 def crop(name, out):
     im = Image.open(SRC(name)).convert('RGBA')
     im = im.crop(im.getbbox())
@@ -31,7 +47,7 @@ def crop(name, out):
 if __name__ == '__main__':
     for n in range(1, 6):
         if not os.path.exists(SRC('act%d.png' % n)): continue
-        im = Image.open(SRC('act%d.png' % n)).convert('RGB')
+        im = fill_edges(Image.open(SRC('act%d.png' % n))).convert('RGB')
         im.save(A('zonemap_%d.png' % n))
         print('zonemap_%d.png' % n, im.size)
     crop('portal.png', 'map_portal.png')

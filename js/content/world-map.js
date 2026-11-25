@@ -35,5 +35,10 @@ export const ZONE_ART = {
     src: 'assets/zonemap_1.png', ratio: 458 / 256,
     stops: [{ x: 17.6, y: 47.7 }, { x: 42.8, y: 56.4 }, { x: 53.8, y: 63.0 }, { x: 70.7, y: 43.0 }, { x: 87.0, y: 73.0 }],
     endless: { x: 10, y: 68 }
+  },
+  2: {   /* the road comes in on the left, dips past the fairy garden, crosses the stream and ends at the deer spirit's shrine */
+    src: 'assets/zonemap_2.png', ratio: 458 / 256,
+    stops: [{ x: 17.0, y: 43.2 }, { x: 31.3, y: 67.8 }, { x: 51.1, y: 83.8 }, { x: 67.2, y: 73.2 }, { x: 82.8, y: 39.1 }],
+    endless: { x: 90, y: 62 }
   }
 };

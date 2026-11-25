@@ -4,3 +4,11 @@ act1_optC 0bc5192c-4d1e-4019-b8f4-095855515ba1 walled village, burning fields, l
 act1 = option B above (chosen Nov 25; A and C not kept)
 portal e48e0e63-74ed-4a90-9737-32ad39af2f4c index 3 (16 candidates: runed stone ring with a violet vortex)
 flag 3596015f-670f-4c67-8fdf-a34cf412a615 index 0 (25 candidates: red banner with gold trim)
+act2_optA cd4c23d4-a01d-4c5c-86c8-bc1c95ce01f7 woodcutter camp, mossy bridge, standing stones, hollow mushroom tree, orc lumber fort
+act2_optB fce8263b-ce51-4be3-a0f7-63a1e294eb44 ranger outpost, waterfall log bridge, mushroom glade, root arch, witch hut in dead tree
+act2_optC 7d393eb7-cf68-430f-aced-97864144ebf2 hunting lodge, rope bridge ravine, ruined shrine, spider hollow, orc war camp
+act2_optD befd169b-8ac6-4b0b-a808-e5cf9fd1e61c (new layout, ref usage=style only) tree creatures, fairy ring, log tunnel, spirit tree boss
+act2_optE 01ed6366-cd33-440d-b70c-495bf93ec98e (new layout, ref usage=style only) U road, glowing stream, fairies, rune arch, deer forest spirit boss
+act2_optF 25c76543-835e-43d8-bd4b-f70933eb356f (new layout, style image palette/outline/shading) S road, lake, elven platform, spirit from stump
+(A-C dropped: copied Act 1's layout)
+act2 = act2_optE (chosen Nov 25; D and F not kept)
