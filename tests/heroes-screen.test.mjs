@@ -1,6 +1,6 @@
 /* The Heroes, Inventory and level screens against a fake page and a fake server: hero pages with Information and
    Evolutions tabs, equipping items, the inventory grid, and choosing heroes after picking a level. */
-import { HEROES } from '../js/content/data.js';
+import { HEROES, STAGES } from '../js/content/data.js';
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { installFakeDom } from './fake-dom.mjs';
@@ -183,15 +183,21 @@ test('Levels: picking a level asks for the heroes (none picked to start, 1 to 3 
   assert.equal(nodes('zonenode')[0].disabled, false); assert.equal(nodes('zonenode')[1].disabled, true, 'act 2 is locked');
   nodes('zonenode')[0].onclick();                           /* zoom into act 1 (no animations here, so it switches at once) */
   assert.match(byId.lvMapTitle._text, /^Act 1 · /);
-  assert.equal(nodes('lvnode').length, 6, 'its 5 levels from left to right, then Endless');
+  assert.equal(nodes('lvnode').length, 5, 'its 5 levels from left to right; no Endless before the campaign is finished');
   assert.equal(nodes('lvnode')[2].disabled, true, 'level 3 is locked');
   assert.ok(nodes('lvnode')[1].className.includes('here'), 'level 2 is the next one');
   nodes('lvnode')[1].onclick();                             /* the first click shows the level's card */
   assert.equal(byId.lvInfo.hidden, false); assert.equal(byId.lvPick.hidden, true);
   assert.ok(texts(byId.lvInfo).includes('Level 1-2'));
-  nodes('mapback')[0].onclick();                            /* back out to the world and in again */
+  assert.equal(byId.lvBack._text, '◀ World map', 'one Back button: inside a zone it leads to the world map');
+  byId.lvBack.onclick();                                    /* back out to the world and in again */
+  assert.equal(byId.lvBack._text, 'Back');
   assert.equal(byId.lvMapTitle._text, 'World map'); assert.equal(byId.lvInfo.hidden, true);
-  nodes('zonenode')[0].onclick(); nodes('lvnode')[1].onclick();
+  state.profile = { ...state.profile, levels_cleared: STAGES.length };   /* campaign finished: Endless appears */
+  await levels.mount(null, {}); nodes('zonenode')[0].onclick();
+  assert.ok(nodes('lvnode').at(-1).className.includes('endless')); assert.equal(nodes('lvnode').length, 6);
+  state.profile = { ...state.profile, levels_cleared: 1 };
+  await levels.mount(null, {}); nodes('zonenode')[0].onclick(); nodes('lvnode')[1].onclick();
   nodes('lvnode')[1].onclick();                             /* clicking it again goes on to the heroes */
   assert.equal(byId.lvPick.hidden, false); assert.equal(byId.lvPickTitle._text, 'Pick your 3 heroes');
   assert.equal(byId.lvCount._text, '0 / 3', 'none picked to start with'); assert.equal(byId.lvStart.disabled, true, 'Start waits for a hero');

@@ -14,7 +14,7 @@ import { pathChoice } from '../engine/preview.js';
 import { heroStats } from '../engine/stats.js';
 import { liveText } from '../content/live-text.js';
 import { zoneItemLevels, levelDropText, endlessDropText, ENDLESS_ITEMS } from '../content/level-drops.js';
-import { WORLD, ZONE_PATH, zoneColor, roadPath } from '../content/world-map.js';
+import { WORLD, ZONE_PATH, ENDLESS_SPOT, ZONE_ART, zoneColor, roadPath } from '../content/world-map.js';
 import { isBossWave } from '../content/rules.js';
 import { bindTip } from '../core/tooltip.js';
 import { calm } from '../core/prefs.js';
@@ -35,6 +35,10 @@ let picked = null;   /* the level shown in the card under the map */
 const mapX = x => 'calc(var(--ml,0px) + ' + x + ' * (100% - var(--ml,0px) - var(--mr,0px)) / 100)';
 const mapY = y => 'calc(var(--mt,0px) + ' + y + ' * (100% - var(--mt,0px) - var(--mb,0px)) / 100)';
 const place = (node, pt) => { node.style.left = mapX(pt.x); node.style.top = mapY(pt.y); };
+/* On a painted map: a point in % of the picture, which covers the window (--aw x --ah, centred; see index.html). */
+const artX = x => 'calc(50% + ' + (x - 50) + ' * var(--aw) / 100)';
+const artY = y => 'calc(50% + ' + (y - 50) + ' * var(--ah) / 100)';
+const placeOnArt = (node, pt) => { node.style.left = artX(pt.x); node.style.top = artY(pt.y); };
 function road(box, points) {
   const svg = document.createElementNS(NS, 'svg'), path = document.createElementNS(NS, 'path');
   svg.setAttribute('viewBox', '0 0 100 100'); svg.setAttribute('preserveAspectRatio', 'none'); svg.setAttribute('class', 'maproad');
@@ -58,7 +62,10 @@ function levelLines(n) {
 }
 const levelTitle = n => { const s = stageDef(n); return s.endless ? 'Endless · ' + zoneOf(s.zone || 1).name : 'Level ' + s.code; };
 
+/* One Back button: inside a zone it leads out to the world map, so it says so. */
+const backLabel = () => { const b = $('lvBack'); if (b) b.textContent = stage === null && zone !== null ? '◀ World map' : 'Back'; };
 function renderLevels() {
+  backLabel();
   const p = state.profile, cleared = p.levels_cleared || 0, next = Math.min(STAGES.length, cleared + 1), map = $('lvMap');
   map.textContent = ''; picked = null; renderCard();
   if (zone === null) {
@@ -85,20 +92,24 @@ function renderLevels() {
     return;
   }
   /* inside a zone */
-  const z = ZONES[zone - 1], lv = STAGES.filter(s => s.zone === zone), e = ENDLESS.find(x => x.zone === zone);
+  const z = ZONES[zone - 1], lv = STAGES.filter(s => s.zone === zone), e0 = ENDLESS.find(x => x.zone === zone);
+  const e = e0 && stageOpen(e0.n, cleared) ? e0 : null;   /* Endless shows up only once the campaign is finished */
   if (document.body?.dataset) document.body.dataset.zone = String(zone);
   $('lvMapTitle').textContent = 'Act ' + z.n + ' · ' + z.name;
-  map.className = 'worldmap zoneview';
-  map.style.setProperty?.('--zc', zoneColor(zone)); map.style.setProperty?.('--zart', 'url(assets/level_' + zone + '.png)');
-  road(map, ZONE_PATH.slice(0, lv.length + (e ? 1 : 0)));
-  const back = el('button', 'mapback', '◀ World map'); back.onclick = leaveZone; map.append(back);
+  const art = ZONE_ART[zone];
+  map.className = 'worldmap zoneview' + (art ? ' hasart' : '');
+  map.style.setProperty?.('--zc', zoneColor(zone)); map.style.setProperty?.('--zart', 'url(' + (art ? art.src : 'assets/level_' + zone + '.png') + ')');
+  if (art) map.style.setProperty?.('--ar', String(art.ratio));
+  else road(map, ZONE_PATH.slice(0, lv.length));   /* a painted map has its road painted in */
   [...lv.map(s => s.n), ...(e ? [e.n] : [])].forEach((n, i) => {
     const s = stageDef(n), open = stageOpen(n, cleared), here = !s.endless && n === next && n > cleared;
     const b = el('button', 'mapnode lvnode' + (s.endless ? ' endless' : '') + (open ? '' : ' locked') + (!s.endless && n <= cleared ? ' done' : '') + (here ? ' here' : ''));
-    b.style.setProperty?.('--nc', zoneColor(zone)); place(b, ZONE_PATH[i]);
+    b.style.setProperty?.('--nc', zoneColor(zone));
+    if (art) placeOnArt(b, s.endless ? art.endless : art.stops[i]); else place(b, s.endless ? ENDLESS_SPOT : ZONE_PATH[i]);
     const label = el('span', 'maplabel');
     label.append(el('b', '', s.endless ? 'Endless' : 'Level ' + s.code), el('small', '', status(n)));
-    b.append(el('span', 'mapdot', s.endless ? '∞' : String(i + 1)), label, ...(here ? [el('span', 'heretag', 'Next')] : []));
+    const mark = art ? el('span', s.endless ? 'mappin portal' : 'mappin flag') : el('span', 'mapdot', s.endless ? '∞' : String(i + 1));
+    b.append(mark, label, ...(here ? [el('span', 'heretag', 'Next')] : []));
     b.disabled = !open; b.dataset && (b.dataset.n = String(n));
     bindTip(b, () => ({ title: levelTitle(n), color: zoneColor(zone), lines: levelLines(n) }));
     b.onclick = () => { if (picked === n) { choose(n); return; } picked = n; renderCard(); for (const c of map.children) c.classList?.toggle('sel', c === b); };
@@ -179,6 +190,7 @@ async function start() {
 
 function render() {
   $('lvChoose').hidden = stage !== null; $('lvPick').hidden = stage === null;
+  backLabel();
   $('screen-levels')?.classList?.toggle('onmap', stage === null);   /* the map fills the whole window */
   if (stage === null) renderLevels(); else renderPick();
 }

@@ -1,0 +1,6 @@
+act1_optA aaf3c513-c3e4-40c7-94f5-f1c10d13d35b village, wooden bridge, windmill farm, watchtower, goblin camp
+act1_optB b3fe1ce3-1d1d-4546-95fb-d1e72f709fb0 hamlet, stone bridge, great oak shrine, watchtower hill, goblin camp (round stops painted)
+act1_optC 0bc5192c-4d1e-4019-b8f4-095855515ba1 walled village, burning fields, lake, standing stones, goblin fortress
+act1 = option B above (chosen Nov 25; A and C not kept)
+portal e48e0e63-74ed-4a90-9737-32ad39af2f4c index 3 (16 candidates: runed stone ring with a violet vortex)
+flag 3596015f-670f-4c67-8fdf-a34cf412a615 index 0 (25 candidates: red banner with gold trim)

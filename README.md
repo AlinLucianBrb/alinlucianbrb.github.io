@@ -211,6 +211,25 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Act 1 has its painted map (Nov 25, v0.73.0)
+- Inside Act 1 the level screen shows a painted map of the Green Meadow over the whole window: a hamlet, a stone bridge
+  over a river, a great oak with a shrine, a ruined watchtower and a goblin camp, with the road painted between them.
+- Each level is a flag standing on its painted stone stop: red with a check when cleared, glowing with "Next" on the
+  next one, grey when locked. Once the campaign is finished, the Endless portal (runed stones around a violet swirl)
+  stands on its own below the village.
+- The other acts keep the drawn road until their maps are painted. Art: `art/pixellab/worldmap/` (Pixel Lab jobs in
+  `jobs.txt`), built by `build_worldmap.py` into `assets/zonemap_1.png`, `map_flag.png` and `map_portal.png`; the stops'
+  places are in `ZONE_ART` in `js/content/world-map.js`.
+- No SQL or rules change.
+
+## World map: Endless apart, one Back button (Nov 25, v0.72.1)
+- Endless is not shown on the map until the whole campaign is finished. Then it stands on its own in the top right of
+  each act, with a ring around it, off the dotted road. The road joins only the five levels (`ENDLESS_SPOT` in
+  `js/content/world-map.js`).
+- One Back button, in the top left: it reads "◀ World map" inside an act and "Back" on the world map. The level card
+  now sits at the bottom.
+- No SQL or rules change.
+
 ## World map for choosing levels (Nov 25, v0.72.0)
 - Play solo now opens a world map that fills the whole window (the title, the level card and Back float over it):
   the five acts sit one after another along a road, each with its name, how many

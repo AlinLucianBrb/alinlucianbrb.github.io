@@ -1068,22 +1068,40 @@ body.calm .formmoment.show{animation:none}
 body.calm .mapnode.here .mapdot{animation:none;box-shadow:0 0 0 3px #0b100d,0 0 0 5px #ffd84a}
 .mapnode .heretag{position:absolute;bottom:100%;margin-bottom:6px;padding:2px 8px;font-family:var(--pixel);font-size:calc(13px * var(--ts));color:#1a140c;background:#ffd84a;box-shadow:0 0 0 2px #0b100d;white-space:nowrap}
 .mapnode.endless .mapdot{border-radius:14px;font-size:34px}
-.mapback{position:absolute;left:12px;top:12px;z-index:2;font-size:15px;line-height:16px;padding:6px 10px}
+.mapnode.endless::before{content:'';position:absolute;top:-14px;left:50%;width:100px;height:100px;margin-left:-50px;border-radius:50%;border:2px dashed color-mix(in srgb,var(--nc) 55%,transparent);pointer-events:none}   /* Endless stands apart: a ring of its own */
 .lvinfo{display:flex;align-items:center;gap:16px;width:min(1100px,100%);min-height:84px;padding:8px 14px;background:rgba(10,14,11,.78);box-shadow:0 0 0 1px rgba(255,236,190,.12);text-align:left}
 .lvinfo[hidden]{display:flex;visibility:hidden}
 .lvinfo .lvinfotext{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
 .lvinfo .lvinfotext b{font-family:var(--pixel);font-weight:400;font-size:calc(20px * var(--ts));color:#fff3d6}
 .lvinfo .go{flex:none}
 #lvChoose h1{margin-bottom:6px}
+/* A painted act map (Nov 25): the picture covers the window (--aw x --ah keep its shape), the road is painted in, and
+   each level is a flag standing on its stone stop; Endless is the portal. */
+.worldmap.zoneview.hasart{--aw:max(100vw,calc(100vh * var(--ar)));--ah:max(100vh,calc(100vw / var(--ar)));
+  background:var(--zart) center/var(--aw) var(--ah) no-repeat,#2c4a20;image-rendering:pixelated}
+.hasart .lvnode{transform:translate(-50%,-74px)}
+.hasart .lvnode.endless{transform:translate(-50%,-58px)}
+.hasart .mappin{position:relative;display:block;width:64px;height:80px;background:url(assets/map_flag.png) center/100% 100% no-repeat;image-rendering:pixelated;
+  filter:drop-shadow(0 3px 0 rgba(0,0,0,.35));transition:transform .12s}
+.hasart .mappin.portal{width:120px;height:116px;background-image:url(assets/map_portal.png)}
+.hasart .lvnode:hover:not(:disabled) .mappin,.hasart .lvnode:focus-visible .mappin,.hasart .lvnode.sel .mappin{transform:scale(1.1)}
+.hasart .lvnode.sel .mappin{filter:drop-shadow(0 0 2px #ffd84a) drop-shadow(0 0 8px rgba(255,216,74,.8))}
+.hasart .lvnode.here .mappin{animation:flagGlow 1.6s ease-in-out infinite}
+@keyframes flagGlow{0%,100%{filter:drop-shadow(0 3px 0 rgba(0,0,0,.35))}50%{filter:drop-shadow(0 0 2px #ffd84a) drop-shadow(0 0 10px rgba(255,216,74,.85))}}
+body.calm .hasart .lvnode.here .mappin{animation:none;filter:drop-shadow(0 0 2px #ffd84a)}
+.hasart .lvnode.locked .mappin{filter:grayscale(1) brightness(.85) drop-shadow(0 3px 0 rgba(0,0,0,.35))}
+.hasart .lvnode.locked{opacity:1;filter:none}   /* not the faded look of other disabled buttons: the grey flag says it */
+.hasart .lvnode.locked .maplabel{opacity:.9}
+.hasart .lvnode.done .mappin::after{content:'✓';position:absolute;top:2px;right:-4px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:14px;color:#0b100d;background:#8be28b;box-shadow:0 0 0 2px #0b100d}
+.hasart .lvnode .heretag{bottom:auto;top:-28px}
 /* The map fills the whole game window; the title, the level card and Back float over it. */
 #screen-levels.onmap{overflow:hidden}
 #screen-levels.onmap .mapframe{position:fixed;inset:0;width:auto;height:auto;z-index:0;box-shadow:none}
-#screen-levels.onmap .worldmap{--mt:128px;--mb:200px;--ml:80px;--mr:80px}
+#screen-levels.onmap .worldmap{--mt:128px;--mb:150px;--ml:80px;--mr:80px}
 #screen-levels.onmap #lvMapTitle{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:3;width:min(620px,calc(100% - 260px));min-height:72px;margin:0;pointer-events:none}
-#screen-levels.onmap .mapback{left:16px;top:24px}
-#screen-levels.onmap .lvinfo{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);z-index:3;width:min(900px,calc(100% - 32px))}
-#screen-levels.onmap #lvMsg{position:fixed;bottom:164px;left:50%;transform:translateX(-50%);z-index:3}
-#screen-levels.onmap #lvBack{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:3}
+#screen-levels.onmap .lvinfo{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:3;width:min(900px,calc(100% - 32px))}
+#screen-levels.onmap #lvMsg{position:fixed;bottom:110px;left:50%;transform:translateX(-50%);z-index:3}
+#screen-levels.onmap #lvBack{position:fixed;top:24px;left:16px;z-index:3}   /* top left, like a way out */
 /* Nov 23 fixes: the shop card a little wider (three shop icons a row, four relics a row inside it), the rarity letter
    inside a relic's square, and the hero window's stats in one column so no name is cut. */
 #shopCard{width:224px}
