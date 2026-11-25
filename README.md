@@ -211,6 +211,21 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Every menu in the main menu's style (Nov 25, v0.77.7)
+- Login, world map, choosing heroes, lobbies, Heroes, Inventory, Talents, Leaderboard, Achievements and Settings now
+  follow the main menu:
+  - the painted valley behind them (darkened so the content reads), instead of the camp scene;
+  - **Back** is the same everywhere: a frameless left arrow and "Back" in the top left corner;
+  - **titles** are big outlined gold pixel text on a faint halo, no banner plates;
+  - **tabs and setting choices** are frameless words, the chosen one gold and underlined;
+  - the **main action** of a screen (Log in, Start, Create lobby, Join, Start match) is a glowing gold word like Play solo;
+  - smaller actions (Respec, zoom, selling, paging, Refresh, the title picker) are frameless words;
+  - **boxes** (lists, the settings panels, the inventory grid, the talent tree) lose their wooden frames for a soft shade;
+  - every one of them hovers like the main menu: it lifts, grows a little, glows and turns gold, eased.
+- Content cards (heroes, items, evolutions, achievement cards, talent nodes) keep their own look.
+- The pixel font is used only at sizes it is crisp at (18, 27, 36 px).
+- No SQL or rules change.
+
 ## Menu: the button names move on hover too (Nov 25, v0.77.6)
 - On every menu button (Play solo, the lobbies, Resume run and the bottom row) the name now moves with its icon on
   hover: it lifts 3 px, grows a little, turns gold and glows, eased over 0.12 s. Before, only the colour changed.
