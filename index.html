@@ -1315,6 +1315,8 @@ body.rarmarks #shopCard .relicchip[data-rar]::before{position:absolute;left:2px;
 
 
 
+
+
 /* ===== The other menus in the main menu's style (v0.77.7): the painted valley behind them, darkened; no plates or wooden
    frames; outlined pixel text (crisp at multiples of 9 px) on soft shadows; one eased hover (lift, glow, gold).
    Content cards (heroes, items, achievement cards, talent nodes) keep their own look. */
@@ -1352,6 +1354,9 @@ body #screen-levels #lvChoose h1{background:radial-gradient(ellipse 50% 50% at 5
 :is(#screen-login,#screen-levels,#screen-lobby,#screen-heroes,#screen-inventory,#screen-leaderboard,#screen-achievements,#screen-settings,#screen-talents) :is(.glass,.list,.treebox,.invgrid){border:none;border-image:none;border-radius:0;
   background:radial-gradient(ellipse 75% 75% at 50% 50%,rgba(10,8,5,.72),rgba(10,8,5,.5) 70%,rgba(10,8,5,.18));box-shadow:none}
 :is(#screen-login,#screen-levels,#screen-lobby,#screen-heroes,#screen-inventory,#screen-leaderboard,#screen-achievements,#screen-settings,#screen-talents) .setbox h3{font-size:18px}
+/* Heroes list and Inventory: the content in the middle of the window; the top bar (count, messages) stays at the top */
+:is(#screen-heroes:not(.onhero),#screen-inventory){justify-content:safe center}
+:is(#screen-heroes:not(.onhero),#screen-inventory) .topbar{position:absolute;top:14px;left:0;right:0;margin:0 auto}
 /* smaller actions (Respec, zoom, the title picker, selling, paging): frameless words with the same hover */
 :is(#screen-login,#screen-levels,#screen-lobby,#screen-heroes,#screen-inventory,#screen-leaderboard,#screen-achievements,#screen-settings,#screen-talents) :is(#toSignup,#toLogin,#tlReset,.tlcam button,.actitlebtn,.sellbtn,#invPager button,#lbyRefresh,#lbyCopy,#lbyChange){border:none;border-image:none;background:none;box-shadow:none;padding:4px 8px;font-family:var(--pixel);font-size:18px;color:#fff3d6;
   text-shadow:1px 0 0 #1a1008,-1px 0 0 #1a1008,0 1px 0 #1a1008,0 -1px 0 #1a1008,0 2px 3px rgba(0,0,0,.8);transition:transform .12s,color .12s}
