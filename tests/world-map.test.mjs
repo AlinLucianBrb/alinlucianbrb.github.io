@@ -34,3 +34,21 @@ test('a painted act map: a stop for each of its levels and a place for the porta
   }
   for (const f of ['map_flag.png', 'map_portal.png']) assert.ok(existsSync(new URL('../assets/' + f, import.meta.url)), f);
 });
+
+test('the painted world map: one area and one button per act, borders matching the fog, files built', async () => {
+  const { WORLD_ART, bandPolygon } = await import('../js/content/world-map.js');
+  const { existsSync, readFileSync } = await import('node:fs');
+  const zones = JSON.parse(readFileSync(new URL('../art/pixellab/worldmap/world_zones.json', import.meta.url), 'utf8'));
+  assert.deepEqual(WORLD_ART.borders, zones.borders, 'the fog is drawn from the same borders');
+  assert.equal(WORLD_ART.borders.length, ZONES.length - 1);
+  for (const z of ZONES) {
+    const at = WORLD_ART.at[z.n];
+    assert.ok(at && at.x > 0 && at.x < 100 && at.y > 0 && at.y < 100, 'act ' + z.n + ' has its button');
+    assert.ok(existsSync(new URL('../' + WORLD_ART.fog(z.n), import.meta.url)), WORLD_ART.fog(z.n));
+    assert.match(bandPolygon(z.n), /^polygon\(.*\)$/);
+  }
+  for (let i = 1; i < ZONES.length; i++) assert.ok(WORLD_ART.at[i + 1].x > WORLD_ART.at[i].x, 'acts go from left to right');
+  assert.ok(existsSync(new URL('../' + WORLD_ART.src, import.meta.url)));
+  assert.equal(bandPolygon(1), 'polygon(0% 0%, 0% 100%, 14.5% 100%, 16% 61.2%, 21.8% 54.7%, 21.1% 26%, 22.5% 0%)');
+  assert.ok(bandPolygon(5).endsWith('100% 100%, 100% 0%)'));
+});

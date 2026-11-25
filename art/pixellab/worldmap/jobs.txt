@@ -24,3 +24,7 @@ act5_optA d56eb1fd-6974-4761-a838-3dc580a47f20 ash fields, summoning circle, obs
 act5_optB d94799db-80f1-48d0-8a0f-043109f6789d road around a volcano, ash village, obsidian gate, dragon nest, citadel in the volcano
 act5_optC 0b764f62-6a40-457b-8f25-66044bc29a5d lava river, chained bridge, graveyard summoners, dragon roost, citadel bottom right
 act5 = act5_optA (chosen Nov 25; B and C not kept)
+world_optA 5590df6e-2cf7-4f89-9de4-b8a6dd8ea138 (688x384, refs act1/2/4/5) five regions blending, road to the citadel
+world_optB f817f410-eae2-4192-8998-9312afc80ea0 (688x384, refs act1/3/5) lands split by ridges and rivers
+world_optC a50356de-6507-4f2a-b442-ca9e45a93f04 (688x384, ref act1 style) darker to the right, ridges between zones
+world = world_optC (chosen Nov 25; A and B not kept)

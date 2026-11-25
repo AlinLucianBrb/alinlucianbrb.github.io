@@ -211,6 +211,17 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## The world map is one painted land (Nov 25, v0.74.0)
+- The world map is a painted picture of the whole land: the meadow, the deep forest, the mire, the red canyon and the
+  ashlands, with the road running through all five and the demon citadel at the far right as the destination.
+- Each act's button stands on its stretch of the road. Moving the pointer over an open act lights up its part of the
+  picture; clicking anywhere on it zooms into that act.
+- Acts not reached yet are hidden under pixel fog with a ragged edge; the citadel's shape still shows through.
+  (With every level unlocked for testing, no fog shows.)
+- Art: `art/pixellab/build_worldmap.py` builds `assets/worldmap.png` and the fog (`worldfog_<N>.png`); the act borders
+  are in `art/pixellab/worldmap/world_zones.json` and `WORLD_ART` in `js/content/world-map.js`.
+- No SQL or rules change.
+
 ## Act 5 has its painted map: every act has one (Nov 25, v0.73.4)
 - Act 5, the Ashlands, has its painted map: the road comes in at the top left past a summoners' circle raising
   skeletons and a fallen dragon's bones, crosses the lava past a fire-breathing dragon and a gate of obsidian knights,

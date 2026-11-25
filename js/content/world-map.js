@@ -59,3 +59,22 @@ export const ZONE_ART = {
     endless: { x: 40, y: 45 }
   }
 };
+/* The painted world map (built by art/pixellab/build_worldmap.py): the five acts from left to right, the road through
+   them and the demon citadel at the far right. borders: the lines between the acts, in % of the picture, top to bottom
+   (the same numbers as art/pixellab/worldmap/world_zones.json, which draws the fog). at: where each act's button stands
+   on the road. fog: worldfog_<N>.png covers act N and every act after it (acts open in order). */
+export const WORLD_ART = {
+  src: 'assets/worldmap.png', ratio: 688 / 384, fog: n => 'assets/worldfog_' + n + '.png',
+  borders: [
+    [[22.5, 0], [21.1, 26], [21.8, 54.7], [16, 61.2], [14.5, 100]],
+    [[45, 0], [43.6, 32.6], [39.2, 62.5], [37.8, 100]],
+    [[58.1, 0], [57.4, 32.6], [61.8, 54.7], [59.6, 100]],
+    [[77, 0], [79.2, 39], [78.5, 100]]
+  ],
+  at: { 1: { x: 12.7, y: 43 }, 2: { x: 31.3, y: 58.6 }, 3: { x: 49.4, y: 56 }, 4: { x: 69.8, y: 51.4 }, 5: { x: 90.8, y: 56 } }
+};
+/* Act n's part of the world picture, as a CSS polygon (for its hover area and highlight). */
+export function bandPolygon(n) {
+  const b = WORLD_ART.borders, left = n === 1 ? [[0, 0], [0, 100]] : b[n - 2], right = n > b.length ? [[100, 0], [100, 100]] : b[n - 1];
+  return 'polygon(' + [...left, ...[...right].reverse()].map(([x, y]) => x + '% ' + y + '%').join(', ') + ')';
+}

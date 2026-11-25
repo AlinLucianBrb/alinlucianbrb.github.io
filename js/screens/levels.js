@@ -14,7 +14,7 @@ import { pathChoice } from '../engine/preview.js';
 import { heroStats } from '../engine/stats.js';
 import { liveText } from '../content/live-text.js';
 import { zoneItemLevels, levelDropText, endlessDropText, ENDLESS_ITEMS } from '../content/level-drops.js';
-import { WORLD, ZONE_PATH, ENDLESS_SPOT, ZONE_ART, zoneColor, roadPath } from '../content/world-map.js';
+import { WORLD, ZONE_PATH, ENDLESS_SPOT, ZONE_ART, WORLD_ART, bandPolygon, zoneColor, roadPath } from '../content/world-map.js';
 import { isBossWave } from '../content/rules.js';
 import { bindTip } from '../core/tooltip.js';
 import { calm } from '../core/prefs.js';
@@ -71,14 +71,21 @@ function renderLevels() {
   if (zone === null) {
     if (document.body?.dataset) document.body.dataset.zone = String(zoneOf(next).n);
     $('lvMapTitle').textContent = 'World map';
-    map.className = 'worldmap world';
+    const art = WORLD_ART;
+    map.className = 'worldmap world' + (art ? ' hasart' : '');
     map.style.setProperty?.('--zc', zoneColor(zoneOf(next).n));
-    road(map, WORLD);
+    if (art) {
+      map.style.setProperty?.('--zart', 'url(' + art.src + ')'); map.style.setProperty?.('--ar', String(art.ratio));
+      /* fog over the locked acts: they are always the last ones, so one cloud bank from the first locked act on */
+      const firstLocked = WORLD.find(w => !stageOpen(STAGES.find(s => s.zone === w.zone).n, cleared));
+      if (firstLocked) { const fog = el('div', 'worldfog'); fog.style.backgroundImage = 'url(' + art.fog(firstLocked.zone) + ')'; map.append(fog); }
+    } else road(map, WORLD);
     for (const w of WORLD) {
       const z = ZONES[w.zone - 1], lv = STAGES.filter(s => s.zone === z.n), done = lv.filter(s => s.n <= cleared).length, open = stageOpen(lv[0].n, cleared);
       const here = zoneOf(next).n === z.n && done < lv.length, [lo, hi] = zoneItemLevels(lv.map(s => s.n));
       const b = el('button', 'mapnode zonenode' + (open ? '' : ' locked') + (done === lv.length ? ' done' : '') + (here ? ' here' : ''));
-      b.style.setProperty?.('--nc', w.color); place(b, w);
+      b.style.setProperty?.('--nc', w.color);
+      if (art) placeOnArt(b, art.at[w.zone]); else place(b, w);
       const label = el('span', 'maplabel');
       label.append(el('b', '', z.name), el('small', '', open ? done + ' / ' + lv.length + ' cleared' : 'Locked'), el('small', 'zdrop', 'Items ' + lo + '–' + hi));
       b.append(el('span', 'mapdot', String(z.n)), label, ...(here ? [el('span', 'heretag', 'You are here')] : []));
@@ -86,7 +93,17 @@ function renderLevels() {
       const gives = unlocksOf(z.n);
       bindTip(b, () => ({ title: 'Act ' + z.n + ' · ' + z.name, color: w.color, lines: [{ text: open ? done + ' of ' + lv.length + ' levels cleared' : 'Beat the act before it to open it', color: '#e8dcc0' },
         { text: 'Items of level ' + lo + ' to ' + hi, color: '#d9b25a' }, ...(gives.length ? [{ text: 'Opens: ' + gives.join(', '), color: '#ab9f8a' }] : [])] }));
-      b.onclick = () => enterZone(z.n, w);
+      b.onclick = () => enterZone(z.n);
+      if (art) {
+        /* the act's whole part of the picture: hovering it lights it up (and its button), clicking it goes in */
+        const band = el('div', 'zoneband' + (open ? '' : ' locked'));
+        band.style.clipPath = bandPolygon(z.n);
+        const hot = on => { if (!open) return; band.classList?.toggle('hot', on); b.classList?.toggle('hot', on); };
+        band.onpointerenter = () => hot(true); band.onpointerleave = () => hot(false);
+        b.onpointerenter = () => hot(true); b.onpointerleave = () => hot(false);
+        if (open) band.onclick = () => enterZone(z.n);
+        if (map.prepend) map.prepend(band); else map.append(band);   /* under the fog and the buttons */
+      }
       map.append(b);
     }
     return;
@@ -143,15 +160,20 @@ const choose = n => { stage = n; lineup = []; say(''); render(); };
 function zoom(origin, out, then) {
   const map = $('lvMap');
   if (!map.animate || calm()) { then(); return; }
-  map.style.transformOrigin = mapX(origin.x) + ' ' + mapY(origin.y);
+  map.style.transformOrigin = origin;
   const a = map.animate(out ? [{ transform: 'scale(1)', opacity: 1 }, { transform: 'scale(.45)', opacity: 0 }] : [{ transform: 'scale(1)', opacity: 1 }, { transform: 'scale(2.8)', opacity: 0 }], { duration: 360, easing: 'ease-in' });
   a.onfinish = () => {
     then();
     map.animate(out ? [{ transform: 'scale(2.8)', opacity: 0 }, { transform: 'scale(1)', opacity: 1 }] : [{ transform: 'scale(.45)', opacity: 0 }, { transform: 'scale(1)', opacity: 1 }], { duration: 320, easing: 'ease-out' });
   };
 }
-function enterZone(n, at) { zoom(at, false, () => { zone = n; renderLevels(); }); }
-function leaveZone() { const at = WORLD.find(w => w.zone === zone) || WORLD[0]; zoom(at, true, () => { zone = null; renderLevels(); }); }
+/* Where an act sits on the world map, as a CSS point: the zoom grows out of it and shrinks back into it. */
+function zoneOrigin(n) {
+  if (WORLD_ART) { const p = WORLD_ART.at[n]; return artX(p.x) + ' ' + artY(p.y); }
+  const w = WORLD.find(x => x.zone === n) || WORLD[0]; return mapX(w.x) + ' ' + mapY(w.y);
+}
+function enterZone(n) { zoom(zoneOrigin(n), false, () => { zone = n; renderLevels(); }); }
+function leaveZone() { zoom(zoneOrigin(zone), true, () => { zone = null; renderLevels(); }); }
 
 function toggle(id) {
   if (lineup.includes(id)) lineup = lineup.filter(x => x !== id);
