@@ -86,4 +86,4 @@ Base heroes' animations: `art/pixellab/anim_<hero>_*.png`; the base Warrior's at
 - Done: every evolution has animated art; the Warrior and his three forms have the hand-timed attack.
 - Next: redo the other heroes' evolution attacks the same way, one hero at a time with his feedback. Write him a short
   spec per form first (look, idle, attack motion), make 2-3 options when it's not obvious, and show GIFs.
-- Still on old art: the Crusader's horse (`drawMounted` in `kit-art.js`) and the old minions (imp, wolf, totems).
+- Still on old art: the old minions (imp, wolf, totems).

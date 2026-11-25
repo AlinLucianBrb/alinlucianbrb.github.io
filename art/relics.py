@@ -53,7 +53,6 @@ RELICS = {
     'Battle focus':      (BOLT, BLUE, GOLDISH),
     'Prospector':        (PICK, GOLD, {}),
     'Reinforced gate':   (FENCE, GREY, {}),
-    'Bulk order':        (CRATE, GOLD, {}),
     'Split bolt':        (ORB, PURPLE, {}),
     'Tax collector':     (BAG, GOLD, {}),
     'Compound interest': (COINS, GOLD, {}),

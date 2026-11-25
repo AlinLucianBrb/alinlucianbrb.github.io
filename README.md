@@ -54,7 +54,7 @@ js/net/                    co-op
   session.js               the lobby this browser is in, shared by the Lobby and Play screens
 
 assets/                    the pixel art the game loads (built by python3 art/build.py; do not edit by hand)
-art/                       the scripts that draw the art (Python + Pillow); art/out/ also has preview images
+art/                       the scripts that draw the art (Python + Pillow); art/out/ is their working folder (not kept in git)
 tests/                     run with: npm test
 tools/bot.mjs              a bot that plays through the same commands as a player
 tools/balance-report.mjs   quick win-rate table: npm run balance
@@ -68,7 +68,6 @@ sql/                       the database, in parts (tables, functions, permission
 .github/workflows/test.yml runs the tests on GitHub on every push
 supabase-setup.sql         database setup for a new project (built by npm run sql)
 supabase-update.sql        updates an existing project (built by npm run sql; safe to run again)
-supabase-cleanup-old-prototypes.sql  optional: deletes tables from the earlier prototypes
 ```
 
 ## How the engine works
@@ -211,6 +210,18 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Texts:** attack descriptions describe only the attack, ultimate tooltips only the ultimate, and the hero tooltip the hero (its attribute, delivery and source, tags, damage type). Ultimates that deal damage of their own write it as `{N}` in their description; `ultDesc()` shows it as the number it deals with the hero's stats ("about 156 damage"); "x2 damage" is kept for boosts to an attack the hero already makes. "At level 10, choose a path" is gone from the descriptions.
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
+
+## Unused files removed (Nov 25, v0.71.1)
+- **Pictures the game no longer loads** are gone from `assets/`, and the scripts no longer draw them: the Crusader's old
+  horse and its charge and cavalry icons, the removed Bulk order relic, three unused UI pieces, the old back and resume
+  icons, and an unused chill picture.
+- **Working folders are no longer kept in git:** `art/out/` (the art scripts refill it) and `tools/balance/out/` (the
+  balance report writes it). Both are in `.gitignore` now.
+- **Old art sources removed:** replaced UI pictures (`art/pixellab/ui/old`), drafts (`art/pixellab/drafts`) and old attack
+  attempts (`art/pixellab/attacks/old`). Everything is still in the git history.
+- **`supabase-cleanup-old-prototypes.sql` removed** (the one-time script for the earlier prototypes' tables).
+- The game itself is unchanged. No rules change; the built SQL only lost a comment that pointed to the removed file, so
+  there is nothing to run.
 
 ## Where to farm, 2x speed in Act 2, milestone screens (Nov 24, v0.71.0)
 - **What each place drops, on the level screen.** Each zone shows the item levels its levels drop (Green Meadow 3–15, Deep
@@ -900,9 +911,6 @@ What it cannot stop: someone who writes a script that plays slowly and sends bel
 2. In Supabase: Authentication > Bot and Abuse Protection > turn on CAPTCHA protection, choose Cloudflare Turnstile and paste the **secret** key.
 3. Add the **site** key to `js/config.js`: `export const CAPTCHA_SITE_KEY = 'your-site-key';`
 Do steps 2 and 3 together: with CAPTCHA on in Supabase but no site key in the game, nobody can log in.
-
-### Optional: remove the old prototype tables
-The earlier prototypes (Target Rush and the first tower defense) left tables that anyone with the public key can add rows to. If you no longer use those games, run `supabase-cleanup-old-prototypes.sql`. It permanently deletes their leaderboards.
 
 ## Known limits
 - **The real email is not verified**, because sign-up uses the internal address. Someone could register with an email that isn't theirs, and password reset by email does not work yet. Real email login, verification and recovery are the next step if you want them.

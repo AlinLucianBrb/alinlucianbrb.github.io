@@ -213,17 +213,6 @@ def tab(face, on):
     return img
 
 
-def chip(color):
-    c = hexc(color); f = (22, 24, 20)
-    img = Image.new('RGBA', (8, 8), (0, 0, 0, 0)); px = img.load()
-    for y in range(8):
-        for x in range(8):
-            if x in (0, 7) and y in (0, 7): continue
-            px[x, y] = (c if x in (0, 7) or y in (0, 7) else f) + (255,)
-    return img
-
-
-
 # ---- materials: each kind of box has its own frame and its own surface -------------------------------------------------
 LEATHER = hexc('#3a2219'); LEATHER_D = hexc('#24140f'); LEATHER_L = hexc('#5a3726'); THREAD = hexc('#c9a876')
 STEEL = hexc('#3b4148'); STEEL_D = hexc('#23272c'); STEEL_L = hexc('#6b737c')
@@ -369,7 +358,6 @@ KIT = {
     'ui_panel_light': lambda: panel('#202b24', ornament=False),
     'ui_tooltip': lambda: panel('#15120d', ornament=False),
     'ui_planks': lambda: planks('#141210'),
-    'ui_planks_light': lambda: planks('#1a1714', seed=2),
     'ui_planks_dark': lambda: planks('#100e0b', seed=3),
     'ui_button': lambda: button('#d29a3e', rim='#9a6a2a'),
     'ui_button_hover': lambda: button('#e6b052', rim='#a8762e'),
@@ -382,13 +370,11 @@ KIT = {
     'ui_button_relic': lambda: button('#563c8c'),
     'ui_button_relic_hover': lambda: button('#6a4ea6'),
     'ui_button_on': lambda: button('#4f6a34', rim='#c99a52'),
-    'ui_button_off': lambda: button('#6e5636', rim='#5a4428'),
     'ui_tab': lambda: tab('#2b2620', False),
     'ui_tab_on': lambda: tab('#e6b052', True),
     'ui_slot': lambda: inset('#121713'),
     'ui_input': lambda: inset('#0e120f'),
     'ui_bar': lambda: inset('#0b0e0c', 12),
-    'ui_chip': lambda: chip('#b89a6a'),
 }
 
 

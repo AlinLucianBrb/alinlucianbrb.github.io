@@ -103,18 +103,6 @@ def tab(face, on):
     return img
 
 
-def chip(color):
-    """A small rounded frame for chips and tags: 1-pixel outline in the colour, dark fill. Border 2."""
-    c = hexc(color); f = (20, 28, 23)
-    img = Image.new('RGBA', (6, 6), (0, 0, 0, 0)); px = img.load()
-    for y in range(6):
-        for x in range(6):
-            if (x in (0, 5)) and (y in (0, 5)): continue
-            edge = x in (0, 5) or y in (0, 5)
-            px[x, y] = (c if edge else f) + (255,)
-    return img
-
-
 KIT = {
     'ui_panel': lambda: panel('#4c5e52', '#1b2620', '#f2b84b'),
     'ui_panel_light': lambda: panel('#5d7264', '#22302a', '#f2b84b'),
@@ -130,13 +118,11 @@ KIT = {
     'ui_button_relic': lambda: button('#5a3f8a'),
     'ui_button_relic_hover': lambda: button('#6e50a6'),
     'ui_button_on': lambda: button('#5a6e3a'),
-    'ui_button_off': lambda: button('#2a3330'),
     'ui_tab': lambda: tab('#2a3a30', False),
     'ui_tab_on': lambda: tab('#3c5446', True),
     'ui_slot': lambda: inset('#141c17', '#4c5e52'),
     'ui_input': lambda: inset('#0f1512', '#4c5e52'),
     'ui_bar': lambda: inset('#0c110e', '#4c5e52', 8),
-    'ui_chip': lambda: chip('#9db3a3'),
 }
 
 

@@ -54,7 +54,6 @@ GEAR = ['....gg.gg...', '..g.gWWg.g..', '.gWgWWWWgWg.', '..WWWggWWW..', 'gWWg...
         '..g.gWWg.g..', '....gg.gg...']
 DOOR = ['.QQQQQQ.....', '.QrrrrQ.....', '.QrrrrQ.....', '.QrrrrQ..R..', '.QryrrQ.RRR.', '.QrrrrQRRRRR', '.QrrrrQ.RRR.', '.QrrrrQ..R..',
         '.QrrrrQ.....', 'QQQQQQQQ....']
-BACK = ['', '...w........', '..ww........', '.wwwwwwwww..', 'wwwwwwwwww..', '.wwwwwwwww..', '..ww........', '...w........']
 GEM = ['..cccccc....', '.cvvcvvcc...', 'cvvcvvcvcc..', 'cccccccccc..', '.cvcvvcvc...', '..cvcvcvc...', '...cvvc.....', '....cc......']
 DUMBBELL = ['', '', 'GG......GG..', 'GGG....GGG..', 'GGGWWWWGGG..', 'GGG....GGG..', 'GG......GG..']
 SCALES = ['.....y......', '..yyyyyyy...', '..y..y..y...', '.y.y.y.y.y..', 'y...yyy...y.', 'yyyyy.yyyyy.', '.....y......', '...yyyyy....']
@@ -81,7 +80,7 @@ GLYPHS = {
     'kills': SKULL, 'ultimate': STAR,
     # main menu
     'play': PLAY, 'lobby': PEOPLE, 'join': KEY, 'heroes': HELMET, 'inventory': CHEST, 'talents': TREE, 'leaderboard': TROPHY,
-    'settings': GEAR, 'logout': DOOR, 'back': BACK, 'resume': HOURGLASS,
+    'settings': GEAR, 'logout': DOOR,
     # talent clusters (talent_<key>)
     'talent_might': CLAWS, 'talent_precision': CRIT, 'talent_sorcery': BOOK, 'talent_marksman': ARROW, 'talent_martial': SWORD,
     'talent_fire': FLAME, 'talent_cold': SNOW, 'talent_lightning': BOLT, 'talent_toxins': TOXDROP, 'talent_sunder': BROKEN,

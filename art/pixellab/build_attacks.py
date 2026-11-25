@@ -8,7 +8,7 @@ Sources (art/pixellab/attacks/): <hero>_<n>_<name>.png, 256x256 frames. Frame 0 
 the feet are; the rest are the attack in order. The Warrior's were made with Pixel Lab's animate_with_skeleton_v3 from his
 still: a skeleton with sword and cape joints, posed per frame (upper body from a 3-frame sword-slash reference, legs kept on
 the idle stance), then the middle frame's blade replaced by a hand-drawn smear arc and the raised sword flipped to point back
-over his shoulder. Earlier versions are in attacks/old/. DURATIONS below are each frame's time on screen (ms): the raise held,
+over his shoulder. Earlier versions are in the git history. DURATIONS below are each frame's time on screen (ms): the raise held,
 a quick smear, the strike held. The game squeezes them to fit when the hero attacks faster than that.
 """
 import glob, os

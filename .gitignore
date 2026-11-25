@@ -1,2 +1,7 @@
 # Installed npm packages (recreate with: npm install)
 node_modules/
+
+# Working folders the scripts refill (art/build.py, npm run balance:report)
+art/out/
+tools/balance/out/
+__pycache__/

@@ -46,8 +46,6 @@ FLAIL = ['......o.o...', '.....oKKo...', '....oKggKo..', '.....oKKo...', '......
          '..Q.........', '.Q..........', 'Q...........']
 CHAIN = ['.........KK.', '........KgK.', '.......gKK..', '......g.....', '.....g......', '....g.......', '...g........', '..g.........',
          '.Q..........', 'Q...........']
-HORSE = ['.....bb.....', '....bbbm....', '...bbbbmm...', '..bkbbbbmm..', '.bbbbbbbbmm.', 'bbbbb.bbbbm.', 'kb.....bbbm.', '.......bbbb.',
-         '.......bbbb.', '.......bbbb.']
 GROUND = ['.....zz.....', '.....yy.....', '.z...yy...z.', '.....yy.....', '..z..yy..z..', '.....yy.....', 'yyyyyyyyyyyy', 'zOzOzOzOzOzO',
           'yyyyyyyyyyyy']
 HERESY = ['.....yy.....', '.....yy.....', '.....yy.....', '.....yy.....', '..yyyyyyyy..', '..yyyyyyyy..', '.....yy.....', 'o..o.yy.o..o',
@@ -89,11 +87,9 @@ ICONS = {
     'atk_hammer': (HAMMER, '#4a4428', {}),
     'atk_flail': (FLAIL, '#3a1414', {'o': '#ff6a3a'}),
     'atk_chain': (CHAIN, '#3a2a20', {'K': '#f2e2a0', 'g': '#c8d0dc'}),
-    'atk_charge': (HORSE, '#4a3c28', {'b': '#ece6da', 'm': '#8a7a6a', 'k': '#121a14'}),
     'ult_consecration': (GROUND, '#4a3c18', GOLD),
     'ult_heresy': (HERESY, '#2a0e0e', {'y': '#b04a3a', 'o': '#ff6a3a', 'O': '#ffb347'}),
     'ult_purge': (STAR, '#4a4428', {'w': '#fff6c8', 'W': '#ffffff'}),
-    'ult_cavalry': (HORSE, '#2c3040', {'b': '#fff0a8', 'm': '#d9b25a', 'k': '#2c3040'}),
     # Shaman (his base attack uses the Lightning icon, atk_lightning)
     'atk_dart': (DART, '#2a3420', {'Q': '#8a6a3a', 't': '#8ad04b', 'w': '#e8ffd0'}),
     'atk_totem': (TOTEMG, '#3a2a18', WOOD),
@@ -184,28 +180,6 @@ def golem(frame=1):
     return render(g.rows(), {'G': '#6a5a52', 'g': '#4a3e38', 'o': '#ff6a3a', 'O': '#ffd27a', 'y': '#ffb347'}, 24, outline=True)
 
 
-def horse(frame=1):
-    """The Crusader's white warhorse, side view facing right, with a red blanket and a gold saddle (frame 2: galloping)."""
-    top = ['', '',
-           '................mmBB',
-           '...............mmBBBB',
-           '..............mmBBkBBB',
-           '.............mmBBBBBBBB',
-           '............mmBBB..bBBb',
-           '...........mmBBB....bb',
-           '...........mBBBB',
-           '.mm......rrrrrBB',
-           'mmmBBBBByyyyrrBBb',
-           'mmBBBBBBBBBBBBBBb',
-           'm.BBBBBBBBBBBBBBb',
-           'm.bBBBBBBBBBBBBb',
-           '..bbBBBBBBBBBBbb',
-           '...bbbbbbbbbbbb']
-    legs = (['...bB.bB....bB.bB', '...bB.bB....bB.bB', '...bB.bB....bB.bB', '...bB..bB..bB..bB', '...kk..kk..kk..kk'] if frame == 1 else
-            ['...bB..bB...bB.bB', '..bB...bB....bB.bB', '.bB....bB.....bB.bB', 'bB.....bB......bB.bB', 'kk.....kk.......kk.kk'])
-    return render(top + legs, {'B': '#ece6da', 'b': '#b8b0a4', 'm': '#8a7a6a', 'k': '#2a2420', 'r': '#b0302a', 'y': '#d9b25a'}, 24, outline=True)
-
-
 def totem(kind):
     """A carved totem pole with two faces, and its element on top: a flame, an ice crystal or a storm orb."""
     g = Grid(24)
@@ -240,7 +214,6 @@ SPRITES = {
     'minion_imp': imp, 'minion_imp_2': lambda: imp(2),
     'minion_demon': demon, 'minion_demon_2': lambda: demon(2),
     'minion_golem': golem, 'minion_golem_2': lambda: golem(2),
-    'minion_horse': horse, 'minion_horse_2': lambda: horse(2),
     'minion_totem_flame': lambda: totem('flame'), 'minion_totem_frost': lambda: totem('frost'), 'minion_totem_storm': lambda: totem('storm'),
     'proj_dart': dart,
 }
