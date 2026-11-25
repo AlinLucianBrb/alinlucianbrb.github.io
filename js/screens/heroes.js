@@ -19,11 +19,14 @@ import { pathChoice, pathDef } from '../engine/preview.js';
 import { savePaths } from '../services/api.js';
 import { UNLOCKS } from '../content/unlocks.js';
 import { UPGRADES, UPGRADE_LEVEL, SLOT_NAME } from '../content/upgrades.js';
-import { el, cap, items, itemById, equipment, gearOf, setGear, freeFor, wornItems, gearCount, ensureItems, saveNow, sqlHint, itemIcon, itemTip, activePaths, pathsUnlocked } from './loadout.js';
+import { el, cap, items, itemById, equipment, gearOf, setGear, freeFor, wornItems, gearCount, ensureItems, saveNow, sqlHint, itemIcon, itemTip, activePaths, pathsUnlocked, gems, gemsIn } from './loadout.js';
+import { gemBadge, gemTip } from './gems.js';
+import { socketGem } from '../services/api.js';
+import { SOCKETS, gemName, gemLine, gemRarityColor, asGem } from '../content/gems.js';
 
 const $ = id => document.getElementById(id);
 const f = x => +x.toFixed(2);
-let bound = false, hero = null, tab = 'info', saved = {}, timer = 0, back = null, openSlot = null;   /* openSlot: the gear slot whose item chooser is open */   /* back: where Back goes when opened from elsewhere (choosing heroes for a level) */
+let bound = false, hero = null, tab = 'info', saved = {}, timer = 0, back = null, openSlot = null, openSocket = null, socketBusy = false;   /* openSocket: the socket whose gem chooser is open */   /* openSlot: the gear slot whose item chooser is open */   /* back: where Back goes when opened from elsewhere (choosing heroes for a level) */
 
 const say = (t, bad) => { $('hrMsg').textContent = t || ''; $('hrMsg').classList.toggle('warn', !!bad); };
 const copy = x => JSON.parse(JSON.stringify(x));
@@ -90,8 +93,47 @@ function slotChooser(h, slot) {
     }
     pop.append(grid);
   }
-  if (cur) { const off = el('button', 'linkbtn', 'Remove ' + itemName(cur)); off.onclick = () => { setGear(h.id, slot, null); openSlot = null; changed(); }; pop.append(off); }
+  if (cur) { const off = el('button', 'linkbtn', 'Remove ' + itemName(cur)); off.onclick = () => { setGear(h.id, slot, null); openSlot = null; openSocket = null; changed(); }; pop.append(off); }
+  if (cur) pop.append(socketPanel(cur));
   return pop;
+}
+/* The item's sockets (js/content/gems.js): each holds a gem or is empty. Click one to choose the gem for it from the bag;
+   a gem in it can be taken out. Socketing is saved on the server at once. */
+function socketPanel(it) {
+  const box = el('div', 'sockets'), row = el('div', 'socketrow'), held = gemsIn(it.id);
+  box.append(el('b', '', 'Sockets'));
+  for (let k = 0; k < SOCKETS; k++) {
+    const g = held[k], b = el('button', 'socket' + (openSocket === k ? ' open' : '') + (g ? ' full' : ''));
+    if (g) { const nm = el('span', 'sockettxt'), nb = el('b', '', gemName(g)); nb.style.color = gemRarityColor(g); nm.append(nb, el('small', '', gemLine(g))); b.append(gemBadge(g, 'small'), nm); bindTip(b, () => gemTip(g)); }
+    else b.append(el('span', 'gemicon small empty'), el('span', 'muted', 'Empty socket'));
+    b.onclick = () => { openSocket = openSocket === k ? null : k; render(); };
+    row.append(b);
+  }
+  box.append(row);
+  if (openSocket !== null) {
+    const g = held[openSocket], free = gems().filter(x => !x.item).sort((a, b) => asGem(b).rarity - asGem(a).rarity || asGem(b).ilvl - asGem(a).ilvl);
+    if (g) { const out = el('button', 'linkbtn', 'Take out ' + gemName(g)); out.disabled = socketBusy; out.onclick = () => place(g.id, null, 0); box.append(out); }
+    if (!free.length) box.append(el('p', 'muted', gems().length ? 'No free gem in your bag.' : 'Craft gems in the Inventory (Gems tab).'));
+    else {
+      const grid = el('div', 'slotgrid');
+      for (const x of free.slice(0, 24)) {
+        const b = el('button', 'iconbtn'); b.append(gemBadge(x)); b.disabled = socketBusy; b.setAttribute('aria-label', 'Socket ' + gemName(x));
+        bindTip(b, () => { const t = gemTip(x); t.lines.push({ text: 'Click to put it in this socket', color: '#f2b84b' }); return t; });
+        b.onclick = () => place(x.id, it.id, openSocket);
+        grid.append(b);
+      }
+      box.append(grid);
+    }
+  }
+  return box;
+}
+async function place(gemId, itemId, socket) {
+  socketBusy = true; render();
+  const { gems: moved, error } = await socketGem(gemId, itemId, socket);
+  socketBusy = false;
+  if (error) say('Could not move the gem: ' + error + sqlHint(error), true);
+  else { const by = new Map(moved.map(g => [g.id, g])); state.gems = gems().map(g => by.get(g.id) || g); openSocket = null; say(''); }
+  render();
 }
 
 /* A text whose numbers follow the hero's stats (live-text.js), the changed ones in yellow. */
@@ -112,8 +154,9 @@ function renderInfo(box, h) {
     if (row) name.style.color = itemColor(row);
     txt.append(el('small', 'muted', SLOT_LABEL[slot]), name, el('small', 'muted', free.length ? free.length + ' free' : row ? '' : 'none'));
     b.append(txt);
+    if (row) { const sk = el('span', 'slotgems'); for (const g of gemsIn(row.id)) sk.append(g ? gemBadge(g, 'tiny') : el('span', 'gemicon tiny empty')); b.append(sk); }
     if (row) bindTip(b, () => { const t = itemTip(row); t.lines.push({ text: 'Click to change or remove', color: '#f2b84b' }); return t; });
-    b.onclick = () => { openSlot = openSlot === slot ? null : slot; render(); };
+    b.onclick = () => { openSlot = openSlot === slot ? null : slot; openSocket = null; render(); };
     gear.append(b);
   }
   if (openSlot) box.append(slotChooser(h, openSlot));
@@ -200,7 +243,7 @@ export default {
       for (const b of $('hrTabs').children) b.onclick = () => { tab = b.dataset.tab; openSlot = null; render(); };
       bound = true;
     }
-    hero = params.hero ? HEROES.find(h => h.id === params.hero) || null : null; tab = 'info'; back = params.back || null; openSlot = null;
+    hero = params.hero ? HEROES.find(h => h.id === params.hero) || null : null; tab = 'info'; back = params.back || null; openSlot = null; openSocket = null;
     saved = copy(equipment()); say('');
     render();
     if (!state.items) { say('Loading your items…'); const err = await ensureItems(); say(err, !!err); saved = copy(equipment()); render(); }

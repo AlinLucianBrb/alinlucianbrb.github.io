@@ -15,6 +15,7 @@ create table public.profiles (
   lineup text[] not null default '{warrior,ranger,mage}',
   equipment jsonb not null default '{}',
   materials int[] not null default '{0,0,0,0}',   -- crafting materials by rarity: Scrap, Dust, Essence, Core
+  stones int not null default 0,   -- Rough Stone, for crafting gems (sql/56-gems.sql)
   paths jsonb not null default '{}',   -- evolution paths chosen before a match: { "druid": "animalic" }
   created_at timestamptz not null default now()
 );

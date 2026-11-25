@@ -36,7 +36,7 @@ The README's "Structure" section maps every folder; read it before changing some
 
 ## UI style
 Pixel art UI built from the game's own art (`art/pixellab/build_ui.py`): wood/leather/iron/slate frames and textures,
-zone colours via `body[data-zone]` and `--zc`, gold plate buttons (`ui_button`). Icons: `build_icons.py`; logo and menu
+zone colours via `body[data-zone]` and `--zc`, gold plate buttons (`ui_button`). Icons: `build_icons.py` (gems and Rough Stone: sheets `g01`, `g02`); logo and menu
 icons: `build_logo_icons.py`; zone pictures and banners: `build_levels.py`; menu scene and fire: `build_scene.py`;
 level-select maps (painted act maps, flag, Endless portal): `build_worldmap.py`.
 He found plain planks tiring and repetitive styles boring: keep variety between screens, avoid frames inside frames.

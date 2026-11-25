@@ -14,7 +14,7 @@ const fill = p => {
   p.talents = p.talents || []; p.levels_cleared = p.levels_cleared || 0; p.frontier_wave = p.frontier_wave || 0;
   p.lineup = p.lineup && p.lineup.length ? p.lineup : ['warrior', 'ranger', 'mage']; p.equipment = p.equipment || {};
   p.paths = p.paths && typeof p.paths === 'object' ? p.paths : {};
-  p.materials = cleanMaterials(p.materials); p.endless_wave = p.endless_wave || 0;
+  p.materials = cleanMaterials(p.materials); p.endless_wave = p.endless_wave || 0; p.stones = p.stones | 0;
 };
 
 const USERNAME_PROBLEMS = {
@@ -42,7 +42,10 @@ export async function signIn(username, password, captchaToken) {
 export const signOut = () => sb.auth.signOut();
 export async function currentSession() { const { data } = await sb.auth.getSession(); return data.session; }
 export async function getProfile(userId) {
-  let { data, error } = await sb.from('profiles').select('id,username,level,xp,gold,best_wave,talents,levels_cleared,frontier_wave,lineup,equipment,paths,materials,endless_wave').eq('id', userId).maybeSingle();
+  let { data, error } = await sb.from('profiles').select('id,username,level,xp,gold,best_wave,talents,levels_cleared,frontier_wave,lineup,equipment,paths,materials,endless_wave,stones').eq('id', userId).maybeSingle();
+  if (error) { /* database not updated for gems yet */
+    ({ data, error } = await sb.from('profiles').select('id,username,level,xp,gold,best_wave,talents,levels_cleared,frontier_wave,lineup,equipment,paths,materials,endless_wave').eq('id', userId).maybeSingle());
+  }
   if (error) { /* database not updated for endless yet */
     ({ data, error } = await sb.from('profiles').select('id,username,level,xp,gold,best_wave,talents,levels_cleared,frontier_wave,lineup,equipment,paths,materials').eq('id', userId).maybeSingle());
   }
@@ -74,7 +77,7 @@ export async function finishRun(runId, waves, kills, won, bosses = 0) {
   const { data: res, error } = await sb.rpc('finish_run', { p_run: runId, p_waves: waves, p_kills: kills, p_won: won, p_bosses: bosses });
   const data = res && res.profile ? res.profile : res;   /* older databases return the profile itself */
   if (data) fill(data);
-  if (res && 'drop' in res) return { profile: data, drop: res.drop || null, drops: res.drops || (res.drop ? [res.drop] : []), error: error && error.message };
+  if (res && 'drop' in res) return { profile: data, drop: res.drop || null, drops: res.drops || (res.drop ? [res.drop] : []), stones: res.stones | 0, error: error && error.message };
   return { profile: data, error: error && error.message };
 }
 /* The player's items: [{ id, item_type, created_at }], newest first. */
@@ -117,6 +120,29 @@ export async function craftItem(rarity, slot, kind) {
   const { data, error } = await sb.rpc('craft_item', { p_rarity: rarity, p_slot: slot, p_affinity: kind });
   if (data && data.profile) fill(data.profile);
   return { profile: data && data.profile, item: data && data.item, error: error && error.message };
+}
+/* ---- Gems (js/content/gems.js, sql/56-gems.sql). A gem row is { id, gem_type, stat, rarity, ilvl, item, socket }. ---- */
+export async function getGems() {
+  if (!sb) return { gems: [], ...OFFLINE };
+  const { data, error } = await sb.from('player_gems').select('id,gem_type,stat,rarity,ilvl,item,socket,created_at').order('created_at', { ascending: false });
+  return { gems: data || [], error: error && error.message };
+}
+export async function craftGem(family) {
+  if (!sb) return { profile: null, gem: null, ...OFFLINE };
+  const { data, error } = await sb.rpc('craft_gem', { p_family: family });
+  if (data && data.profile) fill(data.profile);
+  return { profile: data && data.profile, gem: data && data.gem, error: error && error.message };
+}
+export async function combineGems(ids) {
+  if (!sb) return { gem: null, ...OFFLINE };
+  const { data, error } = await sb.rpc('combine_gems', { p_gems: ids });
+  return { gem: data && data.gem, error: error && error.message };
+}
+/* item null: take the gem out. Answers the gems whose place changed (one that sat in that socket goes back to the bag). */
+export async function socketGem(gem, item, socket = 0) {
+  if (!sb) return { gems: [], ...OFFLINE };
+  const { data, error } = await sb.rpc('socket_gem', { p_gem: gem, p_item: item, p_socket: socket });
+  return { gems: (data && data.gems) || [], error: error && error.message };
 }
 /* players: 1 for solo, 2 to 4 for co-op. */
 export async function getLeaderboard(players = 1) {

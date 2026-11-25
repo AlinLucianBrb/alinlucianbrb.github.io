@@ -29,3 +29,5 @@ l01 1c187385-add5-4446-8d34-5ee897c5b6a3
 l02 93d10098-206c-4d20-95ab-bdec0199384b (its two rows placed side by side)
 u01 558a34c5-06e8-42a5-8f12-d8e15bd755ca
 a10 b2555ac1-e450-49e4-8cf6-aa758cf9c4f7 (top row used; bottom row alternates)
+g01 823f02f7-9f64-42a6-8e10-a8b4504790bd (candidate 0; style from s02)
+g02 760a1163-3104-4cf7-b1c8-eaedf8da9335 (candidate 0; style from s02)

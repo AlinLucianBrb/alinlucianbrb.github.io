@@ -78,6 +78,35 @@ drop policy if exists "read own items" on public.player_items;
 create policy "read own items" on public.player_items
   for select to authenticated using (auth.uid() = user_id);
 
+-- ===== Gems (js/content/gems.js) =====
+-- The stats each gem type can roll, and its family (generated from js/content/gems.js).
+create table if not exists public.gem_kinds (
+  gem_type text not null,
+  stat text not null,
+  family text not null,
+  primary key (gem_type, stat)
+);
+-- Every gem a player owns: its type, its stat, rarity (0 Common to 3 Epic) and item level, and the item and socket it sits in
+-- (none: in the gem bag). Breaking down or selling the item puts its gems back in the bag (on delete set null).
+create table if not exists public.player_gems (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  gem_type text not null,
+  stat text not null,
+  rarity int not null default 0 check (rarity between 0 and 3),
+  ilvl int not null default 10 check (ilvl >= 1),
+  item uuid references public.player_items (id) on delete set null,
+  socket int check (socket between 0 and 7),
+  created_at timestamptz not null default now()
+);
+create index if not exists player_gems_user_idx on public.player_gems (user_id);
+create unique index if not exists player_gems_socket_key on public.player_gems (item, socket) where item is not null;
+alter table public.gem_kinds enable row level security;
+alter table public.player_gems enable row level security;
+drop policy if exists "read own gems" on public.player_gems;
+create policy "read own gems" on public.player_gems
+  for select to authenticated using (auth.uid() = user_id);
+
 -- ===== Co-op: lobbies, their members, and records for each number of players =====
 -- A run remembers how many played it (1 solo, 2 to 4 co-op) and the lobby it came from.
 alter table public.runs add column if not exists players int not null default 1;

@@ -9,6 +9,7 @@
    tests). Items from before ranks existed count each bonus at the item's rarity (rank = rarity + 1).
    To add an item type: add an entry here, then run `npm run sql` so the database knows it can drop. */
 import { RELICS, RARITIES } from './data.js';
+import { SOCKETS, asGem, gemMods, gemName, gemLine, gemRarityColor } from './gems.js';
 
 export const SLOTS = ['helm', 'body', 'legs', 'boots', 'trinket'];
 export const SLOT_LABEL = { helm: 'Helm', body: 'Body armour', legs: 'Legs', boots: 'Boots', trinket: 'Trinket' };
@@ -85,6 +86,7 @@ export function asItem(it) {
   });
   const out = { type: it.type || it.item_type, rarity, bonuses, ranks };
   if (it.ilvl) out.ilvl = Math.max(1, it.ilvl | 0);   /* items from before item levels have none: they count as ILVL.old */
+  if (Array.isArray(it.gems) && it.gems.some(Boolean)) out.gems = it.gems.slice(0, SOCKETS).map(g => (g ? asGem(g) : null));   /* its sockets, in order: a gem or null (js/content/gems.js) */
   return out;
 }
 
@@ -106,6 +108,12 @@ export function itemBonusLines(it) {
     const desc = r.desc(rank * lk);   /* the bonus at its rank, scaled by the item level */
     out.push({ text: desc + ' (rank ' + rank + ')', desc, color: rankColor(rank), rank, works: true });
   });
+  /* its sockets: each gem (in its rarity colour) or an empty socket */
+  for (let k = 0; k < SOCKETS; k++) {
+    const g = (i.gems || [])[k];
+    out.push(g ? { text: '◆ ' + gemName(g) + ': ' + gemLine(g), desc: gemLine(g), color: gemRarityColor(g), rank: 0, works: true, gem: true }
+      : { text: '◇ Empty socket', desc: '', color: '#6f7d74', rank: 0, works: false, socket: true });
+  }
   return out;
 }
 
@@ -148,6 +156,7 @@ export function itemMods(equipped = {}, wearerOf = null) {
         const from = source + ': ' + name;   /* each bonus is its own line in the hero panel, e.g. "Epic Helm: Whetstone" */
         if (mods) for (const m of mods) { const fit = fitMod({ ...m, need: heroId, source: from, ri: -2 }, wearerOf && wearerOf(heroId)); if (fit) out.push(fit); }
       });
+      if (it.gems) out.push(...gemMods({ [heroId]: it.gems }).map(m => ({ ...m, source: source + ': ' + m.source })));   /* its socketed gems */
     }
   }
   return out;

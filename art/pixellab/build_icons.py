@@ -47,6 +47,8 @@ S = {
     'a10': ['ult_ricochet', 'ult_spear', 'atk_spear', 'atk_line', None, None, None, None],
     'u01': ['icon_shop_greed', 'icon_shop_conduit', 'icon_shop_gamble', 'icon_shop_boss', 'icon_shop_up', 'icon_shop_bag', 'icon_relics', None],
     'm01': ['icon_mat_scrap', 'icon_mat_dust', 'icon_mat_essence', 'icon_mat_core'],
+    'g01': ['icon_gem_arcane', 'icon_gem_fire', 'icon_gem_cold', 'icon_gem_lightning', 'icon_gem_physical', 'icon_gem_toxic', 'icon_gem_holy', 'icon_gem_shadow'],
+    'g02': ['icon_stone', 'icon_gem_elemental', 'icon_gem_primal', 'icon_gem_bag'],
     'i01': ['i_arcane_amulet', 'i_beast_mask', 'i_bloodstone_ring', 'i_body_armour', 'i_boots', 'i_circlet', 'i_fang_necklace', 'i_feather_charm'],
     'i02': ['i_hide_armour', 'i_leather_hood', 'i_leather_jerkin', 'i_leather_trousers'],
     'i03': ['i_leggings', 'i_plate_armour', 'i_plate_greaves', 'i_power_charm', 'i_ranger_boots', 'i_sabatons', 'i_silk_robe', 'i_silk_slippers'],

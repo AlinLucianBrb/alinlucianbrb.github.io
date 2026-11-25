@@ -2,7 +2,8 @@
    (lineup + equipment) to the server. The lineup is chosen after picking a level; gear on each hero's page.
    Equipment is { heroId: { slot: itemId } }; an item row is { id, item_type, rarity, bonuses }. */
 import { state } from '../core/state.js';
-import { getItems, saveLoadout } from '../services/api.js';
+import { getItems, getGems, saveLoadout } from '../services/api.js';
+import { SOCKETS } from '../content/gems.js';
 import { HEROES, LINEUP_SIZE, RARITIES } from '../content/data.js';
 import { bindTip } from '../core/tooltip.js';
 import { isUnlocked, inMatch } from '../content/unlocks.js';
@@ -14,6 +15,15 @@ export const cap = s => s[0].toUpperCase() + s.slice(1);
 
 export const items = () => state.items || [];
 export const itemById = id => items().find(i => i.id === id) || null;
+/* The player's gems (state.gems: rows { id, gem_type, stat, rarity, ilvl, item, socket }), and the ones in an item's sockets,
+   in socket order (null: empty). */
+export const gems = () => state.gems || [];
+export function gemsIn(itemId) {
+  const out = Array(SOCKETS).fill(null);
+  if (itemId) for (const g of gems()) if (g.item === itemId && g.socket >= 0 && g.socket < SOCKETS) out[g.socket] = g;
+  return out;
+}
+export const withGems = row => (row && row.id ? { ...row, gems: gemsIn(row.id) } : row);
 export const typeOf = id => (itemById(id) || {}).item_type;
 export const slotOf = row => (ITEMS[row.item_type] || {}).slot;
 
@@ -42,7 +52,7 @@ export const freeFor = slot => items().filter(i => slotOf(i) === slot && !wornBy
 export function wornItems() {
   const out = {}, eq = equipment();
   for (const h in eq) {
-    const list = Object.values(eq[h]).map(itemById).filter(Boolean).map(asItem);
+    const list = Object.values(eq[h]).map(itemById).filter(Boolean).map(r => asItem(withGems(r)));
     if (list.length) out[h] = list;
   }
   return out;
@@ -63,6 +73,7 @@ export function currentLineup() {
 
 /* Loads the player's items once (state.items is reset when a match drops new ones). Returns an error message or ''. */
 export async function ensureItems() {
+  if (!state.gems) { const g = await getGems().catch(() => ({ gems: [] })); state.gems = g.error ? [] : g.gems; }   /* (no gems before the SQL update) */
   if (state.items) return '';
   const { items: list, error } = await getItems();
   state.items = error ? null : list;
@@ -97,7 +108,7 @@ export function itemIcon(row) {
 /* Tooltip for an item: name in its rarity colour, slot, bonuses (each in its rank's colour, with its rank), and who wears it. */
 export function itemTip(row) {
   const who = wornBy(row.id), hero = who && HEROES.find(h => h.id === who.hero);
-  const t = ITEMS[row.item_type], bl = itemBonusLines(row), aff = t && t.affinity;
+  const t = ITEMS[row.item_type], bl = itemBonusLines(withGems(row)), aff = t && t.affinity;
   const lines = [{ text: (SLOT_LABEL[t ? t.slot : ''] || 'Unknown slot') + (aff ? ' · ' + AFFINITY_LABEL[aff] + ' item (leans toward ' + AFFINITY_LABEL[aff].toLowerCase() + ' bonuses)' : ''), color: '#ab9f8a' }, ...bl.map(l => ({ text: l.text, color: l.color }))];
   if (!bl.length) lines.push({ text: 'No bonuses', color: '#ab9f8a' });
   lines.push(who ? { text: 'Equipped on the ' + (hero ? hero.name : who.hero), color: '#8be28b' } : { text: 'Not equipped', color: '#ab9f8a' });
@@ -106,7 +117,7 @@ export function itemTip(row) {
 
 /* The items a match dropped (the result screen), as they look in the inventory: hover one for its name and bonuses. The
    best ones (Epic) come first and big, with their name and bonuses written out. */
-export function lootRow(drops) {
+export function lootRow(drops, stones = 0) {
   const row = el('div', 'loot'), best = RARITIES.length - 1, big = drops.filter(d => (asItem(d).rarity | 0) >= best);
   for (const d of big) {
     const card = el('div', 'bigdrop'), cell = el('div', 'invcell full'), words = el('div', 'bdw'), name = el('b', '', itemName(d));
@@ -118,6 +129,11 @@ export function lootRow(drops) {
   for (const d of drops.filter(d => !big.includes(d))) {
     const cell = el('div', 'invcell full'); cell.append(itemIcon(d)); cell.tabIndex = 0; cell.setAttribute('aria-label', itemName(d));
     bindTip(cell, () => itemTip(d)); row.append(cell);
+  }
+  if (stones > 0) {   /* Rough Stone, for crafting gems (js/content/gems.js) */
+    const cell = el('div', 'invcell full stonecell'); cell.append(spriteImg('icon_stone', 'pix maticon'), el('b', 'stonecount', '×' + stones));
+    cell.tabIndex = 0; cell.setAttribute('aria-label', stones + ' Rough Stone');
+    bindTip(cell, () => ({ title: stones + ' Rough Stone', color: '#c9b9a0', lines: ['For crafting gems (Inventory, Gems tab).'] })); row.append(cell);
   }
   return row;
 }

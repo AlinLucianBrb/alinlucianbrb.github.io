@@ -20,6 +20,7 @@ create table public.profiles (
   lineup text[] not null default '{warrior,ranger,mage}',
   equipment jsonb not null default '{}',
   materials int[] not null default '{0,0,0,0}',   -- crafting materials by rarity: Scrap, Dust, Essence, Core
+  stones int not null default 0,   -- Rough Stone, for crafting gems (sql/56-gems.sql)
   paths jsonb not null default '{}',   -- evolution paths chosen before a match: { "druid": "animalic" }
   created_at timestamptz not null default now()
 );
@@ -126,6 +127,35 @@ alter table public.item_types enable row level security;
 alter table public.player_items enable row level security;
 drop policy if exists "read own items" on public.player_items;
 create policy "read own items" on public.player_items
+  for select to authenticated using (auth.uid() = user_id);
+
+-- ===== Gems (js/content/gems.js) =====
+-- The stats each gem type can roll, and its family (generated from js/content/gems.js).
+create table if not exists public.gem_kinds (
+  gem_type text not null,
+  stat text not null,
+  family text not null,
+  primary key (gem_type, stat)
+);
+-- Every gem a player owns: its type, its stat, rarity (0 Common to 3 Epic) and item level, and the item and socket it sits in
+-- (none: in the gem bag). Breaking down or selling the item puts its gems back in the bag (on delete set null).
+create table if not exists public.player_gems (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  gem_type text not null,
+  stat text not null,
+  rarity int not null default 0 check (rarity between 0 and 3),
+  ilvl int not null default 10 check (ilvl >= 1),
+  item uuid references public.player_items (id) on delete set null,
+  socket int check (socket between 0 and 7),
+  created_at timestamptz not null default now()
+);
+create index if not exists player_gems_user_idx on public.player_gems (user_id);
+create unique index if not exists player_gems_socket_key on public.player_gems (item, socket) where item is not null;
+alter table public.gem_kinds enable row level security;
+alter table public.player_gems enable row level security;
+drop policy if exists "read own gems" on public.player_gems;
+create policy "read own gems" on public.player_gems
   for select to authenticated using (auth.uid() = user_id);
 
 -- ===== Co-op: lobbies, their members, and records for each number of players =====
@@ -848,6 +878,30 @@ update public.item_types set droppable = false where id <> all (array['helm', 'b
 -- Item bonuses: the relics an item can roll.
 insert into public.item_bonuses (id, tags) values ('Sharpened rounds', array[]::text[]), ('Long barrels', array['projectile']::text[]), ('Quick hands', array['melee', 'projectile']::text[]), ('Battle focus', array['spell']::text[]), ('Split bolt', array['spell']::text[]), ('Fine arrows', array['projectile']::text[]), ('Whetstone', array['melee']::text[]), ('Arcane focus', array['spell']::text[]), ('Keen edge', array['projectile']::text[]), ('Cruelty', array['melee']::text[]), ('Quick incantation', array['spell']::text[]), ('Duration', array[]::text[]), ('Executioner', array[]::text[]), ('First blood', array[]::text[]), ('Giant slayer', array[]::text[]), ('Shatter', array[]::text[]), ('Chain reaction', array[]::text[]), ('Thunderhead', array[]::text[]), ('Momentum', array[]::text[]), ('Overflow', array[]::text[]), ('Lone wolf', array[]::text[]), ('Brotherhood', array[]::text[]), ('Last stand', array[]::text[]), ('Trophy hunter', array[]::text[]), ('Fever', array[]::text[]), ('Tempo', array[]::text[]), ('Brawn', array['melee']::text[]), ('Finesse', array[]::text[]), ('Insight', array[]::text[]), ('Prowess', array[]::text[]), ('Dark pact', array[]::text[]), ('Blasphemy', array[]::text[]), ('Holy water', array[]::text[]), ('Pack leader', array['minion']::text[]), ('Feral haste', array['minion']::text[]), ('Hunting instinct', array['minion']::text[]), ('Savage bite', array['minion']::text[]) on conflict (id) do update set tags = excluded.tags;
 delete from public.item_bonuses where id <> all (array['Sharpened rounds', 'Long barrels', 'Quick hands', 'Battle focus', 'Split bolt', 'Fine arrows', 'Whetstone', 'Arcane focus', 'Keen edge', 'Cruelty', 'Quick incantation', 'Duration', 'Executioner', 'First blood', 'Giant slayer', 'Shatter', 'Chain reaction', 'Thunderhead', 'Momentum', 'Overflow', 'Lone wolf', 'Brotherhood', 'Last stand', 'Trophy hunter', 'Fever', 'Tempo', 'Brawn', 'Finesse', 'Insight', 'Prowess', 'Dark pact', 'Blasphemy', 'Holy water', 'Pack leader', 'Feral haste', 'Hunting instinct', 'Savage bite']::text[]);
+-- Gem kinds: the stats each gem type can roll, and its family.
+delete from public.gem_kinds;
+insert into public.gem_kinds (gem_type, stat, family) values
+  ('arcane', 'arcaneDamage', 'elemental'),
+  ('arcane', 'critChance', 'elemental'),
+  ('arcane', 'critDamage', 'elemental'),
+  ('fire', 'fireDamage', 'elemental'),
+  ('fire', 'burnChance', 'elemental'),
+  ('fire', 'firePen', 'elemental'),
+  ('cold', 'coldDamage', 'elemental'),
+  ('cold', 'freezeChance', 'elemental'),
+  ('cold', 'coldPen', 'elemental'),
+  ('lightning', 'lightningDamage', 'elemental'),
+  ('lightning', 'shockChance', 'elemental'),
+  ('lightning', 'lightningPen', 'elemental'),
+  ('physical', 'physicalDamage', 'primal'),
+  ('physical', 'bleedChance', 'primal'),
+  ('physical', 'armorPen', 'primal'),
+  ('toxic', 'toxicDamage', 'primal'),
+  ('toxic', 'poisonChance', 'primal'),
+  ('holy', 'holyDamage', 'primal'),
+  ('holy', 'energyPerSecond', 'primal'),
+  ('shadow', 'shadowDamage', 'primal'),
+  ('shadow', 'corruptionChance', 'primal');
 
 -- ===== Game rules (generated from js/content by tools/rules-sql.mjs; do not edit by hand) =====
 -- How many levels there are.
@@ -922,6 +976,27 @@ language sql immutable set search_path = public as $$ select case when p_roll * 
 -- The item level of items from a level.
 create or replace function public.rule_item_level(p_stage int) returns int
 language sql immutable set search_path = public as $$ select 3 * greatest(1, p_stage) $$;
+-- The act (zone) of a level or endless stage.
+create or replace function public.rule_stage_zone(p_stage int) returns int
+language sql immutable set search_path = public as $$ select (array[1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 1, 2, 3, 4, 5])[p_stage] $$;
+-- Rough Stone a match gives: for every boss killed, and for a win by the act.
+create or replace function public.rule_stones(p_stage int, p_won boolean, p_bosses int) returns int
+language sql immutable set search_path = public as $$ select 2 * greatest(coalesce(p_bosses, 0), 0) + case when p_won then 2 * greatest(1, coalesce(public.rule_stage_zone(p_stage), 1)) else 0 end $$;
+-- Rough Stone for crafting a gem.
+create or replace function public.rule_gem_stones() returns int
+language sql immutable set search_path = public as $$ select 10 $$;
+-- Account gold for crafting a gem.
+create or replace function public.rule_gem_gold() returns int
+language sql immutable set search_path = public as $$ select 100 $$;
+-- Gems that combine into one of the next rarity.
+create or replace function public.rule_gem_combine() returns int
+language sql immutable set search_path = public as $$ select 3 $$;
+-- Gems a player can hold.
+create or replace function public.rule_max_gems() returns int
+language sql immutable set search_path = public as $$ select 200 $$;
+-- Sockets on every item.
+create or replace function public.rule_sockets() returns int
+language sql immutable set search_path = public as $$ select 2 $$;
 -- Materials from disenchanting one item.
 create or replace function public.rule_disenchant_yield() returns int
 language sql immutable set search_path = public as $$ select 3 $$;
@@ -1170,7 +1245,7 @@ create function public.finish_run(p_run uuid, p_waves int, p_kills int, p_won bo
 language plpgsql security definer set search_path = public as $$
 declare me public.profiles; r public.runs; cap int; frontier boolean; endless boolean; elapsed numeric; done_waves int; dropped text := null;
         drops jsonb := '[]'; b_gold numeric; b_xp numeric; b_loot numeric; chance numeric; n int; boss_cap int;
-        rar int; b_rar numeric; b_extra numeric; aff text; il int; it public.player_items;
+        rar int; b_rar numeric; b_extra numeric; aff text; il int; it public.player_items; got_stones int;
 begin
   if auth.uid() is null then raise exception 'not signed in'; end if;
   select * into r from public.runs where id = p_run and user_id = auth.uid() and finished_at is null for update;
@@ -1220,6 +1295,9 @@ begin
         frontier_wave = case when p_won and r.stage > x.levels_cleared and (r.players > 1 or r.stage <= me.levels_cleared) then 0
                              when not endless and r.stage = x.levels_cleared + 1 then greatest(x.frontier_wave, p_waves) else x.frontier_wave end,
         levels_cleared = case when p_won and (r.players > 1 or r.stage <= me.levels_cleared) then greatest(x.levels_cleared, r.stage) else x.levels_cleared end;
+  -- Rough Stone for gems (js/content/gems.js): for every boss killed, and more for a win on a later act
+  got_stones := public.rule_stones(r.stage, p_won, p_bosses);
+  if got_stones > 0 then update public.profiles set stones = stones + got_stones where id = auth.uid() returning * into me; end if;
   il := public.rule_item_level(case when p_won then r.stage else r.stage - 1 end);   -- item level: by the level beaten (on a loss, the one below)
   chance := public.rule_drop_chance(p_won, p_waves, r.stage) * (1 + b_loot);
   if endless then chance := p_bosses * b_loot; end if;   -- one item per boss (below), and item find adds its share of them
@@ -1234,7 +1312,7 @@ begin
     it := public.roll_item(auth.uid(), dropped, aff, rar, il, b_extra);
     drops := drops || jsonb_build_array(jsonb_build_object('item_type', it.item_type, 'rarity', it.rarity, 'bonuses', to_jsonb(it.bonuses), 'bonus_ranks', to_jsonb(it.bonus_ranks), 'ilvl', it.ilvl));
   end loop;
-  return jsonb_build_object('profile', to_jsonb(me), 'drop', drops -> 0 ->> 'item_type', 'drops', drops);
+  return jsonb_build_object('profile', to_jsonb(me), 'drop', drops -> 0 ->> 'item_type', 'drops', drops, 'stones', got_stones);
 end;
 $$;
 
@@ -1537,6 +1615,90 @@ begin
 end;
 $$;
 
+-- ===== Gems (the numbers are the rule_* functions and gem_kinds, generated from js/content/gems.js) =====
+-- profiles.stones is the player's Rough Stone (from finish_run). Gems unlock with crafting.
+
+-- A gem row as the game reads it.
+create or replace function public.gem_json(g public.player_gems) returns jsonb
+language sql immutable set search_path = public as $$
+  select jsonb_build_object('id', g.id, 'gem_type', g.gem_type, 'stat', g.stat, 'rarity', g.rarity, 'ilvl', g.ilvl,
+                            'item', g.item, 'socket', g.socket, 'created_at', g.created_at);
+$$;
+
+-- Makes a Common gem of a family: one of its types at random, then one of that type's stats. Costs rule_gem_stones() Rough
+-- Stone and rule_gem_gold() gold; its item level is that of the highest level beaten. Returns { "profile", "gem" }.
+create or replace function public.craft_gem(p_family text) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare me public.profiles; kind text; st text; g public.player_gems;
+begin
+  if auth.uid() is null then raise exception 'not signed in'; end if;
+  select * into me from public.profiles where id = auth.uid() for update;
+  perform public.require_unlock('crafting', me.levels_cleared);
+  select gem_type into kind from (select distinct gem_type from public.gem_kinds where family = p_family) t order by random() limit 1;
+  if kind is null then raise exception 'unknown gem family'; end if;
+  select stat into st from public.gem_kinds where gem_type = kind order by random() limit 1;
+  if (select count(*) from public.player_gems where user_id = auth.uid()) >= public.rule_max_gems() then raise exception 'your gem bag is full'; end if;
+  if me.stones < public.rule_gem_stones() then raise exception 'not enough Rough Stone'; end if;
+  if me.gold < public.rule_gem_gold() then raise exception 'not enough gold'; end if;
+  update public.profiles set stones = stones - public.rule_gem_stones(), gold = gold - public.rule_gem_gold()
+   where id = auth.uid() returning * into me;
+  insert into public.player_gems (user_id, gem_type, stat, rarity, ilvl)
+  values (auth.uid(), kind, st, 0, public.rule_item_level(me.levels_cleared)) returning * into g;
+  return jsonb_build_object('profile', to_jsonb(me), 'gem', public.gem_json(g));
+end;
+$$;
+
+-- Combines rule_gem_combine() gems of the same type and rarity (below Epic) into one of the next rarity. It keeps the stat of
+-- one of them (picked at random) and the highest item level. The gems must be the player's; socketed ones are taken out.
+-- Returns { "gem" } (the new one; the others are gone).
+create or replace function public.combine_gems(p_gems uuid[]) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare me public.profiles; n int := coalesce(array_length(p_gems, 1), 0); kinds int; rar int; kind text; st text; il int; g public.player_gems;
+begin
+  if auth.uid() is null then raise exception 'not signed in'; end if;
+  if n <> public.rule_gem_combine() then raise exception 'choose % gems', public.rule_gem_combine(); end if;
+  if (select count(distinct x) from unnest(p_gems) x) <> n then raise exception 'each gem only once'; end if;
+  select * into me from public.profiles where id = auth.uid() for update;
+  perform public.require_unlock('crafting', me.levels_cleared);
+  perform 1 from public.player_gems where id = any (p_gems) and user_id = auth.uid() order by id for update;
+  if (select count(*) from public.player_gems where id = any (p_gems) and user_id = auth.uid()) <> n then raise exception 'unknown gem'; end if;
+  select count(distinct (gem_type, rarity)), min(rarity), min(gem_type), max(ilvl) into kinds, rar, kind, il
+    from public.player_gems where id = any (p_gems);
+  if kinds <> 1 then raise exception 'the gems must be of the same type and rarity'; end if;
+  if rar >= 3 then raise exception 'Epic gems cannot be combined'; end if;
+  select stat into st from public.player_gems where id = any (p_gems) order by random() limit 1;
+  delete from public.player_gems where id = any (p_gems);
+  insert into public.player_gems (user_id, gem_type, stat, rarity, ilvl)
+  values (auth.uid(), kind, st, rar + 1, il) returning * into g;
+  return jsonb_build_object('gem', public.gem_json(g));
+end;
+$$;
+
+-- Puts a gem in a socket of one of the player's items (p_item, p_socket 0 to rule_sockets() - 1), or takes it out (p_item
+-- null). A gem already in that socket goes back to the bag. Returns { "gems" }: the gems whose place changed.
+create or replace function public.socket_gem(p_gem uuid, p_item uuid, p_socket int default 0) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare g public.player_gems; res jsonb := '[]'; moved uuid[];
+begin
+  if auth.uid() is null then raise exception 'not signed in'; end if;
+  select * into g from public.player_gems where id = p_gem and user_id = auth.uid() for update;
+  if not found then raise exception 'unknown gem'; end if;
+  if p_item is null then
+    update public.player_gems set item = null, socket = null where id = g.id returning * into g;
+    return jsonb_build_object('gems', jsonb_build_array(public.gem_json(g)));
+  end if;
+  if p_socket is null or p_socket < 0 or p_socket >= public.rule_sockets() then raise exception 'no such socket'; end if;
+  perform 1 from public.player_items where id = p_item and user_id = auth.uid() for update;
+  if not found then raise exception 'unknown item'; end if;
+  -- whatever sits there now goes back to the bag
+  select coalesce(array_agg(id), '{}') into moved from public.player_gems where item = p_item and socket = p_socket and id <> g.id;
+  update public.player_gems set item = null, socket = null where id = any (moved);
+  select coalesce(jsonb_agg(public.gem_json(x)), '[]') into res from public.player_gems x where x.id = any (moved);
+  update public.player_gems set item = p_item, socket = p_socket where id = g.id returning * into g;
+  return jsonb_build_object('gems', res || jsonb_build_array(public.gem_json(g)));
+end;
+$$;
+
 -- New projects only: create the profile when an account is created.
 create trigger on_auth_user_created after insert on auth.users
   for each row execute function public.handle_new_user();
@@ -1564,6 +1726,12 @@ revoke all on function public.convert_material(int, int) from public, anon, auth
 grant execute on function public.convert_material(int, int) to authenticated;
 revoke all on function public.craft_item(int, text, text) from public, anon, authenticated;
 grant execute on function public.craft_item(int, text, text) to authenticated;
+revoke all on function public.craft_gem(text) from public, anon, authenticated;
+grant execute on function public.craft_gem(text) to authenticated;
+revoke all on function public.combine_gems(uuid[]) from public, anon, authenticated;
+grant execute on function public.combine_gems(uuid[]) to authenticated;
+revoke all on function public.socket_gem(uuid, uuid, int) from public, anon, authenticated;
+grant execute on function public.socket_gem(uuid, uuid, int) to authenticated;
 revoke all on function public.save_talents(text[]) from public, anon, authenticated;
 grant execute on function public.save_talents(text[]) to authenticated;
 -- Internal helpers: only other database functions use them.
@@ -1592,9 +1760,13 @@ grant execute on function public.start_lobby(uuid, jsonb) to authenticated;
 -- These tables are private. With row security on and no policies, players cannot read or write them directly.
 revoke all on table public.runs, public.talent_nodes, public.talent_links, public.blocked_names, public.hero_classes, public.item_types, public.item_bonuses,
   public.lobbies, public.lobby_members, public.records from anon, authenticated;
+revoke all on table public.gem_kinds from anon, authenticated;
 -- Players can read their own items (row security) but never create, change or delete them.
 revoke insert, update, delete on public.player_items from anon, authenticated;
 grant select on public.player_items to authenticated;
+-- The same for gems: read your own, change them only through craft_gem, combine_gems and socket_gem.
+revoke insert, update, delete on public.player_gems from anon, authenticated;
+grant select on public.player_gems to authenticated;
 revoke insert, update, delete on public.profiles from anon, authenticated;
 
 revoke all on function public.rule_stage_count() from public, anon, authenticated;
@@ -1621,6 +1793,13 @@ revoke all on function public.rule_extra_bonus_chance() from public, anon, authe
 revoke all on function public.rule_affinity_chance() from public, anon, authenticated;
 revoke all on function public.rule_rank(int, numeric) from public, anon, authenticated;
 revoke all on function public.rule_item_level(int) from public, anon, authenticated;
+revoke all on function public.rule_stage_zone(int) from public, anon, authenticated;
+revoke all on function public.rule_stones(int, boolean, int) from public, anon, authenticated;
+revoke all on function public.rule_gem_stones() from public, anon, authenticated;
+revoke all on function public.rule_gem_gold() from public, anon, authenticated;
+revoke all on function public.rule_gem_combine() from public, anon, authenticated;
+revoke all on function public.rule_max_gems() from public, anon, authenticated;
+revoke all on function public.rule_sockets() from public, anon, authenticated;
 revoke all on function public.rule_disenchant_yield() from public, anon, authenticated;
 revoke all on function public.rule_convert_cost() from public, anon, authenticated;
 revoke all on function public.rule_craft_cost() from public, anon, authenticated;

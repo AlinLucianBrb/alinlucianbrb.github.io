@@ -6,6 +6,7 @@ import { UNLOCK_ALL, ACCOUNT, REWARDS, WAVES, SPAWN, BOSSES, MIN_RUN, DROPS, COO
 import { STAGES, ENDLESS, RARITIES, LINEUP_SIZE } from '../js/content/data.js';
 import { ROLL, SELL, RANKS, ILVL } from '../js/content/items.js';
 import { CRAFT } from '../js/content/crafting.js';
+import { GEM_CRAFT, STONES, SOCKETS } from '../js/content/gems.js';
 import { UNLOCKS, clearedFor } from '../js/content/unlocks.js';
 
 const num = x => String(+x.toFixed(10));
@@ -58,6 +59,15 @@ export function rulesSql(open = UNLOCK_ALL) {
       'select case ' + [1, 2, 3].map(k => 'when p_roll * 100 < (array[' + rankCum(k).join(', ') + '])[p_rarity + 1] then ' + k).join(' ') + ' else ' + RANKS + ' end',
       'A bonus rank from a random number in [0, 1), by the item rarity (weights in %: ' + ROLL.rankWeights.map(r => r.join('/')).join(', ') + ').'),
     fn('rule_item_level(p_stage int)', 'int', 'select ' + ILVL.perLevel + ' * greatest(1, p_stage)', 'The item level of items from a level.'),
+    fn('rule_stage_zone(p_stage int)', 'int', 'select (array[' + [...STAGES, ...ENDLESS].map(s => s.zone).join(', ') + '])[p_stage]', 'The act (zone) of a level or endless stage.'),
+    fn('rule_stones(p_stage int, p_won boolean, p_bosses int)', 'int',
+      'select ' + STONES.perBoss + ' * greatest(coalesce(p_bosses, 0), 0) + case when p_won then ' + STONES.winPerAct + ' * greatest(1, coalesce(public.rule_stage_zone(p_stage), 1)) else 0 end',
+      'Rough Stone a match gives: for every boss killed, and for a win by the act.'),
+    fn('rule_gem_stones()', 'int', 'select ' + GEM_CRAFT.stones, 'Rough Stone for crafting a gem.'),
+    fn('rule_gem_gold()', 'int', 'select ' + GEM_CRAFT.gold, 'Account gold for crafting a gem.'),
+    fn('rule_gem_combine()', 'int', 'select ' + GEM_CRAFT.combine, 'Gems that combine into one of the next rarity.'),
+    fn('rule_max_gems()', 'int', 'select ' + GEM_CRAFT.max, 'Gems a player can hold.'),
+    fn('rule_sockets()', 'int', 'select ' + SOCKETS, 'Sockets on every item.'),
     fn('rule_disenchant_yield()', 'int', 'select ' + CRAFT.yields, 'Materials from disenchanting one item.'),
     fn('rule_convert_cost()', 'int', 'select ' + CRAFT.convert, 'Materials that make one of the next.'),
     fn('rule_craft_cost()', 'int', 'select ' + CRAFT.cost, 'Materials for crafting an item.'),
@@ -73,5 +83,5 @@ export function rulesSql(open = UNLOCK_ALL) {
 export const RULE_FUNCTIONS = ['rule_stage_count()', 'rule_stage_waves(int)', 'rule_is_endless(int)', 'rule_stage_open(int, int)', 'rule_endless_level(int, numeric)', 'rule_unlock(text)', 'rule_lineup_max()', 'rule_max_players()', 'rule_max_items()',
   'rule_xp_need(int)', 'rule_run_xp(int, int, numeric)', 'rule_run_gold(int, numeric)', 'rule_kill_cap(int)', 'rule_boss_cap(int, int)',
   'min_run_seconds(int)', 'rule_min_run(int)', 'rule_drop_chance(boolean, int, int)', 'rule_rarity(numeric, numeric)', 'rule_bonus_guaranteed(int)',
-  'rule_max_bonuses()', 'rule_extra_bonus_chance()', 'rule_affinity_chance()', 'rule_rank(int, numeric)', 'rule_item_level(int)', 'rule_disenchant_yield()', 'rule_convert_cost()', 'rule_craft_cost()', 'rule_craft_gold(int)', 'item_price(int, text[], int[])'];
+  'rule_max_bonuses()', 'rule_extra_bonus_chance()', 'rule_affinity_chance()', 'rule_rank(int, numeric)', 'rule_item_level(int)', 'rule_stage_zone(int)', 'rule_stones(int, boolean, int)', 'rule_gem_stones()', 'rule_gem_gold()', 'rule_gem_combine()', 'rule_max_gems()', 'rule_sockets()', 'rule_disenchant_yield()', 'rule_convert_cost()', 'rule_craft_cost()', 'rule_craft_gold(int)', 'item_price(int, text[], int[])'];
 export const rulesPermissionsSql = () => RULE_FUNCTIONS.map(f => 'revoke all on function public.' + f + ' from public, anon, authenticated;').join('\n') + '\n';

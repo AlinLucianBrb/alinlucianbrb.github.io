@@ -3,6 +3,7 @@
 import { TREES, TREE_ORDER, NODES } from '../js/content/talents.js';
 import { HEROES } from '../js/content/data.js';
 import { ITEMS, ITEM_BONUSES, AFFINITY } from '../js/content/items.js';
+import { GEM_TYPES, familyOf } from '../js/content/gems.js';
 
 const q = s => "'" + String(s).replace(/'/g, "''") + "'";
 const list = ids => 'array[' + ids.map(q).join(', ') + ']::text[]';
@@ -36,6 +37,10 @@ export function contentSeedSql() {
     '-- Item bonuses: the relics an item can roll.',
     'insert into public.item_bonuses (id, tags) values ' + ITEM_BONUSES.map(b => '(' + q(b) + ', ' + list(Object.keys(AFFINITY).filter(a => AFFINITY[a].includes(b))) + ')').join(', ') +
       ' on conflict (id) do update set tags = excluded.tags;',
-    'delete from public.item_bonuses where id <> all (' + list(ITEM_BONUSES) + ');'
+    'delete from public.item_bonuses where id <> all (' + list(ITEM_BONUSES) + ');',
+    '-- Gem kinds: the stats each gem type can roll, and its family.',
+    'delete from public.gem_kinds;',
+    'insert into public.gem_kinds (gem_type, stat, family) values\n' +
+      Object.entries(GEM_TYPES).flatMap(([t, d]) => d.stats.map(s => '  (' + [q(t), q(s.stat), q(familyOf(t))].join(', ') + ')')).join(',\n') + ';'
   ].join('\n') + '\n';
 }

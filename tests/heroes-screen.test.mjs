@@ -8,7 +8,9 @@ import { installFakeDom } from './fake-dom.mjs';
 const dom = installFakeDom();
 const saves = [], navs = [], sold = [], pathSaves = [];
 let failNext = false;
+const gemRows = [{ id: 'g1', gem_type: 'fire', stat: 'fireDamage', rarity: 1, ilvl: 30, item: null, socket: null }];
 mock.module(new URL('../js/services/api.js', import.meta.url).href, { namedExports: {
+  getGems: async () => ({ gems: gemRows }), craftGem: async () => ({}), combineGems: async () => ({}), socketGem: async (g, item, socket) => ({ gems: [{ ...gemRows.find(x => x.id === g), item, socket }] }),
   getItems: async () => ({ items: [
     { id: 'i1', item_type: 'power_charm', rarity: 0, bonuses: [] },
     { id: 'i2', item_type: 'helm', rarity: 2, bonuses: ['Sharpened rounds', 'Whetstone', 'Prospector'] },
@@ -150,7 +152,7 @@ test('Inventory: every item as an icon on a grid, with a tooltip saying what it 
   full[0].fire('pointerenter', { clientX: 5, clientY: 5 });
   let tip = dom.made.filter(e => e.className === 'tip').at(-1);
   assert.deepEqual(tip.children.map(c => c._text), ['Rare Helm', 'Helm', 'Item level 10 · stats ×1', '+11.25% damage (rank 3)', '+13.5% damage to melee heroes (rank 3)',
-    'Prospector: no longer works on gear', 'Equipped on the Warrior', 'Sells for 85 gold (click to select)', 'Disenchants into 3 Essence'], 'each bonus with its rank; gold bonuses no longer work on gear; the sell price');
+    'Prospector: no longer works on gear', '◇ Empty socket', '◇ Empty socket', 'Equipped on the Warrior', 'Sells for 85 gold (click to select)', 'Disenchants into 3 Essence'], 'each bonus with its rank; gold bonuses no longer work on gear; the sell price');
   assert.equal(tip.children[3].style.color, '#5aa9ff', 'a rank 3 bonus in the rank colour (blue)');
   full[2].fire('pointerenter', { clientX: 5, clientY: 5 });
   tip = dom.made.filter(e => e.className === 'tip').at(-1);

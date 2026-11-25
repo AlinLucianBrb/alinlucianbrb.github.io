@@ -21,6 +21,12 @@ revoke all on function public.convert_material(int, int) from public, anon, auth
 grant execute on function public.convert_material(int, int) to authenticated;
 revoke all on function public.craft_item(int, text, text) from public, anon, authenticated;
 grant execute on function public.craft_item(int, text, text) to authenticated;
+revoke all on function public.craft_gem(text) from public, anon, authenticated;
+grant execute on function public.craft_gem(text) to authenticated;
+revoke all on function public.combine_gems(uuid[]) from public, anon, authenticated;
+grant execute on function public.combine_gems(uuid[]) to authenticated;
+revoke all on function public.socket_gem(uuid, uuid, int) from public, anon, authenticated;
+grant execute on function public.socket_gem(uuid, uuid, int) to authenticated;
 revoke all on function public.save_talents(text[]) from public, anon, authenticated;
 grant execute on function public.save_talents(text[]) to authenticated;
 -- Internal helpers: only other database functions use them.
@@ -49,7 +55,11 @@ grant execute on function public.start_lobby(uuid, jsonb) to authenticated;
 -- These tables are private. With row security on and no policies, players cannot read or write them directly.
 revoke all on table public.runs, public.talent_nodes, public.talent_links, public.blocked_names, public.hero_classes, public.item_types, public.item_bonuses,
   public.lobbies, public.lobby_members, public.records from anon, authenticated;
+revoke all on table public.gem_kinds from anon, authenticated;
 -- Players can read their own items (row security) but never create, change or delete them.
 revoke insert, update, delete on public.player_items from anon, authenticated;
 grant select on public.player_items to authenticated;
+-- The same for gems: read your own, change them only through craft_gem, combine_gems and socket_gem.
+revoke insert, update, delete on public.player_gems from anon, authenticated;
+grant select on public.player_gems to authenticated;
 revoke insert, update, delete on public.profiles from anon, authenticated;

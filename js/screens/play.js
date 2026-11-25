@@ -1,6 +1,6 @@
 import { startGame, stopGame, snapshot } from '../game/game.js';
 import { saveRun, loadRun, clearRun } from '../game/saved-run.js';
-import { startRun, finishRun, getItems } from '../services/api.js';
+import { startRun, finishRun, getItems, getGems } from '../services/api.js';
 import { STAGES, stageDef, stageOpen } from '../content/data.js';
 import { endlessBracket } from '../content/rules.js';
 import { wornItems, activePaths, lootRow } from './loadout.js';
@@ -34,6 +34,7 @@ export default {
       const { items, error } = await getItems().catch(() => ({ error: 'offline' }));
       state.items = error ? null : items;
     }
+    if (!state.gems && state.items) { const g = await getGems().catch(() => ({ error: 'offline' })); state.gems = g.error ? [] : g.gems; }   /* gems in the worn items */
     const equipped = wornItems();
     let runId = saved ? saved.runId : null, starting = Promise.resolve({});
     /* Keep the run saved on this browser, so a refresh does not lose it: every few seconds and when the page is hidden. */
@@ -56,17 +57,17 @@ export default {
       if (!runId) return 'Could not save your run: ' + (s.error || 'it was not started') + hint(s.error);
       const id = runId; runId = null;
       const before = state.profile;
-      const { profile, drop, drops = drop ? [drop] : [], error } = await finishRun(id, waves, kills, won, bosses);
+      const { profile, drop, drops = drop ? [drop] : [], stones = 0, error } = await finishRun(id, waves, kills, won, bosses);
       if (error || !profile) return 'Could not save your run: ' + (error || 'unknown error') + hint(error);
       state.profile = profile;
       if (drops.length) state.items = null;   /* reload the inventory next time it is needed */
       const r = runRewards(waves, kills, rewardBonus(before.talents));
       const n = drops.length;
-      const text = (won ? 'Level ' + (STAGES[stage - 1] ? STAGES[stage - 1].code : stage) + ' cleared! ' : '') + '+' + r.xp + ' XP, +' + r.gold + ' gold.' +
+      const text = (won ? 'Level ' + (STAGES[stage - 1] ? STAGES[stage - 1].code : stage) + ' cleared! ' : '') + '+' + r.xp + ' XP, +' + r.gold + ' gold' + (stones ? ', +' + stones + ' Rough Stone' : '') + '.' +
         (n ? ' You found ' + (n > 1 ? n + ' items' : 'an item') + (endless && n > 5 ? ' of item level ' + [...new Set(endlessBracket(waves))].join(' to ') : '') + ':' : '') +
         (profile.level > before.level ? ' Level up! You are now level ' + profile.level + '.' : '') +
         (actMessage(before.levels_cleared, profile.levels_cleared) ? ' ' + actMessage(before.levels_cleared, profile.levels_cleared) : '');
-      return { text, node: n ? lootRow(drops) : null, milestone: actMilestone(before.levels_cleared, profile.levels_cleared) };
+      return { text, node: n || stones ? lootRow(drops, stones) : null, milestone: actMilestone(before.levels_cleared, profile.levels_cleared) };
     }
     const seat = config && seatOf(config, uid);
     startGame({

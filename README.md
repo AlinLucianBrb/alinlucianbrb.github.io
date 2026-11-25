@@ -211,6 +211,21 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Gems: Rough Stone, crafting, combining and sockets (Nov 25, v0.75.0)
+- New material, **Rough Stone**: 2 for every boss killed, and on a win 2 × the act number more (Act 5 win: +10).
+  Endless and lost matches give the boss stones only. The result screen and loot row show what you got.
+- Inventory has a third tab, **Gems**: craft an Elemental gem (Amethyst, Ruby, Sapphire, Topaz) or a Primal gem
+  (Hematite, Emerald, Pearl, Obsidian) for 10 Rough Stone + 100 gold. You get a Common gem of a random type of that
+  family, with one random stat from that type's pool (e.g. Ruby: added fire damage, burn chance or fire penetration).
+- Pick 3 gems of the same type and rarity to combine them into one of the next rarity (up to Epic); it keeps one of
+  the three stats at random and the highest item level. A gem gives its value × (rarity + 1) × its item-level bonus.
+- Every item has 2 sockets. On a hero's page, open a gear slot to put gems in or take them out (free). Selling or
+  disenchanting an item gives its gems back. The gem bag holds 200.
+- Gems unlock with crafting (Act 2).
+- Art: gem and stone icons made with Pixel Lab (`art/pixellab/icons/g01.png`, `g02.png`, built by `build_icons.py`).
+- **SQL changed**: run `supabase-update.sql` (Rough Stone on the profile, the `player_gems` and `gem_kinds` tables,
+  `craft_gem`, `combine_gems`, `socket_gem`, and `finish_run` now gives stones). No engine rules change.
+
 ## The world map is one painted land (Nov 25, v0.74.0)
 - The world map is a painted picture of the whole land: the meadow, the deep forest, the mire, the red canyon and the
   ashlands, with the road running through all five and the demon citadel at the far right as the destination.

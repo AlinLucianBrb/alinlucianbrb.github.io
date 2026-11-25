@@ -1,9 +1,9 @@
-/* Inventory screen, in two tabs. Items: every item the player owns, as an icon on a grid. Hovering an item shows what it does
+/* Inventory screen, in three tabs. Items: every item the player owns, as an icon on a grid. Hovering an item shows what it does
    and who wears it. Clicking one selects it, and the bar under the grid can sell it for account gold or (from act 2) disenchant
    it into materials; with nothing selected the bar can disenchant every unworn item of a rarity. Each asks for a second click;
    worn items have to be taken off first. Crafting: crafting.js. Equipping happens on each hero's page (Heroes screen).
    Above the grid: sort and filter (by slot, rarity), and pages of PAGE items. Items that came since the last visit to this
-   screen are marked new (the newest date seen is kept on this browser, per account). */
+   screen are marked new (the newest date seen is kept on this browser, per account). Gems: gems.js. */
 import { bus } from '../core/bus.js';
 import { state } from '../core/state.js';
 import { bindTip } from '../core/tooltip.js';
@@ -15,6 +15,7 @@ import { MATERIALS, CRAFT } from '../content/crafting.js';
 import { isUnlocked, UNLOCKS } from '../content/unlocks.js';
 import { el, items, wornBy, ensureItems, itemIcon, itemTip, sqlHint } from './loadout.js';
 import { renderCrafting, resetCrafting } from './crafting.js';
+import { renderGems, resetGems } from './gems.js';
 
 const $ = id => document.getElementById(id);
 export const MAX_ITEMS = DROPS.maxItems;   /* the server keeps at most this many (finish_run) */
@@ -51,10 +52,11 @@ const open = () => isUnlocked('crafting', state.profile.levels_cleared);
 const unworn = r => items().filter(i => asItem(i).rarity === r && !wornBy(i.id));
 
 function render() {
-  $('invItems').hidden = tab !== 'items'; $('invCraft').hidden = tab !== 'craft';
+  $('invItems').hidden = tab !== 'items'; $('invCraft').hidden = tab !== 'craft'; $('invGems').hidden = tab !== 'gems';
   for (const b of $('invTabs').children) b.classList.toggle('on', b.dataset.tab === tab);
   $('invCount').textContent = items().length + ' / ' + MAX_ITEMS;
   if (tab === 'craft') { renderCrafting($('invCraft'), { open: open(), max: MAX_ITEMS, say, changed: render }); return; }
+  if (tab === 'gems') { renderGems($('invGems'), { open: open(), say, changed: render }); return; }
   renderTools();
   const list = shownItems(items()), grid = $('invGrid'), pages = Math.max(1, Math.ceil(list.length / PAGE));
   page = Math.min(page, pages - 1);
@@ -139,12 +141,14 @@ function renderBar() {
   bar.append(twice('sell', '', 'Sell for ' + sellPrice(it) + ' gold', 'Click again to sell for ' + sellPrice(it) + ' gold', () => sell(it)));
   if (open()) bar.append(twice('dis', '', 'Disenchant for ' + CRAFT.yields + ' ' + MATERIALS[r].name, 'Click again to disenchant', () => disenchant([it], r)));
 }
+/* The gems of items that are gone go back to the bag (the server does the same). */
+const freeGems = ids => { if (state.gems) state.gems = state.gems.map(g => (ids.includes(g.item) ? { ...g, item: null, socket: null } : g)); };
 async function sell(it) {
   busy = true; renderBar();
   const { profile, error } = await sellItem(it.id);
   busy = false; confirm = '';
   if (error || !profile) { say('Could not sell: ' + (error || 'no connection') + sqlHint(error)); renderBar(); return; }
-  state.items = items().filter(i => i.id !== it.id);
+  state.items = items().filter(i => i.id !== it.id); freeGems([it.id]);
   state.profile = { ...state.profile, ...profile };
   picked = null;
   say('Sold ' + itemName(it) + ' for ' + sellPrice(it) + ' gold. Gold: ' + profile.gold);
@@ -155,7 +159,7 @@ async function disenchant(list, rarity) {
   const ids = list.map(i => i.id), { profile, error } = await disenchantItems(ids);
   busy = false; confirm = '';
   if (error || !profile) { say('Could not disenchant: ' + (error || 'no connection') + sqlHint(error)); renderBar(); return; }
-  state.items = items().filter(i => !ids.includes(i.id));
+  state.items = items().filter(i => !ids.includes(i.id)); freeGems(ids);
   state.profile = { ...state.profile, ...profile };
   picked = null;
   say('Disenchanted ' + (list.length > 1 ? list.length + ' items' : itemName(list[0])) + ' into ' + list.length * CRAFT.yields + ' ' + MATERIALS[rarity].name + '.');
@@ -169,7 +173,7 @@ export default {
       for (const b of $('invTabs').children) b.onclick = () => { tab = b.dataset.tab; picked = null; confirm = ''; say(''); render(); };
       bound = true;
     }
-    tab = (params && params.tab) || 'items'; picked = null; confirm = ''; page = 0; resetCrafting(); say('');
+    tab = (params && params.tab) || 'items'; picked = null; confirm = ''; page = 0; resetCrafting(); resetGems(); say('');
     seenBefore = readSeen();
     render();
     const err = await ensureItems();

@@ -230,7 +230,7 @@ create function public.finish_run(p_run uuid, p_waves int, p_kills int, p_won bo
 language plpgsql security definer set search_path = public as $$
 declare me public.profiles; r public.runs; cap int; frontier boolean; endless boolean; elapsed numeric; done_waves int; dropped text := null;
         drops jsonb := '[]'; b_gold numeric; b_xp numeric; b_loot numeric; chance numeric; n int; boss_cap int;
-        rar int; b_rar numeric; b_extra numeric; aff text; il int; it public.player_items;
+        rar int; b_rar numeric; b_extra numeric; aff text; il int; it public.player_items; got_stones int;
 begin
   if auth.uid() is null then raise exception 'not signed in'; end if;
   select * into r from public.runs where id = p_run and user_id = auth.uid() and finished_at is null for update;
@@ -280,6 +280,9 @@ begin
         frontier_wave = case when p_won and r.stage > x.levels_cleared and (r.players > 1 or r.stage <= me.levels_cleared) then 0
                              when not endless and r.stage = x.levels_cleared + 1 then greatest(x.frontier_wave, p_waves) else x.frontier_wave end,
         levels_cleared = case when p_won and (r.players > 1 or r.stage <= me.levels_cleared) then greatest(x.levels_cleared, r.stage) else x.levels_cleared end;
+  -- Rough Stone for gems (js/content/gems.js): for every boss killed, and more for a win on a later act
+  got_stones := public.rule_stones(r.stage, p_won, p_bosses);
+  if got_stones > 0 then update public.profiles set stones = stones + got_stones where id = auth.uid() returning * into me; end if;
   il := public.rule_item_level(case when p_won then r.stage else r.stage - 1 end);   -- item level: by the level beaten (on a loss, the one below)
   chance := public.rule_drop_chance(p_won, p_waves, r.stage) * (1 + b_loot);
   if endless then chance := p_bosses * b_loot; end if;   -- one item per boss (below), and item find adds its share of them
@@ -294,7 +297,7 @@ begin
     it := public.roll_item(auth.uid(), dropped, aff, rar, il, b_extra);
     drops := drops || jsonb_build_array(jsonb_build_object('item_type', it.item_type, 'rarity', it.rarity, 'bonuses', to_jsonb(it.bonuses), 'bonus_ranks', to_jsonb(it.bonus_ranks), 'ilvl', it.ilvl));
   end loop;
-  return jsonb_build_object('profile', to_jsonb(me), 'drop', drops -> 0 ->> 'item_type', 'drops', drops);
+  return jsonb_build_object('profile', to_jsonb(me), 'drop', drops -> 0 ->> 'item_type', 'drops', drops, 'stones', got_stones);
 end;
 $$;
 

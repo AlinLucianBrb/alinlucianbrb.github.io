@@ -8,6 +8,7 @@ import { installFakeDom } from './fake-dom.mjs';
 const dom = installFakeDom(), calls = [];
 let fail = '';
 mock.module(new URL('../js/services/api.js', import.meta.url).href, { namedExports: {
+  getGems: async () => ({ gems: [] }), craftGem: async () => ({}), combineGems: async () => ({}), socketGem: async () => ({ gems: [] }),
   getItems: async () => ({ items: [] }), sellItem: async () => ({}), saveLoadout: async () => ({}),
   disenchantItems: async ids => { calls.push(['disenchant', ids]); return fail ? { error: fail } : { profile: { materials: [3 * ids.length, 0, 0, 0] } }; },
   convertMaterial: async (r, n) => { calls.push(['convert', r, n]); return { profile: { materials: [1, n, 0, 0] } }; },
