@@ -211,6 +211,14 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Menu: Play and lobby buttons crisp and hovering like the bottom row (Nov 25, v0.77.5)
+- Play solo, Create lobby, Join lobby and Resume run now look as clean as the bottom row: their text uses the pixel
+  font only at sizes it is crisp at (multiples of 9 px: 45, 27, 18; the bottom row moved to 18 too), and their icons
+  are drawn at exactly twice their size, so no pixel comes out uneven.
+- They hover exactly like the bottom row (one shared rule now): the icon lifts 3 px, grows a little and glows, and the
+  name turns gold, eased over 0.12 s. Before, Play solo grew all at once without the icon moving.
+- No SQL or rules change.
+
 ## Menu: no boxes left, everything painted into the scene (Nov 25, v0.77.4)
 - The whole menu now matches the bottom row: outlined pixel text and icons on soft shadows, no frames or gold plates.
 - **Play solo** is one big glowing gold word with its play icon; **Create lobby** and **Join lobby** sit under it as icon

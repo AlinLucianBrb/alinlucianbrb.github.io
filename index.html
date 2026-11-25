@@ -353,17 +353,15 @@ h3,.hbody h3{font-size:18px;line-height:22px;color:#cfe0d2;text-transform:none;l
 #screen-menu .dockbtn{position:relative;width:112px;height:88px;padding:4px 0 6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
   font-size:13px;white-space:nowrap;filter:drop-shadow(0 4px 0 rgba(0,0,0,.35))}
 #screen-menu .dockbtn img{width:48px;height:48px;filter:drop-shadow(0 0 1px #000) drop-shadow(0 3px 0 rgba(0,0,0,.45));image-rendering:pixelated;transition:transform .12s}
-#screen-menu .dockbtn:hover img{transform:translateY(-3px) scale(1.08)}
 /* no frame: just the icon and its name, outlined so they read on the painted scene */
 #screen-menu .dockbtn{border:none;border-image:none;background:none;width:auto;min-width:92px;height:auto;padding:4px 6px;color:#fff3d6;font-size:15px;filter:none;
   text-shadow:1px 0 0 #1a1008,-1px 0 0 #1a1008,0 1px 0 #1a1008,0 -1px 0 #1a1008,0 2px 3px rgba(0,0,0,.8)}
 #screen-menu .dockbtn:hover{color:#ffe08a}
-#screen-menu .dockbtn:hover img{filter:drop-shadow(0 0 6px rgba(255,224,138,.8)) drop-shadow(0 3px 0 rgba(0,0,0,.45))}
 #screen-menu .dockbtn .mbadge{top:-6px;right:14px}
 /* a soft shadow rising from the bottom edge so the icons and names stand out from the grass and the road (no frame) */
 #screen-menu::before{content:'';position:absolute;left:0;right:0;bottom:0;height:190px;pointer-events:none;z-index:0;
   background:linear-gradient(180deg,transparent,rgba(10,8,5,.55) 45%,rgba(10,8,5,.85))}
-#screen-menu .dockbtn span{font-family:var(--pixel);font-size:17px;letter-spacing:.02em}
+#screen-menu .dockbtn span{font-family:var(--pixel);font-size:18px;letter-spacing:.02em}   /* the pixel font is crisp at multiples of 9 px */
 #screen-menu .dockbtn img{width:56px;height:56px}
 /* ---- The rest of the menu in the same frameless style: outlined pixel text and icons on soft shadows, no boxes ---- */
 #screen-menu{--ink:#1a1008;--outline:1px 0 0 var(--ink),-1px 0 0 var(--ink),0 1px 0 var(--ink),0 -1px 0 var(--ink),2px 0 0 var(--ink),-2px 0 0 var(--ink),0 2px 0 var(--ink),0 -2px 0 var(--ink),0 3px 4px rgba(0,0,0,.7)}
@@ -379,16 +377,25 @@ h3,.hbody h3{font-size:18px;line-height:22px;color:#cfe0d2;text-transform:none;l
 #screen-menu .menuBtns button{border:none;border-image:none;background:none;box-shadow:none;color:#fff3d6;font-family:var(--pixel);text-shadow:var(--outline);
   display:inline-flex;align-items:center;justify-content:center;gap:10px}
 #screen-menu .menuBtns button::after{display:none}
-#screen-menu .menuBtns button.go{font-size:46px;line-height:1.1;color:#ffd866;padding:0 12px;
+/* Sizes snap to clean pixels like the bottom row: the font at multiples of 9 px, the icons at exactly 2x their art.
+   Hover works the same as the bottom row: the icon lifts and glows, the name turns gold, both eased. */
+#screen-menu .menuBtns button .ico{image-rendering:pixelated;vertical-align:middle}
+#screen-menu .menuBtns button[data-nav=levels] .ico{width:38px;height:38px}   /* the icons at twice their art: play 19, */
+#screen-menu #lobbyCreateBtn .ico{width:48px;height:48px}                      /* lobby 24, */
+#screen-menu #lobbyJoinBtn .ico{width:42px;height:42px}                        /* join 21 */
+/* one hover for every menu button (left and bottom): the icon lifts and grows a little and glows, the name turns gold */
+#screen-menu :is(.dockbtn img,.menuBtns button .ico){transition:transform .12s;filter:drop-shadow(0 0 1px #000) drop-shadow(0 3px 0 rgba(0,0,0,.45))}
+#screen-menu :is(.dockbtn,.menuBtns button):hover :is(img,.ico){transform:translateY(-3px) scale(1.08);
+  filter:drop-shadow(0 0 6px rgba(255,224,138,.8)) drop-shadow(0 3px 0 rgba(0,0,0,.45))}
+#screen-menu .menuBtns button.go{font-size:45px;line-height:1.1;color:#ffd866;padding:0 12px;
   text-shadow:var(--outline),0 0 18px rgba(255,200,90,.55)}
-#screen-menu .menuBtns button.go .ico{width:40px;height:40px;filter:drop-shadow(0 0 1px #000) drop-shadow(0 0 10px rgba(255,200,90,.6))}
-#screen-menu .menuBtns button.go:hover{color:#fff0a8;transform:scale(1.04)}
+#screen-menu .menuBtns button.go:hover{color:#fff0a8}
 #screen-menu .menuBtns .menuRow{gap:28px;justify-content:center}
-#screen-menu .menuBtns .menuRow button{flex:0 0 auto;font-size:19px;padding:2px 4px}
-#screen-menu .menuBtns .menuRow .ico{width:32px;height:32px;image-rendering:pixelated;filter:drop-shadow(0 0 1px #000) drop-shadow(0 3px 0 rgba(0,0,0,.45))}
+#screen-menu .menuBtns .menuRow button{flex:0 0 auto;font-size:18px;padding:2px 4px;
+  text-shadow:1px 0 0 #1a1008,-1px 0 0 #1a1008,0 1px 0 #1a1008,0 -1px 0 #1a1008,0 2px 3px rgba(0,0,0,.8)}
 #screen-menu .menuBtns .menuRow button:hover{color:#ffe08a}
 #screen-menu .resumebox{align-items:center}
-#screen-menu .resumebox button.go{font-size:28px}
+#screen-menu .resumebox button.go{font-size:27px}
 #screen-menu .resumebox .linkbtn{font-family:inherit;font-size:14px;color:#e8d8b8}
 /* the profile: no box; the name big, the title in gold, then level, a thin XP bar and the gold */
 #screen-menu .who{border:none;border-image:none;background:none;box-shadow:none;padding:4px 6px;text-align:right;color:#fff3d6;text-shadow:var(--outline)}
