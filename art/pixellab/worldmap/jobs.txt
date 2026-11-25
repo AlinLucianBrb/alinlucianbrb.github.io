@@ -16,3 +16,7 @@ act3_optA fb49e67e-48f9-4423-bd99-b68cb4c26434 zigzag down, lizardfolk stilt vil
 act3_optB 66a110ff-4fea-4c32-a362-b9bb8ec3ece3 lake in the middle, boardwalk, lizardfolk camp, sunken ship, witch tower island
 act3_optC 25cb11dd-c3ff-4f4e-b588-7ce41e22d447 hook road, lizardfolk stone heads, flooded graveyard, ritual circle cauldron
 act3 = act3_optA (chosen Nov 25 "for now, we will retouch later"; B and C not kept). It has 7 painted stops; the levels use stops 1, 2, 5, 6, 7
+act4_optA ba99a864-9a1d-452c-91c7-849f1d8a34cc canyon floor then switchbacks, harpy nests, rock golem, arch, wyvern spire
+act4_optB 4f3f71d4-422d-4b4c-b936-f3bb268152f1 chasm with rope bridge, golem quarry, harpy cliffs, wyvern on a ruined fort
+act4_optC 74eb9f7b-93fb-4489-a14c-e85788960644 mesa spiral, wagons, harpy pillars, buried golem, wyvern on the mesa top
+act4 = act4_optC (chosen Nov 25; A and B not kept)

@@ -46,5 +46,10 @@ export const ZONE_ART = {
     src: 'assets/zonemap_3.png', ratio: 458 / 256,
     stops: [{ x: 13.3, y: 19.1 }, { x: 32.1, y: 44.5 }, { x: 43.9, y: 77.9 }, { x: 60.9, y: 61.3 }, { x: 82.0, y: 89.3 }],
     endless: { x: 8, y: 62 }
+  },
+  4: {   /* along the dry canyon floor past the wagons and harpy pillars, then up the stairs around the mesa to the wyvern */
+    src: 'assets/zonemap_4.png', ratio: 458 / 256,
+    stops: [{ x: 7.1, y: 90.2 }, { x: 42.4, y: 83.2 }, { x: 69.7, y: 59.0 }, { x: 56.6, y: 48.2 }, { x: 70.2, y: 18.4 }],
+    endless: { x: 18, y: 45 }
   }
 };
