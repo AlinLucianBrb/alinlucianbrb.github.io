@@ -20,3 +20,7 @@ act4_optA ba99a864-9a1d-452c-91c7-849f1d8a34cc canyon floor then switchbacks, ha
 act4_optB 4f3f71d4-422d-4b4c-b936-f3bb268152f1 chasm with rope bridge, golem quarry, harpy cliffs, wyvern on a ruined fort
 act4_optC 74eb9f7b-93fb-4489-a14c-e85788960644 mesa spiral, wagons, harpy pillars, buried golem, wyvern on the mesa top
 act4 = act4_optC (chosen Nov 25; A and B not kept)
+act5_optA d56eb1fd-6974-4761-a838-3dc580a47f20 ash fields, summoning circle, obsidian statues, lava bridge, demon citadel on the volcano
+act5_optB d94799db-80f1-48d0-8a0f-043109f6789d road around a volcano, ash village, obsidian gate, dragon nest, citadel in the volcano
+act5_optC 0b764f62-6a40-457b-8f25-66044bc29a5d lava river, chained bridge, graveyard summoners, dragon roost, citadel bottom right
+act5 = act5_optA (chosen Nov 25; B and C not kept)

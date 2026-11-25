@@ -211,6 +211,15 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Act 5 has its painted map: every act has one (Nov 25, v0.73.4)
+- Act 5, the Ashlands, has its painted map: the road comes in at the top left past a summoners' circle raising
+  skeletons and a fallen dragon's bones, crosses the lava past a fire-breathing dragon and a gate of obsidian knights,
+  and ends at the demon lord's citadel under the erupting volcano, the end of the world. The Endless portal stands
+  in the ash by the lava.
+- All five acts now have their painted maps (first versions, to be retouched). The drawn road stays as the fallback
+  for an act without a picture.
+- No SQL or rules change.
+
 ## Act 4 has its painted map (Nov 25, v0.73.3)
 - Act 4, the Red Canyon, has its painted map: the road comes in low on the left along a dry riverbed, past broken
   wagons, harpy nests on stone pillars and a mossy rock golem, then climbs the stairs around a great mesa to the
