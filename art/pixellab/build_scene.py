@@ -1,5 +1,6 @@
 """The menu background in the game's own art: a forest clearing at night, made from the match's tileset and scenery, with
-the heroes resting around a campfire beside a tent. Writes assets/ui_scene.png (1600x900).
+the heroes resting around a campfire beside a tent. Writes assets/ui_scene.png (1600x900), the backdrop of the
+screens other than the menu; menu() writes the menu and login background, assets/ui_menu.png.
 
 Run:  python3 art/pixellab/build_scene.py
 
@@ -154,5 +155,16 @@ def overlays(fx, fy):
         sheet.save(A('ui_scene_embers_%d.png' % f))
 
 
+def menu():
+    """The main menu and login background: a valley painted by Pixel Lab (art/pixellab/ui/menu_valley_a.png, 458x256: a big
+    oak over the top right, a road from the bottom right, a river, a village with a water mill, hills and mountains), made
+    4x bigger with hard pixel edges. Writes assets/ui_menu.png. (menu_valley_b/c are the other two options he saw.)"""
+    src = Image.open(os.path.join(HERE, 'ui', 'menu_valley_a.png')).convert('RGB')
+    big = src.resize((src.width * 4, src.height * 4), Image.NEAREST)
+    big.save(A('ui_menu.png'), optimize=True)
+    print('ui_menu.png', big.size)
+
+
 if __name__ == '__main__':
     main()
+    menu()

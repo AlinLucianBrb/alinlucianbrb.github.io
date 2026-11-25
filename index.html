@@ -333,9 +333,9 @@ h1{font-size:27px;line-height:36px;color:#ffe08a}
 h2{font-size:27px;line-height:36px;color:#ffe08a}
 h3,.hbody h3{font-size:18px;line-height:22px;color:#cfe0d2;text-transform:none;letter-spacing:.02em}
 .pix,.scene,.logo img{image-rendering:pixelated}
-/* Menu screens stand in front of the dusk valley; the login and main menu see more of it. */
+/* Menu screens: the login and main menu stand in the painted valley (ui_menu.png); the others use the darkened camp scene. */
 .screen.scene{background:linear-gradient(rgba(10,14,12,.78),rgba(10,14,12,.86)),url(assets/ui_scene.png) center bottom/cover;image-rendering:pixelated}
-.screen.scene.bright{background:linear-gradient(rgba(10,14,12,.15),rgba(10,14,12,.45)),url(assets/ui_scene.png) center bottom/cover}
+.screen.scene.bright{background:linear-gradient(rgba(10,14,12,0),rgba(10,14,12,.25)),url(assets/ui_menu.png) center/cover}
 .logo{margin:0;line-height:0;text-shadow:none}
 .logo img{width:min(402px,86vw);height:auto;filter:drop-shadow(0 4px 0 rgba(0,0,0,.35))}
 #screen-menu{gap:8px}
@@ -344,6 +344,13 @@ h3,.hbody h3{font-size:18px;line-height:22px;color:#cfe0d2;text-transform:none;l
 #screen-menu .menuBtns button{padding:2px 10px 4px;white-space:nowrap}
 #screen-menu .menuRow button{min-width:0;padding:2px 4px 4px}
 #screen-menu .topbar{position:absolute;top:12px;left:50%;transform:translateX(-50%)}
+/* The menu stands to the left of the valley (the tree and road on the right stay clear): the logo above the buttons on the
+   left, the account and gold together at the top right. */
+#screen-menu{align-items:flex-start;justify-content:flex-start;padding:28px 0 0 max(32px,6vw)}
+#screen-menu .logo{width:min(420px,100%);text-align:center}
+#screen-menu .mgold{margin-top:2px;padding-top:3px;border-top:1px solid rgba(255,255,255,.12)}
+#screen-menu .mgold b{font-family:var(--pixel);font-size:18px;color:#ffe08a}
+#screen-menu .topbar{left:auto;right:18px;transform:none;width:auto;gap:10px;justify-content:flex-end;align-items:flex-start}
 /* Text buttons */
 button{border:8px solid transparent;border-radius:0;border-image:url(assets/ui_button.png) 8 fill / 8px stretch;background:none;color:#ecf1e8;padding:2px 10px 4px;text-shadow:0 2px 0 rgba(0,0,0,.45)}
 button:not(.herocard):not(.choose):not(.hcard):not(.lvl):not(.iconbtn):not(.linkbtn):not(.evochoice):not(.ph):not(.invcell):not(.evoup){font-family:var(--pixel);font-size:18px;line-height:20px}
@@ -695,13 +702,8 @@ body[data-zone="5"] #lvChoose h1{background-image:linear-gradient(180deg,rgba(0,
 .levels .lvl.done{box-shadow:0 0 0 2px #c99a52;border-color:transparent}
 .levels .lvl.done small{color:#e8c47a}
 
-/* ===== Motion. The menu's campfire: a flickering glow and rising sparks, laid over the scene with the same fit. */
-#screen-menu::before,#screen-menu::after,#screen-login::before,#screen-login::after{content:'';position:absolute;inset:0;pointer-events:none;z-index:0;
-  background:url(assets/ui_scene_glow.png) center bottom/cover no-repeat;animation:fireGlow 2.6s ease-in-out infinite}
-#screen-menu::after,#screen-login::after{background:url(assets/ui_scene_embers_0.png) center bottom/cover no-repeat;animation:embers 1s steps(1) infinite}
+/* ===== Motion. The menu and login stand in the painted valley (assets/ui_menu.png, build_scene.py menu()). */
 :where(#screen-menu,#screen-login)>*{position:relative;z-index:1}
-@keyframes fireGlow{0%,100%{opacity:.75}30%{opacity:1}55%{opacity:.6}80%{opacity:.95}}
-@keyframes embers{0%{background-image:url(assets/ui_scene_embers_0.png)}25%{background-image:url(assets/ui_scene_embers_1.png)}50%{background-image:url(assets/ui_scene_embers_2.png)}75%{background-image:url(assets/ui_scene_embers_3.png)}}
 /* a slow shine across Start and Play solo */
 button.go{position:relative;overflow:hidden}
 button.go::after{content:'';position:absolute;top:-10px;bottom:-10px;width:28px;left:-40px;pointer-events:none;
@@ -1268,8 +1270,7 @@ body.rarmarks #shopCard .relicchip[data-rar]::before{position:absolute;left:2px;
 
 <section id="screen-menu" class="screen scene bright" hidden>
   <div class="topbar">
-    <div class="who panel"><b id="mName"></b><small class="mtitle" id="mTitle" hidden></small><div><img class="ico pix" src="assets/icon_level.png" alt="">Level <b id="mLv"></b></div><div><span class="xp"><i id="mXpFill"></i></span> <span id="mXp"></span></div></div>
-    <div class="purse panel"><img class="ico pix" src="assets/icon_gold.png" alt="">Gold <b id="mGold"></b></div>
+    <div class="who panel"><b id="mName"></b><small class="mtitle" id="mTitle" hidden></small><div><img class="ico pix" src="assets/icon_level.png" alt="">Level <b id="mLv"></b></div><div><span class="xp"><i id="mXpFill"></i></span> <span id="mXp"></span></div><div class="mgold"><img class="ico pix" src="assets/icon_gold.png" alt="">Gold <b id="mGold"></b></div></div>
   </div>
   <h1 class="logo"><img src="assets/ui_logo.png" alt="Test TBD" width="380" height="109"></h1>
   <div class="menuBtns panel">

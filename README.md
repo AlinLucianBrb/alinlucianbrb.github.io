@@ -211,6 +211,17 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## A new menu: a painted valley, buttons on the left (Nov 25, v0.77.1)
+- The login and main menu now stand in a sunny valley painted by Pixel Lab, laid out like the picture he gave: a big oak
+  close to the camera over the top right, a dirt road from the bottom right, a river with a water mill, a village with
+  chimney smoke, cliffs, hills and blue mountains (`art/pixellab/ui/menu_valley_a.png`, built into `assets/ui_menu.png`
+  by `build_scene.py`; `menu_valley_b/c` are the sunset and watchtower options he passed on).
+- The menu moved off the middle so the valley shows: the logo at the top left with the buttons under it, and one account
+  box at the top right with the name, title, level, XP and gold.
+- The campfire glow and sparks are gone from the menu (there is no campfire in the valley). The other screens keep the
+  darkened camp scene behind them.
+- No SQL or rules change.
+
 ## Achievements: titles, gold and materials, by act and by hero (Nov 25, v0.77.0)
 - A new **Achievements** screen (menu, with a medal icon and a red badge counting goals ready to claim). It fills the
   whole window and has two tabs:
