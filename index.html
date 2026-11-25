@@ -365,6 +365,42 @@ h3,.hbody h3{font-size:18px;line-height:22px;color:#cfe0d2;text-transform:none;l
   background:linear-gradient(180deg,transparent,rgba(10,8,5,.55) 45%,rgba(10,8,5,.85))}
 #screen-menu .dockbtn span{font-family:var(--pixel);font-size:17px;letter-spacing:.02em}
 #screen-menu .dockbtn img{width:56px;height:56px}
+/* ---- The rest of the menu in the same frameless style: outlined pixel text and icons on soft shadows, no boxes ---- */
+#screen-menu{--ink:#1a1008;--outline:1px 0 0 var(--ink),-1px 0 0 var(--ink),0 1px 0 var(--ink),0 -1px 0 var(--ink),2px 0 0 var(--ink),-2px 0 0 var(--ink),0 2px 0 var(--ink),0 -2px 0 var(--ink),0 3px 4px rgba(0,0,0,.7)}
+/* a shadow in from the top right corner behind the profile, like the one along the bottom */
+#screen-menu::after{content:'';position:absolute;top:0;right:0;width:520px;height:260px;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse 440px 230px at 100% 0,rgba(10,8,5,.88),rgba(10,8,5,.65) 45%,transparent 100%)}
+/* the logo: bigger, on a faint dark halo so it stands off the cliffs */
+#screen-menu .logo{background:radial-gradient(ellipse 50% 50% at 50% 50%,rgba(10,8,5,.55),transparent 75%);padding:18px 0}
+#screen-menu .logo img{width:min(400px,80vw);filter:drop-shadow(0 4px 0 rgba(0,0,0,.45)) drop-shadow(0 0 14px rgba(0,0,0,.5))}
+/* the play panel: no frame; Play solo is one big glowing word, the lobbies are icon and name like the bottom row */
+#screen-menu .menuBtns{border:none;border-image:none;background:none;box-shadow:none;padding:0;width:min(420px,100%);gap:10px;align-items:center;
+  background:radial-gradient(ellipse 50% 50% at 50% 50%,rgba(10,8,5,.5),transparent 80%)}
+#screen-menu .menuBtns button{border:none;border-image:none;background:none;box-shadow:none;color:#fff3d6;font-family:var(--pixel);text-shadow:var(--outline);
+  display:inline-flex;align-items:center;justify-content:center;gap:10px}
+#screen-menu .menuBtns button::after{display:none}
+#screen-menu .menuBtns button.go{font-size:46px;line-height:1.1;color:#ffd866;padding:0 12px;
+  text-shadow:var(--outline),0 0 18px rgba(255,200,90,.55)}
+#screen-menu .menuBtns button.go .ico{width:40px;height:40px;filter:drop-shadow(0 0 1px #000) drop-shadow(0 0 10px rgba(255,200,90,.6))}
+#screen-menu .menuBtns button.go:hover{color:#fff0a8;transform:scale(1.04)}
+#screen-menu .menuBtns .menuRow{gap:28px;justify-content:center}
+#screen-menu .menuBtns .menuRow button{flex:0 0 auto;font-size:19px;padding:2px 4px}
+#screen-menu .menuBtns .menuRow .ico{width:32px;height:32px;image-rendering:pixelated;filter:drop-shadow(0 0 1px #000) drop-shadow(0 3px 0 rgba(0,0,0,.45))}
+#screen-menu .menuBtns .menuRow button:hover{color:#ffe08a}
+#screen-menu .resumebox{align-items:center}
+#screen-menu .resumebox button.go{font-size:28px}
+#screen-menu .resumebox .linkbtn{font-family:inherit;font-size:14px;color:#e8d8b8}
+/* the profile: no box; the name big, the title in gold, then level, a thin XP bar and the gold */
+#screen-menu .who{border:none;border-image:none;background:none;box-shadow:none;padding:4px 6px;text-align:right;color:#fff3d6;text-shadow:var(--outline)}
+#screen-menu .who>*{display:flex;justify-content:flex-end;align-items:center;gap:6px}
+#screen-menu .who #mName{display:block;font-size:30px;line-height:1.1}
+#screen-menu .who .mtitle{display:block;font-size:15px;margin:0 0 4px;color:#ffd866}
+#screen-menu .who .mtitle[hidden]{display:none}
+#screen-menu .who .xp{width:140px;height:8px;border:none;border-radius:0;background:rgba(0,0,0,.6);box-shadow:0 0 0 1px #a8742a,0 0 0 3px var(--ink)}
+#screen-menu .who .mgold{border-top:none;margin-top:4px}
+#screen-menu .who .mgold b,#screen-menu .who #mLv{font-size:22px}
+#screen-menu .who .ico{width:22px;height:22px;filter:drop-shadow(0 0 1px #000)}
+#screen-menu .version{opacity:.4;font-size:14px}
 #screen-menu .mgold{margin-top:2px;padding-top:3px;border-top:1px solid rgba(255,255,255,.12)}
 #screen-menu .mgold b{font-family:var(--pixel);font-size:18px;color:#ffe08a}
 #screen-menu .topbar{left:auto;right:18px;transform:none;width:auto;gap:10px;justify-content:flex-end;align-items:flex-start}
@@ -1286,10 +1322,10 @@ body.rarmarks #shopCard .relicchip[data-rar]::before{position:absolute;left:2px;
 
 <section id="screen-menu" class="screen scene bright" hidden>
   <div class="topbar">
-    <div class="who panel"><b id="mName"></b><small class="mtitle" id="mTitle" hidden></small><div><img class="ico pix" src="assets/icon_level.png" alt="">Level <b id="mLv"></b></div><div><span class="xp"><i id="mXpFill"></i></span> <span id="mXp"></span></div><div class="mgold"><img class="ico pix" src="assets/icon_gold.png" alt="">Gold <b id="mGold"></b></div></div>
+    <div class="who"><b id="mName"></b><small class="mtitle" id="mTitle" hidden></small><div><img class="ico pix" src="assets/icon_level.png" alt="">Level <b id="mLv"></b></div><div><span class="xp"><i id="mXpFill"></i></span> <span id="mXp"></span></div><div class="mgold"><img class="ico pix" src="assets/icon_gold.png" alt="">Gold <b id="mGold"></b></div></div>
   </div>
   <h1 class="logo"><img src="assets/ui_logo.png" alt="Test TBD" width="380" height="109"></h1>
-  <div class="menuBtns panel">
+  <div class="menuBtns">
     <div id="resumeBox" class="resumebox" hidden><button class="go" id="resumeRunBtn">Resume run</button><button class="linkbtn" id="resumeDrop">Give it up</button></div>
     <button class="go" data-nav="levels"><img class="ico pix" src="assets/icon_play.png" alt="">Play solo</button>
     <div class="menuRow"><button id="lobbyCreateBtn"><img class="ico pix" src="assets/icon_lobby.png" alt="">Create lobby</button><button id="lobbyJoinBtn"><img class="ico pix" src="assets/icon_join.png" alt="">Join lobby</button></div>
