@@ -2,7 +2,8 @@ import { bus } from '../core/bus.js';
 import { state } from '../core/state.js';
 import { xpNeed } from '../core/rules.js';
 import { pointsFor } from '../content/talents.js';
-import { signOut } from '../services/api.js';
+import { signOut, getAchievements } from '../services/api.js';
+import { claimable } from './achievements.js';
 import { loadRun, clearRun, describeRun } from '../game/saved-run.js';
 import { versionText } from '../core/version.js';
 
@@ -12,6 +13,7 @@ let bound = false;
 function render() {
   const p = state.profile, need = xpNeed(p.level);
   $('mName').textContent = p.username; $('mLv').textContent = p.level;
+  $('mTitle').textContent = p.title || ''; $('mTitle').hidden = !p.title;   /* the achievement title worn */
   $('mXp').textContent = 'XP ' + p.xp + '/' + need; $('mXpFill').style.width = Math.min(100, p.xp / need * 100) + '%';
   $('mGold').textContent = p.gold.toLocaleString();
   $('mVersion').textContent = versionText();
@@ -21,6 +23,14 @@ function render() {
   const run = loadRun(p.id), box = $('resumeBox');
   box.hidden = !run;
   if (run) $('resumeRunBtn').textContent = 'Resume run · ' + describeRun(run);
+  countClaims(p);
+}
+/* The Achievements button says how many finished goals wait to be claimed (it stays plain if the server can't say). */
+async function countClaims(p) {
+  const { counters, claimed, error } = await getAchievements();
+  if (state.profile !== p) return;
+  const n = error ? 0 : claimable(counters || {}, claimed || [], p);
+  $('achLbl').textContent = n ? String(n) : ''; $('achLbl').hidden = !n;
 }
 
 export default {

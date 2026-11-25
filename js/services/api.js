@@ -14,7 +14,7 @@ const fill = p => {
   p.talents = p.talents || []; p.levels_cleared = p.levels_cleared || 0; p.frontier_wave = p.frontier_wave || 0;
   p.lineup = p.lineup && p.lineup.length ? p.lineup : ['warrior', 'ranger', 'mage']; p.equipment = p.equipment || {};
   p.paths = p.paths && typeof p.paths === 'object' ? p.paths : {};
-  p.materials = cleanMaterials(p.materials); p.endless_wave = p.endless_wave || 0; p.stones = p.stones | 0;
+  p.materials = cleanMaterials(p.materials); p.endless_wave = p.endless_wave || 0; p.stones = p.stones | 0; p.title = p.title || null;
 };
 
 const USERNAME_PROBLEMS = {
@@ -42,7 +42,10 @@ export async function signIn(username, password, captchaToken) {
 export const signOut = () => sb.auth.signOut();
 export async function currentSession() { const { data } = await sb.auth.getSession(); return data.session; }
 export async function getProfile(userId) {
-  let { data, error } = await sb.from('profiles').select('id,username,level,xp,gold,best_wave,talents,levels_cleared,frontier_wave,lineup,equipment,paths,materials,endless_wave,stones').eq('id', userId).maybeSingle();
+  let { data, error } = await sb.from('profiles').select('id,username,level,xp,gold,best_wave,talents,levels_cleared,frontier_wave,lineup,equipment,paths,materials,endless_wave,stones,title').eq('id', userId).maybeSingle();
+  if (error) { /* database not updated for achievements yet */
+    ({ data, error } = await sb.from('profiles').select('id,username,level,xp,gold,best_wave,talents,levels_cleared,frontier_wave,lineup,equipment,paths,materials,endless_wave,stones').eq('id', userId).maybeSingle());
+  }
   if (error) { /* database not updated for gems yet */
     ({ data, error } = await sb.from('profiles').select('id,username,level,xp,gold,best_wave,talents,levels_cleared,frontier_wave,lineup,equipment,paths,materials,endless_wave').eq('id', userId).maybeSingle());
   }
@@ -182,3 +185,13 @@ export async function listLobbies() {
 }
 /* The lobby's live channel (Supabase Realtime): see js/net/channel.js. Null without a server. */
 export const lobbyChannel = (id, key) => (sb ? openChannel(sb, 'lobby:' + id, key) : null);
+/* ---- Achievements (js/content/achievements.js, sql/57-achievements.sql) ---- */
+/* The player's counters ({ key: value }) and the ids of the achievements already claimed. */
+export async function getAchievements() {
+  if (!sb) return { counters: {}, claimed: [], ...OFFLINE };
+  const [a, b] = await Promise.all([sb.from('player_progress').select('key,value'), sb.from('player_achievements').select('id')]);
+  const error = a.error || b.error;
+  return { counters: Object.fromEntries((a.data || []).map(r => [r.key, r.value])), claimed: (b.data || []).map(r => r.id), error: error && error.message };
+}
+export const claimAchievement = id => profileCall('claim_achievement', { p_id: id });
+export const setTitle = title => profileCall('set_title', { p_title: title || null });

@@ -4,7 +4,7 @@ Run:  python3 art/pixellab/build_logo_icons.py
 
 Writes assets/ui_logo.png: the emblem (a Pixel Lab shield with an oak leaf and crossed swords, ui/emblem.png) beside the
 name set in the game's pixel font (art/font.py GLYPHS), each letter pixel a small bevelled gold block over a bronze
-extrusion and an ink outline. And assets/icon_<play|lobby|join|heroes|inventory|talents|leaderboard|settings|logout>.png:
+extrusion and an ink outline. And assets/icon_<play|lobby|join|heroes|inventory|talents|leaderboard|settings|logout|achievements>.png:
 cut from a Pixel Lab sheet of 32 px icons (ui/menu_icons.png, plus ui/icon_logout.png), trimmed to a tight square.
 """
 import os, sys
@@ -97,6 +97,7 @@ def main():
         for (x, y) in m: cp[x - x0, y - y0] = sp[x, y]
         cells.append(c)
     cells.append(Image.open(os.path.join(HERE, 'ui', 'icon_logout.png')).convert('RGBA')); names.append('logout')
+    cells.append(Image.open(os.path.join(HERE, 'ui', 'icon_achievements.png')).convert('RGBA')); names.append('achievements')   # a Pixel Lab medal
     for n, c in zip(names, cells):
         c = c.crop(c.getbbox()); m = max(c.size) + 2; sq = Image.new('RGBA', (m, m)); sq.alpha_composite(c, ((m - c.width) // 2, (m - c.height) // 2))   # tight square
         sq.save(A('icon_' + n + '.png'))

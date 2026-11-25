@@ -13,6 +13,7 @@ alter table public.profiles add column if not exists endless_wave int not null d
 alter table public.profiles add column if not exists paths jsonb not null default '{}';
 alter table public.profiles add column if not exists materials int[] not null default '{0,0,0,0}';   -- crafting materials by rarity: Scrap, Dust, Essence, Core
 alter table public.profiles add column if not exists stones int not null default 0;   -- Rough Stone, for crafting gems
+alter table public.profiles add column if not exists title text;   -- an achievement title worn by the name
 
 -- Talent tree reworks: the tree is symmetrical, 20 two-stat clusters (combat on top, quality of life below) hanging from a
 -- circle of attribute paths (node ids start with t4_). Points spent in any older tree are refunded.
@@ -149,6 +150,43 @@ alter table public.gem_kinds enable row level security;
 alter table public.player_gems enable row level security;
 drop policy if exists "read own gems" on public.player_gems;
 create policy "read own gems" on public.player_gems
+  for select to authenticated using (auth.uid() = user_id);
+
+-- ===== Achievements (js/content/achievements.js, sql/57-achievements.sql) =====
+-- The goals and their rewards, copied from the game content (tools/content-sql.mjs).
+create table if not exists public.achievement_defs (
+  id text primary key,
+  grp text not null,
+  act int,
+  hero text,
+  kind text not null,
+  target int not null,
+  gold int not null default 0,
+  materials int[] not null default '{0,0,0,0}',
+  title text
+);
+-- What finished matches added up to, per player: 'win:<level>' and 'boss:<level>' (counts), 'hero:<hero>:<act>' (wins).
+create table if not exists public.player_progress (
+  user_id uuid not null references auth.users (id) on delete cascade,
+  key text not null,
+  value int not null default 0,
+  primary key (user_id, key)
+);
+-- The achievements a player has claimed (their rewards paid, their titles unlocked).
+create table if not exists public.player_achievements (
+  user_id uuid not null references auth.users (id) on delete cascade,
+  id text not null,
+  claimed_at timestamptz not null default now(),
+  primary key (user_id, id)
+);
+alter table public.achievement_defs enable row level security;
+alter table public.player_progress enable row level security;
+alter table public.player_achievements enable row level security;
+drop policy if exists "read own progress" on public.player_progress;
+create policy "read own progress" on public.player_progress
+  for select to authenticated using (auth.uid() = user_id);
+drop policy if exists "read own achievements" on public.player_achievements;
+create policy "read own achievements" on public.player_achievements
   for select to authenticated using (auth.uid() = user_id);
 
 -- ===== Co-op: lobbies, their members, and records for each number of players =====
@@ -895,6 +933,54 @@ insert into public.gem_kinds (gem_type, stat, family) values
   ('holy', 'energyPerSecond', 'primal'),
   ('shadow', 'shadowDamage', 'primal'),
   ('shadow', 'corruptionChance', 'primal');
+-- Achievements: the goals and their rewards (js/content/achievements.js).
+delete from public.achievement_defs;
+insert into public.achievement_defs (id, grp, act, hero, kind, target, gold, materials, title) values
+  ('act1_clear', 'act', 1, null, 'clear', 5, 300, '{12,4,0,0}', 'Meadowwalker'),
+  ('act1_wins', 'act', 1, null, 'wins', 15, 200, '{24,8,0,0}', null),
+  ('act1_bosses', 'act', 1, null, 'bosses', 30, 400, '{24,8,0,0}', 'Bane of the Green Meadow'),
+  ('act2_clear', 'act', 2, null, 'clear', 5, 600, '{10,6,2,0}', 'Forest Warden'),
+  ('act2_wins', 'act', 2, null, 'wins', 15, 400, '{20,12,4,0}', null),
+  ('act2_bosses', 'act', 2, null, 'bosses', 30, 800, '{20,12,4,0}', 'Bane of the Deep Forest'),
+  ('act3_clear', 'act', 3, null, 'clear', 5, 900, '{6,8,3,1}', 'Mirewalker'),
+  ('act3_wins', 'act', 3, null, 'wins', 15, 600, '{12,16,6,2}', null),
+  ('act3_bosses', 'act', 3, null, 'bosses', 30, 1200, '{12,16,6,2}', 'Bane of the Mire'),
+  ('act4_clear', 'act', 4, null, 'clear', 5, 1200, '{4,8,5,2}', 'Canyon Breaker'),
+  ('act4_wins', 'act', 4, null, 'wins', 15, 800, '{8,16,10,4}', null),
+  ('act4_bosses', 'act', 4, null, 'bosses', 30, 1600, '{8,16,10,4}', 'Bane of the Red Canyon'),
+  ('act5_clear', 'act', 5, null, 'clear', 5, 1500, '{2,6,6,4}', 'Ashborn'),
+  ('act5_wins', 'act', 5, null, 'wins', 15, 1000, '{4,12,12,8}', null),
+  ('act5_bosses', 'act', 5, null, 'bosses', 30, 2000, '{4,12,12,8}', 'Bane of the Ashlands'),
+  ('endless_25', 'act', 0, null, 'endless', 25, 1000, '{0,4,4,2}', null),
+  ('endless_50', 'act', 0, null, 'endless', 50, 2000, '{0,8,8,4}', null),
+  ('endless_100', 'act', 0, null, 'endless', 100, 3000, '{0,12,12,6}', 'the Endless'),
+  ('warrior_wins1', 'hero', null, 'warrior', 'heroWins', 5, 200, '{6,2,0,0}', null),
+  ('warrior_wins2', 'hero', null, 'warrior', 'heroWins', 25, 600, '{8,6,2,1}', null),
+  ('warrior_act5', 'hero', 5, 'warrior', 'heroAct', 1, 1000, '{0,4,4,2}', 'Warlord'),
+  ('ranger_wins1', 'hero', null, 'ranger', 'heroWins', 5, 200, '{6,2,0,0}', null),
+  ('ranger_wins2', 'hero', null, 'ranger', 'heroWins', 25, 600, '{8,6,2,1}', null),
+  ('ranger_act5', 'hero', 5, 'ranger', 'heroAct', 1, 1000, '{0,4,4,2}', 'Hawkeye'),
+  ('mage_wins1', 'hero', null, 'mage', 'heroWins', 5, 200, '{6,2,0,0}', null),
+  ('mage_wins2', 'hero', null, 'mage', 'heroWins', 25, 600, '{8,6,2,1}', null),
+  ('mage_act5', 'hero', 5, 'mage', 'heroAct', 1, 1000, '{0,4,4,2}', 'Arcanist'),
+  ('rogue_wins1', 'hero', null, 'rogue', 'heroWins', 5, 200, '{6,2,0,0}', null),
+  ('rogue_wins2', 'hero', null, 'rogue', 'heroWins', 25, 600, '{8,6,2,1}', null),
+  ('rogue_act5', 'hero', 5, 'rogue', 'heroAct', 1, 1000, '{0,4,4,2}', 'Shadowstep'),
+  ('druid_wins1', 'hero', null, 'druid', 'heroWins', 5, 200, '{6,2,0,0}', null),
+  ('druid_wins2', 'hero', null, 'druid', 'heroWins', 25, 600, '{8,6,2,1}', null),
+  ('druid_act5', 'hero', 5, 'druid', 'heroAct', 1, 1000, '{0,4,4,2}', 'Wildheart'),
+  ('priest_wins1', 'hero', null, 'priest', 'heroWins', 5, 200, '{6,2,0,0}', null),
+  ('priest_wins2', 'hero', null, 'priest', 'heroWins', 25, 600, '{8,6,2,1}', null),
+  ('priest_act5', 'hero', 5, 'priest', 'heroAct', 1, 1000, '{0,4,4,2}', 'Lightbringer'),
+  ('warlock_wins1', 'hero', null, 'warlock', 'heroWins', 5, 200, '{6,2,0,0}', null),
+  ('warlock_wins2', 'hero', null, 'warlock', 'heroWins', 25, 600, '{8,6,2,1}', null),
+  ('warlock_act5', 'hero', 5, 'warlock', 'heroAct', 1, 1000, '{0,4,4,2}', 'Soulbinder'),
+  ('paladin_wins1', 'hero', null, 'paladin', 'heroWins', 5, 200, '{6,2,0,0}', null),
+  ('paladin_wins2', 'hero', null, 'paladin', 'heroWins', 25, 600, '{8,6,2,1}', null),
+  ('paladin_act5', 'hero', 5, 'paladin', 'heroAct', 1, 1000, '{0,4,4,2}', 'Oathkeeper'),
+  ('shaman_wins1', 'hero', null, 'shaman', 'heroWins', 5, 200, '{6,2,0,0}', null),
+  ('shaman_wins2', 'hero', null, 'shaman', 'heroWins', 25, 600, '{8,6,2,1}', null),
+  ('shaman_act5', 'hero', 5, 'shaman', 'heroAct', 1, 1000, '{0,4,4,2}', 'Stormcaller');
 
 -- ===== Game rules (generated from js/content by tools/rules-sql.mjs; do not edit by hand) =====
 -- How many levels there are.
@@ -1288,6 +1374,8 @@ begin
         frontier_wave = case when p_won and r.stage > x.levels_cleared and (r.players > 1 or r.stage <= me.levels_cleared) then 0
                              when not endless and r.stage = x.levels_cleared + 1 then greatest(x.frontier_wave, p_waves) else x.frontier_wave end,
         levels_cleared = case when p_won and (r.players > 1 or r.stage <= me.levels_cleared) then greatest(x.levels_cleared, r.stage) else x.levels_cleared end;
+  -- Achievement progress (sql/57-achievements.sql): levels won, bosses killed, wins with each hero of the lineup
+  perform public.track_run(auth.uid(), r.stage, p_won, p_bosses, array(select jsonb_array_elements_text(coalesce(r.loadout -> 'lineup', '[]'::jsonb))));
   -- Rough Stone for gems (js/content/gems.js): for every boss killed, and more for a win on a later act
   got_stones := public.rule_stones(r.stage, p_won, p_bosses);
   if got_stones > 0 then update public.profiles set stones = stones + got_stones where id = auth.uid() returning * into me; end if;
@@ -1692,6 +1780,80 @@ begin
 end;
 $$;
 
+-- ===== Achievements (js/content/achievements.js): progress from finished matches, claiming rewards, wearing a title =====
+-- Counts what a finished match adds (finish_run calls it): a win on a level, the bosses killed there, and a win for every
+-- hero of the lineup in that level's act. Endless counts only its best wave (profiles.endless_wave).
+create or replace function public.track_run(p_user uuid, p_stage int, p_won boolean, p_bosses int, p_lineup text[]) returns void
+language plpgsql security definer set search_path = public as $$
+declare z int; h text;
+begin
+  if public.rule_is_endless(p_stage) then return; end if;
+  z := public.rule_stage_zone(p_stage);
+  if p_won then
+    insert into public.player_progress as x (user_id, key, value) values (p_user, 'win:' || p_stage, 1)
+      on conflict (user_id, key) do update set value = x.value + excluded.value;
+    foreach h in array coalesce(p_lineup, '{}'::text[]) loop
+      insert into public.player_progress as x (user_id, key, value) values (p_user, 'hero:' || h || ':' || z, 1)
+        on conflict (user_id, key) do update set value = x.value + excluded.value;
+    end loop;
+  end if;
+  if coalesce(p_bosses, 0) > 0 then
+    insert into public.player_progress as x (user_id, key, value) values (p_user, 'boss:' || p_stage, p_bosses)
+      on conflict (user_id, key) do update set value = x.value + excluded.value;
+  end if;
+end;
+$$;
+
+-- How far a player is with one achievement (the same as progressOf in js/content/achievements.js).
+create or replace function public.achievement_progress(p_user uuid, p_def public.achievement_defs) returns int
+language sql stable security definer set search_path = public as $$
+  select case p_def.kind
+    when 'clear' then (select count(*)::int from public.player_progress p where p.user_id = p_user and p.key like 'win:%' and p.value > 0
+                         and public.rule_stage_zone(substr(p.key, 5)::int) = p_def.act)
+    when 'wins' then (select coalesce(sum(p.value), 0)::int from public.player_progress p where p.user_id = p_user and p.key like 'win:%'
+                         and public.rule_stage_zone(substr(p.key, 5)::int) = p_def.act)
+    when 'bosses' then (select coalesce(sum(p.value), 0)::int from public.player_progress p where p.user_id = p_user and p.key like 'boss:%'
+                         and public.rule_stage_zone(substr(p.key, 6)::int) = p_def.act)
+    when 'heroWins' then (select coalesce(sum(p.value), 0)::int from public.player_progress p where p.user_id = p_user and p.key like 'hero:' || p_def.hero || ':%')
+    when 'heroAct' then coalesce((select p.value from public.player_progress p where p.user_id = p_user and p.key = 'hero:' || p_def.hero || ':' || p_def.act), 0)
+    when 'endless' then coalesce((select endless_wave from public.profiles where id = p_user), 0)
+    else 0 end
+$$;
+
+-- Claims a finished achievement once: pays its gold and materials (its title can then be worn). Returns the profile.
+create or replace function public.claim_achievement(p_id text) returns public.profiles
+language plpgsql security definer set search_path = public as $$
+declare d public.achievement_defs; me public.profiles;
+begin
+  if auth.uid() is null then raise exception 'not signed in'; end if;
+  select * into d from public.achievement_defs where id = p_id;
+  if not found then raise exception 'unknown achievement'; end if;
+  if exists (select 1 from public.player_achievements where user_id = auth.uid() and id = p_id) then raise exception 'already claimed'; end if;
+  if public.achievement_progress(auth.uid(), d) < d.target then raise exception 'not done yet'; end if;
+  insert into public.player_achievements (user_id, id) values (auth.uid(), p_id);
+  update public.profiles
+     set gold = gold + d.gold,
+         materials = array[materials[1] + d.materials[1], materials[2] + d.materials[2], materials[3] + d.materials[3], materials[4] + d.materials[4]]
+   where id = auth.uid() returning * into me;
+  return me;
+end;
+$$;
+
+-- Wears a title from a claimed achievement by the player's name (null: none). Returns the profile.
+create or replace function public.set_title(p_title text) returns public.profiles
+language plpgsql security definer set search_path = public as $$
+declare me public.profiles;
+begin
+  if auth.uid() is null then raise exception 'not signed in'; end if;
+  if p_title is not null and not exists (select 1 from public.player_achievements c join public.achievement_defs d on d.id = c.id
+                                           where c.user_id = auth.uid() and d.title = p_title) then
+    raise exception 'that title is not unlocked';
+  end if;
+  update public.profiles set title = p_title where id = auth.uid() returning * into me;
+  return me;
+end;
+$$;
+
 -- ===== Permissions: only what the game needs =====
 revoke all on function public.signup_check(text, text) from public, anon, authenticated;
 grant execute on function public.signup_check(text, text) to anon, authenticated;
@@ -1721,6 +1883,12 @@ revoke all on function public.combine_gems(uuid[]) from public, anon, authentica
 grant execute on function public.combine_gems(uuid[]) to authenticated;
 revoke all on function public.socket_gem(uuid, uuid, int) from public, anon, authenticated;
 grant execute on function public.socket_gem(uuid, uuid, int) to authenticated;
+revoke all on function public.claim_achievement(text) from public, anon, authenticated;
+grant execute on function public.claim_achievement(text) to authenticated;
+revoke all on function public.set_title(text) from public, anon, authenticated;
+grant execute on function public.set_title(text) to authenticated;
+revoke all on function public.track_run(uuid, int, boolean, int, text[]) from public, anon, authenticated;   -- only finish_run calls it
+revoke all on function public.achievement_progress(uuid, public.achievement_defs) from public, anon, authenticated;
 revoke all on function public.save_talents(text[]) from public, anon, authenticated;
 grant execute on function public.save_talents(text[]) to authenticated;
 -- Internal helpers: only other database functions use them.
@@ -1750,12 +1918,16 @@ grant execute on function public.start_lobby(uuid, jsonb) to authenticated;
 revoke all on table public.runs, public.talent_nodes, public.talent_links, public.blocked_names, public.hero_classes, public.item_types, public.item_bonuses,
   public.lobbies, public.lobby_members, public.records from anon, authenticated;
 revoke all on table public.gem_kinds from anon, authenticated;
+revoke all on table public.achievement_defs from anon, authenticated;
 -- Players can read their own items (row security) but never create, change or delete them.
 revoke insert, update, delete on public.player_items from anon, authenticated;
 grant select on public.player_items to authenticated;
 -- The same for gems: read your own, change them only through craft_gem, combine_gems and socket_gem.
 revoke insert, update, delete on public.player_gems from anon, authenticated;
 grant select on public.player_gems to authenticated;
+-- Achievements: read your own progress and claims; they change only through finish_run and claim_achievement.
+revoke insert, update, delete on public.player_progress, public.player_achievements from anon, authenticated;
+grant select on public.player_progress, public.player_achievements to authenticated;
 revoke insert, update, delete on public.profiles from anon, authenticated;
 
 revoke all on function public.rule_stage_count() from public, anon, authenticated;

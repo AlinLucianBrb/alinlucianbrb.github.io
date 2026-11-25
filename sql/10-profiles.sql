@@ -16,6 +16,7 @@ create table public.profiles (
   equipment jsonb not null default '{}',
   materials int[] not null default '{0,0,0,0}',   -- crafting materials by rarity: Scrap, Dust, Essence, Core
   stones int not null default 0,   -- Rough Stone, for crafting gems (sql/56-gems.sql)
+  title text,   -- the achievement title worn by the name (sql/57-achievements.sql); null: none
   paths jsonb not null default '{}',   -- evolution paths chosen before a match: { "druid": "animalic" }
   created_at timestamptz not null default now()
 );

@@ -1182,6 +1182,66 @@ body.rarmarks #shopCard .relicchip[data-rar]::before{position:absolute;left:2px;
 #screen-heroes.onhero .slotpop{left:max(260px,24vw);top:104px;width:min(440px,calc(100% - 48px));max-height:calc(100% - 128px)}   /* beside the gear list, not over it */
 /* Evolutions: the tree across the whole window under the name */
 #screen-heroes.onhero .hbody.evo{display:flex;flex-direction:column;justify-content:center;padding:130px 28px 24px;background:radial-gradient(ellipse 40% 50% at 12% 55%,color-mix(in srgb,var(--hc) 26%,transparent),transparent 70%)}
+/* ---- Achievements (js/screens/achievements.js): the whole window; Acts = a column per act, Heroes = a 3 x 3 grid ---- */
+.mtitle{display:block;color:#e8c46a;font-style:italic;margin:-2px 0 2px}
+#screen-achievements{padding:0;gap:0;justify-content:flex-start}
+#screen-achievements .acback{position:absolute;top:14px;left:18px;z-index:5}
+#screen-achievements .actabs{position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:5;margin:0}
+.acright{position:absolute;top:12px;right:18px;z-index:7;display:flex;align-items:flex-start;gap:12px}
+.account{color:#8be28b;font-weight:700;padding-top:10px;text-shadow:0 2px 0 #000}
+.actitles{position:relative}
+.actitlebtn{display:flex;flex-direction:column;align-items:flex-start;line-height:1.1;min-width:170px}
+.actitlebtn small{color:#c9b9a0;font-size:.75em}.actitlebtn b{color:#e8c46a}
+.actitlelist{position:absolute;right:0;top:calc(100% + 6px);display:grid;grid-template-columns:repeat(3,max-content);gap:6px;padding:12px;
+  background:rgba(12,10,8,.96);box-shadow:0 0 0 2px #0b0906,0 0 0 4px #6b5532,0 10px 28px rgba(0,0,0,.6)}
+.actitlelist button.on{border-image-source:url(assets/ui_button_on.png);color:#ffe7a8}
+.actitlelist small{grid-column:1/-1;max-width:300px}
+.acbody{position:absolute;inset:66px 0 30px 0;display:grid;gap:0}
+.acmsg{position:absolute;bottom:4px;left:0;right:0;text-align:center;margin:0}
+.acbody.acts{grid-template-columns:repeat(6,minmax(0,1fr))}
+.accol{display:flex;flex-direction:column;gap:8px;padding:0 8px 8px;border-right:1px solid rgba(0,0,0,.5);
+  background:linear-gradient(180deg,color-mix(in srgb,var(--zc) 22%,rgba(8,6,4,.7)),rgba(8,6,4,.78) 40%)}
+.acact{position:relative;flex:0 0 22%;min-height:110px;margin:0 -8px;display:flex;flex-direction:column;justify-content:flex-end;padding:10px 12px;
+  background:linear-gradient(180deg,transparent 35%,rgba(8,6,4,.92)),var(--zart) center/cover;image-rendering:pixelated;
+  box-shadow:inset 0 -3px 0 var(--zc)}
+.acact small{color:color-mix(in srgb,var(--zc) 60%,#fff);text-transform:uppercase;letter-spacing:.08em;font-size:.75em}
+.acact b{font-size:1.35em;color:#fff3d6;text-shadow:0 2px 0 #000}
+.accol.endless .acact{background:radial-gradient(circle at 50% 40%,rgba(181,140,240,.45),rgba(8,6,4,.92) 70%)}
+.acportal{position:absolute;top:8px;left:50%;transform:translateX(-50%);height:60%;width:auto}
+.accard{flex:1;display:flex;flex-direction:column;gap:5px;padding:9px 10px;min-height:0;background:rgba(0,0,0,.35);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+.accard.ready{background:color-mix(in srgb,#e8c46a 14%,rgba(0,0,0,.4));box-shadow:inset 0 0 0 2px #e8c46a,0 0 14px rgba(232,196,106,.35)}
+.accard.got{opacity:.62}
+.achead{display:flex;justify-content:space-between;gap:6px;align-items:baseline}
+.achead b{color:#fff3d6;line-height:1.15}
+.acdone{color:#8be28b;font-size:.8em;white-space:nowrap}
+.acdesc{color:#c9b9a0;line-height:1.2}
+.acbar{position:relative;height:16px;background:#14110d;box-shadow:0 0 0 1px #000,inset 0 1px 0 rgba(255,255,255,.05)}
+.acbar i{position:absolute;inset:0 auto 0 0;background:linear-gradient(180deg,color-mix(in srgb,var(--zc,#d9a94e) 85%,#fff),color-mix(in srgb,var(--zc,#d9a94e) 70%,#000))}
+.accard.got .acbar i{background:#4d8a4d}
+.acbar span{position:relative;display:block;text-align:center;font-size:.78em;line-height:16px;color:#fff;text-shadow:0 1px 0 #000}
+.acfoot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap}
+.acrew{display:flex;flex-wrap:wrap;align-items:center;gap:4px 9px;font-size:.88em}
+.acrew span{display:inline-flex;align-items:center;gap:3px}
+.acrew .ico{width:18px;height:18px}
+.acgold b{color:#f3d36b}
+.actitle{color:#e8c46a;font-style:italic}
+.acclaim{flex:0 0 auto;padding:0 10px 2px;font-size:.85em;line-height:1.3;margin:-3px -4px -3px 0}
+#achBtn{position:relative}
+.achbadge{position:absolute;top:-11px;right:-12px;min-width:22px;height:22px;padding:0 5px;border-radius:11px;background:#c8372d;color:#fff;font-size:.8em;line-height:22px;text-align:center;box-shadow:0 0 0 2px #2a1408;text-shadow:0 1px 0 #000}
+.acbody.heroes{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(3,minmax(0,1fr));gap:8px;padding:0 12px 4px}
+.achero{display:flex;gap:10px;min-height:0;padding:8px;background:linear-gradient(90deg,rgba(8,6,4,.85),rgba(8,6,4,.6))}
+.acface{flex:0 0 96px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px;text-align:center}
+.acface img{flex:1;min-height:0;max-width:96px;object-fit:contain;object-position:bottom;image-rendering:pixelated}
+.acface b{color:#fff3d6}.acface small{font-size:.8em}
+.accards{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.achero .accard{padding:5px 8px;gap:3px;position:relative}
+/* hero cards are short: Claim is a flat gold tag in the name row */
+.achero .acclaim{border:none;border-image:none;background:linear-gradient(180deg,#f5d77e,#c9962f);color:#1d1600;text-shadow:none;margin:0;padding:0 10px;font-size:.78em;line-height:17px;box-shadow:0 0 0 1px #3a2608,0 0 8px rgba(232,196,106,.5)}
+.achero .acclaim:hover{filter:brightness(1.12)}
+.achero .acdesc{display:none}
+.achero .achead{height:17px;align-items:center}.achero .achead b{line-height:17px}
+.achero .acbar{height:13px}.achero .acbar span{line-height:13px;font-size:.72em}
 </style>
 </head>
 <body>
@@ -1208,7 +1268,7 @@ body.rarmarks #shopCard .relicchip[data-rar]::before{position:absolute;left:2px;
 
 <section id="screen-menu" class="screen scene bright" hidden>
   <div class="topbar">
-    <div class="who panel"><b id="mName"></b><div><img class="ico pix" src="assets/icon_level.png" alt="">Level <b id="mLv"></b></div><div><span class="xp"><i id="mXpFill"></i></span> <span id="mXp"></span></div></div>
+    <div class="who panel"><b id="mName"></b><small class="mtitle" id="mTitle" hidden></small><div><img class="ico pix" src="assets/icon_level.png" alt="">Level <b id="mLv"></b></div><div><span class="xp"><i id="mXpFill"></i></span> <span id="mXp"></span></div></div>
     <div class="purse panel"><img class="ico pix" src="assets/icon_gold.png" alt="">Gold <b id="mGold"></b></div>
   </div>
   <h1 class="logo"><img src="assets/ui_logo.png" alt="Test TBD" width="380" height="109"></h1>
@@ -1219,7 +1279,7 @@ body.rarmarks #shopCard .relicchip[data-rar]::before{position:absolute;left:2px;
     <button data-nav="heroes"><img class="ico pix" src="assets/icon_heroes.png" alt="">Heroes</button>
     <button data-nav="inventory"><img class="ico pix" src="assets/icon_inventory.png" alt="">Inventory</button>
     <button data-nav="talents" id="talentsBtn"><img class="ico pix" src="assets/icon_talents.png" alt=""><span id="talentsLbl">Talents</span></button>
-    <button data-nav="leaderboard"><img class="ico pix" src="assets/icon_leaderboard.png" alt="">Leaderboard</button>
+    <div class="menuRow"><button data-nav="achievements" id="achBtn"><img class="ico pix" src="assets/icon_achievements.png" alt=""><span>Achievements</span><i class="achbadge" id="achLbl" hidden></i></button><button data-nav="leaderboard"><img class="ico pix" src="assets/icon_leaderboard.png" alt="">Leaderboard</button></div>
     <button data-nav="settings"><img class="ico pix" src="assets/icon_settings.png" alt="">Settings</button>
     <button id="logoutBtn"><img class="ico pix" src="assets/icon_logout.png" alt="">Log out</button>
   </div>
@@ -1311,6 +1371,14 @@ body.rarmarks #shopCard .relicchip[data-rar]::before{position:absolute;left:2px;
   <div class="tabs" id="lbTabs" role="tablist"><button data-players="1" class="on">Solo</button><button data-players="2">2 players</button><button data-players="3">3 players</button><button data-players="4">4 players</button></div>
   <div class="list"><ol id="lbList"></ol></div>
   <button id="lbBack">Back</button>
+</section>
+
+<section id="screen-achievements" class="screen scene" hidden>
+  <button id="acBack" class="acback">Back</button>
+  <div class="tabs actabs" id="acTabs" role="tablist"><button data-tab="act" class="on">Acts</button><button data-tab="hero">Heroes</button></div>
+  <div class="acright"><span class="account" id="acCount"></span><div class="actitles" id="acTitles"></div></div>
+  <div class="acbody acts" id="acBody"></div>
+  <p class="msg acmsg" id="acMsg"></p>
 </section>
 
 <section id="screen-settings" class="screen scene" hidden>

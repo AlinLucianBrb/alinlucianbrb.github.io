@@ -280,6 +280,8 @@ begin
         frontier_wave = case when p_won and r.stage > x.levels_cleared and (r.players > 1 or r.stage <= me.levels_cleared) then 0
                              when not endless and r.stage = x.levels_cleared + 1 then greatest(x.frontier_wave, p_waves) else x.frontier_wave end,
         levels_cleared = case when p_won and (r.players > 1 or r.stage <= me.levels_cleared) then greatest(x.levels_cleared, r.stage) else x.levels_cleared end;
+  -- Achievement progress (sql/57-achievements.sql): levels won, bosses killed, wins with each hero of the lineup
+  perform public.track_run(auth.uid(), r.stage, p_won, p_bosses, array(select jsonb_array_elements_text(coalesce(r.loadout -> 'lineup', '[]'::jsonb))));
   -- Rough Stone for gems (js/content/gems.js): for every boss killed, and more for a win on a later act
   got_stones := public.rule_stones(r.stage, p_won, p_bosses);
   if got_stones > 0 then update public.profiles set stones = stones + got_stones where id = auth.uid() returning * into me; end if;

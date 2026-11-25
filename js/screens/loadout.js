@@ -89,7 +89,7 @@ export async function saveNow(lineup = currentLineup(), equip = equipment()) {
   state.profile.lineup = profile.lineup || [...lineup]; state.profile.equipment = profile.equipment || JSON.parse(JSON.stringify(equip));
   return { error: '' };
 }
-export const sqlHint = e => (/function|schema|column/i.test(e || '') ? ' (did you run the latest SQL update?)' : '');
+export const sqlHint = e => (/function|schema|column|relation/i.test(e || '') ? ' (did you run the latest SQL update?)' : '');
 
 /* An item's icon, framed in its rarity colour: the pixel-art picture for its type and rarity (assets/item_<type>_<rarity>.png),
    or, for an unknown type or while the picture cannot load, the type's initials on its colour. */

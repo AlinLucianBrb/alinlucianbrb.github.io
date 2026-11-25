@@ -13,9 +13,10 @@ import levels from './screens/levels.js';
 import heroes from './screens/heroes.js';
 import inventory from './screens/inventory.js';
 import lobby from './screens/lobby.js';
+import achievements from './screens/achievements.js';
 
 register('login', login); register('menu', menu); register('leaderboard', leaderboard);
-register('settings', settings); register('play', play); register('talents', talents); register('levels', levels); register('heroes', heroes); register('inventory', inventory); register('lobby', lobby);
+register('settings', settings); register('play', play); register('talents', talents); register('levels', levels); register('heroes', heroes); register('inventory', inventory); register('lobby', lobby); register('achievements', achievements);
 bus.on('nav', ({ to, params }) => show(to, params));
 applyPrefs();   /* text size, effects and rarity letters from Settings */
 

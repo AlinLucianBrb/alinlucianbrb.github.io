@@ -27,6 +27,12 @@ revoke all on function public.combine_gems(uuid[]) from public, anon, authentica
 grant execute on function public.combine_gems(uuid[]) to authenticated;
 revoke all on function public.socket_gem(uuid, uuid, int) from public, anon, authenticated;
 grant execute on function public.socket_gem(uuid, uuid, int) to authenticated;
+revoke all on function public.claim_achievement(text) from public, anon, authenticated;
+grant execute on function public.claim_achievement(text) to authenticated;
+revoke all on function public.set_title(text) from public, anon, authenticated;
+grant execute on function public.set_title(text) to authenticated;
+revoke all on function public.track_run(uuid, int, boolean, int, text[]) from public, anon, authenticated;   -- only finish_run calls it
+revoke all on function public.achievement_progress(uuid, public.achievement_defs) from public, anon, authenticated;
 revoke all on function public.save_talents(text[]) from public, anon, authenticated;
 grant execute on function public.save_talents(text[]) to authenticated;
 -- Internal helpers: only other database functions use them.
@@ -56,10 +62,14 @@ grant execute on function public.start_lobby(uuid, jsonb) to authenticated;
 revoke all on table public.runs, public.talent_nodes, public.talent_links, public.blocked_names, public.hero_classes, public.item_types, public.item_bonuses,
   public.lobbies, public.lobby_members, public.records from anon, authenticated;
 revoke all on table public.gem_kinds from anon, authenticated;
+revoke all on table public.achievement_defs from anon, authenticated;
 -- Players can read their own items (row security) but never create, change or delete them.
 revoke insert, update, delete on public.player_items from anon, authenticated;
 grant select on public.player_items to authenticated;
 -- The same for gems: read your own, change them only through craft_gem, combine_gems and socket_gem.
 revoke insert, update, delete on public.player_gems from anon, authenticated;
 grant select on public.player_gems to authenticated;
+-- Achievements: read your own progress and claims; they change only through finish_run and claim_achievement.
+revoke insert, update, delete on public.player_progress, public.player_achievements from anon, authenticated;
+grant select on public.player_progress, public.player_achievements to authenticated;
 revoke insert, update, delete on public.profiles from anon, authenticated;

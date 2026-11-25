@@ -8,6 +8,7 @@ alter table public.profiles add column if not exists endless_wave int not null d
 alter table public.profiles add column if not exists paths jsonb not null default '{}';
 alter table public.profiles add column if not exists materials int[] not null default '{0,0,0,0}';   -- crafting materials by rarity: Scrap, Dust, Essence, Core
 alter table public.profiles add column if not exists stones int not null default 0;   -- Rough Stone, for crafting gems
+alter table public.profiles add column if not exists title text;   -- an achievement title worn by the name
 
 -- Talent tree reworks: the tree is symmetrical, 20 two-stat clusters (combat on top, quality of life below) hanging from a
 -- circle of attribute paths (node ids start with t4_). Points spent in any older tree are refunded.

@@ -107,6 +107,43 @@ drop policy if exists "read own gems" on public.player_gems;
 create policy "read own gems" on public.player_gems
   for select to authenticated using (auth.uid() = user_id);
 
+-- ===== Achievements (js/content/achievements.js, sql/57-achievements.sql) =====
+-- The goals and their rewards, copied from the game content (tools/content-sql.mjs).
+create table if not exists public.achievement_defs (
+  id text primary key,
+  grp text not null,
+  act int,
+  hero text,
+  kind text not null,
+  target int not null,
+  gold int not null default 0,
+  materials int[] not null default '{0,0,0,0}',
+  title text
+);
+-- What finished matches added up to, per player: 'win:<level>' and 'boss:<level>' (counts), 'hero:<hero>:<act>' (wins).
+create table if not exists public.player_progress (
+  user_id uuid not null references auth.users (id) on delete cascade,
+  key text not null,
+  value int not null default 0,
+  primary key (user_id, key)
+);
+-- The achievements a player has claimed (their rewards paid, their titles unlocked).
+create table if not exists public.player_achievements (
+  user_id uuid not null references auth.users (id) on delete cascade,
+  id text not null,
+  claimed_at timestamptz not null default now(),
+  primary key (user_id, id)
+);
+alter table public.achievement_defs enable row level security;
+alter table public.player_progress enable row level security;
+alter table public.player_achievements enable row level security;
+drop policy if exists "read own progress" on public.player_progress;
+create policy "read own progress" on public.player_progress
+  for select to authenticated using (auth.uid() = user_id);
+drop policy if exists "read own achievements" on public.player_achievements;
+create policy "read own achievements" on public.player_achievements
+  for select to authenticated using (auth.uid() = user_id);
+
 -- ===== Co-op: lobbies, their members, and records for each number of players =====
 -- A run remembers how many played it (1 solo, 2 to 4 co-op) and the lobby it came from.
 alter table public.runs add column if not exists players int not null default 1;

@@ -10,7 +10,7 @@ js/main.js                 boot: registers screens, picks the first one
 js/config.js               your Supabase URL and key (and optional CAPTCHA site key)
 js/core/                   bus.js (events), screens.js, tooltip.js, state.js, rules.js, version.js (the version in the menu corner)
 js/services/api.js         the only file that talks to Supabase
-js/screens/                login, menu, levels (level, then heroes), lobby (co-op), heroes, inventory, talents, leaderboard, settings, play;
+js/screens/                login, menu, levels (level, then heroes), lobby (co-op), heroes, inventory, talents, achievements, leaderboard, settings, play;
                            loadout.js holds what they share (items, equipment, saving the lineup)
 
 js/content/                WHAT the game contains (plain data, no logic)
@@ -210,6 +210,24 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Texts:** attack descriptions describe only the attack, ultimate tooltips only the ultimate, and the hero tooltip the hero (its attribute, delivery and source, tags, damage type). Ultimates that deal damage of their own write it as `{N}` in their description; `ultDesc()` shows it as the number it deals with the hero's stats ("about 156 damage"); "x2 damage" is kept for boosts to an attack the hero already makes. "At level 10, choose a path" is gone from the descriptions.
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
+
+## Achievements: titles, gold and materials, by act and by hero (Nov 25, v0.77.0)
+- A new **Achievements** screen (menu, with a medal icon and a red badge counting goals ready to claim). It fills the
+  whole window and has two tabs:
+  - **Acts:** a column per act under its zone picture, and one for Endless. Each act has three goals: win every level
+    (a title, e.g. "Meadowwalker"), win 15 matches, and kill 30 bosses (title "Bane of the ..."). Endless: reach waves
+    25, 50 and 100 (the last gives the title "the Endless").
+  - **Heroes:** a block per hero with three goals: win 5 and 25 matches with the hero in the lineup, and win a level of
+    Act 5 with it (the hero's title: Warlord, Hawkeye, Arcanist, Shadowstep, Wildheart, Lightbringer, Soulbinder,
+    Oathkeeper, Stormcaller).
+- Every goal shows a progress bar and its reward: gold, crafting materials (later acts pay rarer ones) and maybe a title.
+  Finished goals light up gold with a Claim button. 45 goals, 20 titles. Cosmetics are left for later.
+- **Titles:** the picker at the top right wears one unlocked title; it shows in gold under your name in the menu.
+- The goals are defined in one place, `js/content/achievements.js`; the server gets a copy (`achievement_defs`).
+- Progress counts from matches finished after the update (wins per level, bosses per level, wins per hero and act); the
+  Endless goals use the best wave already on record.
+- **SQL changed:** run `supabase-update.sql` (new tables `achievement_defs`, `player_progress`, `player_achievements`,
+  a `title` column on profiles, `sql/57-achievements.sql`, and `finish_run` now counts the match). No rules change.
 
 ## The hero page fills the whole window (Nov 25, v0.76.1)
 - A hero's page is no longer a framed box under a banner: the hero stands big in the middle of the game window on a

@@ -4,6 +4,7 @@ import { TREES, TREE_ORDER, NODES } from '../js/content/talents.js';
 import { HEROES } from '../js/content/data.js';
 import { ITEMS, ITEM_BONUSES, AFFINITY } from '../js/content/items.js';
 import { GEM_TYPES, familyOf } from '../js/content/gems.js';
+import { ACHIEVEMENTS } from '../js/content/achievements.js';
 
 const q = s => "'" + String(s).replace(/'/g, "''") + "'";
 const list = ids => 'array[' + ids.map(q).join(', ') + ']::text[]';
@@ -41,6 +42,11 @@ export function contentSeedSql() {
     '-- Gem kinds: the stats each gem type can roll, and its family.',
     'delete from public.gem_kinds;',
     'insert into public.gem_kinds (gem_type, stat, family) values\n' +
-      Object.entries(GEM_TYPES).flatMap(([t, d]) => d.stats.map(s => '  (' + [q(t), q(s.stat), q(familyOf(t))].join(', ') + ')')).join(',\n') + ';'
+      Object.entries(GEM_TYPES).flatMap(([t, d]) => d.stats.map(s => '  (' + [q(t), q(s.stat), q(familyOf(t))].join(', ') + ')')).join(',\n') + ';',
+    '-- Achievements: the goals and their rewards (js/content/achievements.js).',
+    'delete from public.achievement_defs;',
+    'insert into public.achievement_defs (id, grp, act, hero, kind, target, gold, materials, title) values\n' +
+      ACHIEVEMENTS.map(a => '  (' + [q(a.id), q(a.group), a.act == null ? 'null' : a.act, a.hero ? q(a.hero) : 'null', q(a.kind), a.target, a.gold,
+        "'{" + a.materials.join(',') + "}'", a.title ? q(a.title) : 'null'].join(', ') + ')').join(',\n') + ';'
   ].join('\n') + '\n';
 }
