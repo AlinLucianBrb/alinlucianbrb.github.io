@@ -387,6 +387,11 @@ h3,.hbody h3{font-size:18px;line-height:22px;color:#cfe0d2;text-transform:none;l
 #screen-menu :is(.dockbtn img,.menuBtns button .ico){transition:transform .12s;filter:drop-shadow(0 0 1px #000) drop-shadow(0 3px 0 rgba(0,0,0,.45))}
 #screen-menu :is(.dockbtn,.menuBtns button):hover :is(img,.ico){transform:translateY(-3px) scale(1.08);
   filter:drop-shadow(0 0 6px rgba(255,224,138,.8)) drop-shadow(0 3px 0 rgba(0,0,0,.45))}
+/* the names move the same way: they lift and grow a little with the icon and turn gold with a glow, eased together */
+#screen-menu :is(.dockbtn,.menuBtns button) span{display:inline-block;transition:transform .12s,color .12s}
+#screen-menu :is(.dockbtn,.menuBtns button):hover span{transform:translateY(-3px) scale(1.08);color:#ffe08a;
+  filter:drop-shadow(0 0 6px rgba(255,224,138,.6))}
+#screen-menu .menuBtns button.go:hover span{color:#fff0a8}
 #screen-menu .menuBtns button.go{font-size:45px;line-height:1.1;color:#ffd866;padding:0 12px;
   text-shadow:var(--outline),0 0 18px rgba(255,200,90,.55)}
 #screen-menu .menuBtns button.go:hover{color:#fff0a8}
@@ -1333,9 +1338,9 @@ body.rarmarks #shopCard .relicchip[data-rar]::before{position:absolute;left:2px;
   </div>
   <h1 class="logo"><img src="assets/ui_logo.png" alt="Test TBD" width="380" height="109"></h1>
   <div class="menuBtns">
-    <div id="resumeBox" class="resumebox" hidden><button class="go" id="resumeRunBtn">Resume run</button><button class="linkbtn" id="resumeDrop">Give it up</button></div>
-    <button class="go" data-nav="levels"><img class="ico pix" src="assets/icon_play.png" alt="">Play solo</button>
-    <div class="menuRow"><button id="lobbyCreateBtn"><img class="ico pix" src="assets/icon_lobby.png" alt="">Create lobby</button><button id="lobbyJoinBtn"><img class="ico pix" src="assets/icon_join.png" alt="">Join lobby</button></div>
+    <div id="resumeBox" class="resumebox" hidden><button class="go" id="resumeRunBtn"><span id="resumeRunLbl">Resume run</span></button><button class="linkbtn" id="resumeDrop">Give it up</button></div>
+    <button class="go" data-nav="levels"><img class="ico pix" src="assets/icon_play.png" alt=""><span>Play solo</span></button>
+    <div class="menuRow"><button id="lobbyCreateBtn"><img class="ico pix" src="assets/icon_lobby.png" alt=""><span>Create lobby</span></button><button id="lobbyJoinBtn"><img class="ico pix" src="assets/icon_join.png" alt=""><span>Join lobby</span></button></div>
   </div>
   <!-- The rest of the menu: one icon button each, along the bottom of the screen -->
   <nav class="menuDock" aria-label="Menu">

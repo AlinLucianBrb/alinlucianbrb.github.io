@@ -22,7 +22,7 @@ function render() {
   /* A run that was going on when the page was refreshed or closed: carry on, or give it up. */
   const run = loadRun(p.id), box = $('resumeBox');
   box.hidden = !run;
-  if (run) $('resumeRunBtn').textContent = 'Resume run · ' + describeRun(run);
+  if (run) $('resumeRunLbl').textContent = 'Resume run · ' + describeRun(run);
   countClaims(p);
 }
 /* The Achievements button says how many finished goals wait to be claimed (it stays plain if the server can't say). */
