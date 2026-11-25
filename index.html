@@ -348,6 +348,23 @@ h3,.hbody h3{font-size:18px;line-height:22px;color:#cfe0d2;text-transform:none;l
    left, the account and gold together at the top right. */
 #screen-menu{align-items:flex-start;justify-content:center;padding:0 0 0 max(32px,6vw)}
 #screen-menu .logo{width:min(420px,100%);text-align:center}
+/* the bottom bar: square icon buttons, each on its own, the label under the icon; a red badge counts what waits there */
+#screen-menu .menuDock{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);display:flex;gap:18px;z-index:2}
+#screen-menu .dockbtn{position:relative;width:112px;height:88px;padding:4px 0 6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  font-size:13px;white-space:nowrap;filter:drop-shadow(0 4px 0 rgba(0,0,0,.35))}
+#screen-menu .dockbtn img{width:48px;height:48px;filter:drop-shadow(0 0 1px #000) drop-shadow(0 3px 0 rgba(0,0,0,.45));image-rendering:pixelated;transition:transform .12s}
+#screen-menu .dockbtn:hover img{transform:translateY(-3px) scale(1.08)}
+/* no frame: just the icon and its name, outlined so they read on the painted scene */
+#screen-menu .dockbtn{border:none;border-image:none;background:none;width:auto;min-width:92px;height:auto;padding:4px 6px;color:#fff3d6;font-size:15px;filter:none;
+  text-shadow:1px 0 0 #1a1008,-1px 0 0 #1a1008,0 1px 0 #1a1008,0 -1px 0 #1a1008,0 2px 3px rgba(0,0,0,.8)}
+#screen-menu .dockbtn:hover{color:#ffe08a}
+#screen-menu .dockbtn:hover img{filter:drop-shadow(0 0 6px rgba(255,224,138,.8)) drop-shadow(0 3px 0 rgba(0,0,0,.45))}
+#screen-menu .dockbtn .mbadge{top:-6px;right:14px}
+/* a soft shadow rising from the bottom edge so the icons and names stand out from the grass and the road (no frame) */
+#screen-menu::before{content:'';position:absolute;left:0;right:0;bottom:0;height:190px;pointer-events:none;z-index:0;
+  background:linear-gradient(180deg,transparent,rgba(10,8,5,.55) 45%,rgba(10,8,5,.85))}
+#screen-menu .dockbtn span{font-family:var(--pixel);font-size:17px;letter-spacing:.02em}
+#screen-menu .dockbtn img{width:56px;height:56px}
 #screen-menu .mgold{margin-top:2px;padding-top:3px;border-top:1px solid rgba(255,255,255,.12)}
 #screen-menu .mgold b{font-family:var(--pixel);font-size:18px;color:#ffe08a}
 #screen-menu .topbar{left:auto;right:18px;transform:none;width:auto;gap:10px;justify-content:flex-end;align-items:flex-start}
@@ -1229,8 +1246,7 @@ body.rarmarks #shopCard .relicchip[data-rar]::before{position:absolute;left:2px;
 .acgold b{color:#f3d36b}
 .actitle{color:#e8c46a;font-style:italic}
 .acclaim{flex:0 0 auto;padding:0 10px 2px;font-size:.85em;line-height:1.3;margin:-3px -4px -3px 0}
-#achBtn{position:relative}
-.achbadge{position:absolute;top:-11px;right:-12px;min-width:22px;height:22px;padding:0 5px;border-radius:11px;background:#c8372d;color:#fff;font-size:.8em;line-height:22px;text-align:center;box-shadow:0 0 0 2px #2a1408;text-shadow:0 1px 0 #000}
+.mbadge{position:absolute;top:-11px;right:-12px;min-width:22px;height:22px;padding:0 5px;border-radius:11px;background:#c8372d;color:#fff;font-size:.8em;line-height:22px;text-align:center;box-shadow:0 0 0 2px #2a1408;text-shadow:0 1px 0 #000}
 .acbody.heroes{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(3,minmax(0,1fr));gap:8px;padding:0 12px 4px}
 .achero{display:flex;gap:10px;min-height:0;padding:8px;background:linear-gradient(90deg,rgba(8,6,4,.85),rgba(8,6,4,.6))}
 .acface{flex:0 0 96px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px;text-align:center}
@@ -1277,13 +1293,17 @@ body.rarmarks #shopCard .relicchip[data-rar]::before{position:absolute;left:2px;
     <div id="resumeBox" class="resumebox" hidden><button class="go" id="resumeRunBtn">Resume run</button><button class="linkbtn" id="resumeDrop">Give it up</button></div>
     <button class="go" data-nav="levels"><img class="ico pix" src="assets/icon_play.png" alt="">Play solo</button>
     <div class="menuRow"><button id="lobbyCreateBtn"><img class="ico pix" src="assets/icon_lobby.png" alt="">Create lobby</button><button id="lobbyJoinBtn"><img class="ico pix" src="assets/icon_join.png" alt="">Join lobby</button></div>
-    <button data-nav="heroes"><img class="ico pix" src="assets/icon_heroes.png" alt="">Heroes</button>
-    <button data-nav="inventory"><img class="ico pix" src="assets/icon_inventory.png" alt="">Inventory</button>
-    <button data-nav="talents" id="talentsBtn"><img class="ico pix" src="assets/icon_talents.png" alt=""><span id="talentsLbl">Talents</span></button>
-    <div class="menuRow"><button data-nav="achievements" id="achBtn"><img class="ico pix" src="assets/icon_achievements.png" alt=""><span>Achievements</span><i class="achbadge" id="achLbl" hidden></i></button><button data-nav="leaderboard"><img class="ico pix" src="assets/icon_leaderboard.png" alt="">Leaderboard</button></div>
-    <button data-nav="settings"><img class="ico pix" src="assets/icon_settings.png" alt="">Settings</button>
-    <button id="logoutBtn"><img class="ico pix" src="assets/icon_logout.png" alt="">Log out</button>
   </div>
+  <!-- The rest of the menu: one icon button each, along the bottom of the screen -->
+  <nav class="menuDock" aria-label="Menu">
+    <button class="dockbtn" data-nav="heroes"><img class="pix" src="assets/icon_heroes.png" alt=""><span>Heroes</span></button>
+    <button class="dockbtn" data-nav="inventory"><img class="pix" src="assets/icon_inventory.png" alt=""><span>Inventory</span></button>
+    <button class="dockbtn" data-nav="talents" id="talentsBtn"><img class="pix" src="assets/icon_talents.png" alt=""><span>Talents</span><i class="mbadge" id="talentsLbl" hidden></i></button>
+    <button class="dockbtn" data-nav="achievements" id="achBtn"><img class="pix" src="assets/icon_achievements.png" alt=""><span>Achievements</span><i class="mbadge" id="achLbl" hidden></i></button>
+    <button class="dockbtn" data-nav="leaderboard"><img class="pix" src="assets/icon_leaderboard.png" alt=""><span>Leaderboard</span></button>
+    <button class="dockbtn" data-nav="settings"><img class="pix" src="assets/icon_settings.png" alt=""><span>Settings</span></button>
+    <button class="dockbtn" id="logoutBtn"><img class="pix" src="assets/icon_logout.png" alt=""><span>Log out</span></button>
+  </nav>
   <div class="version" id="mVersion"></div>
 </section>
 

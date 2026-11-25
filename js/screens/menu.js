@@ -18,7 +18,7 @@ function render() {
   $('mGold').textContent = p.gold.toLocaleString();
   $('mVersion').textContent = versionText();
   const free = pointsFor(p.level) - (p.talents || []).length;
-  $('talentsLbl').textContent = free > 0 ? 'Talents (' + free + ')' : 'Talents';   /* the label only: the button keeps its icon */
+  $('talentsLbl').textContent = free > 0 ? String(free) : ''; $('talentsLbl').hidden = !(free > 0);   /* talent points to spend */
   /* A run that was going on when the page was refreshed or closed: carry on, or give it up. */
   const run = loadRun(p.id), box = $('resumeBox');
   box.hidden = !run;

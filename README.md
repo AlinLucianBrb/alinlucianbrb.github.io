@@ -211,6 +211,15 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Menu: icon buttons along the bottom (Nov 25, v0.77.3)
+- Heroes, Inventory, Talents, Achievements, Leaderboard, Settings and Log out are now separate icon buttons in a row
+  along the bottom of the screen: just a big icon and its name under it in the pixel font, no frame. A soft dark shadow
+  rises from the bottom edge of the screen so they stand out from the grass and the road (on hover the icon lifts and
+  glows and the name turns gold).
+- Under the logo on the left stay only the ways to play: Resume run (when there is one), Play solo, Create and Join lobby.
+- Talents shows its free points as a red badge, like Achievements shows the goals ready to claim.
+- No SQL or rules change.
+
 ## Menu: the logo and buttons centred on the left (Nov 25, v0.77.2)
 - The logo and the buttons stand halfway down the left side of the menu instead of at the top left. The profile box
   stays at the top right.
