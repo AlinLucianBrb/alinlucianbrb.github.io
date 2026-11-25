@@ -177,8 +177,22 @@ test('Levels: picking a level asks for the heroes (none picked to start, 1 to 3 
   state.profile = { ...state.profile, levels_cleared: 1, frontier_wave: 0, lineup: ['warrior', 'ranger', 'mage'] };
   await levels.mount(null, {});
   assert.equal(byId.lvChoose.hidden, false); assert.equal(byId.lvPick.hidden, true);
-  assert.equal(byId.lvList.children[2].disabled, true, 'level 3 is locked');
-  byId.lvList.children[1].onclick();
+  const nodes = kind => byId.lvMap.children.filter(c => (c.className || '').includes(kind));
+  assert.equal(byId.lvMapTitle._text, 'World map', 'opens on the world map');
+  assert.equal(nodes('zonenode').length, 5, 'the five acts one after another');
+  assert.equal(nodes('zonenode')[0].disabled, false); assert.equal(nodes('zonenode')[1].disabled, true, 'act 2 is locked');
+  nodes('zonenode')[0].onclick();                           /* zoom into act 1 (no animations here, so it switches at once) */
+  assert.match(byId.lvMapTitle._text, /^Act 1 · /);
+  assert.equal(nodes('lvnode').length, 6, 'its 5 levels from left to right, then Endless');
+  assert.equal(nodes('lvnode')[2].disabled, true, 'level 3 is locked');
+  assert.ok(nodes('lvnode')[1].className.includes('here'), 'level 2 is the next one');
+  nodes('lvnode')[1].onclick();                             /* the first click shows the level's card */
+  assert.equal(byId.lvInfo.hidden, false); assert.equal(byId.lvPick.hidden, true);
+  assert.ok(texts(byId.lvInfo).includes('Level 1-2'));
+  nodes('mapback')[0].onclick();                            /* back out to the world and in again */
+  assert.equal(byId.lvMapTitle._text, 'World map'); assert.equal(byId.lvInfo.hidden, true);
+  nodes('zonenode')[0].onclick(); nodes('lvnode')[1].onclick();
+  nodes('lvnode')[1].onclick();                             /* clicking it again goes on to the heroes */
   assert.equal(byId.lvPick.hidden, false); assert.equal(byId.lvPickTitle._text, 'Pick your 3 heroes');
   assert.equal(byId.lvCount._text, '0 / 3', 'none picked to start with'); assert.equal(byId.lvStart.disabled, true, 'Start waits for a hero');
   const cards = () => byId.lvHeroes.children;
@@ -195,13 +209,16 @@ test('Levels: picking a level asks for the heroes (none picked to start, 1 to 3 
   assert.deepEqual(state.profile.lineup, ['warrior', 'mage']);
 });
 
-test('Levels: "Next level" after a win comes straight to choosing heroes; Back returns to the level list', async () => {
+test('Levels: "Next level" after a win comes straight to choosing heroes; Back returns to the map', async () => {
   await levels.mount(null, { stage: 2 });
   assert.equal(byId.lvPick.hidden, false); assert.equal(byId.lvPickTitle._text, 'Pick your 3 heroes');
   byId.lvBack.onclick();
   assert.equal(byId.lvChoose.hidden, false);
   failNext = true; navs.length = 0;
-  byId.lvList.children[0].onclick(); byId.lvHeroes.children[0].onclick(); await byId.lvStart.onclick();
+  assert.match(byId.lvMapTitle._text, /^Act 1 · /, 'back to the zone the level is in');
+  byId.lvMap.children.find(c => (c.className || '').includes('lvnode')).onclick();
+  byId.lvInfo.children.find(c => c.className === 'go').onclick();   /* or "Choose heroes" on the card */
+  byId.lvHeroes.children[0].onclick(); await byId.lvStart.onclick();
   assert.match(byId.lvMsg._text, /^Could not save your lineup: boom/, 'a refused save does not start the match');
   assert.deepEqual(navs, []);
 });

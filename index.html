@@ -1034,6 +1034,56 @@ body.calm .herocard .ab.ready,body.calm .actions .autobtn.on::after,body.calm .e
 @keyframes formIn{0%{opacity:0;transform:translate(-50%,10px) scale(.96)}10%{opacity:1;transform:translate(-50%,0) scale(1)}82%{opacity:1}100%{opacity:0}}
 body.calm .formmoment.show{animation:none}
 @media (prefers-reduced-motion:reduce){.formmoment.show{animation:none}}
+/* The world map (Nov 25, prototype: shapes only). The world: the five zones along a road; a zone: its levels from left to
+   right, then Endless. Nodes are circles on the road with their name under them; the next one to play is marked. */
+.mapframe{position:relative;width:min(1100px,100%);height:clamp(300px,58vh,560px);overflow:hidden;
+  box-shadow:0 0 0 2px #0b100d,0 0 0 4px color-mix(in srgb,var(--zc,#b8d25a) 55%,#2a2418)}
+.worldmap{position:absolute;inset:0;will-change:transform}
+.worldmap.world{background:
+  radial-gradient(ellipse 22% 60% at 9% 68%,rgba(184,210,90,.28),transparent 70%),radial-gradient(ellipse 22% 60% at 29% 36%,rgba(79,192,142,.28),transparent 70%),
+  radial-gradient(ellipse 22% 60% at 50% 64%,rgba(169,139,214,.28),transparent 70%),radial-gradient(ellipse 22% 60% at 71% 33%,rgba(226,134,74,.28),transparent 70%),
+  radial-gradient(ellipse 22% 60% at 91% 60%,rgba(255,106,58,.28),transparent 70%),linear-gradient(90deg,#1b2416,#17201a 25%,#1c1a24 50%,#261a14 75%,#2a1610)}
+.worldmap.zoneview{background:linear-gradient(180deg,rgba(10,14,11,.55),rgba(10,14,11,.8)),var(--zart) center/cover,#151a14;image-rendering:pixelated}
+.maproad{position:absolute;top:var(--mt,0px);left:var(--ml,0px);z-index:0;width:calc(100% - var(--ml,0px) - var(--mr,0px));height:calc(100% - var(--mt,0px) - var(--mb,0px));pointer-events:none}
+.maproad path{fill:none;stroke:#c9a86a;stroke-width:14;stroke-linecap:round;stroke-dasharray:1 26;vector-effect:non-scaling-stroke;opacity:.75}
+.mapnode{position:absolute;z-index:1;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:6px;padding:0;margin:0;
+  background:none;border:none;border-image:none;box-shadow:none;cursor:pointer;color:#fff3d6;font:inherit;outline:none}
+.mapnode .mapdot{display:grid;place-items:center;width:64px;height:64px;border-radius:50%;font-family:var(--pixel);font-size:28px;line-height:1;color:#1a140c;
+  background:radial-gradient(circle at 35% 30%,color-mix(in srgb,var(--nc) 70%,#fff),var(--nc) 55%,color-mix(in srgb,var(--nc) 55%,#000));
+  box-shadow:0 0 0 3px #0b100d,0 0 0 5px color-mix(in srgb,var(--nc) 60%,#2a2418),0 4px 0 6px rgba(0,0,0,.35);transition:transform .12s}
+.mapnode.zonenode .mapdot{width:84px;height:84px;font-size:36px}
+.mapnode .maplabel{display:flex;flex-direction:column;align-items:center;gap:1px;padding:4px 10px;background:rgba(10,14,11,.78);box-shadow:0 0 0 1px rgba(255,236,190,.12);white-space:nowrap}
+.mapnode .maplabel b{font-family:var(--pixel);font-weight:400;font-size:calc(17px * var(--ts));color:#fff3d6}
+.mapnode .maplabel small{color:#cfc3a8}
+.mapnode .maplabel .zdrop{color:#d9b25a}
+.mapnode:hover:not(:disabled) .mapdot,.mapnode:focus-visible .mapdot,.mapnode.sel .mapdot{transform:scale(1.1)}
+.mapnode.sel .mapdot{box-shadow:0 0 0 3px #0b100d,0 0 0 6px #ffd84a,0 0 18px 4px rgba(255,216,74,.55)}
+.mapnode.done .mapdot::after{content:'✓';position:absolute;margin:-46px 0 0 46px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:14px;color:#0b100d;background:#8be28b;box-shadow:0 0 0 2px #0b100d}
+.mapnode.zonenode.done .mapdot::after{margin:-60px 0 0 60px}
+.mapnode.locked{cursor:default}
+.mapnode.locked .mapdot{filter:grayscale(1) brightness(.45)}
+.mapnode.locked .maplabel{opacity:.6}
+.mapnode.here .mapdot{animation:hereGlow 1.6s ease-in-out infinite}
+@keyframes hereGlow{0%,100%{box-shadow:0 0 0 3px #0b100d,0 0 0 5px color-mix(in srgb,var(--nc) 60%,#2a2418),0 0 0 0 rgba(255,216,74,.0)}50%{box-shadow:0 0 0 3px #0b100d,0 0 0 5px #ffd84a,0 0 22px 6px rgba(255,216,74,.55)}}
+body.calm .mapnode.here .mapdot{animation:none;box-shadow:0 0 0 3px #0b100d,0 0 0 5px #ffd84a}
+.mapnode .heretag{position:absolute;bottom:100%;margin-bottom:6px;padding:2px 8px;font-family:var(--pixel);font-size:calc(13px * var(--ts));color:#1a140c;background:#ffd84a;box-shadow:0 0 0 2px #0b100d;white-space:nowrap}
+.mapnode.endless .mapdot{border-radius:14px;font-size:34px}
+.mapback{position:absolute;left:12px;top:12px;z-index:2;font-size:15px;line-height:16px;padding:6px 10px}
+.lvinfo{display:flex;align-items:center;gap:16px;width:min(1100px,100%);min-height:84px;padding:8px 14px;background:rgba(10,14,11,.78);box-shadow:0 0 0 1px rgba(255,236,190,.12);text-align:left}
+.lvinfo[hidden]{display:flex;visibility:hidden}
+.lvinfo .lvinfotext{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.lvinfo .lvinfotext b{font-family:var(--pixel);font-weight:400;font-size:calc(20px * var(--ts));color:#fff3d6}
+.lvinfo .go{flex:none}
+#lvChoose h1{margin-bottom:6px}
+/* The map fills the whole game window; the title, the level card and Back float over it. */
+#screen-levels.onmap{overflow:hidden}
+#screen-levels.onmap .mapframe{position:fixed;inset:0;width:auto;height:auto;z-index:0;box-shadow:none}
+#screen-levels.onmap .worldmap{--mt:128px;--mb:200px;--ml:80px;--mr:80px}
+#screen-levels.onmap #lvMapTitle{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:3;width:min(620px,calc(100% - 260px));min-height:72px;margin:0;pointer-events:none}
+#screen-levels.onmap .mapback{left:16px;top:24px}
+#screen-levels.onmap .lvinfo{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);z-index:3;width:min(900px,calc(100% - 32px))}
+#screen-levels.onmap #lvMsg{position:fixed;bottom:164px;left:50%;transform:translateX(-50%);z-index:3}
+#screen-levels.onmap #lvBack{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:3}
 /* Nov 23 fixes: the shop card a little wider (three shop icons a row, four relics a row inside it), the rarity letter
    inside a relic's square, and the hero window's stats in one column so no name is cut. */
 #shopCard{width:224px}
@@ -1092,10 +1142,9 @@ body.rarmarks #shopCard .relicchip[data-rar]::before{position:absolute;left:2px;
 
 <section id="screen-levels" class="screen scene" hidden>
   <div id="lvChoose" class="lvstep">
-    <h1>Choose a level</h1>
-    <div class="zones" id="lvZones"></div>
-    <div class="levels" id="lvList"></div>
-    <button id="lvEndless" class="endlessbtn" hidden></button>
+    <h1 id="lvMapTitle">World map</h1>
+    <div class="mapframe"><div class="worldmap world" id="lvMap"></div></div>
+    <div class="lvinfo" id="lvInfo" hidden></div>
   </div>
   <div id="lvPick" class="lvstep" hidden>
     <h1 id="lvPickTitle">Choose your heroes</h1><p class="lvdrops" id="lvDrops"></p><p class="muted" id="lvMapFx" hidden></p>

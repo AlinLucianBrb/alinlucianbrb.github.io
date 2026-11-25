@@ -211,6 +211,17 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## World map for choosing levels (Nov 25, v0.72.0)
+- Play solo now opens a world map that fills the whole window (the title, the level card and Back float over it):
+  the five acts sit one after another along a road, each with its name, how many
+  levels are cleared and the item levels it drops. "You are here" marks the act you are in; locked acts are greyed out.
+- Clicking an act zooms into it: its levels go from left to right along the road, Endless at the end. "Next" marks
+  the next level. Hovering a level (or an act) shows its details; clicking a level shows a card with them and
+  "Choose heroes" (clicking the level again does the same). "◀ World map" and Back zoom out again.
+- A prototype without art: the positions live in `js/content/world-map.js` (`WORLD`, `ZONE_PATH`). With fewer
+  effects on, the zoom is skipped.
+- No SQL or rules change.
+
 ## Unused files removed (Nov 25, v0.71.1)
 - **Pictures the game no longer loads** are gone from `assets/`, and the scripts no longer draw them: the Crusader's old
   horse and its charge and cavalry icons, the removed Bulk order relic, three unused UI pieces, the old back and resume
