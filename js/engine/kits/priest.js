@@ -12,6 +12,7 @@ import { execute } from '../combat.js';
 import { LEAK_GUARDS, pathPos } from '../enemies.js';
 import { isShielded } from '../enemy-abilities.js';
 import { upgradeOf } from '../upgrades.js';
+import { REVELATION } from '../synergy.js';
 import { buffTime } from '../legend-perks.js';
 import { lasting } from '../effects.js';
 import { T } from '../../content/data.js';
@@ -83,8 +84,12 @@ registerBehavior('psalm', {
     rearm(t);
     if (mult !== 0) for (const tg of list) g.projs.push({ type: 'bolt', owner: t, target: tg, x: t.x, y: t.y, scale: mult, color: look(t, mult),
       size: mult > 1 ? 8 : 5, look: t.def.projLook || 'orb', speed: t.def.projSpeed || 0, dx: 1, dy: 0 });
-    const r2 = PSALM.radius * PSALM.radius, lift = upgradeOf(t, 'gospel_attack');
-    for (const o of g.heroes) if (o !== t && (o.x - t.x) ** 2 + (o.y - t.y) ** 2 <= r2) { gainEnergy(o, PSALM.energy); if (lift) g.addBuff(o, 'psalm', lift.name, lift.mods, lift.seconds, t); }
+    const r2 = PSALM.radius * PSALM.radius, lift = upgradeOf(t, 'gospel_attack'), rev = upgradeOf(t, 'gospel_passive');
+    for (const o of g.heroes) if (o !== t && (o.x - t.x) ** 2 + (o.y - t.y) ** 2 <= r2) {
+      gainEnergy(o, PSALM.energy);
+      if (lift) g.addBuff(o, 'psalm', lift.name, lift.mods, lift.seconds, t);
+      if (rev) { g.addBuff(o, REVELATION, rev.name, [], rev.seconds, t); o.buffs.find(b => b.id === REVELATION).more = rev.revelation; }   /* Revelation: synergy.js */
+    }
     charge(g, t);
   }
 });

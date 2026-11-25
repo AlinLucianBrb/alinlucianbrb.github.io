@@ -1,10 +1,44 @@
-/* The second evolution: at UPGRADE_LEVEL a form upgrades either its basic attack or its ultimate. Two choices per form, in that
-   order; a choice is { id, name, short } plus the numbers its effect uses. The engine asks upgradeOf(hero, id) (js/engine/
+/* The second evolution: at UPGRADE_LEVEL a form upgrades its basic attack, takes a passive that builds on other heroes'
+   debuffs (the synergies, js/content/synergies.js and js/engine/synergy.js), or upgrades its ultimate. Three choices per form,
+   in that order; a choice is { id, name, short } plus the numbers its effect uses. The engine asks upgradeOf(hero, id) (js/engine/
    upgrades.js) where the effect happens: the form's behavior, its ultimate, or a hook in js/engine/kits/upgrades.js.
    An upgrade gives no stats. Tiles are 40 px; scale and share are parts of a normal hit. */
 export const UPGRADE_LEVEL = 30;
-export const SLOT_NAME = { attack: 'Basic attack', ultimate: 'Ultimate' };
-const pair = (form, attack, ultimate) => [form, [{ id: form + '_attack', slot: 'attack', ...attack }, { id: form + '_ult', slot: 'ultimate', ...ultimate }]];
+export const SLOT_NAME = { attack: 'Basic attack', passive: 'Passive', ultimate: 'Ultimate' };
+const pair = (form, attack, ultimate) => [form, [{ id: form + '_attack', slot: 'attack', ...attack }, { id: form + '_passive', slot: 'passive', ...PASSIVES[form] }, { id: form + '_ult', slot: 'ultimate', ...ultimate }]];
+
+/* The passives: each one feeds on a debuff that (mostly) another hero puts on enemies. See js/content/synergies.js for the
+   shapes (vs/more, per/perStack, distinct, boost, extraStack, revelation, spread). */
+const CURSES = ['hex', 'doom', 'mark', 'verdict'];
+export const PASSIVES = {
+  berserker: { name: 'Venom rage', short: 'Hits deal +30% to poisoned enemies.', vs: ['poison'], more: 0.3 },
+  commander: { name: 'Storm-forged', short: 'Hits deal +40% to shocked enemies.', vs: ['shock'], more: 0.4 },
+  sentinel: { name: 'Hold the line', short: 'Hits deal +40% to rooted, frozen or stunned enemies.', vs: ['root', 'freeze', 'stun'], more: 0.4 },
+  marksman: { name: 'Read the wounds', short: 'Hits deal +15% for every different debuff on the enemy.', distinct: 0.15 },
+  boomeranger: { name: 'Open wounds', short: 'Hits deal +40% to bleeding enemies.', vs: ['bleed'], more: 0.4 },
+  hunter: { name: 'Blood in the water', short: 'Hits deal +4% for every Poison stack on the enemy (up to +60%).', per: ['poison'], perStack: 0.04, max: 0.6 },
+  firemage: { name: 'Flashpoint', short: 'His burns on poisoned enemies burn twice as hard.', boost: { ailment: 'burn', vs: ['poison'], mult: 2 } },
+  coldmage: { name: 'Thermal shock', short: 'His freezes on burning enemies last twice as long.', boost: { ailment: 'freeze', vs: ['burn'], mult: 2 } },
+  lightningmage: { name: 'Grounded', short: 'Hits deal +40% to rooted enemies.', vs: ['root'], more: 0.4 },
+  assassin: { name: 'Prey on the cursed', short: 'Hits deal +60% to Hexed, Doomed, Marked enemies or ones under Verdict.', vs: CURSES, more: 0.6 },
+  toxicologist: { name: 'Septic', short: 'Her poison adds 2 stacks at once on bleeding enemies.', extraStack: { ailment: 'poison', vs: ['bleed'] } },
+  alchemist: { name: 'Cracked ice', short: 'Hits deal +50% to frozen or slowed enemies.', vs: ['freeze', 'chill'], more: 0.5 },
+  animalic: { name: 'Easy prey', short: 'Hits deal +40% to slowed or frozen enemies.', vs: ['chill', 'freeze'], more: 0.4 },
+  naturist: { name: 'Venom thorns', short: 'Hits deal +50% to poisoned enemies.', vs: ['poison'], more: 0.5 },
+  lunar: { name: 'Charged moonlight', short: 'Hits deal +50% to shocked enemies.', vs: ['shock'], more: 0.5 },
+  incantation: { name: 'Purifying hymn', short: 'Hits deal +5% for every Corruption stack on the enemy (up to +50%).', per: ['corruption'], perStack: 0.05, max: 0.5 },
+  archangel: { name: 'Divine wrath', short: 'Hits deal +50% to Hexed, Doomed, Marked enemies or ones under Verdict.', vs: CURSES, more: 0.5 },
+  gospel: { name: 'Revelation', short: 'Each Psalm gives the heroes around her +20% damage to enemies with any debuff, for 3 seconds.', revelation: 0.2, seconds: 3 },
+  occult: { name: 'Festering hex', short: 'A Hexed enemy that dies passes its burn, bleed, poison and Corruption to the nearest enemy.', spread: 60 },
+  summoner: { name: 'Hellspawn', short: 'He and his minions deal +50% to burning enemies.', vs: ['burn'], more: 0.5 },
+  infernalist: { name: 'Fuel', short: 'Hits deal +50% to poisoned enemies.', vs: ['poison'], more: 0.5 },
+  heretic: { name: 'Kindred dark', short: 'Hits deal +30% to Corrupted enemies.', vs: ['corruption'], more: 0.3 },
+  inquisitor: { name: 'Weight of sin', short: 'Hits deal +12% for every different debuff on the enemy.', distinct: 0.12 },
+  crusader: { name: 'Pin the fallen', short: 'Hits deal +50% to stunned or frozen enemies.', vs: ['stun', 'freeze'], more: 0.5 },
+  witchdoctor: { name: 'Plague bearer', short: 'Hits deal +5% for every Poison stack on the enemy (up to +60%).', per: ['poison'], perStack: 0.05, max: 0.6 },
+  totemist: { name: 'Elemental attunement', short: 'He and his totems deal +30% to burning, frozen, slowed or shocked enemies.', vs: ['burn', 'freeze', 'chill', 'shock'], more: 0.3 },
+  earthcaller: { name: 'Fault line', short: 'Hits deal +50% to rooted or frozen enemies.', vs: ['root', 'freeze'], more: 0.5 }
+};
 
 export const UPGRADES = Object.fromEntries([
   /* Warrior */

@@ -17,6 +17,7 @@ import { ITEMS, itemName, itemColor, itemBonusLines } from '../content/items.js'
 import { COOP } from '../content/rules.js';
 import { UNLOCKS } from '../content/unlocks.js';
 import { SLOT_NAME } from '../content/upgrades.js';
+import { passiveSetup } from '../content/synergies.js';
 import { relicMult } from '../engine/relics.js';
 import { EFFECT_STATS } from '../content/effect-stats.js';
 import { LEGENDARIES, LEGENDARY } from '../content/legendaries.js';
@@ -101,12 +102,13 @@ export function initUI(callbacks) {
       lines.push({ text: 'Damage: ' + DAMAGE_LABEL[cur.damageType || 'physical'] + (ail ? ' · inflicts ' + ail : ''), color: '#ab9f8a' });
       lines.push({ text: 'Attack and ultimate: hover the two icons under its name.', color: '#ab9f8a' });
       lines.push(info.unit ? { text: 'Click to select it. To move it: select it, press M or right-click, then click the new spot.', color: '#ab9f8a' } : { text: 'Costs ' + HERO_COST + ' gold to place: one per match · key ' + b._key.textContent, color: '#ab9f8a' });
+      if (cur.upgrade && cur.upgrade.slot === 'passive') lines.push({ text: '★★ Passive: ' + cur.upgrade.name + ': ' + cur.upgrade.short, color: '#8be28b' });
       if (info.unit) lines.push({ text: 'Level ' + info.unit.level + ': heroes gain XP from every kill while on the field.', color: '#8fd3ff' });
       if (info.path) lines.push({ text: 'Path: ' + info.path.name + '. Before it evolves: ' + PREVIEWS[info.path.id].desc, color: info.path.color || '#dcc6ff' });
       if (info.evo) {
         const names = (info.path ? [info.path] : info.evo.choices).map(c => c.name), list = names.length > 1 ? names.slice(0, -1).join(', ') + ' or ' + names.at(-1) : names[0];
         const need = info.evoLevel || info.evo.level;
-        lines.push({ text: 'At level ' + need + ' it can ' + (info.evo.upgrade ? 'upgrade its basic attack or its ultimate' : 'evolve into ' + list) + ' for ' + info.evoCost + ' gold.', color: info.unit && info.unit.level >= need && info.gold >= info.evoCost ? '#f2b84b' : '#ab9f8a' });
+        lines.push({ text: 'At level ' + need + ' it can ' + (info.evo.upgrade ? 'upgrade its basic attack, take a passive or upgrade its ultimate' : 'evolve into ' + list) + ' for ' + info.evoCost + ' gold.', color: info.unit && info.unit.level >= need && info.gold >= info.evoCost ? '#f2b84b' : '#ab9f8a' });
       }
       return { title: cur.name + ' · ' + cap(cur.archetype), color: cur.color, lines };
     });
@@ -476,12 +478,20 @@ export function showEvoPick(g, h) {
   setText($('evoGold'), g.gold < cost ? 'You need ' + cost + ' gold (you have ' + g.gold + ').' : 'Gold: ' + g.gold);
   $('evoPick').hidden = false;
 }
+/* A passive's icon: the debuff it feeds on (the ailment icons; other debuffs have their own), or a general one. */
+const DEBUFF_ICON = { bleed: 'icon_ail_bleed_s', poison: 'icon_ail_poison_s', burn: 'icon_ail_burn_s', freeze: 'icon_ail_freeze_s', shock: 'icon_ail_shock_s',
+  root: 'icon_ail_root_s', corruption: 'icon_ail_corruption_s', chill: 'icon_chill', stun: 'icon_ail_root_s', hex: 'icon_ail_corruption_s', doom: 'icon_ail_corruption_s', mark: 'icon_crit', verdict: 'icon_crit' };
+function passiveIcon(c) {
+  const first = (c.vs || c.per || (c.boost && c.boost.vs) || (c.extraStack && c.extraStack.vs) || [])[0];
+  return DEBUFF_ICON[first] || (c.revelation ? 'icon_energy' : c.spread ? 'icon_ail_corruption_s' : 'icon_relics');
+}
 /* The second evolution: what it upgrades, with the icon of that ability. */
 function upgradeCard(h, c, i, poor) {
   const d = h.def, card = el('div', 'card'), b = el('button', 'choose'), nm = el('b', '', c.name), u = ULTIMATES[d.ultimate];
   nm.style.color = d.color; b.classList.add('relicard'); b.style.setProperty?.('--rc', d.color);
-  b.append(spriteImg(c.slot === 'attack' ? attackIcon(d) : ultimateIcon(d), 'pix relicico top'), nm,
-    el('small', 'rar', SLOT_NAME[c.slot] + (c.slot === 'ultimate' && u ? ': ' + u.name : '')), el('small', '', c.short));
+  const icon = c.slot === 'attack' ? attackIcon(d) : c.slot === 'passive' ? passiveIcon(c) : ultimateIcon(d), who = c.slot === 'passive' ? passiveSetup(c, d.form || d.id) : '';
+  b.append(spriteImg(icon, 'pix relicico top'), nm,
+    el('small', 'rar', SLOT_NAME[c.slot] + (c.slot === 'ultimate' && u ? ': ' + u.name : '')), el('small', '', c.short), ...(who ? [el('small', 'aff', who)] : []));
   b.disabled = poor; b.onclick = () => cb.onEvolveChoice(i);
   card.append(b); return card;
 }

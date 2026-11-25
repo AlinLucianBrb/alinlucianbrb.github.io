@@ -211,6 +211,22 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Synergies: debuffs open enemies to other damage, and a third level-30 choice (Nov 25, v0.76.0)
+- **The ring:** every damage type has one debuff that opens enemies to it. An enemy with that debuff takes +25% from that
+  type's part of every hit (not from damage over time): Bleeding → Toxic, Poisoned → Fire, Burning → Cold, Frozen or
+  Slowed → Physical, Shocked → Arcane, Rooted → Lightning, Corrupted → Holy, Hexed / Doomed / Marked / under Verdict →
+  Shadow. No hero is opened by its own debuff, so lineups chain them (Druid roots → Shaman hits harder and shocks →
+  arcane hits harder).
+- **Level 30 now offers three upgrades:** the basic attack, a new **passive**, or the ultimate (keys 1, 2, 3). Each of
+  the 27 passives feeds on debuffs, mostly ones other heroes put on enemies: e.g. Berserker +30% to poisoned enemies,
+  Hunter +4% per Poison stack, Marksman +15% per different debuff, Fire Mage's burns twice as hard on poisoned enemies,
+  Cold Mage's freezes twice as long on burning ones, Toxicologist's poison stacks twice on bleeding ones, Gospel's Psalm
+  gives Revelation (+20% to debuffed enemies), Occult's Hexed dead pass their burn/bleed/poison/Corruption on.
+- **Soul drain** deals +10% for every Corruption or Poison stack on the drained enemy (10 stacks: double).
+- Hero pages have a **Combos** part (what makes its damage hit harder and who sets it up; what it and its forms set up),
+  and the Evolutions tab and the in-match picker say who sets each passive up.
+- First numbers; not balanced yet. Rules change: `ENGINE_VERSION` 40. No SQL change.
+
 ## Gems: Rough Stone, crafting, combining and sockets (Nov 25, v0.75.0)
 - New material, **Rough Stone**: 2 for every boss killed, and on a win 2 × the act number more (Act 5 win: +10).
   Endless and lost matches give the boss stones only. The result screen and loot row show what you got.

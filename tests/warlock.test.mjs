@@ -11,7 +11,7 @@ import { levelMods } from '../js/engine/levels.js';
 import { ULTIMATES } from '../js/engine/ultimates.js';
 import { damageTaken, tickEffects, EFFECTS } from '../js/engine/effects.js';
 import { inflict } from '../js/engine/combat.js';
-import { DRAIN, DOOM, IMP, DEMON, HELLFIRE, INFERNAL } from '../js/engine/kits/warlock.js';
+import { DRAIN, drainMult, DOOM, IMP, DEMON, HELLFIRE, INFERNAL } from '../js/engine/kits/warlock.js';
 import { HEROES, RELICS, T } from '../js/content/data.js';
 import { exportLog, replay } from '../js/engine/replay.js';
 import { hashWorld } from '../js/engine/hash.js';
@@ -55,6 +55,21 @@ test('his bolts Corrupt; Soul drain drains the toughest enemy for 5x over 2 seco
   z.target = small; const before = ally.energy;
   for (let i = 0; i < 200 && !small.dead; i++) { updateZones(w, 1 / 60); }
   assert.ok(small.dead); assert.equal(ally.energy, Math.min(ally.s.energyMax, before + DRAIN.energy));
+});
+
+test('Soul drain drains 10% more for every Corruption stack on its target', () => {
+  const run = stacks => {
+    const { w, h } = setup(['warlock']);
+    w.enemies.length = 0;
+    const e = enemyAt(w, h.x + 30, h.y, 10, 1e6);
+    if (stacks) e.fx = { corruption: { stacks: Array.from({ length: stacks }, () => ({ t: 99, dps: 0, src: h })) } };
+    w.zones.push({ type: 'drain', owner: h, target: e, x: e.x, y: e.y, t: 1 });
+    const hp = e.hp; updateZones(w, 1 / 60); return { lost: hp - e.hp, e };
+  };
+  const none = run(0), five = run(5);
+  assert.equal(drainMult(none.e), 1); assert.ok(Math.abs(drainMult(five.e) - 1.5) < 1e-12);
+  assert.ok(none.lost > 0);
+  assert.ok(Math.abs(five.lost / none.lost - 1.5) < 0.02, 'five stacks: x1.5 (' + (five.lost / none.lost) + ')');
 });
 
 test('Occult: no attack; the aura Hexes everything inside (+25% damage taken, slower); Doom adds +50% and explosions on death', () => {

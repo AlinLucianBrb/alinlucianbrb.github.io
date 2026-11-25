@@ -19,6 +19,7 @@ import { pathChoice, pathDef } from '../engine/preview.js';
 import { savePaths } from '../services/api.js';
 import { UNLOCKS } from '../content/unlocks.js';
 import { UPGRADES, UPGRADE_LEVEL, SLOT_NAME } from '../content/upgrades.js';
+import { ringLine, setsUpText, passiveSetup } from '../content/synergies.js';
 import { el, cap, items, itemById, equipment, gearOf, setGear, freeFor, wornItems, gearCount, ensureItems, saveNow, sqlHint, itemIcon, itemTip, activePaths, pathsUnlocked, gems, gemsIn } from './loadout.js';
 import { gemBadge, gemTip } from './gems.js';
 import { socketGem } from '../services/api.js';
@@ -188,10 +189,16 @@ function renderInfo(box, h) {
   row('Energy per second', f(s.energyPerSecond) + ' / ' + f(s.energyMax));
   const u = ULTIMATES[h.ultimate];
   if (u) { stats.append(el('h3', '', 'Ultimate')); stats.append(liveLine('p', 'hdesc', u.name + ': ', u.desc, s, heroStats(asPlayed(h), []))); }
+  /* Combos (js/content/synergies.js): which debuffs make its damage hit harder, and what its own debuffs set up for others. */
+  stats.append(el('h3', '', 'Combos'));
+  const hits = el('p', 'hdesc combo'); hits.append(el('b', '', 'Hits harder: '), ringLine(h.damageType, h.id)); stats.append(hits);
+  const ups = setsUpText(h), sets = el('p', 'hdesc combo');
+  sets.append(el('b', '', 'Sets up: '), ups || 'nothing yet');
+  stats.append(sets);
   box.append(gear, pic, stats);
 }
 
-/* Evolutions tab: the base hero, then its forms side by side, each with its two level-30 upgrades. */
+/* Evolutions tab: the base hero, then its forms side by side, each with its three level-30 upgrades (attack, passive, ultimate). */
 function renderEvolutions(box, h) {
   const tree = el('div', 'evotree'), root = el('div', 'evonode root'), u = ULTIMATES[h.ultimate];
   root.style.setProperty('--hc', h.color);
@@ -208,10 +215,15 @@ function renderEvolutions(box, h) {
       n.append(heroBand(d, c.name, DAMAGE_LABEL[d.damageType] + ' damage' + (d.attribute !== h.attribute ? ' · ' + STAT_LABELS[d.attribute] : '')), el('p', '', liveText(d.short, null, heroStats(d, []))));
       if (cu) n.append(el('small', '', 'Ultimate: ' + cu.name + ': ' + ultDesc(cu, heroStats(d, []))));
       if (PREVIEWS[c.id]) n.append(el('small', 'preview', 'Before level ' + EVOLVE_LEVEL + ': ' + PREVIEWS[c.id].desc));
-      /* The second evolution: one of two upgrades. */
+      /* The second evolution: one of three upgrades. */
       const ups = el('div', 'evoups');
       ups.append(el('small', 'muted', 'Level ' + UPGRADE_LEVEL + ' · ' + step.cost + ' gold'));
-      for (const up of UPGRADES[c.id]) { const line = el('small', 'evoup2'); line.append(el('b', '', up.name + ' '), el('span', 'muted', '(' + SLOT_NAME[up.slot].toLowerCase() + ') '), el('span', '', up.short)); ups.append(line); }
+      for (const up of UPGRADES[c.id]) {
+        const line = el('small', 'evoup2' + (up.slot === 'passive' ? ' passive' : '')), who = up.slot === 'passive' ? passiveSetup(up, c.id) : '';
+        line.append(el('b', '', up.name + ' '), el('span', 'muted', '(' + SLOT_NAME[up.slot].toLowerCase() + ') '), el('span', '', up.short));
+        if (who) bindTip(line, () => ({ title: up.name + ' (passive)', color: '#8be28b', lines: [up.short, { text: who + '.', color: '#ab9f8a' }] }));
+        ups.append(line);
+      }
       n.append(ups);
       const open = pathsUnlocked(), chosen = activePaths()[h.id] === c.id;
       const pb = el('button', 'pathbtn', !open ? 'Paths unlock in Act ' + UNLOCKS.paths.act : chosen ? 'Chosen path ✓ (click to clear)' : 'Choose this path');

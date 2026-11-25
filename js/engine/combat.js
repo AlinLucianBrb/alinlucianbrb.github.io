@@ -7,6 +7,7 @@ import { applyEffect } from './effects.js';
 import { isShielded } from './enemy-abilities.js';
 import { overload, spreadRoots } from './legend-perks.js';
 import { damageBonus, afterHit, afterAilment, withered } from './procs.js';
+import { ringMult, passiveMult, ailmentMult, extraStacks } from './synergy.js';
 
 /* How much of `amount` gets through, for one damage type. Armor (physical) and resistances (every other type) work the same
    way: a share of the damage blocked. Armor only stops hits, not damage over time.
@@ -56,6 +57,7 @@ export function attack(w, hero, e, scale = 1, rate = 1, as = null, stats = null)
   if (s.fxOn) scale *= damageBonus(w, hero, e, s, rate === 1);
   if (w.fxm) scale *= w.fxm.hit;
   if (hero.def.bloodPrice) scale *= 1 + hero.def.bloodPrice * Math.max(0, (w.livesStart || 0) - w.lives);
+  if (e.fx || hero.buffs) scale *= passiveMult(hero, e);   /* the level-30 passive: more against enemies with a debuff (synergy.js) */
   for (const t of DAMAGE_TYPES) raw[t] = (s[t + 'Damage'] || 0) * scale;
   /* Damage between a min and a max: each hit rolls within spread of the damage stat (one roll, on the combat stream). */
   let base = s.damage * scale * (DAMAGE_ROLL.on && s.spread > 0 ? 1 + s.spread * (2 * w.rng.combat.next() - 1) : 1);
@@ -65,6 +67,7 @@ export function attack(w, hero, e, scale = 1, rate = 1, as = null, stats = null)
   let total = 0;
   for (const t of DAMAGE_TYPES) {
     if (raw[t] <= 0) continue;
+    if (e.fx) raw[t] *= ringMult(e, t);   /* the ring: a debuff opens the enemy to this damage type (synergy.js) */
     const got = mitigate(e, t, raw[t], true, s);
     raw[t] = got; total += got;
     w.hit(hero, e, got, t);
@@ -103,10 +106,14 @@ export function execute(w, hero, e, share) {
 
 /* Puts an ailment on an enemy, sized from the hit that caused it. */
 export function inflict(w, hero, e, id, hit) {
-  const a = AILMENTS[id], fresh = !(e.fx && e.fx[id]);
-  if (a.kind === 'dot') applyEffect(e, id, { t: a.duration, dps: a.dpsOfHit * hit * (id === 'poison' && hero && hero.s && hero.s.venom > 0 ? 1 + hero.s.venom : 1), src: hero }, hero);
+  const a = AILMENTS[id], fresh = !(e.fx && e.fx[id]), k = ailmentMult(hero, e, id);   /* a passive: stronger on a debuffed enemy */
+  if (a.kind === 'dot') {
+    const eff = { t: a.duration, dps: a.dpsOfHit * hit * k * (id === 'poison' && hero && hero.s && hero.s.venom > 0 ? 1 + hero.s.venom : 1), src: hero };
+    applyEffect(e, id, eff, hero);
+    if (a.stacks && extraStacks(hero, e, id)) applyEffect(e, id, eff, hero);
+  }
   else if (a.kind === 'shock') applyEffect(e, id, { t: a.duration, mag: a.resDown, resDown: a.resDown }, hero);
-  else if (a.kind === 'freeze') applyEffect(e, id, { t: Math.min(a.max, a.base + a.perLifeShare * hit / e.max) }, hero);
+  else if (a.kind === 'freeze') applyEffect(e, id, { t: Math.min(a.max, a.base + a.perLifeShare * hit / e.max) * k }, hero);
   else if (a.kind === 'root') { applyEffect(e, id, { t: a.duration }, hero); spreadRoots(w, hero, e, a.duration); }
   w.ev.emit('ailment', { hero, enemy: e, id });
   afterAilment(w, hero, e, id, hit, fresh, inflict);

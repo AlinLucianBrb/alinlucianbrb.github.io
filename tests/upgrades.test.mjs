@@ -20,9 +20,11 @@ import { hashWorld } from '../js/engine/hash.js';
 import { richWorld, enemyAt, dealt, withTemp, nearestPathD } from './helpers.mjs';
 
 const STEP = 1 / 60;
+const UP_INDEX = [0, 2];   /* attack, ultimate: their places among the three choices */
 const baseOf = form => HEROES.find(h => h.evolutions[0].choices.some(c => c.id === form));
 const FORMS = HEROES.flatMap(h => h.evolutions[0].choices.map(c => c.id));
-/* A level-30 hero of a form beside the path, with its attack (0) or ultimate (1) upgrade, or none (null). Every random roll is
+/* A level-30 hero of a form beside the path, with its attack (0) or ultimate (1) upgrade, or none (null). The ultimate is
+   the third choice since the passives came in the middle (UP_INDEX). Every random roll is
    `roll`: 0.5 means no crits, and only sure ailments. */
 function hero(form, up = null, roll = 0.5) {
   const base = baseOf(form), ally = base.id === 'warrior' ? 'ranger' : 'warrior', w = richWorld({ seed: 5, stage: 2, lineup: [base.id, ally] });
@@ -32,7 +34,7 @@ function hero(form, up = null, roll = 0.5) {
   const h = put(base.id);
   h.level = UPGRADE_LEVEL; h.lvlMods = levelMods(UPGRADE_LEVEL); w.statsFor(h);
   assert.ok(apply(w, { type: 'evolve', id: h.id, choice: base.evolutions[0].choices.findIndex(c => c.id === form) }).ok);
-  if (up !== null) assert.ok(apply(w, { type: 'evolve', id: h.id, choice: up }).ok, form + ' upgrade ' + up);
+  if (up !== null) assert.ok(apply(w, { type: 'evolve', id: h.id, choice: UP_INDEX[up] }).ok, form + ' upgrade ' + up);
   const a = put(ally); a.x = h.x + 12; a.y = h.y; a.cd = 1e9;
   w.wave = 5; h.cd = 0;
   return { w, h, a };
@@ -52,11 +54,11 @@ const sum = l => l.reduce((a, e) => a + dealt(e), 0);
 const both = (form, up, f, roll) => [null, up].map(u => f(hero(form, u, roll)));
 const ratio = (form, up, f, want, roll) => { const [a, b] = both(form, up, f, roll); assert.ok(a > 0, form + ' hits without it'); assert.ok(Math.abs(b / a - want) < 0.02, form + ': x' + (b / a).toFixed(3) + ', not x' + want); };
 
-test('every form has two upgrades, attack then ultimate, with a name and a description; their levels and rules', () => {
+test('every form has three upgrades, attack, passive then ultimate, with a name and a description; their levels and rules', () => {
   assert.deepEqual(Object.keys(UPGRADES).sort(), [...FORMS].sort());
   const ids = new Set();
   for (const f of FORMS) {
-    assert.deepEqual(UPGRADES[f].map(u => u.slot), ['attack', 'ultimate'], f);
+    assert.deepEqual(UPGRADES[f].map(u => u.slot), ['attack', 'passive', 'ultimate'], f);
     for (const u of UPGRADES[f]) { assert.ok(u.name && u.short && !ids.has(u.id), u.id); ids.add(u.id); }
   }
   const base = HEROES[0];
@@ -266,10 +268,10 @@ test('"the strongest, toughest enemy" ranks the special enemies too', () => {
   }
 });
 
-test('upgrades in a real match: evolving and upgrading replays exactly, for every form and both upgrades', () => {
+test('upgrades in a real match: evolving and upgrading replays exactly, for every form and its three upgrades', () => {
   withTemp(STAGES[1], { hpMult: 0.3, growth: 1.04, waves: 34 }, () => {
     for (const base of HEROES) for (const [i, form] of base.evolutions[0].choices.entries()) {
-      const up = i % 2, w = createWorld({ seed: 7, stage: 2, lineup: [base.id, base.id === 'warrior' ? 'mage' : 'warrior', base.id === 'ranger' ? 'mage' : 'ranger'] });
+      const up = i % 3, w = createWorld({ seed: 7, stage: 2, lineup: [base.id, base.id === 'warrior' ? 'mage' : 'warrior', base.id === 'ranger' ? 'mage' : 'ranger'] });
       const ids = [];
       for (const id of w.lineup) search: for (const [x, y] of w.path.slice(3)) for (const dy of [1, -1]) { const r = apply(w, { type: 'place', hero: id, cx: x, cy: y + dy }); if (r.ok) { ids.push(r.id); break search; } }
       const h = w.heroes.find(x => x.id === ids[0]); let after = 0;

@@ -14,15 +14,18 @@ import { pathPos, knockback } from '../enemies.js';
 import { T } from '../../content/data.js';
 import { pulseZone, lob } from './common.js';
 import { upgradeOf } from '../upgrades.js';
+import { stacksOf } from '../synergy.js';
 import '../aura.js';
 
 const near = (a, b, r) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2 <= r * r;
 
 /* ---- Warlock ---- */
-/* Soul drain: a beam on the toughest enemy in range for 2 seconds, 5x a hit in all; if it dies while drained, every hero
-   within 150 px gains 20 energy. */
-export const DRAIN = { seconds: 2, scale: 5, radius: 150, energy: 20 };
-registerUltimate('souldrain', { name: 'Soul drain', desc: 'Drains the toughest enemy in range for {t:2}, {2.5} each second; if it dies, heroes nearby gain 20 energy.', damageMult: 1,
+/* Soul drain: a beam on the toughest enemy in range for 2 seconds, 5x a hit in all, +10% for every Corruption or Poison stack
+   on it (counted each tick, so stacks added during the drain count too; poison comes from other heroes: a synergy); if it dies while drained, every hero within 150 px gains
+   20 energy. */
+export const DRAIN = { seconds: 2, scale: 5, radius: 150, energy: 20, perStack: 0.1 };
+export const drainMult = e => 1 + DRAIN.perStack * (stacksOf(e, 'corruption') + stacksOf(e, 'poison'));
+registerUltimate('souldrain', { name: 'Soul drain', desc: 'Drains the toughest enemy in range for {t:2}, {2.5} each second, +10% for each Corruption or Poison stack on it; if it dies, heroes nearby gain 20 energy.', damageMult: 1,
   onFire(w, h) {
     const tg = pickStrongest(w, h, h.s.range);
     if (tg) w.zones.push({ type: 'drain', owner: h, target: tg, x: tg.x, y: tg.y, t: lasting(h, DRAIN.seconds) });   /* the same damage a second, for longer */
@@ -35,7 +38,7 @@ ZONES.drain = {
       return false;
     }
     z.x = e.x; z.y = e.y;
-    g.attack(h, e, DRAIN.scale / DRAIN.seconds * dt, dt);
+    g.attack(h, e, DRAIN.scale / DRAIN.seconds * dt * drainMult(e), dt);
     if (e.dead) for (const o of g.heroes) if (near(o, h, DRAIN.radius)) gainEnergy(o, DRAIN.energy);
     g.fx?.beam(h.x, h.y - 8, e.x, e.y, 0.05, 'rgba(154,92,214,.8)', 3);
     return (z.t -= dt) > 0 && !e.dead;
@@ -56,6 +59,23 @@ EFFECT_HOOKS.death.doom = (w, e, f) => {
     w.dot(src, o, e.max * DOOM.share, 'shadow');
   }
   w.ev.emit('explode', { zone: { x: e.x, y: e.y } });
+};
+
+/* Festering hex (the Occult's passive): a Hexed enemy that dies passes its damage over time (burn, bleed, poison stacks,
+   Corruption stacks) to the nearest living enemy within `spread` px. */
+const FESTER = ['burn', 'bleed', 'poison', 'corruption'];
+EFFECT_HOOKS.death.hex = (w, e, f) => {
+  const u = upgradeOf(f.src, 'occult_passive');
+  if (!u || !e.fx) return;
+  let best = null, bd = u.spread * u.spread;
+  for (const o of w.enemies) { if (o.dead || o === e) continue; const q = (o.x - e.x) ** 2 + (o.y - e.y) ** 2; if (q <= bd) { bd = q; best = o; } }
+  if (!best) return;
+  for (const id of FESTER) {
+    const fx = e.fx[id];
+    if (!fx) continue;
+    for (const st of fx.stacks || [fx]) if (st.t > 0) applyEffect(best, id, { ...st });
+  }
+  w.fx?.beam(e.x, e.y, best.x, best.y, 0.15, '#6b3fa0', 2);
 };
 
 /* ---- Summoner ---- */
