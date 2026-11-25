@@ -19,7 +19,7 @@ import { pathChoice, pathDef } from '../engine/preview.js';
 import { savePaths } from '../services/api.js';
 import { UNLOCKS } from '../content/unlocks.js';
 import { UPGRADES, UPGRADE_LEVEL, SLOT_NAME } from '../content/upgrades.js';
-import { ringLine, setsUpText, passiveSetup } from '../content/synergies.js';
+import { ringLine, passiveSetup } from '../content/synergies.js';
 import { el, cap, items, itemById, equipment, gearOf, setGear, freeFor, wornItems, gearCount, ensureItems, saveNow, sqlHint, itemIcon, itemTip, activePaths, pathsUnlocked, gems, gemsIn } from './loadout.js';
 import { gemBadge, gemTip } from './gems.js';
 import { socketGem } from '../services/api.js';
@@ -189,12 +189,9 @@ function renderInfo(box, h) {
   row('Energy per second', f(s.energyPerSecond) + ' / ' + f(s.energyMax));
   const u = ULTIMATES[h.ultimate];
   if (u) { stats.append(el('h3', '', 'Ultimate')); stats.append(liveLine('p', 'hdesc', u.name + ': ', u.desc, s, heroStats(asPlayed(h), []))); }
-  /* Combos (js/content/synergies.js): which debuffs make its damage hit harder, and what its own debuffs set up for others. */
+  /* Combos (js/content/synergies.js): which debuffs make its damage hit harder, and who puts them on enemies. */
   stats.append(el('h3', '', 'Combos'));
   const hits = el('p', 'hdesc combo'); hits.append(el('b', '', 'Hits harder: '), ringLine(h.damageType, h.id)); stats.append(hits);
-  const ups = setsUpText(h), sets = el('p', 'hdesc combo');
-  sets.append(el('b', '', 'Sets up: '), ups || 'nothing yet');
-  stats.append(sets);
   box.append(gear, pic, stats);
 }
 
@@ -240,6 +237,7 @@ function renderEvolutions(box, h) {
 
 function render() {
   $('hrList').hidden = !!hero; $('hrPage').hidden = !hero;
+  $('screen-heroes').classList.toggle('onhero', !!hero);   /* the full-window hero page (index.html, Showcase) */
   $('hrTitle').textContent = hero ? hero.name : 'Heroes';
   if (!hero) { renderList(); return; }
   for (const b of $('hrTabs').children) b.classList.toggle('on', b.dataset.tab === tab);

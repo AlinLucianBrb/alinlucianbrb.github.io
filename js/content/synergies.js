@@ -79,7 +79,8 @@ export function setsUpLines(id) {
   }
   return [...by].map(([type, l]) => or(l) + (type ? ' → +' + Math.round(RING_MORE * 100) + '% ' + DAMAGE_LABEL[type] : ' (some passives feed on it)'));
 }
-/* The same for a base hero and its forms: "Marked → +25% Shadow · Toxicologist: Poisoned → +25% Fire". */
+/* The same for a base hero and its forms: "Marked → +25% Shadow · Toxicologist: Poisoned → +25% Fire". Not shown since
+   v0.76.1 (Alin wants it somewhere other than the hero page); kept for that place. */
 export function setsUpText(hero) {
   const own = setsUpLines(hero.id), forms = (hero.evolutions[0] ? hero.evolutions[0].choices : []).map(c => [c.name, setsUpLines(c.id)]).filter(([, l]) => l.length);
   return [...own, ...forms.map(([n, l]) => n + ': ' + l.join(', '))].join(' · ');

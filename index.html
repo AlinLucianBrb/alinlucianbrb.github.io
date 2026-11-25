@@ -1160,6 +1160,28 @@ body.rarmarks #shopCard .relicchip[data-rar]::before{position:absolute;left:2px;
 #inspect .pst .pname{overflow:hidden;text-overflow:ellipsis}   /* only a very long name (an effect) is cut; the tooltip has it whole */
 #inspect .attrs{grid-template-columns:repeat(3,minmax(0,1fr))}
 #inspect .attr{min-width:0;padding:0 4px 0 2px}
+/* ---- Hero page, Showcase (v0.76.1): one hero over the whole game window, no framed box. The hero stands big in the middle
+   on a glow of its colour; gear runs down the left edge and stats down the right, both fading into the scene. The
+   Evolutions tab uses the same open page. (#screen-heroes.onhero: a hero is open; the list of heroes is unchanged.) ---- */
+#screen-heroes.onhero{padding:0;gap:0;justify-content:flex-start;overflow:hidden}
+#screen-heroes.onhero .topbar{position:absolute;top:14px;left:18px;width:auto;z-index:6}
+#screen-heroes.onhero h1{position:absolute;top:66px;left:50%;transform:translateX(-50%);z-index:5;border:none;border-image:none;background:none;
+  min-height:0;width:auto;padding:0;margin:0;font-size:44px;line-height:52px;white-space:nowrap;pointer-events:none}
+#screen-heroes.onhero #hrPage{position:absolute;inset:0;width:100%;max-width:none;display:flex;flex-direction:column;gap:0}
+#screen-heroes.onhero #hrTabs{position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:6}
+#screen-heroes.onhero .hbody{flex:1;min-height:0;border:none;border-image:none;background:none;box-shadow:none;padding:0;margin:0}
+#screen-heroes.onhero .hbody.info{display:grid;grid-template-columns:minmax(260px,24vw) minmax(0,1fr) minmax(320px,28vw);gap:0;align-items:stretch;
+  background:radial-gradient(ellipse 34% 60% at 50% 58%,color-mix(in srgb,var(--hc) 40%,transparent),transparent 70%)}
+#screen-heroes.onhero .hgear{padding:110px 24px 28px 32px;justify-content:center;gap:10px;background:linear-gradient(90deg,rgba(8,6,4,.78),rgba(8,6,4,.35) 75%,transparent)}
+#screen-heroes.onhero .hgear .hslot.compact{padding:8px 12px}
+#screen-heroes.onhero .hpic{justify-content:flex-end;padding-bottom:40px;min-width:0}
+#screen-heroes.onhero .hart{height:min(72vh,640px);width:auto;max-width:100%;aspect-ratio:auto;background:none;border:none;box-shadow:none}
+#screen-heroes.onhero .hart img{width:auto;height:100%;max-width:100%;object-fit:contain;image-rendering:pixelated}
+#screen-heroes.onhero .pathline{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);margin:0}
+#screen-heroes.onhero .hstatbox{padding:110px 32px 28px 24px;display:flex;flex-direction:column;justify-content:center;background:linear-gradient(270deg,rgba(8,6,4,.8),rgba(8,6,4,.4) 75%,transparent)}
+#screen-heroes.onhero .slotpop{left:max(260px,24vw);top:104px;width:min(440px,calc(100% - 48px));max-height:calc(100% - 128px)}   /* beside the gear list, not over it */
+/* Evolutions: the tree across the whole window under the name */
+#screen-heroes.onhero .hbody.evo{display:flex;flex-direction:column;justify-content:center;padding:130px 28px 24px;background:radial-gradient(ellipse 40% 50% at 12% 55%,color-mix(in srgb,var(--hc) 26%,transparent),transparent 70%)}
 </style>
 </head>
 <body>

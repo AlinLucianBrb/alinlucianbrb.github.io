@@ -211,6 +211,14 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## The hero page fills the whole window (Nov 25, v0.76.1)
+- A hero's page is no longer a framed box under a banner: the hero stands big in the middle of the game window on a
+  glow of its colour, the name above it, gear down the left edge and stats down the right, both fading into the scene.
+  The Evolutions tab uses the same open page. The list of heroes is unchanged.
+- The item chooser opens beside the gear list instead of over it.
+- The "Sets up" line is gone from the hero page (that information will live somewhere else); "Hits harder" stays.
+- No SQL or rules change.
+
 ## Synergies: debuffs open enemies to other damage, and a third level-30 choice (Nov 25, v0.76.0)
 - **The ring:** every damage type has one debuff that opens enemies to it. An enemy with that debuff takes +25% from that
   type's part of every hit (not from damage over time): Bleeding → Toxic, Poisoned → Fire, Burning → Cold, Frozen or
