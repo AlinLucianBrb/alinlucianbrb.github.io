@@ -12,3 +12,7 @@ act2_optE 01ed6366-cd33-440d-b70c-495bf93ec98e (new layout, ref usage=style only
 act2_optF 25c76543-835e-43d8-bd4b-f70933eb356f (new layout, style image palette/outline/shading) S road, lake, elven platform, spirit from stump
 (A-C dropped: copied Act 1's layout)
 act2 = act2_optE (chosen Nov 25; D and F not kept)
+act3_optA fb49e67e-48f9-4423-bd99-b68cb4c26434 zigzag down, lizardfolk stilt village, shipwreck with drowned sailors, witch coven cauldron
+act3_optB 66a110ff-4fea-4c32-a362-b9bb8ec3ece3 lake in the middle, boardwalk, lizardfolk camp, sunken ship, witch tower island
+act3_optC 25cb11dd-c3ff-4f4e-b588-7ce41e22d447 hook road, lizardfolk stone heads, flooded graveyard, ritual circle cauldron
+act3 = act3_optA (chosen Nov 25 "for now, we will retouch later"; B and C not kept). It has 7 painted stops; the levels use stops 1, 2, 5, 6, 7

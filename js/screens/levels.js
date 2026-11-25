@@ -29,7 +29,7 @@ const say = (t, bad) => { $('lvMsg').textContent = t || ''; $('lvMsg').classList
    zone's road, then Endless. Hovering a level shows what it is; clicking it shows the same in the card under the map with
    "Choose heroes". The positions are in js/content/world-map.js. */
 const NS = 'http://www.w3.org/2000/svg';
-let picked = null, pickedX = 0;   /* the level shown in the card, and where it is across the map (%) */
+let picked = null, pickedAt = null, spots = [];   /* the level shown in the card, where it is, and where every flag on the map is (%) */
 /* A point in % of the map's open area: the map fills the window, minus room for the title (top), the card and Back
    (bottom) and the sides (--mt, --mb, --ml, --mr in index.html). */
 const mapX = x => 'calc(var(--ml,0px) + ' + x + ' * (100% - var(--ml,0px) - var(--mr,0px)) / 100)';
@@ -67,7 +67,7 @@ const backLabel = () => { const b = $('lvBack'); if (b) b.textContent = stage ==
 function renderLevels() {
   backLabel();
   const p = state.profile, cleared = p.levels_cleared || 0, next = Math.min(STAGES.length, cleared + 1), map = $('lvMap');
-  map.textContent = ''; picked = null; renderCard();
+  map.textContent = ''; picked = null; spots = []; renderCard();
   if (zone === null) {
     if (document.body?.dataset) document.body.dataset.zone = String(zoneOf(next).n);
     $('lvMapTitle').textContent = 'World map';
@@ -106,6 +106,7 @@ function renderLevels() {
     const b = el('button', 'mapnode lvnode' + (s.endless ? ' endless' : '') + (open ? '' : ' locked') + (!s.endless && n <= cleared ? ' done' : '') + (here ? ' here' : ''));
     b.style.setProperty?.('--nc', zoneColor(zone));
     const pt = art ? (s.endless ? art.endless : art.stops[i]) : (s.endless ? ENDLESS_SPOT : ZONE_PATH[i]);
+    spots.push(pt);
     if (art) placeOnArt(b, pt); else place(b, pt);
     const label = el('span', 'maplabel');
     label.append(el('b', '', s.endless ? 'Endless' : 'Level ' + s.code), el('small', '', status(n)));
@@ -113,11 +114,18 @@ function renderLevels() {
     b.append(mark, label, ...(here ? [el('span', 'heretag', 'Next')] : []));
     b.disabled = !open; b.dataset && (b.dataset.n = String(n));
     bindTip(b, () => ({ title: levelTitle(n), color: zoneColor(zone), lines: levelLines(n) }));
-    b.onclick = () => { if (picked === n) { choose(n); return; } picked = n; pickedX = pt.x; renderCard(); for (const c of map.children) c.classList?.toggle('sel', c === b); };
+    b.onclick = () => { if (picked === n) { choose(n); return; } picked = n; pickedAt = pt; renderCard(); for (const c of map.children) c.classList?.toggle('sel', c === b); };
     map.append(b);
   });
 }
 /* The card under the map: the clicked level, what it is, and "Choose heroes" (clicking the level again does the same). */
+/* The card sits in a bottom corner: the one with fewer flags under it (about the bottom quarter, 40% of the width),
+   and when both are clear, the one away from the picked flag. */
+function cardLeft() {
+  const under = left => spots.filter(p => p.y > 70 && (left ? p.x < 42 : p.x > 58)).length;
+  const l = under(true), r = under(false);
+  return l === r ? (pickedAt ? pickedAt.x > 50 : false) : l < r;
+}
 function renderCard() {
   const card = $('lvInfo'); if (!card) return;
   card.textContent = '';
@@ -127,7 +135,7 @@ function renderCard() {
   for (const l of levelLines(picked)) { const t = el('small', '', l.text); t.style.color = l.color; words.append(t); }
   go.onclick = () => choose(picked);
   card.append(words, go); card.hidden = false;
-  card.classList?.toggle('onleft', pickedX > 50);   /* the card goes to the side away from the flag, so it never covers it */
+  card.classList?.toggle('onleft', cardLeft());
 }
 const choose = n => { stage = n; lineup = []; say(''); render(); };
 /* Zooming: into a zone from its place on the world, and back out to it. Without animations (or with fewer effects) it

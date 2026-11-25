@@ -40,5 +40,11 @@ export const ZONE_ART = {
     src: 'assets/zonemap_2.png', ratio: 458 / 256,
     stops: [{ x: 17.0, y: 43.2 }, { x: 31.3, y: 67.8 }, { x: 51.1, y: 83.8 }, { x: 67.2, y: 73.2 }, { x: 82.8, y: 39.1 }],
     endless: { x: 90, y: 62 }
+  },
+  3: {   /* down past the lizardfolk stilt village, over boardwalks by the drowned sailors' wreck, to the witches' coven.
+            The picture has 7 painted stops for now (to be retouched); the levels use the 1st, 2nd, 5th, 6th and 7th. */
+    src: 'assets/zonemap_3.png', ratio: 458 / 256,
+    stops: [{ x: 13.3, y: 19.1 }, { x: 32.1, y: 44.5 }, { x: 43.9, y: 77.9 }, { x: 60.9, y: 61.3 }, { x: 82.0, y: 89.3 }],
+    endless: { x: 8, y: 62 }
   }
 };

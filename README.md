@@ -211,6 +211,15 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
 
+## Act 3 has its painted map (Nov 25, v0.73.2)
+- Act 3, the Mire, has its painted map: the road comes in at the top left past a lizardfolk village on stilts, turns
+  into boardwalks over the swamp by a wreck with drowned sailors, and ends at the witches' coven around a bubbling
+  cauldron. The Endless portal stands in the water on the left.
+- A first version, to be retouched later: the picture has 7 painted stone stops, the levels use five of them.
+- The level card now goes to the bottom corner with no flags under it (when both are clear, the one away from the
+  flag you clicked).
+- No SQL or rules change.
+
 ## Act 2 has its painted map (Nov 25, v0.73.1)
 - Act 2, the Deep Forest, now has its own painted map with its own layout: the road comes in on the left between
   dark trees with faces, dips past a fairy garden and a ring of white birches, crosses a glowing stream on stepping
