@@ -127,11 +127,11 @@ test('rerolls: free from talents, then for gold (rising); banishes only from tal
   g0 = plain.gold; apply(plain, { type: 'reroll' }); assert.equal(g0 - plain.gold, Math.round(paid * 0.5), 'then a quarter more each time');
   plain.gold = 0; assert.equal(apply(plain, { type: 'reroll' }).reason, 'gold', 'not enough gold');
   assert.equal(apply(plain, { type: 'banish', index: 0 }).reason, 'no banishes');
-  /* The path into the Relics cluster, its beginning (+1 reroll, +1 banish), then one Second Look on the left side (+1 reroll). */
-  const w = createWorld({ seed: 1, talents: pathTo(new Set(), 't6_relics_a') }); w.gold = 100000;
-  assert.equal(w.rerolls, 2); assert.equal(w.banishes, 1);
+  /* The first Relics talent: +1 reroll, +1 banish. */
+  const w = createWorld({ seed: 1, talents: pathTo(new Set(), 't6_relics_s') }); w.gold = 100000;
+  assert.equal(w.rerolls, 1); assert.equal(w.banishes, 1);
   apply(w, { type: 'buyRelic' });
-  let g = w.gold; assert.ok(apply(w, { type: 'reroll' }).ok); assert.equal(g - w.gold, 0, 'free'); assert.equal(w.rerolls, 1);
+  let g = w.gold; assert.ok(apply(w, { type: 'reroll' }).ok); assert.equal(g - w.gold, 0, 'free'); assert.equal(w.rerolls, 0);
   const gone = w.pick.offers[0].relic.name;
   g = w.gold; assert.ok(apply(w, { type: 'banish', index: 0 }).ok); assert.equal(g - w.gold, 0); assert.equal(w.banishes, 0);
   assert.equal(apply(w, { type: 'banish', index: 0 }).reason, 'no banishes', 'used up');

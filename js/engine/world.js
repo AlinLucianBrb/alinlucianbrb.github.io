@@ -36,7 +36,7 @@ import { cleanPaths, pathChoice, pathDef, previewMods, syncPreview, updatePrevie
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
 export const REROLL_GOLD = 0.25;
-export const ENGINE_VERSION = 42;     /* bump when a rule change would make old command logs play out differently */
+export const ENGINE_VERSION = 43;     /* bump when a rule change would make old command logs play out differently */
 
 /* Checks a lineup: up to LINEUP_SIZE different, playable heroes. Returns a clean copy, or the full roster if it is empty. */
 export function cleanLineup(lineup) {
@@ -138,7 +138,11 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
   w.erupt = h => erupt(w, h);   /* Naturist Druid's spikes */
   /* A boss that gets through on the last wave ends the run: a level is only won by beating its final boss. */
   w.ev.on('escape', ({ enemy }) => {
-    if (!ironGate(w, enemy)) w.lives = Math.max(0, w.lives - enemy.def.leak * w.fxm.leak);
+    if (!ironGate(w, enemy)) {
+      let lost = enemy.def.leak * w.fxm.leak;
+      if (lost > 0 && !w.refunded && w.players.some(p => p.gs.lifeRefund > 0)) { w.refunded = true; lost = Math.max(0, lost - 1); w.ev.emit('lifeRefund', {}); }   /* Second Chance */
+      w.lives = Math.max(0, w.lives - lost);
+    }
     if (enemy.prize) { enemy.prize.lost = true; payPrize(w, enemy); }
     if (w.lives <= 0 || (enemy.def.boss && !enemy.def.summoned && w.wave >= w.maxWave)) endRun(w, false);
   });
@@ -214,7 +218,7 @@ export function recalc(w) {
       heroStartLevel: Math.max(0, Math.round(resolve(0, 'heroStartLevel', m))), evolveLevel: Math.min(0, Math.round(resolve(0, 'evolveLevel', m))),
       /* talent notables for the whole match (GLOBAL_EFFECTS in effect-stats.js) */
       bossInterest: resolve(0, 'bossInterest', m), betterOffer: resolve(0, 'betterOffer', m), waveReroll: resolve(0, 'waveReroll', m),
-      freeEvolve: resolve(0, 'freeEvolve', m), bossXp: resolve(0, 'bossXp', m)
+      freeEvolve: resolve(0, 'freeEvolve', m), bossXp: resolve(0, 'bossXp', m), lifeRefund: resolve(0, 'lifeRefund', m)
     };
   }
   for (const h of w.heroes) statsFor(w, h);

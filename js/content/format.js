@@ -9,5 +9,9 @@ export function fmtMod(m) {
   /* Stats that are shares (chances, penetration, crit damage, relic luck) read as percentages: "+10% crit damage". */
   const pct = /Chance$|Pen$|^critDamage$|^relicLuck$|^interest$|^relicOffers$|^itemRarity$/.test(m.stat), sign = m.value < 0 ? '−' : '+', v = Math.abs(m.value);
   if (m.stat === 'relicOffers') return '+' + f(v * 100) + '% chance of one more relic offer';
+  /* A modifier for some heroes only (a tag such as melee or fire): "+3% melee damage", "+2% cast speed for spell heroes". */
+  const tag = Array.isArray(m.scope) && m.scope.length === 1 && m.scope[0] !== 'all' ? m.scope[0] : null;
+  const named = tag && m.stat === 'damage' ? tag + ' damage' : tag && !label.includes(tag) ? label + ' for ' + tag + ' heroes' : label;
+  if (named !== label) return m.type === 'inc' || pct ? sign + f(v * 100) + '% ' + named : m.type === 'flat' ? sign + f(v) + ' ' + named : '×' + f(1 + m.value) + ' ' + named;
   return m.type === 'inc' ? sign + f(v * 100) + '% ' + label : m.type === 'flat' ? sign + (pct ? f(v * 100) + '%' : f(v)) + ' ' + label : '×' + f(1 + m.value) + ' ' + label;
 }

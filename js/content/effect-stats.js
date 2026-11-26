@@ -45,7 +45,8 @@ export const GLOBAL_EFFECTS = {
   freeEvolve: () => 'Your first evolution each match is free',
   bossXp: () => 'Bosses give double hero XP',
   firstClear: v => '+' + p(v) + ' gold and XP on a level you have not cleared yet',
-  lootReroll: () => 'Once per match, reroll one item you found'
+  lootReroll: () => 'Once per match, reroll one item you found',
+  lifeRefund: () => 'The first life lost each match is given back'
 };
 export const EFFECT_KEYS = Object.keys(EFFECT_STATS);
 export const EFFECT_BASE = Object.fromEntries(EFFECT_KEYS.map(k => [k, 0]));

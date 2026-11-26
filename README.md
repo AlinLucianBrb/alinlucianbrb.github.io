@@ -183,16 +183,17 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Item types:** every slot has a plain item (Helm, Body Armour, Leggings, Boots, Power Charm) and one per archetype: **melee** (Great Helm, Plate Armour, Plate Greaves, Sabatons, Bloodstone Ring), **projectile** (Leather Hood, Leather Jerkin, Leather Trousers, Ranger Boots, Feather Charm), **spell** (Circlet, Silk Robe, Silk Wraps, Silk Slippers, Arcane Amulet) and **minion** (Beast Mask, Hide Armour, Fur Leggings, Fur Boots, Fang Necklace). On an archetype item each bonus has a 60% chance (`ROLL.affinityChance`) to come from that archetype's bonuses (`AFFINITY`: melee Whetstone, Wide swing, Quick hands, Cruelty; projectile Fine arrows, Long barrels, Quick hands, Keen edge; spell Arcane focus, Split bolt, Quick incantation, Battle focus; minion Pack leader, Feral haste, Hunting instinct, Savage bite), else from all of them; bonuses never repeat. Tooltips name the archetype. The server keeps each type's archetype (`item_types.affinity`) and each bonus's archetypes (`item_bonuses.tags`), generated from `js/content/items.js`.
 - **Selling items** (Inventory): click an item, then Sell, then again to confirm; it is gone and its price goes to your account gold. Worn items have to be taken off first. The price is a base by rarity (5, 15, 40, 100) plus 5 gold per bonus rank (`SELL`, `sellPrice`); the server's `sell_item` works out the same price itself (`item_price`) and checks the item is yours and not worn. Tooltips show the price.
 - **Talents:** you get 1 talent point per account level, and the account level stops at **100**, so a player at level 100
-  owns all **100 talents**. They are shared by every hero and laid out as **20 tracks of 5**, taken in order: the **start**
-  (both of the track's stats, small), the **first stat**, the **second stat**, the **mastery** (both again) and the
-  **notable** (both, bigger, and the track's unique effect). Respec is free.
+  owns all **100 talents**. They are shared by every hero and laid out as **20 tracks of 5**, taken in order: the first
+  three are the same (the track's two stats, for example Melee: +3% melee damage and +2% melee attack speed), the fourth,
+  the **mastery**, gives more of both (+9% and +6%), and the fifth, the **notable**, is only the track's unique effect.
+  Respec is free.
   - **Combat** (left column, 12), by type. The main types: Melee (damage | attack speed; notable *Deadly Strikes*: melee crit
     chance is rolled twice), Projectile (damage | range; *Deadeye*: more damage the farther the target), Spell (damage | cast
     speed; *Arcane Flow*: a chance to cast again), Minion (minion damage | minion speed; *Bloodbond*: a minion's kill gives its
     hero 3 energy). The damage types: Physical (damage | armor penetration; *Relentless*: +10% damage for every second an
-    enemy has been in the hero's range, up to +100%, starting again when it leaves), Fire, Cold and Lightning (added damage |
-    penetration; the notable adds the ailment's chance and *Pyromancy*: burning enemies stagger, *Hoarfrost*: every 5th cold
-    hit on a chilled enemy freezes it for 1 s, *Thunderstruck*: shock jumps), Toxic (damage | poison chance; *Plaguebearer*:
+    enemy has been in the hero's range, up to +100%, starting again when it leaves), Fire, Cold and Lightning (damage of that type |
+    penetration; *Pyromancy*: burning enemies stagger, *Hoarfrost*: every 5th cold
+    hit on a chilled enemy freezes it for 1 s, *Thunderstruck*: shock jumps; their mastery adds the ailment's chance), Toxic (damage | poison chance; *Plaguebearer*:
     stronger poison, poisoned enemies cannot heal), Shadow (damage | corruption chance; *Shatter Will*: corruption lowers
     defenses), Holy (damage | added holy damage; *Judgement*: a killing holy hit passes its extra damage to the nearest enemy).
     Last, Energy (energy per second | duration; *Second Wind*: a 20% chance to keep the energy when an ultimate is cast).
@@ -201,10 +202,9 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
     better), Relics (rerolls | banishes; *Relic Hunter*: a free reroll every wave), Training (heroes start at a higher level |
     evolve earlier and cheaper; *Veterans*: the first evolution of each match is free), Rewards (gold | XP at the end of a
     match; *Pioneer*: +50% of both on a level you have not cleared yet), Loot (item rarity luck | item find; *Hoard*: once per
-    match, reroll one item you found), Head Start (starting gold | lives; its notable is just more of both), Bounty (hero XP |
+    match, reroll one item you found), Head Start (starting gold | lives; *Second Chance*: the first life lost each match is given back), Bounty (hero XP |
     gold per kill; *Trophy Hunter*: heroes get twice the XP from bosses).
-  - Twelve tracks are "bigger" (x1.5 per step): the damage types, Energy, Economy, Merchant, Rewards and Loot. Crit chance and crit damage are no longer talents (items and relics still give
-    them). Pioneer and Hoard are applied by the server: `finish_run` adds Pioneer's bonus, and `reroll_drop` rerolls one item
+  - Crit chance and crit damage are no longer talents (items and relics still give them). Pioneer and Hoard are applied by the server: `finish_run` adds Pioneer's bonus, and `reroll_drop` rerolls one item
     of a finished run (only one, only an item from that run that is not worn, within an hour); the end-of-match screen shows a
     **Reroll an item** button for it.
   - Hero talents target **tags** (melee, projectile, spell, fire...), so they reach every hero with the tag, evolved forms included.
@@ -230,6 +230,22 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Texts:** attack descriptions describe only the attack, ultimate tooltips only the ultimate, and the hero tooltip the hero (its attribute, delivery and source, tags, damage type). Ultimates that deal damage of their own write it as `{N}` in their description; `ultDesc()` shows it as the number it deals with the hero's stats ("about 156 damage"); "x2 damage" is kept for boosts to an attack the hero already makes. "At level 10, choose a path" is gone from the descriptions.
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
+
+## Talents: three the same, a bigger fourth, the notable alone, each type its own damage; Second Chance (Nov 26, v0.80.0)
+- Every track now follows one rule: the first three talents are the same (the track's two stats), the fourth gives more of
+  both (what the notable used to add), and the fifth is only the unique effect. A full track gives about what it did
+  before; Relics now gives 5 rerolls and 5 banishes (was 4), and Training starts heroes at level 6 and evolves them at
+  level 10 (was 5 and 11).
+- Head Start's notable is back to the first idea: **Second Chance**, the first life lost each match is given back.
+- Each combat track gives its own type of damage and says so: Melee "+3% melee damage", Physical "+3% physical damage",
+  Fire "+4% fire damage" and so on, with the second stat "for melee heroes" etc. Fire, Cold and Lightning used to give flat
+  added damage to every hero; now they give % damage of that type to the heroes that deal it (the Fire Mage, the
+  Infernalist...), and their penetration and ailment chance are for those heroes too. A base hero without the tag (the
+  Mage is arcane) gets nothing from them until it evolves into a form that has it.
+- Modifiers for some heroes only now name them everywhere (talents, relics): "+2% cast speed for spell heroes".
+- The fourth talent's tooltip no longer says "(mastery)" after "Mastery".
+- **SQL changed** (run `supabase-update.sql`): the talent numbers. Talent ids are the same, so nobody loses points. Rules
+  change: `ENGINE_VERSION` 43.
 
 ## Talents: 12 combat tracks by type, 8 quality of life, each ending in a unique effect (Nov 26, v0.79.0)
 - From the design notes. Combat is now grouped by type: Melee, Projectile, Spell, Minion, then the damage types Physical,

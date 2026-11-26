@@ -28,7 +28,7 @@ function tipFor(n) {
     const k = toTake(n).length;
     status = k > free() ? plural(k, 'point') + ' needed; you have ' + free() + '.' : k === 1 ? 'Click to take it (1 point).' : 'Click to take it and the ' + plural(k - 1, 'talent') + ' before it (' + k + ' points).';
   }
-  const kind = n.notable ? ' (notable)' : n.mastery ? ' (mastery)' : '';
+  const kind = n.notable ? ' (notable)' : '';
   return { title: n.name + kind, color: cl.color, lines: [{ text: cl.title + ' · ' + (n.step + 1) + ' of ' + cl.size, color: '#ab9f8a' }, ...n.mods.map(fmtMod), { text: status, color: '#ab9f8a' }] };
 }
 

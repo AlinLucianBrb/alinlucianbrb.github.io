@@ -98,3 +98,13 @@ test('the server: Pioneer pays more on a level not cleared yet; Hoard lets one f
     assert.ok(sql.includes('revoke all on function public.reroll_drop(uuid, uuid) from public, anon, authenticated;') && sql.includes('grant execute on function public.reroll_drop(uuid, uuid) to authenticated;'), f);
   }
 });
+
+test('Second Chance (Head Start): the first life lost each match is given back, once', async () => {
+  const { spawnEnemy } = await import('../js/engine/enemies.js');
+  for (const [talents, first] of [[all('headstart'), 0], [[], 1]]) {
+    const w = createWorld({ seed: 1, talents }); w.wave = 1; const start = w.lives;
+    const leak = () => { const e = spawnEnemy(w, 'grunt'); w.ev.emit('escape', { enemy: e }); return start - w.lives; };
+    assert.equal(leak(), first * (w.enemies[0].def.leak || 1), talents.length ? 'the first is given back' : 'without the talent it counts');
+    assert.ok(leak() > first, 'the second always counts');
+  }
+});
