@@ -65,7 +65,7 @@ language sql stable security definer set search_path = public as $$
   limit least(greatest(p_limit, 1), 100);
 $$;
 
--- Talent points: 1 per level above 1. Checks the point budget, that every node exists, and that each one connects to its tree's start.
+-- Talent points: 1 per level, up to the top level (rule_max_level). Checks the point budget, that every node exists, and that each one connects to its tree's start.
 create or replace function public.save_talents(p_nodes text[]) returns public.profiles
 language plpgsql security definer set search_path = public as $$
 declare me public.profiles; nodes text[]; n int; ok int;
@@ -74,7 +74,7 @@ begin
   select * into me from public.profiles where id = auth.uid() for update;
   nodes := coalesce(p_nodes, '{}');
   n := coalesce(array_length(nodes, 1), 0);
-  if n > me.level - 1 then raise exception 'too many talent points'; end if;
+  if n > least(me.level, public.rule_max_level()) then raise exception 'too many talent points'; end if;
   if (select count(distinct x) from unnest(nodes) x) <> n then raise exception 'duplicate nodes'; end if;
   if n > 0 then
     if (select count(*) from public.talent_nodes t where t.id = any (nodes) and not t.is_root) <> n then
@@ -258,7 +258,7 @@ begin
     from public.talent_nodes t where t.id = any (me.talents);
   me.xp := me.xp + public.rule_run_xp(p_waves, p_kills, b_xp);
   me.gold := me.gold + public.rule_run_gold(p_waves, b_gold);
-  while me.xp >= public.rule_xp_need(me.level) loop
+  while me.level < public.rule_max_level() and me.xp >= public.rule_xp_need(me.level) loop
     me.xp := me.xp - public.rule_xp_need(me.level);
     me.level := me.level + 1;
   end loop;

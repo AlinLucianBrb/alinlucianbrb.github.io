@@ -2,6 +2,7 @@ import { bus } from '../core/bus.js';
 import { state } from '../core/state.js';
 import { xpNeed } from '../core/rules.js';
 import { pointsFor } from '../content/talents.js';
+import { ACCOUNT } from '../content/rules.js';
 import { signOut, getAchievements } from '../services/api.js';
 import { claimable } from './achievements.js';
 import { loadRun, clearRun, describeRun } from '../game/saved-run.js';
@@ -14,7 +15,8 @@ function render() {
   const p = state.profile, need = xpNeed(p.level);
   $('mName').textContent = p.username; $('mLv').textContent = p.level;
   $('mTitle').textContent = p.title || ''; $('mTitle').hidden = !p.title;   /* the achievement title worn */
-  $('mXp').textContent = 'XP ' + p.xp + '/' + need; $('mXpFill').style.width = Math.min(100, p.xp / need * 100) + '%';
+  const top = p.level >= ACCOUNT.maxLevel;   /* the top level: every talent point earned */
+  $('mXp').textContent = top ? 'Max level' : 'XP ' + p.xp + '/' + need; $('mXpFill').style.width = (top ? 100 : Math.min(100, p.xp / need * 100)) + '%';
   $('mGold').textContent = p.gold.toLocaleString();
   $('mVersion').textContent = versionText();
   const free = pointsFor(p.level) - (p.talents || []).length;

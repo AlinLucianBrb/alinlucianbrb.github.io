@@ -2,5 +2,5 @@
    (major.minor.patch). The engine version (ENGINE_VERSION in js/engine/world.js) changes only when the rules change;
    it is shown beside it so a player can tell which rules a build plays by. */
 import { ENGINE_VERSION } from '../engine/world.js';
-export const GAME_VERSION = '0.77.8';
+export const GAME_VERSION = '0.78.0';
 export const versionText = () => 'v' + GAME_VERSION + ' · engine ' + ENGINE_VERSION;

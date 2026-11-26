@@ -182,15 +182,28 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Bonus ranks:** each bonus has its own rank, 1 to 4, rolled separately; a rank 3 Whetstone gives what a Rare Whetstone relic gives. The item's rarity does not decide the ranks but makes higher ones likelier (`ROLL.rankWeights`, in %, ranks 1/2/3/4): Common 70/22/7/1, Uncommon 45/35/15/5, Rare 25/35/28/12, Epic 10/25/35/30. So a Common item can roll a rank 4 bonus and an Epic one a rank 1. Tooltips and the hero page show each bonus in its rank's colour (white, green, blue, purple) with its rank. The server rolls the ranks in `finish_run` and stores them in `player_items.bonus_ranks`; items from before ranks count each bonus at the item's rarity. Items from before rarities are Common with no bonuses, and an old single item becomes the hero's trinket.
 - **Item types:** every slot has a plain item (Helm, Body Armour, Leggings, Boots, Power Charm) and one per archetype: **melee** (Great Helm, Plate Armour, Plate Greaves, Sabatons, Bloodstone Ring), **projectile** (Leather Hood, Leather Jerkin, Leather Trousers, Ranger Boots, Feather Charm), **spell** (Circlet, Silk Robe, Silk Wraps, Silk Slippers, Arcane Amulet) and **minion** (Beast Mask, Hide Armour, Fur Leggings, Fur Boots, Fang Necklace). On an archetype item each bonus has a 60% chance (`ROLL.affinityChance`) to come from that archetype's bonuses (`AFFINITY`: melee Whetstone, Wide swing, Quick hands, Cruelty; projectile Fine arrows, Long barrels, Quick hands, Keen edge; spell Arcane focus, Split bolt, Quick incantation, Battle focus; minion Pack leader, Feral haste, Hunting instinct, Savage bite), else from all of them; bonuses never repeat. Tooltips name the archetype. The server keeps each type's archetype (`item_types.affinity`) and each bonus's archetypes (`item_bonuses.tags`), generated from `js/content/items.js`.
 - **Selling items** (Inventory): click an item, then Sell, then again to confirm; it is gone and its price goes to your account gold. Worn items have to be taken off first. The price is a base by rarity (5, 15, 40, 100) plus 5 gold per bonus rank (`SELL`, `sellPrice`); the server's `sell_item` works out the same price itself (`item_price`) and checks the item is yours and not worn. Tooltips show the price.
-- **Talents:** you get 1 talent point per level above 1, spent in **one tree** shared by every hero. It is **symmetrical**: 20 clusters in 20 directions, inner and outer ones alternating. **The top half is combat, the bottom half quality of life.** Respec is free.
-  - **The circle:** around the origin is a circle of path nodes only: an anchor in each inner direction (reached from the origin by a path) and a junction in each outer direction. Inner clusters hang from their anchor; outer clusters have a path down to their junction. Every path node gives **+1 to all attributes** (so +1% damage for any hero, through its own attribute).
-  - **Clusters** are diamonds pointing away from the origin, connected only at their beginning node, with **two kinds of stats**: the beginning and the end (the notable) have both; the left side has only the first kind, the right side only the second. Inner clusters have 6 nodes, outer ones 8.
-  - **Combat (top), west to east:** Martial (melee damage | melee attack speed), Sunder (armor penetration | physical damage), Marksmanship (projectile damage | range), Elements and toxins (elemental and toxic hero damage | poison chance), Might (damage | attack speed), Fire (added fire damage | fire penetration), Precision (crit chance | crit damage), Cold, Sorcery (spell damage | cast speed), and Lightning on the east end. The Fire, Cold and Lightning notables add the ailment's chance.
-  - **Quality of life (bottom), east to west:** Training (heroes start at a higher level | lower level needed to evolve), Fortune (gold | item find at the end of a match), Tempo (hero XP | end-of-match XP; the Overdrive notable unlocks 3x speed), Treasure Hunter (item rarity luck | chance of an extra item bonus), Relics (rerolls | banishes), Merchant (cheaper relics | chance of a 4th or 5th relic offer), Wealth (starting gold | wave gold), Investor (interest | interest limit, like the Compound interest relic), Gate (lives | cheaper evolutions), and Energy (energy per attack | energy per second) on the west end.
-  - With the whole Training cluster, heroes start at level 5 and evolve at level 6. Merchant: each full 100% is one more relic offer, the rest a chance of one more (at most 5). Treasure Hunter is applied by the server when it rolls the items (`finish_run`): rarity luck works like relic luck, and the extra chance adds to the 30% chance of each further bonus.
-  - Hero nodes target **tags** (melee, projectile, spell, fire...), so they reach every hero with the tag, evolved forms included.
-  - **The screen:** scroll (or + / −) to zoom, drag to move, Fit to see it all. Click a node next to your allocated ones to take it; click a node further away to take the whole shortest path to it, if you have the points (the tooltip says how many). Click an allocated node to give it back, if nothing else hangs on it.
-  - Node ids start with `t4_`; `supabase-update.sql` refunds points spent in any older tree.
+- **Talents:** you get 1 talent point per account level, and the account level stops at **100**, so a player at level 100
+  owns all **100 talents**. They are shared by every hero and laid out as **20 tracks of 5**, taken in order: the **start**
+  (both of the track's stats, small), the **first stat**, the **second stat**, the **mastery** (both again) and the
+  **notable** (both, bigger, often a special effect). Respec is free.
+  - **Combat** (left column): Might (damage | attack speed), Precision (crit chance | crit damage), Martial (melee damage | melee
+    attack speed), Marksmanship (projectile damage | range), Sorcery (spell damage | cast speed), Sunder (armor penetration |
+    physical damage), Fire (added fire damage | fire penetration), Cold, Lightning, Elements and toxins (elemental and toxic
+    hero damage | poison chance). The Fire, Cold and Lightning notables add the ailment's chance.
+  - **Quality of life** (right column): Energy (energy per second | duration), Gate (lives | cheaper evolutions), Wealth
+    (starting gold | wave gold), Investor (interest | interest limit, like the Compound interest relic), Merchant (cheaper relics |
+    chance of a 4th or 5th relic offer), Relics (rerolls | banishes), Training (heroes start at a higher level | lower level
+    needed to evolve), Tempo (hero XP | end-of-match XP), Fortune (gold | item find at the end of a match), Treasure Hunter
+    (item rarity luck | chance of an extra item bonus).
+  - The ten tracks that came from the old big clusters give three old steps of a stat at once (x1.5), the others two, so a full
+    track is worth what its old cluster was.
+  - With the whole Training track, heroes start at level 5 and evolve at level 6. Merchant: each full 100% is one more relic
+    offer, the rest a chance of one more (at most 5). Treasure Hunter is applied by the server when it rolls the items
+    (`finish_run`): rarity luck works like relic luck, and the extra chance adds to the 30% chance of each further bonus.
+  - Hero talents target **tags** (melee, projectile, spell, fire...), so they reach every hero with the tag, evolved forms included.
+  - **The screen:** every track at once, in two columns. Click a talent to take it and the ones before it in its track (the
+    tooltip says how many points); click a taken one to give it back with the ones after it.
+  - Talent ids start with `t5_`; `supabase-update.sql` refunds points spent in any older tree.
 - **Timed buffs:** Frenzy and Rally are buffs on the hero (`h.buffs`, added with `w.addBuff`). They are modifiers that last a few seconds; getting the same buff again refreshes it instead of stacking. The hero panel lists them as "Buff", and a coloured ring shows around the hero while one is active.
 - Talents, items, evolutions and relics are all modifiers, so they stack, and the hero panel shows where each bonus comes from. Bonuses from the same source are shown as one line whatever their rarity (a Common and a Rare Sharpened rounds: "+15% · Sharpened rounds ×2"), and the relic strip shows one chip per relic with the copies added together. All talent nodes count as one source, so each stat has a single "Talents" line (for example "+16% · Talents ×3").
 - **Relic rarities** are whole multiples of the Common version: Uncommon 2×, Rare 3×, Epic 4×. Relics are written at Common strength in `data.js`.
@@ -210,6 +223,19 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Texts:** attack descriptions describe only the attack, ultimate tooltips only the ultimate, and the hero tooltip the hero (its attribute, delivery and source, tags, damage type). Ultimates that deal damage of their own write it as `{N}` in their description; `ultDesc()` shows it as the number it deals with the hero's stats ("about 156 damage"); "x2 damage" is kept for boosts to an attack the hero already makes. "At level 10, choose a path" is gone from the descriptions.
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
+
+## Talents: 20 tracks of 5, and level 100 owns them all (Nov 26, v0.78.0)
+- The branching tree is gone. Talents are now 20 tracks of 5 (100 in all), taken in order: the start, the first stat, the
+  second stat, a mastery (both stats again) and the notable. A full track gives exactly what its old cluster gave. The 50
+  attribute path nodes (+1 to all attributes each) are gone.
+- One talent point per account level, from level 1, and the account level stops at 100: at level 100 a player owns every
+  talent. The menu shows "Max level" there.
+- The Talents screen shows every track at once in two columns (combat, quality of life): click a talent to take it and the
+  ones before it, click a taken one to give it back with the ones after it. No zooming or dragging.
+- Talent ids start with `t5_`; points spent in the old tree are refunded once.
+- **SQL changed** (run `supabase-update.sql`): the new talent list, `rule_max_level()`, `save_talents` allows one point per
+  level up to 100, `finish_run` stops levelling at 100, and the refund. Rules change: `ENGINE_VERSION` 41 (a run saved in
+  the browser before the update is dropped).
 
 ## Heroes and Inventory centered (Nov 25, v0.77.8)
 - The Heroes list and the Inventory now sit in the middle of the window instead of at the top; their small top line
@@ -1079,7 +1105,7 @@ Everything in combat flows through `hit()` in `js/engine/world.js`, which emits 
 - **New hero or evolution art:** add an entry to `HEROES` in `art/heroes.py` with the same id, run `python3 art/build.py`; the game picks it up by id.
 - **Animated hero (the new 128 px style):** made with Pixel Lab. Put `portrait_<id>.png` (the still image for the menus) and the sheets `anim_<id>_idle.png` and `anim_<id>_attack.png` (square frames side by side, the figure facing left) in `art/pixellab/` (`art/build.py` copies them into `assets/`), then add the hero to `HERO_ANIM` (every base hero is there) in `js/game/sprites.js`: frame size, where the feet are on a frame, the figure's height, frames and speed of each animation, and which way the attack swings. The hero then plays its idle loop on the map, plays its attack on every swing, faces its target, and shows its portrait in the menus. Evolved forms keep their old sprites for now.
 - **New enemy:** add it to `ENEMIES` in `js/engine/enemies.js` (with its armor and resistance per point of threat) and return it from `waveEnemyType`.
-- **New talent:** change a cluster in `K` in `talents.js`, or where it goes in `RING` (keep inner and outer alternating so the tree stays symmetrical), then run `npm run sql` and run `supabase-update.sql` in Supabase (a test fails until the SQL files are rebuilt).
+- **New talent:** change a track in `K` in `talents.js`, or where it is listed in `COMBAT_CLUSTERS` / `QOL_CLUSTERS` (keep 100 talents for 100 levels), then run `npm run sql` and run `supabase-update.sql` in Supabase (a test fails until the SQL files are rebuilt).
 
 ## Setup
 1. **Database:** in Supabase, open SQL Editor, paste `supabase-setup.sql` and run it. (Already set up earlier? Run `supabase-update.sql` instead; it is safe to run more than once.)

@@ -1,30 +1,25 @@
-/* The talent tree, Path of Exile style: one tree for every hero, made of CLUSTERS joined by PATHS, symmetrical all round.
-   - A cluster is a diamond pointing away from the origin, with two kinds of stats: its beginning node (facing the origin) and
-     its end node (the notable, furthest out) have both; the left side has only the first kind, the right side only the second.
-     Inner clusters have 2 nodes per side (6 in all), outer clusters 3 (8 in all).
-   - 20 clusters in 20 directions: inner and outer ones alternate. The top half is combat, the bottom half quality of life.
-   - Clusters connect only at their beginning node. Around the origin is a circle of path nodes: an anchor in each inner
-     direction (the inner cluster hangs from it) and a junction in each outer direction (the outer cluster has a path down to
-     it). Every path node gives +1 to all attributes (strength, dexterity and intellect).
-   You can allocate a node only if it touches the origin or an allocated node, and remove one only if everything else you
-   allocated stays connected. Each node is a list of modifiers, the same kind relics use. Hero nodes target tags (melee,
-   projectile, spell, fire...), so they reach every hero with the tag, evolved forms included.
-   Node ids start with t4_ (the SQL update refunds points spent in older trees). After changing this file run `npm run sql`.
-   To change a cluster: edit it in K; to move one, change RING (keep inner and outer alternating so the tree stays symmetrical). */
+/* The talents: 20 tracks of 5 (100 talents), one tree for every hero. Each track is a theme (Fire, Wealth...) taken in order:
+   1. its start (both of its stats, small), 2. its first stat, 3. its second stat, 4. its mastery (both again), 5. its notable
+   (both, bigger, and a special effect). A full track gives the same as the old 6- or 8-node cluster it replaced.
+   The top level is 100 and every level gives a point (pointsFor), so a player at the top level owns every talent.
+   You can take the next talent of any track, and give back the last one taken in a track. Each talent is a list of modifiers,
+   the same kind relics use. Hero talents target tags (melee, projectile, spell, fire...), so they reach every hero with the tag,
+   evolved forms included. Ids start with t5_ (the SQL update refunds points spent in older trees). After changing this file
+   run `npm run sql`. To change a track: edit it in K; to move one, change COMBAT_ORDER or QOL_ORDER. */
 import { fmtMod } from './format.js';
+import { ACCOUNT } from './rules.js';
 
 export const TREES = {}, TREE_ORDER = [], NODES = new Map();
-export const TREE_ID = 't4';
+export const TREE_ID = 't5';
 const inc = (stat, value, scope) => ({ stat, type: 'inc', value, scope });
 const flat = (stat, value, scope) => ({ stat, type: 'flat', value, scope });
 const more = (stat, value) => ({ stat, type: 'more', value, scope: 'global' });
 const gflat = (stat, value) => ({ stat, type: 'flat', value, scope: 'global' });
 const ginc = (stat, value) => ({ stat, type: 'inc', value, scope: 'global' });
 const ALL = ['all'], ELEMENTS = ['fire', 'cold', 'lightning', 'toxic', 'holy', 'shadow'];   /* every damage type but physical and plain arcane */
-const PATH_MODS = () => [flat('strength', 1, ALL), flat('dexterity', 1, ALL), flat('intellect', 1, ALL)];
 
-/* A cluster: key (part of the node ids), title, colour; a and b are the two kinds of stats: { name, mods } for each side node;
-   start: the beginning node's mods (both kinds, smaller); notable: [name, ...mods] (both kinds, bigger). */
+/* A track: key (part of the ids), title, colour; a and b are its two stats: { name, mods } (one step's worth);
+   start: the first talent's mods (both, smaller); notable: [name, ...mods] (both, bigger). */
 const C = (key, title, color, a, b, start, notable) => ({ key, title, color, a, b, start, notable });
 const side = (name, ...mods) => ({ name, mods });
 /* ---- The clusters ---- */
@@ -76,95 +71,44 @@ const K = {
   training: C('training', 'Training', '#8be28b', side('Drills', gflat('heroStartLevel', 1)), side('Prodigy', gflat('evolveLevel', -1)),
     [gflat('heroStartLevel', 1), gflat('evolveLevel', -1)], ['Veterans', gflat('heroStartLevel', 1), gflat('evolveLevel', -1)])
 };
-/* Where each cluster goes, by direction, clockwise from the left (west): inner and outer directions alternate every 18 degrees.
-   The top half (west to east) is combat, the bottom half (east back to west) quality of life. The two clusters on the
-   horizontal line are Lightning (east, combat) and Energy (west). */
-const RING = [
-  ['energy', 'outer'],                                                                    /* 180°: west */
-  ['martial', 'inner'], ['sunder', 'outer'], ['marksman', 'inner'], ['toxins', 'outer'], ['might', 'inner'],
-  ['fire', 'outer'], ['precision', 'inner'], ['cold', 'outer'], ['sorcery', 'inner'],
-  ['lightning', 'outer'],                                                                 /* 0°: east */
-  ['training', 'inner'], ['fortune', 'outer'], ['tempo', 'inner'], ['treasure', 'outer'], ['relics', 'inner'],
-  ['merchant', 'outer'], ['wealth', 'inner'], ['investor', 'outer'], ['gate', 'inner']
-];
-export const COMBAT_CLUSTERS = ['martial', 'sunder', 'marksman', 'toxins', 'might', 'fire', 'precision', 'cold', 'sorcery', 'lightning'];
+/* How many steps of each stat the old cluster had (3 for the big ones, 2 for the small): the track's second, third and fourth
+   talents give that many steps in all, so a full track is worth what the full cluster was. */
+const BIG = ['energy', 'sunder', 'toxins', 'fire', 'cold', 'lightning', 'fortune', 'treasure', 'merchant', 'investor'];
+const MASTERY = { toxins: 'Plague Mastery' };
+/* The screen lists the tracks in two columns, in these orders. */
+export const COMBAT_CLUSTERS = ['might', 'precision', 'martial', 'marksman', 'sorcery', 'sunder', 'fire', 'cold', 'lightning', 'toxins'];
+export const QOL_CLUSTERS = ['energy', 'gate', 'wealth', 'investor', 'merchant', 'relics', 'training', 'tempo', 'fortune', 'treasure'];
+export const TRACK_LENGTH = 5;
 
-/* ---- Layout ---- */
-const STEP = 360 / RING.length, R_PATH = 135, R_RING = 260, R_INNER = 410, R_OUTER = 800;
 const tree = { id: TREE_ID, name: 'Talents', color: '#f2b84b', nodes: [], links: [], clusters: [] };
-let pathN = 0;
-const ROMAN = ['I', 'II', 'III'];
-const pol = (r, deg) => [r * Math.cos(deg * Math.PI / 180), r * Math.sin(deg * Math.PI / 180)];
+const round = v => Math.round(v * 1e4) / 1e4;
+const scaled = (mods, k) => mods.map(m => ({ ...m, value: round(m.value * k) }));
 function addNode(n) {
-  n.x = Math.round(n.x); n.y = Math.round(n.y);
   n.tree = TREE_ID; n.links = []; n.mods = n.mods || []; n.desc = n.desc || n.mods.map(fmtMod).join(', ');
   tree.nodes.push(n); NODES.set(n.id, n); return n;
 }
-function link(a, b) { if (a.links.includes(b.id)) return; a.links.push(b.id); b.links.push(a.id); tree.links.push([a.id, b.id]); }
-const pathNode = (x, y) => addNode({ id: TREE_ID + '_p' + (pathN++), name: 'Path', path: true, x, y, mods: PATH_MODS() });
-/* A chain of `count` path nodes from a to b, evenly spaced on the line between them. */
-function pathBetween(a, b, count) {
-  let prev = a;
-  for (let k = 1; k <= count; k++) { const f = k / (count + 1), n = pathNode(a.x + (b.x - a.x) * f, a.y + (b.y - a.y) * f); link(prev, n); prev = n; }
-  link(prev, b);
+function link(a, b) { a.links.push(b.id); b.links.push(a.id); tree.links.push([a.id, b.id]); }
+const root = addNode({ id: TREE_ID + '_root', name: 'Origin', root: true, desc: 'The start of every track.' });
+for (const key of [...COMBAT_CLUSTERS, ...QOL_CLUSTERS]) {
+  const c = K[key], k = BIG.includes(key) ? 1.5 : 1, [nname, ...nmods] = c.notable, id = s => TREE_ID + '_' + key + '_' + s;
+  const steps = [
+    { id: id('s'), name: c.title, mods: c.start },
+    { id: id('a'), name: c.a.name, side: 'a', mods: scaled(c.a.mods, k) },
+    { id: id('b'), name: c.b.name, side: 'b', mods: scaled(c.b.mods, k) },
+    { id: id('m'), name: MASTERY[key] || c.title + ' Mastery', mastery: true, mods: [...scaled(c.a.mods, k), ...scaled(c.b.mods, k)] },
+    { id: id('n'), name: nname, notable: true, mods: nmods }
+  ].map((n, i) => addNode({ ...n, cluster: key, step: i }));
+  steps.reduce((prev, n) => (link(prev, n), n), root);
+  tree.clusters.push({ key, title: c.title, color: c.color, combat: COMBAT_CLUSTERS.includes(key), nodes: steps, start: steps[0], end: steps[4], notable: steps[4],
+    a: [steps[1]], b: [steps[2]], size: steps.length });
 }
-/* A diamond cluster centred r out at `angle`: beginning node toward the origin, notable away from it, `k` nodes down each side
-   (left side: stat a, right side: stat b). Mirror-symmetric about its own direction. */
-function addCluster(c, r, angle, k) {
-  const L = k === 2 ? 58 : 72, W = k === 2 ? 50 : 58;
-  const [ux, uy] = pol(1, angle), vx = -uy, vy = ux, [cx, cy] = pol(r, angle);
-  const at = (along, across) => [cx + ux * along + vx * across, cy + uy * along + vy * across];
-  const [sx, sy] = at(-L, 0), [ex, ey] = at(L, 0);
-  const start = addNode({ id: TREE_ID + '_' + c.key + '_s', name: c.title, cluster: c.key, x: sx, y: sy, mods: c.start });
-  const [nname, ...nmods] = c.notable;
-  const end = addNode({ id: TREE_ID + '_' + c.key + '_n', name: nname, notable: true, cluster: c.key, x: ex, y: ey, mods: nmods });
-  const sides = {};
-  for (const [s, sign, def] of [['a', -1, c.a], ['b', 1, c.b]]) {
-    let prev = start; sides[s] = [];
-    for (let i = 1; i <= k; i++) {
-      const t = i / (k + 1), [x, y] = at(-L + 2 * L * t, sign * W * Math.sin(Math.PI * t));
-      const n = addNode({ id: TREE_ID + '_' + c.key + '_' + s + i, name: def.name + ' ' + ROMAN[i - 1], cluster: c.key, side: s, x, y, mods: def.mods.map(m => ({ ...m })) });
-      link(prev, n); prev = n; sides[s].push(n);
-    }
-    link(prev, end);
-  }
-  /* The name goes just beyond the notable: centred above or below for clusters pointing up or down, and starting (or ending)
-     beside it for clusters pointing right (or left), so it never runs over a node. */
-  const sideways = Math.abs(ux) > 0.3, [lx, ly] = at(L + (sideways ? 30 : 46), 0);
-  const info = { key: c.key, title: c.title, color: c.color, x: Math.round(cx), y: Math.round(cy), angle, start, end, notable: end, a: sides.a, b: sides.b,
-    nodes: [start, ...sides.a, ...sides.b, end], size: 2 + 2 * k, combat: COMBAT_CLUSTERS.includes(c.key),
-    label: { x: Math.round(lx), y: Math.round(ly), anchor: !sideways ? 'middle' : ux > 0 ? 'start' : 'end' } };
-  tree.clusters.push(info);
-  return info;
-}
-
-/* The inner circle is all path nodes: an ANCHOR in each inner direction (reached from the origin by a path) and a JUNCTION
-   in each outer direction, between two anchors. Inner clusters hang from their anchor; outer clusters have a path down to
-   their junction. So no cluster sits on the circle itself. */
-const root = addNode({ id: TREE_ID + '_root', name: 'Origin', root: true, x: 0, y: 0, desc: 'The starting point. Every path begins here.' });
-const circle = RING.map(([key, ring], i) => {
-  const angle = 180 + i * STEP;
-  if (ring === 'inner') {
-    const [ax, ay] = pol(R_RING, angle), anchor = pathNode(ax, ay);
-    pathBetween(root, anchor, 1);
-    const cl = addCluster(K[key], R_INNER, angle, 2);
-    link(anchor, cl.start);
-    return anchor;
-  }
-  /* A junction sits on the straight line between its two neighbouring anchors. */
-  const [jx, jy] = pol(R_RING * Math.cos(STEP * Math.PI / 180), angle), junction = pathNode(jx, jy);
-  const cl = addCluster(K[key], R_OUTER, angle, 3);
-  pathBetween(junction, cl.start, 2);
-  return junction;
-});
-circle.forEach((n, i) => link(n, circle[(i + 1) % circle.length]));
-
 TREES[TREE_ID] = tree; TREE_ORDER.push(TREE_ID);
 
 /* ---- Rules ---- */
-export const pointsFor = level => Math.max(0, level - 1);
+/* One talent point per account level, up to the top level: at the top level a player owns every talent. */
+export const pointsFor = level => Math.max(0, Math.min(level, ACCOUNT.maxLevel));
 export const canAllocate = (alloc, node) => !node.root && !alloc.has(node.id) && node.links.some(l => alloc.has(l) || NODES.get(l).root);
-/* A node can be removed only if every other allocated node still connects to the origin. */
+/* A talent can be given back only if every other one taken still connects to the start (in a track: the last one taken). */
 export function canRemove(alloc, id) {
   const n = NODES.get(id);
   if (!n || n.root || !alloc.has(id)) return false;

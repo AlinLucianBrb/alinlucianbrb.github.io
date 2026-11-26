@@ -10,8 +10,8 @@ export const UNLOCK_ALL = true;
 /* What the game asks (the tests switch it off to check the locks). */
 export const TESTING = { unlockAll: UNLOCK_ALL };
 
-/* Account levels: XP needed to go from level L to L + 1. */
-export const ACCOUNT = { xpBase: 50, xpPerLevel: 50 };
+/* Account levels: XP needed to go from level L to L + 1, and the top level (each level is a talent point: 100 talents). */
+export const ACCOUNT = { xpBase: 50, xpPerLevel: 50, maxLevel: 100 };
 export const xpNeed = level => ACCOUNT.xpBase + level * ACCOUNT.xpPerLevel;
 
 /* What a match pays into the account: XP per wave reached and per kill, gold per wave (talents add their bonus on top). */

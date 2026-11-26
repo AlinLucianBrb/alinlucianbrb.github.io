@@ -113,10 +113,10 @@ test('Sunder: Corruption takes defenses; Toxins: poison is stronger and stops he
 
 test('the ten combat notables have their effect, keep half their numbers, and say it; the tree keeps its nodes', () => {
   const want = { might: 'splash', fire: 'stagger', sunder: 'wither', toxins: 'venom', precision: 'lucky', cold: 'vsFrozen', lightning: 'arcing', sorcery: 'recast', marksman: 'perTile', martial: 'fifth' };
-  assert.deepEqual(Object.keys(want).sort(), [...COMBAT_CLUSTERS].sort()); assert.equal(TREES[TREE_ORDER[0]].nodes.length, 191);
-  for (const [k, stat] of Object.entries(want)) { const n = NODES.get('t4_' + k + '_n'); assert.equal(n.mods[0].stat, stat, k); assert.ok(n.mods.length >= 2); assert.equal(fmtMod(n.mods[0]), EFFECT_STATS[stat].text(n.mods[0].value)); assert.ok(n.desc.includes(fmtMod(n.mods[0]))); }
-  assert.equal(NODES.get('t4_might_n').mods[1].value, 0.04);
-  const s = id => heroStats(HEROES.find(h => h.id === id), talentMods(['t4_martial_n', 't4_sorcery_n', 't4_marksman_n'])); assert.deepEqual([s('warrior').fifth, s('mage').fifth, s('mage').recast, s('warrior').recast], [1, 0, 0.08, 0]); assert.ok(s('ranger').perTile > 0 && s('warrior').perTile === 0);
+  assert.deepEqual(Object.keys(want).sort(), [...COMBAT_CLUSTERS].sort()); assert.equal(TREES[TREE_ORDER[0]].nodes.length, 101);
+  for (const [k, stat] of Object.entries(want)) { const n = NODES.get('t5_' + k + '_n'); assert.equal(n.mods[0].stat, stat, k); assert.ok(n.mods.length >= 2); assert.equal(fmtMod(n.mods[0]), EFFECT_STATS[stat].text(n.mods[0].value)); assert.ok(n.desc.includes(fmtMod(n.mods[0]))); }
+  assert.equal(NODES.get('t5_might_n').mods[1].value, 0.04);
+  const s = id => heroStats(HEROES.find(h => h.id === id), talentMods(['t5_martial_n', 't5_sorcery_n', 't5_marksman_n'])); assert.deepEqual([s('warrior').fifth, s('mage').fifth, s('mage').recast, s('warrior').recast], [1, 0, 0.08, 0]); assert.ok(s('ranger').perTile > 0 && s('warrior').perTile === 0);
 });
 
 test('matches with every effect on replay exactly, for every hero', () => {

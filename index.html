@@ -164,26 +164,37 @@ select{font:inherit;background:#101813;color:var(--text);border:2px solid var(--
 .slotpophead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
 .slotgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:6px;margin-bottom:8px}
 .slotitem .itemicon{width:32px;height:32px;font-size:.75em}
-/* Talent tree: the SVG scales to whatever space is left. */
-#screen-talents{justify-content:flex-start}
+/* Talents: 20 tracks of 5 in two columns (combat, quality of life), all on one screen; the pixel font at multiples of 9 px. */
+#screen-talents{justify-content:safe center}
 .tabs{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
 .tabs button.on{background:#2b4a38}
-.treebox{position:relative;flex:1;min-height:0;width:min(1200px,100%);background:#101813;border:2px solid var(--line);border-radius:6px;overflow:hidden}
-.treebox svg{display:block;width:100%;height:100%;cursor:grab;touch-action:none}
-.treebox svg.dragging{cursor:grabbing}
-.tlcam{position:absolute;left:8px;bottom:8px;display:flex;flex-direction:column;gap:4px}
-.tlcam button{min-width:34px;padding:.2em .4em}
-.tlhint{position:absolute;right:10px;bottom:8px;pointer-events:none}
-.tlink{stroke:#385043;stroke-width:5}
-.tlink.on{stroke:#f2b84b}
-.tbranch{fill:#ab9f8a;font-size:28px;stroke:#101813;stroke-width:7px;paint-order:stroke;stroke-linejoin:round;font-weight:600;pointer-events:none;letter-spacing:.02em}
-.tnode circle{fill:#1d2f55;stroke:#4a6a58;stroke-width:3;cursor:pointer}
-.tnode.on circle{stroke:#fff}
-.tnode.avail circle{stroke:#f2b84b;stroke-width:4}
-.tnode.notable circle{stroke-width:5}
-.tnode.path circle{fill:#2a3a31;stroke-width:2}
-.tnode.path.avail circle{stroke-width:3}
-.tnode:focus-visible circle{stroke:#fff;stroke-width:6}
+#screen-talents .topbar{position:absolute;top:14px;left:0;right:0;margin:0 auto;align-items:center;font-family:var(--pixel);font-size:18px;color:#d8ccb4}
+#screen-talents .topbar b{color:#ffd866}
+.tltracks{display:flex;gap:56px;justify-content:center;padding:14px 40px;
+  background:radial-gradient(ellipse 60% 60% at 50% 50%,rgba(10,8,5,.7),rgba(10,8,5,.45) 70%,transparent)}
+.tlcol{display:flex;flex-direction:column;gap:6px}
+.tlhead{margin:0 0 4px;font-family:var(--pixel);font-weight:400;font-size:27px;color:#ffd866;text-align:center;
+  text-shadow:1px 0 0 #1a1008,-1px 0 0 #1a1008,0 1px 0 #1a1008,0 -1px 0 #1a1008,0 2px 3px rgba(0,0,0,.8)}
+.tltrack{display:flex;align-items:center;gap:14px;height:44px}
+.tlname{display:flex;align-items:center;gap:8px;width:290px}
+.tlname img{width:26px;height:26px;flex:none;filter:drop-shadow(0 2px 0 rgba(0,0,0,.5))}
+.tlname b{flex:1;font-family:var(--pixel);font-weight:400;font-size:18px;color:#fff3d6;white-space:nowrap;
+  text-shadow:1px 0 0 #1a1008,-1px 0 0 #1a1008,0 1px 0 #1a1008,0 -1px 0 #1a1008}
+.tlcount{font-family:var(--pixel);font-size:18px;color:#8f8676}
+.tltrack.full .tlcount{color:#ffd866}
+.tlsteps{display:flex;align-items:center;gap:14px;position:relative}
+.tlsteps::before{content:'';position:absolute;left:14px;right:20px;top:50%;height:4px;margin-top:-2px;background:#3a3226;box-shadow:0 0 0 1px #1a1008}
+.tlnode{position:relative;width:30px;height:30px;padding:0;margin:0;border:2px solid #5a4e3c;border-radius:50%;background:#1a1610;box-shadow:0 2px 0 rgba(0,0,0,.5);
+  font-family:var(--pixel);font-size:18px;line-height:1;color:#6f6656;cursor:pointer;display:grid;place-items:center;transition:transform .12s}
+.tlnode.mastery{border-radius:6px}
+.tlnode.notable{width:42px;height:42px;border-width:3px}
+.tlnode.notable img{width:26px;height:26px;opacity:.35;filter:grayscale(1)}
+.tlnode.on{background:var(--tc);border-color:#ffe08a;color:#1a1008}
+.tlnode.on.notable img{opacity:1;filter:none}
+.tlnode.on.notable{background:color-mix(in srgb,var(--tc) 45%,#1a1610)}
+.tlnode.next{border-color:#ffd866;color:#ffd866;box-shadow:0 0 0 1px #1a1008,0 0 10px rgba(255,216,102,.55)}
+.tlnode:hover{transform:translateY(-3px) scale(1.08);filter:drop-shadow(0 0 6px rgba(255,224,138,.6))}
+.tlnode:focus-visible{outline:2px solid #fff;outline-offset:2px}
 
 /* Game screen: the map fills the window and the HUD floats on top of it. */
 .play{padding:0;display:block}
@@ -1522,13 +1533,11 @@ body #screen-levels #lvChoose h1{background:radial-gradient(ellipse 50% 50% at 5
 <section id="screen-talents" class="screen scene" hidden>
   <div class="topbar">
     <button id="tlBack">Back</button>
-    <div>Points available: <b id="tlPoints">0</b> <span class="muted" id="tlSave"></span></div>
+    <div>Points to spend: <b id="tlPoints">0</b> · Talents <b id="tlOwned">0</b> <span class="muted" id="tlSave"></span></div>
     <button id="tlReset">Respec</button>
   </div>
-  <div class="tabs" id="tlTabs"></div>
-  <div class="treebox"><svg id="tlSvg" viewBox="-880 -880 1760 1760" role="group" aria-label="Talent tree"></svg>
-    <div class="tlcam"><button id="tlZoomIn" aria-label="Zoom in">+</button><button id="tlZoomOut" aria-label="Zoom out">−</button><button id="tlFit">Fit</button></div>
-  </div>
+  <h1>Talents</h1>
+  <div class="tltracks"><div class="tlcol" id="tlCombat"></div><div class="tlcol" id="tlQol"></div></div>
 </section>
 
 <section id="screen-play" class="screen play" hidden>

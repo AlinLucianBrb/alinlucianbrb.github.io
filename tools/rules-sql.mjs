@@ -32,6 +32,7 @@ export function rulesSql(open = UNLOCK_ALL) {
     fn('rule_max_players()', 'int', 'select ' + COOP.maxPlayers, 'Players in a co-op lobby.'),
     fn('rule_max_items()', 'int', 'select ' + DROPS.maxItems, 'Items a player can hold.'),
     fn('rule_xp_need(p_level int)', 'int', 'select ' + ACCOUNT.xpBase + ' + p_level * ' + ACCOUNT.xpPerLevel, 'Account XP from level L to L + 1.'),
+    fn('rule_max_level()', 'int', 'select ' + ACCOUNT.maxLevel, 'The top account level (one talent point per level).'),
     fn('rule_run_xp(p_waves int, p_kills int, p_bonus numeric)', 'int',
       'select round((p_waves * ' + REWARDS.xpPerWave + ' + p_kills * ' + REWARDS.xpPerKill + ') * (1 + p_bonus))::int', 'Account XP a match gives.'),
     fn('rule_run_gold(p_waves int, p_bonus numeric)', 'int', 'select round(p_waves * ' + REWARDS.goldPerWave + ' * (1 + p_bonus))::int', 'Account gold a match gives.'),
@@ -81,7 +82,7 @@ export function rulesSql(open = UNLOCK_ALL) {
 }
 /* The rule functions, so permissions can lock them (only other database functions call them). */
 export const RULE_FUNCTIONS = ['rule_stage_count()', 'rule_stage_waves(int)', 'rule_is_endless(int)', 'rule_stage_open(int, int)', 'rule_endless_level(int, numeric)', 'rule_unlock(text)', 'rule_lineup_max()', 'rule_max_players()', 'rule_max_items()',
-  'rule_xp_need(int)', 'rule_run_xp(int, int, numeric)', 'rule_run_gold(int, numeric)', 'rule_kill_cap(int)', 'rule_boss_cap(int, int)',
+  'rule_xp_need(int)', 'rule_max_level()', 'rule_run_xp(int, int, numeric)', 'rule_run_gold(int, numeric)', 'rule_kill_cap(int)', 'rule_boss_cap(int, int)',
   'min_run_seconds(int)', 'rule_min_run(int)', 'rule_drop_chance(boolean, int, int)', 'rule_rarity(numeric, numeric)', 'rule_bonus_guaranteed(int)',
   'rule_max_bonuses()', 'rule_extra_bonus_chance()', 'rule_affinity_chance()', 'rule_rank(int, numeric)', 'rule_item_level(int)', 'rule_stage_zone(int)', 'rule_stones(int, boolean, int)', 'rule_gem_stones()', 'rule_gem_gold()', 'rule_gem_combine()', 'rule_max_gems()', 'rule_sockets()', 'rule_disenchant_yield()', 'rule_convert_cost()', 'rule_craft_cost()', 'rule_craft_gold(int)', 'item_price(int, text[], int[])'];
 export const rulesPermissionsSql = () => RULE_FUNCTIONS.map(f => 'revoke all on function public.' + f + ' from public, anon, authenticated;').join('\n') + '\n';

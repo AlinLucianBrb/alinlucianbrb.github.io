@@ -47,7 +47,7 @@ test('each player places, moves and evolves only their own heroes, and pays with
 });
 
 test('relics and talents help only their own player\'s heroes; every player is paid for every kill', () => {
-  const w = createWorld({ seed: 4, players: [{ lineup: ['ranger'], talents: pathTo(new Set(), 't4_might_s') }, { lineup: ['ranger'] }] }), t = tilesNearPath(w, 4);
+  const w = createWorld({ seed: 4, players: [{ lineup: ['ranger'], talents: pathTo(new Set(), 't5_might_s') }, { lineup: ['ranger'] }] }), t = tilesNearPath(w, 4);
   apply(w, { type: 'place', hero: 'ranger', cx: t[0][0], cy: t[0][1], p: 0 });
   apply(w, { type: 'place', hero: 'ranger', cx: t[1][0], cy: t[1][1], p: 1 });
   const [a, b] = w.heroes;
