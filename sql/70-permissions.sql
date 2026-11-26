@@ -15,6 +15,8 @@ revoke all on function public.save_paths(jsonb) from public, anon, authenticated
 grant execute on function public.save_paths(jsonb) to authenticated;
 revoke all on function public.sell_item(uuid) from public, anon, authenticated;
 grant execute on function public.sell_item(uuid) to authenticated;
+revoke all on function public.reroll_drop(uuid, uuid) from public, anon, authenticated;
+grant execute on function public.reroll_drop(uuid, uuid) to authenticated;
 revoke all on function public.disenchant_items(uuid[]) from public, anon, authenticated;
 grant execute on function public.disenchant_items(uuid[]) to authenticated;
 revoke all on function public.convert_material(int, int) from public, anon, authenticated;

@@ -17,6 +17,7 @@ mock.module(new URL('../js/services/api.js', import.meta.url).href, { namedExpor
     { id: 'i3', item_type: 'helm', rarity: 0, bonuses: ['Long barrels'] }] }),
   savePaths: async paths => { pathSaves.push(paths); return { profile: { paths } }; },
   disenchantItems: async () => ({}), convertMaterial: async () => ({}), craftItem: async () => ({}),
+  rerollDrop: async () => ({}),
   sellItem: async id => { sold.push(id); return { profile: { gold: 500 + sold.length } }; },
   saveLoadout: async (lineup, equipment) => { saves.push({ lineup, equipment }); if (failNext) { failNext = false; return { error: 'boom' }; } return { profile: { lineup, equipment } }; }
 } });

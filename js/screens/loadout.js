@@ -2,7 +2,7 @@
    (lineup + equipment) to the server. The lineup is chosen after picking a level; gear on each hero's page.
    Equipment is { heroId: { slot: itemId } }; an item row is { id, item_type, rarity, bonuses }. */
 import { state } from '../core/state.js';
-import { getItems, getGems, saveLoadout } from '../services/api.js';
+import { getItems, getGems, saveLoadout, rerollDrop } from '../services/api.js';
 import { SOCKETS } from '../content/gems.js';
 import { HEROES, LINEUP_SIZE, RARITIES } from '../content/data.js';
 import { bindTip } from '../core/tooltip.js';
@@ -117,7 +117,8 @@ export function itemTip(row) {
 
 /* The items a match dropped (the result screen), as they look in the inventory: hover one for its name and bonuses. The
    best ones (Epic) come first and big, with their name and bonuses written out. */
-export function lootRow(drops, stones = 0) {
+/* reroll: { run, rerolls } from finish_run; with a reroll left (Hoard talent) a button lets the player pick one item to reroll. */
+export function lootRow(drops, stones = 0, reroll = null) {
   const row = el('div', 'loot'), best = RARITIES.length - 1, big = drops.filter(d => (asItem(d).rarity | 0) >= best);
   for (const d of big) {
     const card = el('div', 'bigdrop'), cell = el('div', 'invcell full'), words = el('div', 'bdw'), name = el('b', '', itemName(d));
@@ -135,5 +136,27 @@ export function lootRow(drops, stones = 0) {
     cell.tabIndex = 0; cell.setAttribute('aria-label', stones + ' Rough Stone');
     bindTip(cell, () => ({ title: stones + ' Rough Stone', color: '#c9b9a0', lines: ['For crafting gems (Inventory, Gems tab).'] })); row.append(cell);
   }
+  if (reroll && reroll.run && reroll.rerolls > 0 && drops.some(d => d && d.id)) addReroll(row, big, drops, stones, reroll);
   return row;
+}
+/* Hoard: "Reroll an item", then click the item; it is replaced by a new random one (the server rolls it) and the row redraws. */
+function addReroll(row, big, drops, stones, reroll) {
+  const order = [...big, ...drops.filter(d => !big.includes(d))];   /* the cells' order */
+  const cells = [...row.querySelectorAll('.invcell.full:not(.stonecell)')];
+  const bar = el('div', 'rerollbar'), btn = el('button', 'reroll', 'Reroll an item'), note = el('small', 'rerollnote', '');
+  bar.append(btn, note); row.append(bar);
+  let picking = false, busy = false;
+  btn.onclick = () => {
+    picking = !picking; row.classList.toggle('picking', picking);
+    btn.textContent = picking ? 'Cancel' : 'Reroll an item'; note.textContent = picking ? 'Click the item to reroll (once per match).' : '';
+  };
+  cells.forEach((cell, i) => cell.addEventListener('click', async ev => {
+    if (!picking || busy) return;
+    ev.stopPropagation(); busy = true; note.textContent = 'Rerolling…';
+    const d = order[i], { item, error } = await rerollDrop(reroll.run, d.id);
+    busy = false;
+    if (error || !item) { note.textContent = 'Could not reroll: ' + (error || 'unknown error') + ' (did you run the SQL update?)'; return; }
+    state.items = null;   /* reload the inventory next time it is needed */
+    row.replaceWith(lootRow(drops.map(x => (x === d ? item : x)), stones, { run: reroll.run, rerolls: reroll.rerolls - 1 }));
+  }, true));
 }

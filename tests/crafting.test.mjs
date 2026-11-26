@@ -9,7 +9,7 @@ const dom = installFakeDom(), calls = [];
 let fail = '';
 mock.module(new URL('../js/services/api.js', import.meta.url).href, { namedExports: {
   getGems: async () => ({ gems: [] }), craftGem: async () => ({}), combineGems: async () => ({}), socketGem: async () => ({ gems: [] }),
-  getItems: async () => ({ items: [] }), sellItem: async () => ({}), saveLoadout: async () => ({}),
+  getItems: async () => ({ items: [] }), sellItem: async () => ({}), saveLoadout: async () => ({}), rerollDrop: async () => ({}),
   disenchantItems: async ids => { calls.push(['disenchant', ids]); return fail ? { error: fail } : { profile: { materials: [3 * ids.length, 0, 0, 0] } }; },
   convertMaterial: async (r, n) => { calls.push(['convert', r, n]); return { profile: { materials: [1, n, 0, 0] } }; },
   craftItem: async (r, slot, kind) => { calls.push(['craft', r, slot, kind]); return fail ? { error: fail } : { profile: { materials: [0, 0, 0, 0], gold: 75 }, item: { id: 'new', item_type: 'great_helm', rarity: r, bonuses: ['Whetstone'], bonus_ranks: [2], ilvl: 15 } }; }
@@ -61,7 +61,7 @@ test('the server does the same: rules from crafting.js, unlocked in act 2, one r
     assert.ok(sql.includes('(array[' + CRAFT.gold.join(', ') + '])[p_rarity + 1]'), f + ' gold');
     assert.ok(sql.includes("materials int[] not null default '{0,0,0,0}'"), f + ' column');
     assert.equal(sql.match(/insert into public\.player_items \(/g).length, 1, f + ': items are made in one place');
-    assert.equal(sql.match(/public\.roll_item\(auth\.uid\(\)/g).length, 2, f + ': drops and crafting');
+    assert.equal(sql.match(/public\.roll_item\(auth\.uid\(\)/g).length, 3, f + ': drops, crafting and the Hoard reroll');
     for (const fn of ['disenchant_items(uuid[])', 'convert_material(int, int)', 'craft_item(int, text, text)']) {
       assert.ok(sql.includes('revoke all on function public.' + fn + ' from public, anon, authenticated;'), f); assert.ok(sql.includes('grant execute on function public.' + fn + ' to authenticated;'), f);
     }

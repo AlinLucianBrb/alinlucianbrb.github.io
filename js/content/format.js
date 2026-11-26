@@ -1,9 +1,10 @@
 import { STAT_LABELS } from './data.js';
-import { EFFECT_STATS } from './effect-stats.js';
+import { EFFECT_STATS, GLOBAL_EFFECTS } from './effect-stats.js';
 
 /* Human-readable text for one modifier, e.g. "+4% damage". */
 export function fmtMod(m) {
   if (EFFECT_STATS[m.stat]) return EFFECT_STATS[m.stat].text(m.value);
+  if (GLOBAL_EFFECTS[m.stat]) return GLOBAL_EFFECTS[m.stat](m.value);
   const f = x => +x.toFixed(2), label = (STAT_LABELS[m.stat] || m.stat).toLowerCase().replace(/ \(multiplier\)$/, '');
   /* Stats that are shares (chances, penetration, crit damage, relic luck) read as percentages: "+10% crit damage". */
   const pct = /Chance$|Pen$|^critDamage$|^relicLuck$|^interest$|^relicOffers$|^itemRarity$/.test(m.stat), sign = m.value < 0 ? '−' : '+', v = Math.abs(m.value);

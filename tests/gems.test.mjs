@@ -64,7 +64,7 @@ test('Rough Stone: for every boss, and more for a win on a later act; the server
   assert.deepEqual(zones[1].split(', ').map(Number), [...STAGES, ...ENDLESS].map(s => s.zone));
   assert.match(sql, new RegExp('rule_stones\\(p_stage int, p_won boolean, p_bosses int\\)[^$]*\\$\\$ select ' + STONES.perBoss + ' \\* greatest'));
   assert.match(sql, /got_stones := public\.rule_stones\(r\.stage, p_won, p_bosses\)/);
-  assert.match(sql, /'stones', got_stones\)/);
+  assert.match(sql, /'stones', got_stones[,)]/);
 });
 
 test('the server: gem kinds copied from the content, the rules, the functions and who may call them', () => {

@@ -9,7 +9,7 @@ import { talentMods } from '../content/talents.js';
 import { resolve, heroStats, minionStats } from './stats.js';
 import { attack, dotDamage } from './combat.js';
 import { BEHAVIORS } from './behaviors.js';
-import { spawnEnemy, updateEnemies, sweep, waveCount, spawnDelay, waveEnemyType, cursesOn } from './enemies.js';
+import { spawnEnemy, updateEnemies, sweep, waveCount, spawnDelay, waveEnemyType, cursesOn, isBossWave } from './enemies.js';
 import { CURSE } from '../content/shop.js';
 import { greedMult, applyConduits, hasConduit } from './tiles.js';
 import { payPrize, rollBossKind } from './shop.js';
@@ -20,7 +20,7 @@ import { MAP_EFFECT_OF } from '../content/map-effects.js';
 import { LEVELS_PER_ZONE } from '../content/zones.js';
 import { updateAbilities, isShielded } from './enemy-abilities.js';
 import { attachUpgrades } from './upgrades.js';
-import { attachProcs } from './procs.js';
+import { attachProcs, trackFocus } from './procs.js';
 import { attachLegendaries, openLegendaries, updateLegendaries, legendMods, ironGate } from './legendaries.js';
 import { buffTime } from './legend-perks.js';
 import { updateProjectiles } from './projectiles.js';
@@ -36,7 +36,7 @@ import { cleanPaths, pathChoice, pathDef, previewMods, syncPreview, updatePrevie
 
 export const STEP = 1 / 60;          /* seconds of game time per step */
 export const REROLL_GOLD = 0.25;
-export const ENGINE_VERSION = 41;     /* bump when a rule change would make old command logs play out differently */
+export const ENGINE_VERSION = 42;     /* bump when a rule change would make old command logs play out differently */
 
 /* Checks a lineup: up to LINEUP_SIZE different, playable heroes. Returns a clean copy, or the full roster if it is empty. */
 export function cleanLineup(lineup) {
@@ -58,7 +58,8 @@ function makePlayer(i, { talents = [], lineup = null, items = {}, paths = {}, re
     shop: !!shop, gambles: 0, gambleWave: -1, gambleN: 0, lastGamble: null,   /* the match shop (shop.js) */
     relics: [], relicsBought: 0, banned: new Set(), legendary: null, picking: false, pick: null, playOnPick: false, auto: false, ready: false,
     /* Free relic rerolls and banishes for this match: they come only from talents. */
-    rerolls: Math.round(resolve(0, 'rerolls', mods)), banishes: Math.round(resolve(0, 'banishes', mods))
+    rerolls: Math.round(resolve(0, 'rerolls', mods)), banishes: Math.round(resolve(0, 'banishes', mods)),
+    freeEvolves: resolve(0, 'freeEvolve', mods) > 0 ? 1 : 0   /* Veterans: the first evolution of the match is free */
   };
 }
 /* Starting relics (for experiments: the balance bot gives a player relics before the match): [{ name, ri }], known relics only. */
@@ -106,7 +107,7 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
   w.attackMult = (h, target) => attackMult(w, h, target);
   w.gainEnergy = (h, amount) => gainEnergy(h, amount);
   /* Gold for a hero's next evolution, or null when it has none left (its owner's talents can make it cheaper). */
-  w.evolveCost = h => { const e = nextStep(h); return e ? Math.round(e.cost * w.ownerOf(h).gs.evolveCost) : null; };
+  w.evolveCost = h => { const e = nextStep(h), p = w.ownerOf(h); return e ? (p.freeEvolves > 0 ? 0 : Math.round(e.cost * p.gs.evolveCost)) : null; };
   /* The level a hero needs for its next evolution: the step's level, lowered by Training talents (never below 1). */
   w.evolveLevel = h => { const e = nextStep(h); return e ? Math.max(1, (e.level || 1) + w.ownerOf(h).gs.evolveLevel) : null; };
   /* Each relic costs 12 more than the one before (60% of 80 + 20 per relic bought), per player. */
@@ -127,7 +128,7 @@ export function createWorld({ seed = 1, stage = 1, talents = [], lineup = null, 
     for (const p of ps) p.gold += Math.round((Math.round(p.gs.bounty * enemy.def.bounty) + bonusGold(w, p)) * curse * (hero && (hero.owner || 0) === p.i ? greed : 1));   /* every player is paid for every kill */
     w.kills++;
     if (enemy.def.boss) w.bossKills++;   /* each boss defeated guarantees an item at the end of the match (finish_run) */
-    for (const h of w.heroes) gainXp(w, h, (enemy.def.xp || 0) * w.fxm.xp);   /* every hero on the field learns from every kill */
+    for (const h of w.heroes) gainXp(w, h, (enemy.def.xp || 0) * w.fxm.xp * (enemy.def.boss && w.ownerOf(h).gs.bossXp > 0 ? 2 : 1));   /* every hero on the field learns from every kill; Trophy Hunter: bosses twice */
   });
   attachUpgrades(w);
   attachProcs(w);
@@ -171,6 +172,7 @@ export function hit(w, hero, e, amount, type = 'physical', quiet = false) {
   amount *= damageTaken(e);
   if (e.taken) { e.taken[type] = (e.taken[type] || 0) + amount; if (e.ward && e.ward.type === type) amount *= e.ward.mult; }   /* the Warded boss */
   const dealt = Math.min(amount, e.hp);
+  if (amount > e.hp) e.overkill = amount - Math.max(0, e.hp);   /* the extra damage of the killing hit (Judgement) */
   e.hp -= amount; if (hero) e.last = hero;
   if (hero) w.ev.emit('damage', { hero, enemy: e, amount: dealt, type });
   if (!quiet && e.fx) for (const id in e.fx) { const f = EFFECT_HOOKS.damage[id]; if (f) f(w, hero, e, dealt, type, e.fx[id]); }
@@ -209,7 +211,10 @@ export function recalc(w) {
       relicLuck: resolve(0, 'relicLuck', m), bountyChance: resolve(0, 'bountyChance', m),
       heroXp: Math.max(0, resolve(1, 'heroXp', m)),
       relicCost: Math.max(0.25, resolve(1, 'relicCost', m)), relicOffers: Math.max(0, resolve(0, 'relicOffers', m)),
-      heroStartLevel: Math.max(0, Math.round(resolve(0, 'heroStartLevel', m))), evolveLevel: Math.min(0, Math.round(resolve(0, 'evolveLevel', m)))
+      heroStartLevel: Math.max(0, Math.round(resolve(0, 'heroStartLevel', m))), evolveLevel: Math.min(0, Math.round(resolve(0, 'evolveLevel', m))),
+      /* talent notables for the whole match (GLOBAL_EFFECTS in effect-stats.js) */
+      bossInterest: resolve(0, 'bossInterest', m), betterOffer: resolve(0, 'betterOffer', m), waveReroll: resolve(0, 'waveReroll', m),
+      freeEvolve: resolve(0, 'freeEvolve', m), bossXp: resolve(0, 'bossXp', m)
     };
   }
   for (const h of w.heroes) statsFor(w, h);
@@ -236,14 +241,15 @@ export function statsFor(w, h) {
 
 export function startWave(w) {
   w.wave++; w.spawnLeft = w.fxm.half ? Math.ceil(waveCount(w.wave) / 2) : waveCount(w.wave);   /* Giants: half as many, twice as far apart */ w.spawnT = 0; w.phase = 'wave';
-  for (const p of w.players) p.ready = false;
+  for (const p of w.players) { p.ready = false; if (p.gs.waveReroll > 0 && p.rerolls < 1) p.rerolls = 1; }   /* Relic Hunter: a free reroll every wave */
   w.ev.emit('waveStart', { wave: w.wave });
 }
 
 function waveCleared(w) {
   for (const p of w.players) {   /* each player's own wave gold and interest */
     if (w.fxm.noWaveGold) continue;       /* Blood money */
-    const interest = Math.min(Math.floor(p.gs.interestCap + 1e-9), Math.floor(p.gold * p.gs.interest + 1e-9));   /* 1e-9: float noise */
+    let interest = Math.min(Math.floor(p.gs.interestCap + 1e-9), Math.floor(p.gold * p.gs.interest + 1e-9));   /* 1e-9: float noise */
+    if (p.gs.bossInterest > 0 && isBossWave(w.wave, w.stage)) interest *= 2;   /* Compounding */
     p.gold += Math.round((15 + w.wave * 3) * p.gs.waveGold) + interest;
   }
   w.ev.emit('waveClear', { wave: w.wave });
@@ -280,6 +286,7 @@ export function step(w) {
   updateEnemies(w, STEP);
   for (const h of w.heroes) {
     tickBuffs(w, h, STEP);
+    if (h.s.focus > 0 || h.near) trackFocus(w, h, STEP);   /* Relentless */
     if (h.stun > 0) { h.stun -= STEP; continue; }   /* stunned by an enemy: it does nothing until it wears off */
     if (h.settle > 0) h.settle -= STEP;   /* just moved: resting before its next attack (shown on screen) */
     if (h.s.energyPerSecond > 0 && w.phase === 'wave') gainEnergy(h, h.s.energyPerSecond * STEP);

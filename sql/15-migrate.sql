@@ -10,11 +10,11 @@ alter table public.profiles add column if not exists materials int[] not null de
 alter table public.profiles add column if not exists stones int not null default 0;   -- Rough Stone, for crafting gems
 alter table public.profiles add column if not exists title text;   -- an achievement title worn by the name
 
--- Talent reworks: 20 tracks of 5 talents taken in order, one point per level up to level 100 (ids start with t5_).
--- Points spent in any older tree are refunded.
+-- Talent reworks: 20 tracks of 5 talents taken in order, one point per level up to level 100; 12 combat tracks by type and
+-- 8 quality-of-life ones, each ending in a unique effect (ids start with t6_). Points spent in any older tree are refunded.
 update public.profiles p
-   set talents = coalesce((select array_agg(x) from unnest(p.talents) as x where x ~ '^t5_'), '{}')
- where exists (select 1 from unnest(p.talents) as x where x !~ '^t5_');
+   set talents = coalesce((select array_agg(x) from unnest(p.talents) as x where x ~ '^t6_'), '{}')
+ where exists (select 1 from unnest(p.talents) as x where x !~ '^t6_');
 
 -- Gear slots: equipment used to be { "hero": "itemId" } (one trinket); now it is { "hero": { "slot": "itemId" } }.
 update public.profiles p

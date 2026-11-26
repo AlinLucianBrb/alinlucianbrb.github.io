@@ -196,7 +196,8 @@ drop function if exists public.finish_run(int, int, int, boolean);
 -- ROLL in js/content/items.js.
 -- A win always drops an item; a loss has a chance that grows with the waves survived (up to 50%). Item find from talents raises
 -- that: every full 100% is an item, and the rest is the chance of one more. Players can hold at most 200 items.
--- Talents can also raise the gold and XP the match gives (reward_gold, reward_xp in talent_nodes).
+-- Talents can also raise the gold and XP the match gives (reward_gold, reward_xp in talent_nodes), and more on a level not
+-- cleared yet (reward_new: Pioneer). With Hoard (reward_reroll) one of the items found can be rerolled once (reroll_drop).
 -- Every boss defeated (p_bosses) adds one guaranteed item. Bosses come on the last wave of a level and, from level 3 on, the
 -- middle wave too, so a run cannot claim more bosses than the boss waves it reached.
 -- Rolls and stores one item: rarity + 1 bonuses or more (p_extra adds to the chance of each further one), all different, each
@@ -231,6 +232,7 @@ language plpgsql security definer set search_path = public as $$
 declare me public.profiles; r public.runs; cap int; frontier boolean; endless boolean; elapsed numeric; done_waves int; dropped text := null;
         drops jsonb := '[]'; b_gold numeric; b_xp numeric; b_loot numeric; chance numeric; n int; boss_cap int;
         rar int; b_rar numeric; b_extra numeric; aff text; il int; it public.player_items; got_stones int;
+        b_new numeric; b_reroll numeric; fresh boolean; ids uuid[] := '{}';
 begin
   if auth.uid() is null then raise exception 'not signed in'; end if;
   select * into r from public.runs where id = p_run and user_id = auth.uid() and finished_at is null for update;
@@ -254,8 +256,11 @@ begin
   if r.players = 1 and not public.rule_stage_open(r.stage, me.levels_cleared) then raise exception 'stage locked'; end if;   -- co-op: unlocked for the host
   frontier := (not endless and r.stage = me.levels_cleared + 1);
   select coalesce(sum(t.reward_gold), 0), coalesce(sum(t.reward_xp), 0), coalesce(sum(t.reward_loot), 0),
-         coalesce(sum(t.reward_rarity), 0), coalesce(sum(t.reward_extra), 0) into b_gold, b_xp, b_loot, b_rar, b_extra
+         coalesce(sum(t.reward_rarity), 0), coalesce(sum(t.reward_extra), 0), coalesce(sum(t.reward_new), 0), coalesce(sum(t.reward_reroll), 0)
+    into b_gold, b_xp, b_loot, b_rar, b_extra, b_new, b_reroll
     from public.talent_nodes t where t.id = any (me.talents);
+  fresh := (not endless and r.stage > me.levels_cleared);   -- Pioneer: a level this player has not cleared yet
+  if fresh then b_gold := b_gold + b_new; b_xp := b_xp + b_new; end if;
   me.xp := me.xp + public.rule_run_xp(p_waves, p_kills, b_xp);
   me.gold := me.gold + public.rule_run_gold(p_waves, b_gold);
   while me.level < public.rule_max_level() and me.xp >= public.rule_xp_need(me.level) loop
@@ -297,9 +302,42 @@ begin
     rar := public.rule_rarity(random()::numeric, b_rar);
     if endless then il := public.rule_endless_level(p_waves, random()::numeric); end if;   -- each item somewhere in the bracket reached
     it := public.roll_item(auth.uid(), dropped, aff, rar, il, b_extra);
-    drops := drops || jsonb_build_array(jsonb_build_object('item_type', it.item_type, 'rarity', it.rarity, 'bonuses', to_jsonb(it.bonuses), 'bonus_ranks', to_jsonb(it.bonus_ranks), 'ilvl', it.ilvl));
+    drops := drops || jsonb_build_array(jsonb_build_object('id', it.id, 'item_type', it.item_type, 'rarity', it.rarity, 'bonuses', to_jsonb(it.bonuses), 'bonus_ranks', to_jsonb(it.bonus_ranks), 'ilvl', it.ilvl));
+    ids := ids || it.id;
   end loop;
-  return jsonb_build_object('profile', to_jsonb(me), 'drop', drops -> 0 ->> 'item_type', 'drops', drops, 'stones', got_stones);
+  update public.runs set drops = ids, rerolls = case when b_reroll > 0 and array_length(ids, 1) > 0 then 1 else 0 end where id = r.id returning * into r;
+  return jsonb_build_object('profile', to_jsonb(me), 'drop', drops -> 0 ->> 'item_type', 'drops', drops, 'stones', got_stones, 'rerolls', r.rerolls);
+end;
+$$;
+
+-- Hoard (talent): rerolls one item a finished run dropped, once per run, within an hour of the run. The item is replaced by a
+-- new one: any type, its rarity rolled again (with the player's rarity luck), the same item level; gems in it go back to the bag.
+-- Returns the new item.
+create or replace function public.reroll_drop(p_run uuid, p_item uuid) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare r public.runs; me public.profiles; old public.player_items; it public.player_items; b_rar numeric; b_extra numeric; typ text; aff text;
+begin
+  if auth.uid() is null then raise exception 'not signed in'; end if;
+  select * into r from public.runs where id = p_run and user_id = auth.uid() for update;
+  if not found or r.finished_at is null then raise exception 'unknown run'; end if;
+  if r.rerolls < 1 then raise exception 'no reroll left'; end if;
+  if r.finished_at < now() - interval '1 hour' then raise exception 'too late to reroll'; end if;
+  if not (p_item = any (r.drops)) then raise exception 'that item did not drop in this run'; end if;
+  select * into old from public.player_items where id = p_item and user_id = auth.uid() for update;
+  if not found then raise exception 'unknown item'; end if;
+  select * into me from public.profiles where id = auth.uid();
+  if exists (select 1 from jsonb_each(coalesce(me.equipment, '{}'::jsonb)) h,
+                  jsonb_each_text(case when jsonb_typeof(h.value) = 'object' then h.value else jsonb_build_object('trinket', h.value) end) s
+              where s.value = p_item::text) then
+    raise exception 'take the item off before rerolling it';
+  end if;
+  select coalesce(sum(t.reward_rarity), 0), coalesce(sum(t.reward_extra), 0) into b_rar, b_extra
+    from public.talent_nodes t where t.id = any (me.talents);
+  select id, affinity into typ, aff from public.item_types where droppable order by random() limit 1;
+  delete from public.player_items where id = old.id;
+  it := public.roll_item(auth.uid(), typ, aff, public.rule_rarity(random()::numeric, b_rar), old.ilvl, b_extra);
+  update public.runs set rerolls = rerolls - 1, drops = array_replace(drops, old.id, it.id) where id = r.id;
+  return jsonb_build_object('id', it.id, 'item_type', it.item_type, 'rarity', it.rarity, 'bonuses', to_jsonb(it.bonuses), 'bonus_ranks', to_jsonb(it.bonus_ranks), 'ilvl', it.ilvl);
 end;
 $$;
 

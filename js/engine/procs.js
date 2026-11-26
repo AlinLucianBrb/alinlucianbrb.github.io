@@ -29,6 +29,7 @@ export function damageBonus(w, h, e, s, full) {
   if (s.trophy > 0) k += s.trophy * Math.min(PROC.trophyMost, Math.floor(w.kills / 50));
   if (s.fever > 0) { const p = w.players && w.players[h.owner || 0]; if (p) k += s.fever * Math.min(PROC.feverMost, Math.floor(p.gold / 200)); }
   if (s.perTile > 0) k += s.perTile * Math.hypot(e.x - h.x, e.y - h.y) / T;
+  if (s.focus > 0) { const root = h.echoOf || h, t = root.near && root.near.get(e); if (t) k += s.focus * Math.min(PROC.focusMost, t); }   /* Relentless */
   if (full && !busy) {
     const root = h.echoOf || h;
     root.hitN = (root.hitN || 0) + 1;
@@ -45,6 +46,25 @@ export function afterHit(w, h, e, total, s, o) {
   if (o.shocked && !e.dead && roll(s.thunder)) extra(() => { w.fx?.strike?.(e.x, e.y); w.attack(h, e, o.scale, 1, 'lightning', o.stats); });
   if (!e.dead && roll(s.recast)) extra(() => w.attack(h, e, o.scale, 1, o.as, o.stats));
   if (s.fifth > 0 && !e.dead && (root.hitN || 0) % PROC.fifth === 0) extra(() => w.attack(h, e, o.scale, 1, o.as, o.stats));
+  /* Hoarfrost: every 5th cold hit on a chilled enemy freezes it (holds have their limit, see tickHold). */
+  if (s.deepFreeze > 0 && !e.dead && o.own === 'cold' && e.fx && e.fx.chill && (e.chillHits = (e.chillHits || 0) + 1) >= PROC.chillHits) {
+    e.chillHits = 0; applyEffect(e, 'freeze', { t: s.deepFreeze }, h);
+  }
+  /* Judgement: a killing holy hit passes its extra damage on to the nearest enemy. */
+  if (s.overkill > 0 && e.dead && o.own === 'holy' && e.overkill > 0) {
+    const t = nearest(w, e.x, e.y, PROC.chain, new Set([e]));
+    if (t) { w.fx?.beam(e.x, e.y, t.x, t.y, 0.12, '#fff0a8', 2); extra(() => w.hit(h, t, e.overkill * s.overkill, 'holy', true)); }
+  }
+  /* Bloodbond: a kill by a minion (its hit uses the minion's stats) gives its hero energy. */
+  if (s.feed > 0 && e.dead && o.stats && o.stats === h.ms) gainEnergy(h, s.feed);
+}
+/* Relentless (Physical): how long each enemy has been in a hero's range, in seconds; an enemy that leaves starts again.
+   Called every step for heroes with the stat. */
+export function trackFocus(w, h, dt) {
+  if (!(h.s.focus > 0)) { h.near = null; return; }
+  const r2 = h.s.range * h.s.range, was = h.near, now = new Map();
+  for (const e of w.enemies) if (!e.dead && (e.x - h.x) ** 2 + (e.y - h.y) ** 2 <= r2) now.set(e, ((was && was.get(e)) || 0) + dt);
+  h.near = now;
 }
 /* Momentum: each kill adds a step and starts the time again; the buff is made anew, since a running buff keeps its numbers. */
 function momentum(w, h) {

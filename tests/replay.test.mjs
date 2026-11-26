@@ -19,7 +19,7 @@ test('replay covers every command type: place, move, evolve, reroll, banish, cho
   gentleLevel1(tc, { hpMult: 0.5, waves: 25 });   /* long enough to reach level 15 and to play on as the form */
   /* Everything goes through commands: gold is earned by playing, never set directly, or the replay could not reproduce it. */
   const gear = { ranger: [{ type: 'power_charm', rarity: 2, bonuses: ['Quick hands', 'Keen edge'], ranks: [3, 2] }, { type: 'boots', rarity: 0, bonuses: ['Fine arrows'], ranks: [1] }] };
-  const w = createWorld({ seed: 21, stage: 1, items: gear, talents: pathTo(new Set(), 't5_relics_s') });   /* a reroll and a banish */
+  const w = createWorld({ seed: 21, stage: 1, items: gear, talents: pathTo(new Set(), 't6_relics_s') });   /* a reroll and a banish */
   const t = tilesNearPath(w, 6);
   const a = apply(w, { type: 'place', hero: 'ranger', cx: t[0][0], cy: t[0][1] }).id;
   apply(w, { type: 'place', hero: 'warrior', cx: t[2][0], cy: t[2][1] });

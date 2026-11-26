@@ -49,7 +49,7 @@ export function attackMult(w, h, target) {
   if (h.energy < h.s.energyMax) return basic;
   const u = ULTIMATES[h.def.ultimate];
   if (!u || buffActive(h, u)) return basic;   /* a buff ultimate waits, bar full, until its buff on the caster runs out */
-  if (!keepsEnergy(w, h)) h.energy = 0;
+  if (!keepsEnergy(w, h) && !(h.s.thrift > 0 && w.rng.combat.next() < h.s.thrift)) h.energy = 0;   /* Second Wind: a chance to keep it */
   h.ults++; h.ultNow = true;
   if (u.onFire) u.onFire(w, h, target);
   w.ev.emit('ultimate', { hero: h, ultimate: u, target });

@@ -14,18 +14,20 @@ const tree = TREES[TREE_ID];
 const cluster = key => tree.clusters.find(c => c.key === key);
 const near = (a, b) => Math.abs(a - b) < 1e-9;
 
-test('one tree for every hero, with unique database-safe ids that start with t5_', () => {
-  assert.deepEqual(TREE_ORDER, ['t5']);
+test('one tree for every hero, with unique database-safe ids that start with t6_', () => {
+  assert.deepEqual(TREE_ORDER, ['t6']);
   const ids = [...NODES.keys()];
   assert.equal(new Set(ids).size, ids.length);
-  assert.ok(ids.every(id => /^t5_[a-z0-9_]{1,37}$/.test(id)), 'ids must match the server rule and the refund rule');
+  assert.ok(ids.every(id => /^t6_[a-z0-9_]{1,37}$/.test(id)), 'ids must match the server rule and the refund rule');
 });
 
-test('20 tracks of 5 (100 talents): start, first stat, second stat, mastery (both), notable; combat and quality of life, 10 each', () => {
+test('20 tracks of 5 (100 talents): start, first stat, second stat, mastery (both), notable; 12 combat tracks by type, 8 quality of life', () => {
   assert.equal(tree.clusters.length, 20);
   assert.equal(tree.nodes.filter(n => !n.root).length, 100);
   assert.deepEqual(tree.clusters.filter(c => c.combat).map(c => c.key), COMBAT_CLUSTERS);
   assert.deepEqual(tree.clusters.filter(c => !c.combat).map(c => c.key), QOL_CLUSTERS);
+  assert.deepEqual(COMBAT_CLUSTERS, ['melee', 'projectile', 'spell', 'minion', 'physical', 'fire', 'cold', 'lightning', 'toxic', 'shadow', 'holy', 'energy']);
+  assert.deepEqual(QOL_CLUSTERS, ['economy', 'merchant', 'relics', 'training', 'rewards', 'loot', 'headstart', 'bounty']);
   const kind = m => m.stat + '|' + JSON.stringify(m.scope);
   for (const c of tree.clusters) {
     assert.equal(c.size, TRACK_LENGTH); assert.deepEqual(c.nodes.map(n => n.step), [0, 1, 2, 3, 4]);
@@ -33,22 +35,24 @@ test('20 tracks of 5 (100 talents): start, first stat, second stat, mastery (bot
     assert.ok(N.notable && M.mastery && !s.notable, c.key);
     assert.deepEqual(M.mods.map(kind), [...A.mods, ...B.mods].map(kind), c.key + ': the mastery gives both stats');
     assert.notDeepEqual(A.mods.map(kind), B.mods.map(kind));
-    for (const n of [s, N]) assert.ok([...A.mods, ...B.mods].every(m => n.mods.some(x => kind(x) === kind(m))), c.key + ' ' + n.id + ' has both stats');
+    for (const n of [s, N]) assert.ok([A.mods[0], B.mods[0]].every(m => n.mods.some(x => kind(x) === kind(m))), c.key + ' ' + n.id + ' has both stats');
   }
   const stats = new Set(tree.nodes.flatMap(n => n.mods.map(m => m.stat)));
-  for (const st of ['damage', 'speed', 'critChance', 'critDamage', 'castSpeed', 'fireDamage', 'coldDamage', 'lightningDamage', 'armorPen', 'firePen', 'coldPen', 'lightningPen',
-    'energyPerSecond', 'rerolls', 'banishes', 'startGold', 'waveGold', 'startLives', 'evolveCost', 'heroXp', 'rewardXp', 'rewardGold', 'rewardLoot', 'range',
-    'interest', 'interestCap', 'relicCost', 'relicOffers', 'itemRarity', 'itemBonusChance', 'heroStartLevel', 'evolveLevel'])
+  for (const st of ['damage', 'speed', 'castSpeed', 'range', 'minionDamage', 'minionSpeed', 'fireDamage', 'coldDamage', 'lightningDamage', 'holyDamage', 'armorPen', 'firePen', 'coldPen',
+    'lightningPen', 'poisonChance', 'corruptionChance', 'energyPerSecond', 'duration', 'rerolls', 'banishes', 'startGold', 'waveGold', 'startLives', 'evolveCost', 'heroXp',
+    'bounty', 'rewardXp', 'rewardGold', 'rewardLoot', 'interest', 'interestCap', 'relicCost', 'relicOffers', 'itemRarity', 'heroStartLevel', 'evolveLevel'])
     assert.ok(stats.has(st), 'some talent gives ' + st);
   assert.ok(!stats.has('strength') && !stats.has('intellect'), 'no attribute paths any more');
 });
 
-test('a full track is worth what the old cluster was: its sides doubled (small) or tripled (big)', () => {
+test('a full track: start, each side twice (side and mastery; 1.5x in the bigger tracks), notable', () => {
   const sum = (ns, stat) => ns.flatMap(n => n.mods).filter(m => m.stat === stat).reduce((a, m) => a + m.value, 0);
   assert.ok(near(sum(cluster('fire').nodes, 'fireDamage'), 1 + 2 * 3 + 2), 'Fire: start 1, Fire Touch 2 x3, notable 2');
   assert.ok(near(sum(cluster('fire').nodes, 'firePen'), 0.02 + 0.03 * 3 + 0.03));
-  assert.ok(near(sum(cluster('might').nodes, 'damage'), 0.02 + 0.03 * 2 + 0.04), 'Might: start 2%, Sharpened 3% x2, notable 4%');
-  assert.equal(sum(cluster('gate').nodes, 'startLives'), 1 + 2 + 2);
+  assert.ok(near(sum(cluster('physical').nodes, 'damage'), 0.02 + 0.06 * 2 + 0.04), 'Physical: start 2%, Heavy Blows 6% x2, notable 4%');
+  assert.ok(near(sum(cluster('melee').nodes, 'damage'), 0.03 + 0.05 * 2 + 0.05), 'Melee: start 3%, Brawler 5% x2, notable 5%');
+  assert.equal(sum(cluster('headstart').nodes, 'startLives'), 1 + 1 * 2 + 2);
+  assert.equal(sum(cluster('headstart').nodes, 'startGold'), 5 + 10 * 2 + 25);
 });
 
 test('every talent reaches at least one hero or evolved form', () => {
@@ -70,14 +74,14 @@ test('penetration: armor penetration ignores a share of armor, resistance penetr
 });
 
 test('a track is taken in order and given back from its end; pathTo takes the ones before', () => {
-  const a = new Set(), [s0, s1, s2] = cluster('sunder').nodes;
+  const a = new Set(), [s0, s1, s2] = cluster('physical').nodes;
   assert.ok(canAllocate(a, s0), 'the start of any track');
   assert.ok(!canAllocate(a, s1), 'the second needs the first');
   a.add(s0.id); a.add(s1.id);
   assert.ok(!canRemove(a, s0.id), 'not from the middle');
   assert.ok(canRemove(a, s1.id));
-  assert.ok(!canAllocate(a, NODES.get('t5_root')) && !canRemove(a, 't5_root'));
-  assert.deepEqual(pathTo(new Set(), 't5_sunder_n'), cluster('sunder').nodes.map(n => n.id));
+  assert.ok(!canAllocate(a, NODES.get('t6_root')) && !canRemove(a, 't6_root'));
+  assert.deepEqual(pathTo(new Set(), 't6_physical_n'), cluster('physical').nodes.map(n => n.id));
   assert.deepEqual(pathTo(a, s2.id), [s2.id]);
   assert.deepEqual(pathTo(a, s1.id), [], 'already taken');
 });
@@ -89,29 +93,32 @@ test('talent points: one per account level, up to the top level, where every tal
 });
 
 test('talents become modifiers that only hit the intended heroes', () => {
-  const melee = [cluster('martial').a[0].id, cluster('martial').nodes[3].id], mods = talentMods([...melee, 'nope', 't4_root']);
+  const melee = [cluster('melee').a[0].id, cluster('melee').nodes[3].id], mods = talentMods([...melee, 'nope', 't5_root']);
   const warrior = HEROES.find(h => h.id === 'warrior'), ranger = HEROES.find(h => h.id === 'ranger');
   assert.ok(near(heroStats(warrior, mods).damage, 28 * 1.20), 'Brawler and the mastery (+5% each, melee) and 10 strength');
   assert.ok(near(heroStats(ranger, mods).damage, 16 * 1.10), 'nothing for the Ranger');
-  const hunter = evolvedDef(ranger, ranger.evolutions[0].choices.find(c => c.id === 'hunter')), elem = talentMods([cluster('toxins').a[0].id]);
-  assert.ok(heroStats(hunter, elem).damage > heroStats(ranger, elem).damage, 'Elements and toxins reach the Hunter');
+  const hunter = evolvedDef(ranger, ranger.evolutions[0].choices.find(c => c.id === 'hunter')), elem = talentMods([cluster('toxic').a[0].id]);
+  assert.ok(heroStats(hunter, elem).damage > heroStats(ranger, elem).damage, 'Toxic reaches the Hunter');
   const fire = talentMods([cluster('fire').a[0].id]);
   assert.equal(heroStats(ranger, fire).fireDamage, 3, 'added fire damage for every hero (Fire Touch in a big track: 1.5 x 2)');
 });
 
 test('non-damage talents: rewards, relic rerolls and banishes, hero XP', async () => {
   const { createWorld } = await import('../js/engine/world.js');
-  const rb = rewardBonus(cluster('fortune').nodes.map(n => n.id));
-  assert.ok(near(rb.gold, 0.03 + 0.15 + 0.1) && near(rb.loot, 0.04 + 0.24 + 0.15) && rb.xp === 0, JSON.stringify(rb));
+  const rw = cluster('rewards').nodes.map(n => n.id), rb = rewardBonus(rw);
+  assert.ok(near(rb.gold, 0.03 + 0.075 * 2 + 0.1) && near(rb.xp, rb.gold) && rb.loot === 0, JSON.stringify(rb));
+  const fresh = rewardBonus(rw, true);
+  assert.ok(near(fresh.gold, rb.gold + 0.5) && near(fresh.xp, rb.xp + 0.5), 'Pioneer: +50% on a level not cleared yet');
+  assert.ok(near(rewardBonus(cluster('loot').nodes.map(n => n.id)).loot, 0.04 + 0.12 * 2 + 0.15));
   assert.deepEqual(rewardBonus([]), { gold: 0, xp: 0, loot: 0 });
   const plain = createWorld({ seed: 1 });
   assert.equal(plain.rerolls, 0); assert.equal(plain.banishes, 0); assert.equal(plain.gs.heroXp, 1);
   const relics = createWorld({ seed: 1, talents: cluster('relics').nodes.map(n => n.id) });
   assert.equal(relics.rerolls, 4); assert.equal(relics.banishes, 4);
-  const tempo = createWorld({ seed: 1, talents: pathTo(new Set(), 't5_tempo_n') });
-  assert.ok(tempo.gs.heroXp > 1.1, 'Overdrive: hero XP (3x speed is no longer a talent)');
-  assert.equal(fmtMod(NODES.get('t5_precision_b').mods[0]), '+10% crit damage');
-  assert.equal(fmtMod(NODES.get('t5_fire_b').mods[0]), '+4.5% fire penetration', 'a big track: three of the old steps at once');
+  const bounty = createWorld({ seed: 1, talents: pathTo(new Set(), 't6_bounty_n') });
+  assert.ok(bounty.gs.heroXp > 1.1, 'Bounty: hero XP');
+  assert.equal(fmtMod(NODES.get('t6_projectile_b').mods[0]), '+3% range');
+  assert.equal(fmtMod(NODES.get('t6_fire_b').mods[0]), '+4.5% fire penetration', 'a bigger track: 1.5 steps at once');
 });
 
 /* The server (save_talents in the SQL) accepts a set if every node exists and connects to the origin through allocated nodes.
@@ -147,18 +154,18 @@ test('the server rule accepts exactly the sets a player can build', () => {
   }
   assert.ok(valid > 100, 'the sample should include plenty of valid sets');
   assert.ok(valid < 1450, 'and plenty of invalid ones');
-  assert.ok(!serverOk(['t5_root']) && !serverOk(['nope_1']) && !serverOk(['t5_might_s', 't5_might_s']) && !serverOk(['t5_might_a']));
+  assert.ok(!serverOk(['t6_root']) && !serverOk(['nope_1']) && !serverOk(['t6_melee_s', 't6_melee_s']) && !serverOk(['t6_melee_a']));
 });
 
 test('the SQL refunds points allocated in any older tree', () => {
   const sql = readFileSync(new URL('../supabase-update.sql', import.meta.url), 'utf8');
-  assert.match(sql, /where exists \(select 1 from unnest\(p\.talents\) as x where x !~ '\^t5_'\)/);
-  assert.doesNotMatch(sql, /x !~ '\^(main|t2|t3|t4)_'/, 'an old rule would refund the new tree');
+  assert.match(sql, /where exists \(select 1 from unnest\(p\.talents\) as x where x !~ '\^t6_'\)/);
+  assert.doesNotMatch(sql, /x !~ '\^(main|t2|t3|t4|t5)_'/, 'an old rule would refund the new tree');
   assert.match(sql, /if n > least\(me\.level, public\.rule_max_level\(\)\) then raise exception 'too many talent points'/);
   assert.match(sql, /while me\.level < public\.rule_max_level\(\) and me\.xp >= public\.rule_xp_need/, 'no levels past the top');
 });
 
-test('the new quality-of-life clusters: Training, Merchant and Investor change the match; Treasure Hunter goes to the server', async () => {
+test('quality of life: Training, Merchant and Economy change the match; Rewards and Loot go to the server', async () => {
   const { createWorld, recalc } = await import('../js/engine/world.js');
   const { apply } = await import('../js/engine/commands.js');
   const all = key => cluster(key).nodes.map(n => n.id);
@@ -170,17 +177,20 @@ test('the new quality-of-life clusters: Training, Merchant and Investor change t
   assert.equal(h.level, 5); assert.ok(near(h.s.strength, 10 + 12), 'its level bonus too (+3 strength a level)');
   assert.equal(tr.evolveLevel(h), 11);
   assert.equal(apply(tr, { type: 'evolve', id: h.id, choice: 0 }).reason, 'level');
-  h.level = 11; assert.ok(apply(tr, { type: 'evolve', id: h.id, choice: 0 }).ok, 'evolves at level 11 instead of 15');
+  h.level = 11; assert.equal(tr.evolveCost(h), 0, 'Veterans: the first evolution is free');
+  const gold = tr.gold; assert.ok(apply(tr, { type: 'evolve', id: h.id, choice: 0 }).ok, 'evolves at level 11 instead of 15');
+  assert.equal(tr.gold, gold); assert.ok(tr.evolveCost(h) > 0, 'only the first');
   assert.equal(tr.evolveLevel(h), 26, 'the upgrade too: 26 instead of 30');
   /* Merchant: relics cheaper (-2%, -4.5% x2, -8%, multiplied), and 0.1 + 0.375 x 2 + 0.5 = 1.35 more offers: always 4, sometimes 5. */
   const m = createWorld({ seed: 3, talents: all('merchant') }); m.gold = 1e6;
   assert.equal(m.relicCost(), Math.round(48 * 0.98 * 0.955 ** 2 * 0.92));
   const counts = new Set(); for (let i = 0; i < 40; i++) { apply(m, { type: 'buyRelic' }); counts.add(m.pick.offers.length); apply(m, { type: 'choose', index: 0 }); }
   assert.deepEqual([...counts].sort(), [4, 5]);
-  /* Investor: interest from talents works like the relic. */
-  const inv = createWorld({ seed: 2, talents: all('investor') });
-  assert.ok(near(inv.gs.interest, 0.003 + 0.015 + 0.01), 'start, Dividend, mastery, notable'); assert.equal(inv.gs.interestCap, 5 + 12 + 12 + 20);
-  /* Treasure Hunter: no effect in the match; its numbers go into the talent table for finish_run. */
-  const sql = readFileSync(new URL('../supabase-update.sql', import.meta.url), 'utf8'), n = cluster('treasure').end;
-  assert.ok(sql.includes("('" + n.id + "', 't5', false, 0, 0, 0, 0.25, 0.1)"), 'the notable: +25% rarity luck, +10% extra bonus chance');
+  /* Economy: interest from talents works like the relic. */
+  const inv = createWorld({ seed: 2, talents: all('economy') });
+  assert.ok(near(inv.gs.interest, 0.003 + 0.0075 * 2 + 0.01), 'start, Dividend, mastery, notable'); assert.equal(inv.gs.interestCap, 5 + 12 + 12 + 20);
+  /* Rewards and Loot: no effect in the match; their numbers go into the talent table for finish_run. */
+  const sql = readFileSync(new URL('../supabase-update.sql', import.meta.url), 'utf8');
+  assert.ok(sql.includes("('t6_rewards_n', 't6', false, 0.1, 0.1, 0, 0, 0, 0.5, 0)"), 'Pioneer: +50% on a fresh level (reward_new)');
+  assert.ok(sql.includes("('t6_loot_n', 't6', false, 0, 0, 0.15, 0.25, 0, 0, 1)"), 'Hoard: one reroll (reward_reroll)');
 });

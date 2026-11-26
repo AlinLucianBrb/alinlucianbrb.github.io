@@ -54,6 +54,7 @@ function drawRelics(w, p, n, taken) {
   const pool = RELICS.filter(r => !p.banned.has(r.name) && !taken.includes(r.name) && relicFits(r, p, w)), out = [];   /* only relics for the heroes on the map */
   const draw = () => out.push({ relic: pool.splice(w.rng.relic.int(pool.length), 1)[0], ri: w.fxm.epicRelics ? RARITIES.length - 1 : rollRarity(w.rng.relic.next(), p.gs.relicLuck) });
   while (out.length < n && pool.length) draw();
+  if (n > 1 && p.gs.betterOffer > 0 && out.length) { const o = out.reduce((a, b) => (b.ri < a.ri ? b : a)); o.ri = Math.min(RARITIES.length - 1, o.ri + 1); }   /* Grand Bazaar */
   /* at least one relic of every offer does something in a fight (fresh), when there is one for these heroes */
   if (n > 1 && out.length && !out.some(o => o.relic.fresh) && pool.some(r => r.fresh)) {
     const fresh = pool.filter(r => r.fresh), o = out[out.length - 1];
@@ -110,6 +111,7 @@ export const COMMANDS = {
     if (h.level < w.evolveLevel(h)) return fail('level');
     if (p.gold < cost) return fail('gold');
     p.gold -= cost;
+    if (p.freeEvolves > 0) p.freeEvolves--;   /* Veterans: this one was free */
     if (step.upgrade) h.def = { ...h.def, upgrade: choice };   /* the second evolution: no new form, no stats */
     else {
       h.mods.push(...choice.mods.map(m => ({ ...m, source: choice.name, ri: -3 })));

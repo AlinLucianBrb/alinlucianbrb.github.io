@@ -27,7 +27,7 @@ js/content/                WHAT the game contains (plain data, no logic)
   data.js                  heroes (and archived ones for later), energy defaults, attributes, relics, rarities, levels
   previews.js              what each evolution path shows before level 15 (the form previews)
   items.js                 items that drop after matches (one slot per hero)
-  talents.js               the talent tree (clusters and paths) and allocation rules
+  talents.js               the talent tracks (20 of 5) and allocation rules
   format.js                display text for modifiers
 js/engine/                 HOW the game works (no page, no clock, no Math.random)
   world.js                 the simulation: createWorld(), step()
@@ -185,25 +185,32 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Talents:** you get 1 talent point per account level, and the account level stops at **100**, so a player at level 100
   owns all **100 talents**. They are shared by every hero and laid out as **20 tracks of 5**, taken in order: the **start**
   (both of the track's stats, small), the **first stat**, the **second stat**, the **mastery** (both again) and the
-  **notable** (both, bigger, often a special effect). Respec is free.
-  - **Combat** (left column): Might (damage | attack speed), Precision (crit chance | crit damage), Martial (melee damage | melee
-    attack speed), Marksmanship (projectile damage | range), Sorcery (spell damage | cast speed), Sunder (armor penetration |
-    physical damage), Fire (added fire damage | fire penetration), Cold, Lightning, Elements and toxins (elemental and toxic
-    hero damage | poison chance). The Fire, Cold and Lightning notables add the ailment's chance.
-  - **Quality of life** (right column): Energy (energy per second | duration), Gate (lives | cheaper evolutions), Wealth
-    (starting gold | wave gold), Investor (interest | interest limit, like the Compound interest relic), Merchant (cheaper relics |
-    chance of a 4th or 5th relic offer), Relics (rerolls | banishes), Training (heroes start at a higher level | lower level
-    needed to evolve), Tempo (hero XP | end-of-match XP), Fortune (gold | item find at the end of a match), Treasure Hunter
-    (item rarity luck | chance of an extra item bonus).
-  - The ten tracks that came from the old big clusters give three old steps of a stat at once (x1.5), the others two, so a full
-    track is worth what its old cluster was.
-  - With the whole Training track, heroes start at level 5 and evolve at level 6. Merchant: each full 100% is one more relic
-    offer, the rest a chance of one more (at most 5). Treasure Hunter is applied by the server when it rolls the items
-    (`finish_run`): rarity luck works like relic luck, and the extra chance adds to the 30% chance of each further bonus.
+  **notable** (both, bigger, and the track's unique effect). Respec is free.
+  - **Combat** (left column, 12), by type. The main types: Melee (damage | attack speed; notable *Deadly Strikes*: melee crit
+    chance is rolled twice), Projectile (damage | range; *Deadeye*: more damage the farther the target), Spell (damage | cast
+    speed; *Arcane Flow*: a chance to cast again), Minion (minion damage | minion speed; *Bloodbond*: a minion's kill gives its
+    hero 3 energy). The damage types: Physical (damage | armor penetration; *Relentless*: +10% damage for every second an
+    enemy has been in the hero's range, up to +100%, starting again when it leaves), Fire, Cold and Lightning (added damage |
+    penetration; the notable adds the ailment's chance and *Pyromancy*: burning enemies stagger, *Hoarfrost*: every 5th cold
+    hit on a chilled enemy freezes it for 1 s, *Thunderstruck*: shock jumps), Toxic (damage | poison chance; *Plaguebearer*:
+    stronger poison, poisoned enemies cannot heal), Shadow (damage | corruption chance; *Shatter Will*: corruption lowers
+    defenses), Holy (damage | added holy damage; *Judgement*: a killing holy hit passes its extra damage to the nearest enemy).
+    Last, Energy (energy per second | duration; *Second Wind*: a 20% chance to keep the energy when an ultimate is cast).
+  - **Quality of life** (right column, 8): Economy (interest and its limit | wave gold; *Compounding*: double interest on a boss
+    wave), Merchant (cheaper relics | chance of a 4th or 5th offer; *Grand Bazaar*: the weakest relic offered is one rarity
+    better), Relics (rerolls | banishes; *Relic Hunter*: a free reroll every wave), Training (heroes start at a higher level |
+    evolve earlier and cheaper; *Veterans*: the first evolution of each match is free), Rewards (gold | XP at the end of a
+    match; *Pioneer*: +50% of both on a level you have not cleared yet), Loot (item rarity luck | item find; *Hoard*: once per
+    match, reroll one item you found), Head Start (starting gold | lives; its notable is just more of both), Bounty (hero XP |
+    gold per kill; *Trophy Hunter*: heroes get twice the XP from bosses).
+  - Twelve tracks are "bigger" (x1.5 per step): the damage types, Energy, Economy, Merchant, Rewards and Loot. Crit chance and crit damage are no longer talents (items and relics still give
+    them). Pioneer and Hoard are applied by the server: `finish_run` adds Pioneer's bonus, and `reroll_drop` rerolls one item
+    of a finished run (only one, only an item from that run that is not worn, within an hour); the end-of-match screen shows a
+    **Reroll an item** button for it.
   - Hero talents target **tags** (melee, projectile, spell, fire...), so they reach every hero with the tag, evolved forms included.
   - **The screen:** every track at once, in two columns. Click a talent to take it and the ones before it in its track (the
     tooltip says how many points); click a taken one to give it back with the ones after it.
-  - Talent ids start with `t5_`; `supabase-update.sql` refunds points spent in any older tree.
+  - Talent ids start with `t6_`; `supabase-update.sql` refunds points spent in any older tree.
 - **Timed buffs:** Frenzy and Rally are buffs on the hero (`h.buffs`, added with `w.addBuff`). They are modifiers that last a few seconds; getting the same buff again refreshes it instead of stacking. The hero panel lists them as "Buff", and a coloured ring shows around the hero while one is active.
 - Talents, items, evolutions and relics are all modifiers, so they stack, and the hero panel shows where each bonus comes from. Bonuses from the same source are shown as one line whatever their rarity (a Common and a Rare Sharpened rounds: "+15% · Sharpened rounds ×2"), and the relic strip shows one chip per relic with the copies added together. All talent nodes count as one source, so each stat has a single "Talents" line (for example "+16% · Talents ×3").
 - **Relic rarities** are whole multiples of the Common version: Uncommon 2×, Rare 3×, Epic 4×. Relics are written at Common strength in `data.js`.
@@ -223,6 +230,23 @@ The map fills the window and the HUD floats on top: level, wave and lives in the
 - **Texts:** attack descriptions describe only the attack, ultimate tooltips only the ultimate, and the hero tooltip the hero (its attribute, delivery and source, tags, damage type). Ultimates that deal damage of their own write it as `{N}` in their description; `ultDesc()` shows it as the number it deals with the hero's stats ("about 156 damage"); "x2 damage" is kept for boosts to an attack the hero already makes. "At level 10, choose a path" is gone from the descriptions.
 - **Choosing heroes for a level** starts with none picked; you can clear them all, but Start waits for at least one.
 - **Balance (bot):** lineups of three at a level-10 player win levels 1 and 2 every time and level 3 about two times in three; levels 4 and 5 are out of reach for the bot now (they reach waves 21 to 27). Solo heroes have a harder time on level 2 than before, since ultimates are now rare. The bot no longer evolves into the Occult when it plays alone, since that form deals no damage.
+
+## Talents: 12 combat tracks by type, 8 quality of life, each ending in a unique effect (Nov 26, v0.79.0)
+- From the design notes. Combat is now grouped by type: Melee, Projectile, Spell, Minion, then the damage types Physical,
+  Fire, Cold, Lightning, Toxic, Shadow, Holy, then Energy. Quality of life: Economy, Merchant, Relics, Training, Rewards,
+  Loot, Head Start, Bounty. Still 5 talents a track and 100 in all.
+- Each track's last talent has its own effect (the list is in the Talents part of "Heroes, energy, evolution and items").
+  New ones: Relentless (Physical), Hoarfrost (Cold), Judgement (Holy), Bloodbond (Minion), Second Wind (Energy),
+  Compounding, Grand Bazaar, Relic Hunter, Veterans, Pioneer, Hoard and Trophy Hunter. Head Start's notable is numbers only.
+- Gone: the Might and Precision tracks (so talents no longer give crit chance or crit damage), and the "5th melee hit
+  twice" and splash notables (they stay as relic effects).
+- End of a match: with Hoard, a **Reroll an item** button; click it, then the item, and the server replaces it with a new
+  random one of the same item level.
+- The talent icons now show at their own size (no blur).
+- **SQL changed** (run `supabase-update.sql`): the new talent list (ids `t6_`, points in the old tracks are refunded once),
+  two new talent columns (`reward_new`, `reward_reroll`), the run remembers its drops and rerolls, `finish_run` pays the
+  first-clear bonus, and the new `reroll_drop`. Rules change: `ENGINE_VERSION` 42 (a run saved in the browser before the
+  update is dropped).
 
 ## Talents: 20 tracks of 5, and level 100 owns them all (Nov 26, v0.78.0)
 - The branching tree is gone. Talents are now 20 tracks of 5 (100 in all), taken in order: the start, the first stat, the

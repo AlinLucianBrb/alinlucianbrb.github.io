@@ -211,15 +211,15 @@ test('hero panel: a hint on moving comes first, bonuses from the same source are
 
 test('talent bonuses are stacked into one "Talents" line per stat', async () => {
   stopGame();
-  /* The Might track up to its mastery: start (+2% damage), Sharpened (+3%), Quick (speed), mastery (+3%). */
+  /* The Melee track up to its mastery: start (+3% damage), Brawler (+5%), Quick Blade (speed), mastery (+5%). */
   const { pathTo } = await import('../js/content/talents.js');
-  startGame({ ...hooks, talents: pathTo(new Set(), 't5_might_m') }); dom.frames(2);
+  startGame({ ...hooks, talents: pathTo(new Set(), 't6_melee_m') }); dom.frames(2);
   const [t] = freeTiles(1);
   dom.heroButton(0).onclick(); click(...t); click(...t); dom.frames(1);
   byId.inspect.children.find(k => k.className === 'pstats').children.find(c => c.className === 'pst wide').fire('pointerenter', { clientX: 5, clientY: 5 });   /* the damage cell's tip */
   const lines = dom.made.filter(e => e.className === 'tip').at(-1).children.map(c => c._text);
-  assert.ok(lines.includes('+8% · Talents ×3'), 'one line: ' + lines.join(' | '));
-  assert.ok(Math.abs(world().heroes[0].s.damage - 28 * 1.18) < 1e-9, 'talents +8% and 10 strength +10%');
+  assert.ok(lines.includes('+13% · Talents ×3'), 'one line: ' + lines.join(' | '));
+  assert.ok(Math.abs(world().heroes[0].s.damage - 28 * 1.23) < 1e-9, 'talents +13% and 10 strength +10%');
   assert.ok(lines.includes('+10% · Strength (attribute)'), 'the attribute bonus is listed');
   /* Level the Warrior up twice: +6 strength, shown on the Strength chip and explained in its tooltip. */
   const { gainXp } = await import('../js/engine/levels.js');

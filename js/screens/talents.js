@@ -60,7 +60,7 @@ const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls)
 /* One track: its icon and name, how many are taken, then its five talents joined by a line. */
 function row(cl) {
   const r = el('div', 'tltrack'); r.style.setProperty('--tc', cl.color);
-  const name = el('div', 'tlname'), icon = el('img', 'pix'); icon.src = 'assets/icon_talent_' + cl.key + '.png'; icon.alt = '';
+  const name = el('div', 'tlname'), icon = el('img', 'pix'); icon.src = 'assets/' + cl.icon + '.png'; icon.alt = '';
   const count = el('small', 'tlcount');
   name.append(icon, el('b', '', cl.title), count);
   const steps = el('div', 'tlsteps'), nodes = [];

@@ -16,6 +16,9 @@ alter table public.talent_nodes add column if not exists reward_loot numeric not
 -- Treasure Hunter talents: item rarity luck (like relic luck) and the extra chance of each further item bonus.
 alter table public.talent_nodes add column if not exists reward_rarity numeric not null default 0;
 alter table public.talent_nodes add column if not exists reward_extra numeric not null default 0;
+-- Pioneer (first clear: more gold and XP on a level not cleared yet) and Hoard (reroll one found item once per match).
+alter table public.talent_nodes add column if not exists reward_new numeric not null default 0;
+alter table public.talent_nodes add column if not exists reward_reroll numeric not null default 0;
 alter table public.talent_nodes enable row level security;
 alter table public.talent_links enable row level security;
 
@@ -28,6 +31,9 @@ create table if not exists public.runs (
   finished_at timestamptz
 );
 create index if not exists runs_user_idx on public.runs (user_id, finished_at);
+-- The items a finished run dropped, and how many of them can still be rerolled (Hoard talent, reroll_drop).
+alter table public.runs add column if not exists drops uuid[] not null default '{}';
+alter table public.runs add column if not exists rerolls int not null default 0;
 alter table public.runs enable row level security;
 -- Zones (Nov 12): 25 levels, not 5. Older projects had "stage between 1 and 5" on this table; the upper end is now
 -- checked by start_run against rule_stage_count(), so the table only needs a level of at least 1.

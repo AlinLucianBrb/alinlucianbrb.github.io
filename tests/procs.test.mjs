@@ -111,12 +111,13 @@ test('Sunder: Corruption takes defenses; Toxins: poison is stronger and stops he
   for (const [v, heals] of [[0.15, false], [0, true]]) { const s = setup('venom', v); s.w.wave = 22; const e = spawnEnemy(s.w, 'regener'); e.hp = e.max / 2; inflict(s.w, s.h, e, 'poison', 1); const b = e.hp; updateAbilities(s.w, 1); assert.equal(e.hp > b, heals); }
 });
 
-test('the ten combat notables have their effect, keep half their numbers, and say it; the tree keeps its nodes', () => {
-  const want = { might: 'splash', fire: 'stagger', sunder: 'wither', toxins: 'venom', precision: 'lucky', cold: 'vsFrozen', lightning: 'arcing', sorcery: 'recast', marksman: 'perTile', martial: 'fifth' };
+test('the twelve combat notables have their effect and say it; the tree keeps its nodes', () => {
+  const want = { melee: 'lucky', projectile: 'perTile', spell: 'recast', minion: 'feed', physical: 'focus', fire: 'stagger', cold: 'deepFreeze', lightning: 'arcing',
+    toxic: 'venom', shadow: 'wither', holy: 'overkill', energy: 'thrift' };
   assert.deepEqual(Object.keys(want).sort(), [...COMBAT_CLUSTERS].sort()); assert.equal(TREES[TREE_ORDER[0]].nodes.length, 101);
-  for (const [k, stat] of Object.entries(want)) { const n = NODES.get('t5_' + k + '_n'); assert.equal(n.mods[0].stat, stat, k); assert.ok(n.mods.length >= 2); assert.equal(fmtMod(n.mods[0]), EFFECT_STATS[stat].text(n.mods[0].value)); assert.ok(n.desc.includes(fmtMod(n.mods[0]))); }
-  assert.equal(NODES.get('t5_might_n').mods[1].value, 0.04);
-  const s = id => heroStats(HEROES.find(h => h.id === id), talentMods(['t5_martial_n', 't5_sorcery_n', 't5_marksman_n'])); assert.deepEqual([s('warrior').fifth, s('mage').fifth, s('mage').recast, s('warrior').recast], [1, 0, 0.08, 0]); assert.ok(s('ranger').perTile > 0 && s('warrior').perTile === 0);
+  for (const [k, stat] of Object.entries(want)) { const n = NODES.get('t6_' + k + '_n'); assert.equal(n.mods[0].stat, stat, k); assert.ok(n.mods.length >= 2); assert.equal(fmtMod(n.mods[0]), EFFECT_STATS[stat].text(n.mods[0].value)); assert.ok(n.desc.includes(fmtMod(n.mods[0]))); }
+  assert.equal(NODES.get('t6_physical_n').mods[1].value, 0.04);
+  const s = id => heroStats(HEROES.find(h => h.id === id), talentMods(['t6_melee_n', 't6_spell_n', 't6_projectile_n'])); assert.deepEqual([s('warrior').lucky, s('mage').lucky, s('mage').recast, s('warrior').recast], [1, 0, 0.08, 0]); assert.ok(s('ranger').perTile > 0 && s('warrior').perTile === 0);
 });
 
 test('matches with every effect on replay exactly, for every hero', () => {

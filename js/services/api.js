@@ -80,7 +80,7 @@ export async function finishRun(runId, waves, kills, won, bosses = 0) {
   const { data: res, error } = await sb.rpc('finish_run', { p_run: runId, p_waves: waves, p_kills: kills, p_won: won, p_bosses: bosses });
   const data = res && res.profile ? res.profile : res;   /* older databases return the profile itself */
   if (data) fill(data);
-  if (res && 'drop' in res) return { profile: data, drop: res.drop || null, drops: res.drops || (res.drop ? [res.drop] : []), stones: res.stones | 0, error: error && error.message };
+  if (res && 'drop' in res) return { profile: data, drop: res.drop || null, drops: res.drops || (res.drop ? [res.drop] : []), stones: res.stones | 0, rerolls: res.rerolls | 0, error: error && error.message };
   return { profile: data, error: error && error.message };
 }
 /* The player's items: [{ id, item_type, created_at }], newest first. */
@@ -101,6 +101,12 @@ export async function savePaths(paths) {
   const { data, error } = await sb.rpc('save_paths', { p_paths: paths });
   if (data) fill(data);
   return { profile: data, error: error && error.message };
+}
+/* Hoard (talent): rerolls one item a finished run dropped (once per run; the server checks and rolls it). Returns { item }. */
+export async function rerollDrop(runId, itemId) {
+  if (!sb) return { item: null, ...OFFLINE };
+  const { data, error } = await sb.rpc('reroll_drop', { p_run: runId, p_item: itemId });
+  return { item: data || null, error: error && error.message };
 }
 /* Sells one of the player's items for account gold (the server sets the price and refuses worn items). */
 export async function sellItem(itemId) {

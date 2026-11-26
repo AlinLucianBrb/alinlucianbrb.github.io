@@ -58,7 +58,7 @@ const dom = installFakeDom();
 const claims = [], titles = [];
 const counters = { [COUNTER_KEYS.win(levelsOf(1)[0])]: 20, [COUNTER_KEYS.hero('mage', 1)]: 5 };
 mock.module(new URL('../js/services/api.js', import.meta.url).href, { namedExports: {
-  getItems: async () => ({ items: [] }), getGems: async () => ({ gems: [] }), saveLoadout: async () => ({}),
+  getItems: async () => ({ items: [] }), getGems: async () => ({ gems: [] }), saveLoadout: async () => ({}), rerollDrop: async () => ({}),
   getAchievements: async () => ({ counters, claimed: ['endless_25'] }),
   claimAchievement: async id => { claims.push(id); return { profile: { gold: 999 } }; },
   setTitle: async t => { titles.push(t); return { profile: { title: t } }; }

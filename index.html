@@ -177,7 +177,7 @@ select{font:inherit;background:#101813;color:var(--text);border:2px solid var(--
   text-shadow:1px 0 0 #1a1008,-1px 0 0 #1a1008,0 1px 0 #1a1008,0 -1px 0 #1a1008,0 2px 3px rgba(0,0,0,.8)}
 .tltrack{display:flex;align-items:center;gap:14px;height:44px}
 .tlname{display:flex;align-items:center;gap:8px;width:290px}
-.tlname img{width:26px;height:26px;flex:none;filter:drop-shadow(0 2px 0 rgba(0,0,0,.5))}
+.tlname img{width:26px;height:26px;object-fit:none;flex:none;filter:drop-shadow(0 2px 0 rgba(0,0,0,.5))}
 .tlname b{flex:1;font-family:var(--pixel);font-weight:400;font-size:18px;color:#fff3d6;white-space:nowrap;
   text-shadow:1px 0 0 #1a1008,-1px 0 0 #1a1008,0 1px 0 #1a1008,0 -1px 0 #1a1008}
 .tlcount{font-family:var(--pixel);font-size:18px;color:#8f8676}
@@ -188,7 +188,7 @@ select{font:inherit;background:#101813;color:var(--text);border:2px solid var(--
   font-family:var(--pixel);font-size:18px;line-height:1;color:#6f6656;cursor:pointer;display:grid;place-items:center;transition:transform .12s}
 .tlnode.mastery{border-radius:6px}
 .tlnode.notable{width:42px;height:42px;border-width:3px}
-.tlnode.notable img{width:26px;height:26px;opacity:.35;filter:grayscale(1)}
+.tlnode.notable img{width:26px;height:26px;object-fit:none;opacity:.35;filter:grayscale(1)}
 .tlnode.on{background:var(--tc);border-color:#ffe08a;color:#1a1008}
 .tlnode.on.notable img{opacity:1;filter:none}
 .tlnode.on.notable{background:color-mix(in srgb,var(--tc) 45%,#1a1610)}
@@ -1127,6 +1127,9 @@ body.calm .herocard .ab.ready,body.calm .actions .autobtn.on::after,body.calm .e
 .msunlocks .msuw small{color:#cfc3a8}
 /* The best items of a match, big on the result screen: the icon, "Epic item!", the name in its colour and the bonuses. */
 .lootrow .loot{display:flex;flex-wrap:wrap;justify-content:center;gap:6px}
+.lootrow .rerollbar{flex-basis:100%;display:flex;align-items:center;justify-content:center;gap:10px;margin-top:4px}
+.lootrow .rerollnote{color:#c9b9a0}
+.lootrow .loot.picking .invcell.full:not(.stonecell){border-color:#f2b84b;box-shadow:0 0 8px 1px rgba(242,184,75,.6)}
 .lootrow .bigdrop{flex-basis:100%;display:flex;align-items:center;justify-content:center;gap:12px;padding:6px 10px;margin-bottom:4px;
   background:radial-gradient(ellipse at 30% 50%,rgba(192,132,252,.22),transparent 70%);text-align:left}
 .lootrow .bigdrop .invcell{width:76px;height:76px;flex:none;box-shadow:0 0 14px 2px rgba(192,132,252,.55)}
